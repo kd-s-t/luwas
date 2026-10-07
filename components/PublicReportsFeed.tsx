@@ -8,10 +8,31 @@ import type { HazardReport } from "@/lib/reports/types";
 
 export function PublicReportsFeed() {
   const [rows, setRows] = useState<HazardReport[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    return subscribePublicReports(setRows);
+    setError(null);
+    return subscribePublicReports(setRows, (err) => {
+      setError(err.message);
+      setRows([]);
+    });
   }, []);
+
+  if (error) {
+    return (
+      <div className="border border-[var(--danger)]/40 bg-[var(--danger)]/5 px-4 py-6 text-sm text-[var(--muted)]">
+        <p className="font-medium text-[var(--foreground)]">
+          Could not load reports
+        </p>
+        <p className="mt-1 font-mono text-[11px]">{error}</p>
+        <p className="mt-2 text-xs">
+          If you use emulators, restart them (or reload{" "}
+          <code className="font-mono">firestore.rules</code>) so report reads are
+          allowed.
+        </p>
+      </div>
+    );
+  }
 
   if (rows == null) {
     return (
