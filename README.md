@@ -72,7 +72,7 @@ Details: [.github/workflows/README.md](.github/workflows/README.md)
 
 ## Weather
 
-Set `GOOGLE_WEATHER_API_KEY` in `.env.local` (Maps Platform **Weather API**). The app serves live conditions for Brgy. Nangka via `/api/weather`. If the key is unset, it falls back to Open-Meteo.
+Set `GOOGLE_WEATHER_API_KEY` for live Brgy. Nangka conditions via `/api/weather` (Maps Platform Weather). Responses are cached ~30 minutes so refreshes do not bill on every load. Falls back to free Open-Meteo if the key is unset.
 
 ## Production
 

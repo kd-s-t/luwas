@@ -31,10 +31,48 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  function fillDemo() {
+  async function loginDemo() {
     setEmail(DEMO_OFFICER.email);
     setPassword(DEMO_OFFICER.password);
     setError(null);
+    setSubmitting(true);
+    try {
+      try {
+        await login(DEMO_OFFICER.email, DEMO_OFFICER.password);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "";
+        const missing =
+          /user-not-found|invalid-credential|INVALID_LOGIN_CREDENTIALS/i.test(
+            message,
+          );
+        if (useEmulators && missing) {
+          try {
+            await register({
+              email: DEMO_OFFICER.email,
+              password: DEMO_OFFICER.password,
+              displayName: DEMO_OFFICER.displayName,
+              orgName: DEMO_OFFICER.orgName,
+              idProof: DEMO_ID_PROOF,
+            });
+          } catch (regErr) {
+            const regMsg =
+              regErr instanceof Error ? regErr.message : String(regErr);
+            if (/email-already-in-use/i.test(regMsg)) {
+              await login(DEMO_OFFICER.email, DEMO_OFFICER.password);
+            } else {
+              throw regErr;
+            }
+          }
+        } else {
+          throw err;
+        }
+      }
+      await redirectForCurrentUser();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Login failed");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   async function redirectForCurrentUser() {
@@ -123,10 +161,11 @@ export default function LoginPage() {
           {useEmulators ? (
             <button
               type="button"
-              onClick={fillDemo}
-              className="w-full border border-[var(--border)] px-3 py-2 font-mono text-xs tracking-wider text-[var(--muted)] uppercase transition hover:border-[var(--accent)] hover:text-[var(--foreground)]"
+              onClick={() => void loginDemo()}
+              disabled={submitting}
+              className="w-full border border-[var(--border)] px-3 py-2 font-mono text-xs tracking-wider text-[var(--muted)] uppercase transition hover:border-[var(--accent)] hover:text-[var(--foreground)] disabled:opacity-60"
             >
-              Use demo officer
+              {submitting ? "Signing in…" : "Use demo officer"}
             </button>
           ) : null}
           <label className="block text-sm">

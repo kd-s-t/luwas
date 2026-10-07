@@ -22,6 +22,10 @@ export type ScenarioReportPin = {
   sourceLabel: string;
   notes: string;
   reportedAt: string;
+  /** Public media path — also used when seeding Firestore. */
+  mediaUrl?: string;
+  /** Deep link; defaults to `/reports/{id}` when mediaUrl is set. */
+  href?: string;
 };
 
 export type ScenarioHouseholdNeed = {

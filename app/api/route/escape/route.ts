@@ -16,8 +16,10 @@ type OsrmResponse = {
 
 async function queryOsrm(from: LatLng, to: LatLng) {
   const coords = `${from.lng},${from.lat};${to.lng},${to.lat}`;
+  // Prefer foot profile so paths follow walkable streets, not highway shortcuts.
   const urls = [
-    `https://routing.openstreetmap.de/routed-foot/route/v1/driving/${coords}?overview=full&geometries=geojson`,
+    `https://routing.openstreetmap.de/routed-foot/route/v1/foot/${coords}?overview=full&geometries=geojson`,
+    `https://router.project-osrm.org/route/v1/foot/${coords}?overview=full&geometries=geojson`,
     `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`,
   ];
 
@@ -25,7 +27,7 @@ async function queryOsrm(from: LatLng, to: LatLng) {
     try {
       const res = await fetch(url, {
         headers: { Accept: "application/json" },
-        signal: AbortSignal.timeout(12_000),
+        signal: AbortSignal.timeout(4_000),
       });
       if (!res.ok) continue;
       const data = (await res.json()) as OsrmResponse;

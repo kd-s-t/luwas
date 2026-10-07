@@ -10,9 +10,8 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AssistPriority } from "@/lib/ai/assistTypes";
-import { ScenarioNeedsPanel } from "@/components/ScenarioNeedsPanel";
-import { ScenarioSwitcher } from "@/components/ScenarioSwitcher";
 import { DEFAULT_MAP_AREA, type MapArea } from "@/lib/geo/mapAreas";
+import { useRoadEscapes } from "@/lib/geo/useRoadEscapes";
 import {
   fetchNearbyEarthquakes,
   zoomEarthUrl,
@@ -20,10 +19,7 @@ import {
 } from "@/lib/hazards/usgsEarthquakes";
 import { CEBU_HOUSEHOLDS } from "@/lib/households/seed";
 import type { Household } from "@/lib/households/types";
-import {
-  getCat5Scenario,
-  type DrrmScenarioPhase,
-} from "@/lib/scenarios";
+import { CAT5_DURING } from "@/lib/scenarios";
 import {
   fetchCebuWeather,
   isHazardousWeather,
@@ -74,8 +70,9 @@ function seedAsHouseholds(): Household[] {
 
 export function PublicSituationMap() {
   const households = useMemo(() => seedAsHouseholds(), []);
-  const [phase, setPhase] = useState<DrrmScenarioPhase>("during");
-  const bundle = useMemo(() => getCat5Scenario(phase), [phase]);
+  const bundle = CAT5_DURING;
+  // Crow-flies first; OSRM street routing is deferred (slow public routers).
+  const roadEscapes = useRoadEscapes(bundle.escapes, { deferMs: 1200 });
   const assistPriorities = useMemo(() => {
     const map: Record<string, AssistPriority> = {};
     for (const a of bundle.actions) {
@@ -119,7 +116,7 @@ export function PublicSituationMap() {
     }
 
     load();
-    const id = window.setInterval(load, 10 * 60 * 1000);
+    const id = window.setInterval(load, 30 * 60 * 1000);
     return () => {
       cancelled = true;
       window.clearInterval(id);
@@ -179,19 +176,19 @@ export function PublicSituationMap() {
           setLocateError(err.message || "Could not read your location.");
         }
       },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60_000 },
+      {
+        enableHighAccuracy: false,
+        timeout: 8000,
+        maximumAge: 5 * 60_000,
+      },
     );
   }, [applyCoords]);
 
+  // Defer locate so the map paints first
   useEffect(() => {
-    requestLocation();
+    const id = window.setTimeout(() => requestLocation(), 1500);
+    return () => window.clearTimeout(id);
   }, [requestLocation]);
-
-  function onPhaseChange(next: DrrmScenarioPhase) {
-    setPhase(next);
-    // Keep scenario focused on Nangka ops; visitor pin stays if already set
-    setArea(DEFAULT_MAP_AREA);
-  }
 
   const hazard =
     weather &&
@@ -211,50 +208,51 @@ export function PublicSituationMap() {
   return (
     <section
       id="live-map"
-      className="relative z-10 border-t border-[var(--border)] bg-[var(--surface)] py-12 sm:py-16"
+      className="relative z-10 border-t border-[var(--border)] bg-[var(--surface)] pt-12 sm:pt-16"
     >
       <div className="w-full">
         <div className="mb-6 flex flex-col gap-4 px-4 sm:flex-row sm:items-end sm:justify-between sm:px-8">
           <div className="min-w-0 flex-1">
             <p className="font-mono text-xs tracking-[0.25em] text-[var(--accent)] uppercase">
-              {bundle.eyebrow}
+              Live map
               {locateEyebrow ? ` · ${locateEyebrow}` : ""}
             </p>
             <h2 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-wide sm:text-4xl">
               {DEFAULT_MAP_AREA.name}
             </h2>
-            <p className="mt-2 max-w-xl text-[var(--muted)]">{bundle.blurb}</p>
+            <p className="mt-2 max-w-xl text-[var(--muted)]">
+              Demo hazard layers and household priorities for Brgy. Nangka —
+              floods, slides, and typhoon pins for training, plus live weather
+              and USGS quakes.
+            </p>
 
-            <div className="mt-4 flex flex-wrap items-end gap-4">
-              <ScenarioSwitcher phase={phase} onChange={onPhaseChange} />
-              {(locateStatus === "prompting" ||
-                locateStatus === "locating" ||
-                locateStatus === "denied" ||
-                locateStatus === "error") && (
-                <div className="flex flex-wrap items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={requestLocation}
-                    disabled={locateStatus === "locating"}
-                    className="inline-flex items-center gap-2 border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 font-mono text-[10px] tracking-wider text-[var(--foreground)] uppercase transition hover:border-[var(--accent)] disabled:opacity-60"
-                  >
-                    {locateStatus === "locating" ? (
-                      <Loader2 className="size-3.5 animate-spin" aria-hidden />
-                    ) : (
-                      <LocateFixed className="size-3.5" aria-hidden />
-                    )}
-                    {locateStatus === "locating"
-                      ? "Locating…"
-                      : locateStatus === "denied" || locateStatus === "error"
-                        ? "Try location again"
-                        : "Use my location"}
-                  </button>
-                  {locateError ? (
-                    <p className="text-xs text-[var(--danger)]">{locateError}</p>
-                  ) : null}
-                </div>
-              )}
-            </div>
+            {(locateStatus === "prompting" ||
+              locateStatus === "locating" ||
+              locateStatus === "denied" ||
+              locateStatus === "error") && (
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={requestLocation}
+                  disabled={locateStatus === "locating"}
+                  className="inline-flex items-center gap-2 border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 font-mono text-[10px] tracking-wider text-[var(--foreground)] uppercase transition hover:border-[var(--accent)] disabled:opacity-60"
+                >
+                  {locateStatus === "locating" ? (
+                    <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                  ) : (
+                    <LocateFixed className="size-3.5" aria-hidden />
+                  )}
+                  {locateStatus === "locating"
+                    ? "Locating…"
+                    : locateStatus === "denied" || locateStatus === "error"
+                      ? "Try location again"
+                      : "Use my location"}
+                </button>
+                {locateError ? (
+                  <p className="text-xs text-[var(--danger)]">{locateError}</p>
+                ) : null}
+              </div>
+            )}
 
             <a
               href={zoomUrl}
@@ -299,14 +297,9 @@ export function PublicSituationMap() {
           </div>
         </div>
 
-        <div className="mb-4 px-4 sm:px-8">
-          <ScenarioNeedsPanel bundle={bundle} />
-        </div>
-
         <div className="w-full overflow-hidden border-y border-[var(--border)] bg-[var(--surface-raised)]">
           <div className="relative h-[360px] sm:h-[440px] lg:h-[min(70vh,720px)]">
             <AreaMapInner
-              key={phase}
               area={DEFAULT_MAP_AREA}
               userLocation={userLocation}
               forceLayers
@@ -318,7 +311,7 @@ export function PublicSituationMap() {
               fires={bundle.fires}
               reportPins={bundle.reportPins}
               assistPriorities={assistPriorities}
-              escapeRoutes={bundle.escapes}
+              escapeRoutes={roadEscapes}
             />
           </div>
           <div className="flex flex-wrap gap-x-5 gap-y-2 border-t border-[var(--border)] px-4 py-3 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">

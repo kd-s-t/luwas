@@ -74,7 +74,7 @@ export async function fetchGoogleCebuWeather(
   url.searchParams.set("location.latitude", String(lat));
   url.searchParams.set("location.longitude", String(lng));
 
-  const res = await fetch(url.toString(), { next: { revalidate: 300 } });
+  const res = await fetch(url.toString(), { next: { revalidate: 1800 } });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     throw new Error(

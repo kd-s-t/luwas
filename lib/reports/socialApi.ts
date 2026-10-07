@@ -38,8 +38,18 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
     mediaPath: String(data.mediaPath ?? ""),
     mediaUrl: String(data.mediaUrl ?? ""),
     mediaMime: String(data.mediaMime ?? ""),
+    mediaSource:
+      (data.mediaSource as HazardReport["mediaSource"]) ?? null,
     lat: typeof data.lat === "number" ? data.lat : null,
     lng: typeof data.lng === "number" ? data.lng : null,
+    locationAccuracyM:
+      typeof data.locationAccuracyM === "number"
+        ? data.locationAccuracyM
+        : null,
+    locationLabel:
+      data.locationLabel != null ? String(data.locationLabel) : null,
+    device: data.device != null ? String(data.device) : null,
+    ipAddress: data.ipAddress != null ? String(data.ipAddress) : null,
     status: (data.status as HazardReport["status"]) ?? "queued",
     aiVerdict: (data.aiVerdict as HazardReport["aiVerdict"]) ?? null,
     aiConfidence:

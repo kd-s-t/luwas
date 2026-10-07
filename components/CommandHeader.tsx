@@ -29,6 +29,11 @@ const NAV = [
     label: "Barangays",
     match: (p: string) => p.startsWith("/barangays"),
   },
+  {
+    href: "/profile",
+    label: "Profile",
+    match: (p: string) => p.startsWith("/profile"),
+  },
 ] as const;
 
 export function CommandHeader() {
@@ -36,7 +41,7 @@ export function CommandHeader() {
   const pathname = usePathname();
 
   return (
-    <FadeIn y={8}>
+    <FadeIn y={8} className="relative z-20">
       <header className="border-b border-[var(--border)] bg-[var(--surface-raised)]/90 backdrop-blur">
         <div className="flex items-center justify-between px-4 py-3 sm:px-6">
           <div>
@@ -51,14 +56,17 @@ export function CommandHeader() {
             </p>
           </div>
           <div className="flex items-center gap-4 text-right">
-            <div className="hidden sm:block">
+            <Link
+              href="/profile"
+              className="hidden text-right transition hover:text-[var(--accent)] sm:block"
+            >
               <p className="text-sm font-medium">
                 {profile?.displayName ?? user?.email}
               </p>
               <p className="text-xs text-[var(--muted)]">
                 {isOfficer(profile) ? profile.orgName : "Officer"}
               </p>
-            </div>
+            </Link>
             <button
               type="button"
               onClick={() => logout()}

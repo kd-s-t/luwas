@@ -2,22 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
+import { ReportStatusBadge } from "@/components/ReportStatusBadge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { subscribeAllReports, updateReportValidation } from "@/lib/reports/api";
-import type { HazardReport, ReportStatus } from "@/lib/reports/types";
+import type { HazardReport } from "@/lib/reports/types";
 
 type Filter = "queue" | "all" | "legit" | "rejected";
-
-function statusVariant(
-  status: ReportStatus,
-): "default" | "outline" | "warn" | "danger" {
-  if (status === "legit") return "default";
-  if (status === "rejected" || status === "failed") return "danger";
-  if (status === "needs_review" || status === "validating" || status === "queued")
-    return "warn";
-  return "outline";
-}
 
 export function ValidationQueue() {
   const [rows, setRows] = useState<HazardReport[]>([]);
@@ -80,7 +71,7 @@ export function ValidationQueue() {
           {(
             [
               ["queue", "Queue"],
-              ["legit", "Legit"],
+              ["legit", "Verified"],
               ["rejected", "Rejected"],
               ["all", "All"],
             ] as const
@@ -137,7 +128,7 @@ export function ValidationQueue() {
                     size="sm"
                   />
                   <p className="font-medium">{r.title}</p>
-                  <Badge variant={statusVariant(r.status)}>{r.status}</Badge>
+                  <ReportStatusBadge status={r.status} />
                   {r.aiSource ? (
                     <Badge variant="outline">via {r.aiSource}</Badge>
                   ) : null}
@@ -163,7 +154,7 @@ export function ValidationQueue() {
                   disabled={busyId === r.id || r.status === "legit"}
                   onClick={() => override(r, "legit")}
                 >
-                  Mark legit
+                  Mark verified
                 </Button>
                 <Button
                   type="button"

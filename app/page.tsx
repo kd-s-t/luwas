@@ -17,7 +17,7 @@ export default function HomePage() {
 
   return (
     <div className="relative min-h-screen overflow-hidden">
-      <HomeNav />
+      <HomeNav overlay />
 
       <motion.div
         className="pointer-events-none absolute inset-0 dro-hero-map"
@@ -31,7 +31,7 @@ export default function HomePage() {
         aria-hidden
       />
 
-      <Stagger className="relative z-10 flex min-h-screen flex-col justify-end px-4 pb-16 pt-28 sm:justify-center sm:px-8 sm:pb-24 sm:pt-20 lg:max-w-[58%]">
+      <Stagger className="relative z-10 flex min-h-[70vh] flex-col justify-end px-4 pb-16 pt-10 sm:min-h-[75vh] sm:justify-center sm:px-8 sm:pb-24 sm:pt-12 lg:max-w-[58%]">
         <FadeItem>
           <p className="font-mono text-xs tracking-[0.28em] text-[var(--accent)] uppercase">
             Barangay · LGU · DRRM
@@ -79,21 +79,6 @@ export default function HomePage() {
 
       <FadeIn delay={0.15} y={18}>
         <PublicSituationMap />
-      </FadeIn>
-
-      <FadeIn delay={0.05} y={16}>
-        <section className="relative z-10 border-t border-[var(--border)] bg-[var(--surface-raised)] px-4 py-16 sm:px-8">
-          <div className="mx-auto max-w-3xl">
-            <h2 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-wide sm:text-4xl">
-              Built for the barangay desk
-            </h2>
-            <p className="mt-3 max-w-xl text-[var(--muted)]">
-              Capitan and DRRM officers open one situation board: hazard context
-              in, Gemini-assisted needs and resource routing out, then push, SMS,
-              or email to the right purok contacts.
-            </p>
-          </div>
-        </section>
       </FadeIn>
 
       <HomeFooter />

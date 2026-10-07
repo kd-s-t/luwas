@@ -19,14 +19,11 @@ export function ScenarioSwitcher({
   className,
 }: ScenarioSwitcherProps) {
   return (
-    <div className={cn("flex flex-col gap-2", className)}>
-      <p className="font-mono text-[10px] tracking-[0.2em] text-[var(--muted)] uppercase">
-        Typhoon scenario
-      </p>
+    <div className={cn("flex shrink-0", className)}>
       <div
         role="tablist"
         aria-label="DRRM scenario phase"
-        className="inline-flex border border-[var(--border)] bg-[var(--surface-raised)]"
+        className="inline-flex border border-[var(--border)] bg-[var(--surface)]"
       >
         {SCENARIO_PHASES.map((p) => {
           const active = p === phase;
@@ -39,7 +36,7 @@ export function ScenarioSwitcher({
               aria-selected={active}
               onClick={() => onChange(p)}
               className={cn(
-                "min-w-[5.5rem] px-3 py-2 font-mono text-[10px] tracking-wider uppercase transition",
+                "min-w-[4.75rem] px-3 py-2 font-mono text-[10px] tracking-wider uppercase transition",
                 active
                   ? "bg-[var(--accent)] text-white"
                   : "text-[var(--muted)] hover:bg-[var(--surface-panel)] hover:text-[var(--foreground)]",

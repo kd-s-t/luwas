@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState, type FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AuthCard } from "@/components/AuthCard";
 import { AuthGate } from "@/components/AuthGate";
 import {
@@ -13,9 +13,16 @@ import {
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useEmulators } from "@/lib/firebase/client";
 
-export default function CitizenLoginPage() {
+function safeNextPath(raw: string | null): string {
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "/citizen";
+  return raw;
+}
+
+function CitizenLoginForm() {
   const { login, registerCitizen } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextPath = safeNextPath(searchParams.get("next"));
   const [email, setEmail] = useState(
     useEmulators ? DEMO_CITIZENS[0].email : "",
   );
@@ -71,7 +78,7 @@ export default function CitizenLoginPage() {
           throw err;
         }
       }
-      router.replace("/citizen");
+      router.replace(nextPath);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {
@@ -159,5 +166,13 @@ export default function CitizenLoginPage() {
         </form>
       </AuthCard>
     </AuthGate>
+  );
+}
+
+export default function CitizenLoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <CitizenLoginForm />
+    </Suspense>
   );
 }

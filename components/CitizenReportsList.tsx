@@ -2,18 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
-import { Badge } from "@/components/ui/badge";
+import { ReportStatusBadge } from "@/components/ReportStatusBadge";
 import { subscribeCitizenReports } from "@/lib/reports/api";
-import type { HazardReport, ReportStatus } from "@/lib/reports/types";
-
-function statusVariant(
-  status: ReportStatus,
-): "default" | "outline" | "warn" | "danger" {
-  if (status === "legit") return "default";
-  if (status === "rejected" || status === "failed") return "danger";
-  if (status === "needs_review" || status === "validating") return "warn";
-  return "outline";
-}
+import type { HazardReport } from "@/lib/reports/types";
 
 export function CitizenReportsList({ citizenUid }: { citizenUid: string }) {
   const [rows, setRows] = useState<HazardReport[]>([]);
@@ -60,7 +51,7 @@ export function CitizenReportsList({ citizenUid }: { citizenUid: string }) {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="truncate text-sm font-medium">{r.title}</p>
-                  <Badge variant={statusVariant(r.status)}>{r.status}</Badge>
+                  <ReportStatusBadge status={r.status} />
                 </div>
                 <p className="mt-0.5 text-xs text-[var(--muted)]">
                   {r.hazardHint} · {new Date(r.createdAt).toLocaleString()}

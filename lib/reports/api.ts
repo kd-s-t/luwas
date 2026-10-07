@@ -15,6 +15,7 @@ import { EMPTY_REACTION_COUNTS } from "@/lib/reports/socialTypes";
 import type {
   HazardReport,
   ReportHazardHint,
+  ReportMediaSource,
   ReportMediaType,
   ReportStatus,
 } from "@/lib/reports/types";
@@ -39,8 +40,17 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
     mediaPath: String(data.mediaPath ?? ""),
     mediaUrl: String(data.mediaUrl ?? ""),
     mediaMime: String(data.mediaMime ?? ""),
+    mediaSource: (data.mediaSource as ReportMediaSource) ?? null,
     lat: typeof data.lat === "number" ? data.lat : null,
     lng: typeof data.lng === "number" ? data.lng : null,
+    locationAccuracyM:
+      typeof data.locationAccuracyM === "number"
+        ? data.locationAccuracyM
+        : null,
+    locationLabel:
+      data.locationLabel != null ? String(data.locationLabel) : null,
+    device: data.device != null ? String(data.device) : null,
+    ipAddress: data.ipAddress != null ? String(data.ipAddress) : null,
     status: (data.status as ReportStatus) ?? "queued",
     aiVerdict: (data.aiVerdict as HazardReport["aiVerdict"]) ?? null,
     aiConfidence:
@@ -73,8 +83,13 @@ export async function createHazardReport(input: {
   mediaPath: string;
   mediaUrl: string;
   mediaMime: string;
+  mediaSource?: ReportMediaSource | null;
   lat: number | null;
   lng: number | null;
+  locationAccuracyM?: number | null;
+  locationLabel?: string | null;
+  device?: string | null;
+  ipAddress?: string | null;
 }): Promise<string> {
   const now = new Date().toISOString();
   const id = input.id ?? crypto.randomUUID();
@@ -83,6 +98,11 @@ export async function createHazardReport(input: {
   await setDoc(doc(getClientDb(), COL, id), {
     ...fields,
     citizenPhotoURL: input.citizenPhotoURL ?? null,
+    mediaSource: input.mediaSource ?? null,
+    locationAccuracyM: input.locationAccuracyM ?? null,
+    locationLabel: input.locationLabel ?? null,
+    device: input.device ?? null,
+    ipAddress: input.ipAddress ?? null,
     status: "queued" satisfies ReportStatus,
     aiVerdict: null,
     aiConfidence: null,

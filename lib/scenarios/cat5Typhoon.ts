@@ -9,7 +9,7 @@ import {
   type FloodSample,
 } from "@/lib/hazards/floodSamples";
 import { CEBU_LANDSLIDE_SAMPLES } from "@/lib/hazards/landslideSamples";
-import type { TyphoonSample } from "@/lib/hazards/typhoonSamples";
+import { odetteTyphoonForPhase } from "@/lib/hazards/odetteIbtracs";
 import { CEBU_HOUSEHOLDS } from "@/lib/households/seed";
 import type { Household } from "@/lib/households/types";
 import type {
@@ -80,106 +80,10 @@ function withEscapes(
   );
 }
 
-/** Forecast / observed eye path for Super Typhoon Ramil (demo). */
-const RAMIL_TRACK = [
-  {
-    lat: 11.15,
-    lng: 126.55,
-    label: "Observed · +36h",
-    at: "2026-10-06T06:00:00+08:00",
-  },
-  {
-    lat: 10.95,
-    lng: 125.85,
-    label: "Observed · +24h",
-    at: "2026-10-06T18:00:00+08:00",
-  },
-  {
-    lat: 10.72,
-    lng: 125.15,
-    label: "Forecast · +12h",
-    at: "2026-10-07T06:00:00+08:00",
-  },
-  {
-    lat: 10.48,
-    lng: 124.35,
-    label: "Forecast · landfall approach",
-    at: "2026-10-07T18:00:00+08:00",
-  },
-  {
-    lat: 10.38,
-    lng: 123.96,
-    label: "Forecast · over Consolacion",
-    at: "2026-10-08T02:00:00+08:00",
-  },
-  {
-    lat: 10.22,
-    lng: 123.15,
-    label: "Forecast · exit west",
-    at: "2026-10-08T14:00:00+08:00",
-  },
-] as const;
-
-const BEFORE_TYPHOONS: TyphoonSample[] = [
-  {
-    id: "ty-ramil-before",
-    name: "Super Typhoon Ramil (Cat 5)",
-    internationalName: "Ramil",
-    category: "super_typhoon",
-    lat: 10.72,
-    lng: 125.15,
-    maxWindsKmh: 220,
-    movement: "WNW at 18 km/h",
-    distanceKm: 145,
-    etaNote: "Dangerous winds possible in 12–18 hrs (demo)",
-    reportedAt: "2026-10-07T06:00:00+08:00",
-    notes:
-      "Cat 5 · forecast cone toward eastern Cebu · preemptive evac for flood-prone and vulnerable households",
-    track: [...RAMIL_TRACK],
-    windRadiiKm: { gale: 320, storm: 180, typhoon: 95 },
-  },
-];
-
-const DURING_TYPHOONS: TyphoonSample[] = [
-  {
-    id: "ty-ramil-during",
-    name: "Super Typhoon Ramil · eye",
-    internationalName: "Ramil",
-    category: "super_typhoon",
-    lat: 10.42,
-    lng: 124.18,
-    maxWindsKmh: 205,
-    movement: "West at 16 km/h · eye wall approaching",
-    distanceKm: 28,
-    etaNote: "Eye wall / destructive winds now (demo)",
-    reportedAt: "2026-10-08T01:30:00+08:00",
-    notes:
-      "Landfall impact window · flood + landslide + blockage reports active in Nangka",
-    track: RAMIL_TRACK.map((p, i) =>
-      i <= 3 ? { ...p, label: p.label.replace("Forecast", "Track") } : p,
-    ),
-    windRadiiKm: { gale: 280, storm: 150, typhoon: 75 },
-  },
-];
-
-const AFTER_TYPHOONS: TyphoonSample[] = [
-  {
-    id: "ty-ramil-after",
-    name: "Ex-Ramil · remnant low",
-    internationalName: "Ramil (remnant)",
-    category: "tropical_storm",
-    lat: 10.18,
-    lng: 122.85,
-    maxWindsKmh: 65,
-    movement: "WSW · exiting Visayas",
-    distanceKm: 135,
-    etaNote: "Storm passed · residual rain possible",
-    reportedAt: "2026-10-08T16:00:00+08:00",
-    notes: "Focus shifts to welfare checks, debris fires, and road clearing",
-    track: [...RAMIL_TRACK],
-    windRadiiKm: { gale: 120, storm: 50, typhoon: 20 },
-  },
-];
+/** Real Odette (Rai) eye snapshots from NOAA IBTrACS. */
+const BEFORE_TYPHOONS = [odetteTyphoonForPhase("before")];
+const DURING_TYPHOONS = [odetteTyphoonForPhase("during")];
+const AFTER_TYPHOONS = [odetteTyphoonForPhase("after")];
 
 const BEFORE_FLOODS: FloodSample[] = [
   {
@@ -191,8 +95,9 @@ const BEFORE_FLOODS: FloodSample[] = [
     lat: 10.3684,
     lng: 123.9661,
     depthCm: 5,
-    reportedAt: "2026-10-07T06:30:00+08:00",
-    notes: "Pre-landfall · canal already high · preemptive move recommended",
+    reportedAt: "2021-12-15T20:00:00+08:00",
+    notes:
+      "Pre-Odette · Nangka listed flood-prone by Consolacion LGU (CDN, 15 Dec 2021) · demo pin",
   },
 ];
 
@@ -202,16 +107,17 @@ const AFTER_FLOODS: FloodSample[] = [
     id: "fl-after-east",
     severity: "warning",
     depthCm: 45,
-    notes: "Water receding · still impassable for small vehicles",
-    reportedAt: "2026-10-08T15:40:00+08:00",
+    notes:
+      "Post-Odette residual inundation (demo pin) · town reported thousands of damaged homes",
+    reportedAt: "2021-12-17T14:00:00+08:00",
   },
   {
     ...CEBU_FLOOD_SAMPLES[1]!,
     id: "fl-after-singko",
     severity: "watch",
     depthCm: 20,
-    notes: "Ponding left · debris in drain",
-    reportedAt: "2026-10-08T15:20:00+08:00",
+    notes: "Ponding / debris (demo pin)",
+    reportedAt: "2021-12-17T13:30:00+08:00",
   },
 ];
 
@@ -243,14 +149,16 @@ const AFTER_FIRES: FireSample[] = [
 const DURING_REPORTS: ScenarioReportPin[] = [
   {
     id: "rpt-block-access-east",
-    title: "Road blocked · waist-deep flood",
+    title: "Road blocked · fallen tree",
     kind: "blockage",
     lat: 10.3686,
     lng: 123.9658,
     purokHint: "Purok 6",
     sourceLabel: "Image report · live",
-    notes: "Citizen photo · jeep stalled · no through traffic",
+    notes: "Tree across both lanes · no through traffic",
     reportedAt: "2026-10-08T01:45:00+08:00",
+    mediaUrl: "/reports/road-block-access-east.jpg",
+    href: "/reports/rpt-block-access-east",
   },
   {
     id: "rpt-block-singko",
@@ -262,17 +170,21 @@ const DURING_REPORTS: ScenarioReportPin[] = [
     sourceLabel: "Image report · live",
     notes: "Tree across both lanes · motorcycle only",
     reportedAt: "2026-10-08T01:20:00+08:00",
+    mediaUrl: "/reports/fallen-tree-access-road.webp",
+    href: "/reports/rpt-block-singko",
   },
   {
     id: "rpt-flood-chapel",
-    title: "Flooding · chapel approach",
+    title: "Flood road · chapel approach",
     kind: "flood",
     lat: 10.36855,
     lng: 123.96185,
     purokHint: "Purok 4",
     sourceLabel: "Image report · live",
-    notes: "Knee-deep runoff · staging still usable uphill",
+    notes: "Flash flood across both lanes · road impassable",
     reportedAt: "2026-10-08T00:55:00+08:00",
+    mediaUrl: "/reports/flood-road-chapel.png",
+    href: "/reports/rpt-flood-chapel",
   },
   {
     id: "rpt-warn-wind",
@@ -335,30 +247,34 @@ const AFTER_REPORTS: ScenarioReportPin[] = [
 ];
 
 const BEFORE_ACTIONS: AssistHouseholdAction[] = [
-  action(10, "evacuate", "Cat 5 track over Purok 6 · high flood risk · no upper floor"),
-  action(7, "evacuate", "Pregnant · priority preemptive evacuation before landfall"),
+  action(
+    10,
+    "evacuate",
+    "Odette approaching · Purok 6 flood-prone (LGU list) · no upper floor",
+  ),
+  action(7, "evacuate", "Pregnant · preemptive move before Odette landfall window"),
   action(3, "evacuate", "PWD / wheelchair · move early while roads are clear"),
-  action(2, "evacuate", "Flood-prone single-storey · inside forecast wind field"),
-  action(11, "prepare", "3 children · pack go-bag · stage at elementary if signal rises"),
+  action(2, "evacuate", "Flood-prone single-storey · Nangka on Consolacion flood list"),
+  action(11, "prepare", "3 children · go-bag · stage at elementary if signal rises"),
   action(1, "prepare", "Elderly in care · meds + early transfer to hall"),
   action(5, "prepare", "Infant · formula stock · avoid waiting for landfall"),
   action(6, "monitor", "Ground-floor store · watch flood watch upgrades"),
 ];
 
 const DURING_ACTIONS: AssistHouseholdAction[] = [
-  action(10, "evacuate", "Critical flood · blocked Access Road · image report confirms"),
+  action(10, "evacuate", "Odette impact · critical flood · Access Road blocked (demo)"),
   action(7, "evacuate", "Sheet flood at chapel · pregnant · move to shelter now"),
   action(3, "evacuate", "PWD · rising water + fallen tree blocks west exit"),
   action(2, "evacuate", "Single-storey in flood corridor · knee-deep ponding"),
   action(9, "evacuate", "East lane inundated · ground floor store flooded"),
   action(8, "prepare", "Neighborhood hub · generator · assist neighbors then shelter"),
   action(4, "prepare", "2-storey host · take in nearby evacuees at school"),
-  action(1, "prepare", "Elderly · winds near hall · escort to barangay hall"),
-  action(0, "monitor", "Tanod post · hold position unless eye wall intensifies"),
+  action(1, "prepare", "Elderly · destructive winds · escort to barangay hall"),
+  action(0, "monitor", "Tanod post · hold unless conditions worsen"),
 ];
 
 const AFTER_ACTIONS: AssistHouseholdAction[] = [
-  action(10, "evacuate", "Still displaced · home unlivable · residual flood"),
+  action(10, "evacuate", "Still displaced post-Odette · residual flood"),
   action(7, "evacuate", "Displaced · chapel staging · needs shelter assignment"),
   action(1, "monitor", "Welfare check · elderly · no contact since landfall"),
   action(3, "monitor", "Welfare check · PWD household · confirm meds & mobility"),
@@ -386,11 +302,11 @@ function buildNeeds(
 
 export const CAT5_BEFORE: ScenarioBundle = {
   phase: "before",
-  label: "Before landfall",
+  label: "Before Odette",
   shortLabel: "Before",
-  eyebrow: "Scenario · incoming Cat 5",
+  eyebrow: "Historical · Odette (Rai) · 15 Dec 2021",
   blurb:
-    "Forecast track of Super Typhoon Ramil. Preemptive list: who must evacuate or prepare before roads close.",
+    "Real IBTrACS track of Typhoon Odette approaching Visayas. Preemptive list for flood-prone Nangka households (demo roster on a real storm path).",
   typhoons: BEFORE_TYPHOONS,
   floods: BEFORE_FLOODS,
   landslides: [],
@@ -403,11 +319,11 @@ export const CAT5_BEFORE: ScenarioBundle = {
 
 export const CAT5_DURING: ScenarioBundle = {
   phase: "during",
-  label: "During impact",
+  label: "During Odette",
   shortLabel: "During",
-  eyebrow: "Scenario · landfall window",
+  eyebrow: "Historical · Odette (Rai) · 16 Dec 2021",
   blurb:
-    "Eye, wind field, floods, and live image reports. Who needs help — and who is blocked by flood or debris.",
+    "Real eye position near Cebu (~2 hrs before Carcar landfall). Flood / landslide / report pins are demo overlays on the observed track.",
   typhoons: DURING_TYPHOONS,
   floods: CEBU_FLOOD_SAMPLES,
   landslides: CEBU_LANDSLIDE_SAMPLES,
@@ -428,11 +344,11 @@ export const CAT5_DURING: ScenarioBundle = {
 
 export const CAT5_AFTER: ScenarioBundle = {
   phase: "after",
-  label: "After the storm",
+  label: "After Odette",
   shortLabel: "After",
-  eyebrow: "Scenario · recovery & checks",
+  eyebrow: "Historical · Odette (Rai) · 17 Dec 2021",
   blurb:
-    "Residual flood and fire. Image reports show live blockages. Barangay roster: who still needs help or a welfare check.",
+    "Storm core west of Negros on the real track. Recovery: residual flood/fire demo pins + welfare checks. Consolacion had mass housing damage after Odette.",
   typhoons: AFTER_TYPHOONS,
   floods: AFTER_FLOODS,
   landslides: [],

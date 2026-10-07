@@ -47,7 +47,7 @@ export async function fetchOpenMeteoCebuWeather(): Promise<AreaWeather> {
   url.searchParams.set("timezone", "Asia/Manila");
   url.searchParams.set("wind_speed_unit", "kmh");
 
-  const res = await fetch(url.toString());
+  const res = await fetch(url.toString(), { next: { revalidate: 1800 } });
   if (!res.ok) {
     throw new Error(`Weather fetch failed (${res.status})`);
   }
@@ -84,7 +84,8 @@ export async function fetchOpenMeteoCebuWeather(): Promise<AreaWeather> {
  * Client-side helper — hits Luwas `/api/weather` so the Google key stays server-only.
  */
 export async function fetchCebuWeather(): Promise<AreaWeather> {
-  const res = await fetch("/api/weather", { cache: "no-store" });
+  // Respect Cache-Control from /api/weather (5 min). Avoid cache: "no-store".
+  const res = await fetch("/api/weather");
   if (!res.ok) {
     const err = (await res.json().catch(() => null)) as { error?: string } | null;
     throw new Error(err?.error ?? `Weather fetch failed (${res.status})`);

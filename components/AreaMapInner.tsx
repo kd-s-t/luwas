@@ -540,26 +540,40 @@ export default function AreaMapInner({
           </Popup>
         </Marker>
       ))}
-      {layerReports.map((rp) => (
-        <Marker
-          key={rp.id}
-          position={[rp.lat, rp.lng]}
-          icon={reportIcon(rp.kind)}
-          zIndexOffset={860}
-        >
-          <Popup>
-            <strong>{rp.title}</strong>
-            <br />
-            <span className="font-mono text-xs uppercase">
-              {rp.sourceLabel}
-            </span>
-            <br />
-            {rp.purokHint}
-            <br />
-            {rp.notes}
-          </Popup>
-        </Marker>
-      ))}
+      {layerReports.map((rp) => {
+        const href = rp.href ?? (rp.mediaUrl ? `/reports/${rp.id}` : null);
+        return (
+          <Marker
+            key={rp.id}
+            position={[rp.lat, rp.lng]}
+            icon={reportIcon(rp.kind)}
+            zIndexOffset={860}
+          >
+            <Popup>
+              <strong>{rp.title}</strong>
+              <br />
+              {href ? (
+                <a
+                  href={href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-mono text-xs uppercase underline"
+                >
+                  {rp.sourceLabel}
+                </a>
+              ) : (
+                <span className="font-mono text-xs uppercase">
+                  {rp.sourceLabel}
+                </span>
+              )}
+              <br />
+              {rp.purokHint}
+              <br />
+              {rp.notes}
+            </Popup>
+          </Marker>
+        );
+      })}
       {layerEscapes.map((route) => {
         const path = route.path?.length >= 2 ? route.path : [route.from, route.to];
         const mid = path[Math.floor(path.length * 0.55)] ?? route.to;

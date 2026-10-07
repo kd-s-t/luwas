@@ -1,14 +1,21 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
-import { ImagePlus, Loader2, Upload } from "lucide-react";
+import { useEffect, useState, type FormEvent } from "react";
+import { ImagePlus, Loader2, MapPin, MonitorSmartphone, Upload } from "lucide-react";
 import { isCitizen, isOfficer, type UserProfile } from "@/lib/auth/types";
+import {
+  captureReportMeta,
+  isMobileClient,
+  readDeviceLabel,
+  type ReportCaptureMeta,
+} from "@/lib/reports/captureMeta";
 import {
   createHazardReport,
   markReportValidating,
   updateReportValidation,
 } from "@/lib/reports/api";
 import type { ReportHazardHint } from "@/lib/reports/types";
+import { takePendingReportMedia } from "@/lib/reports/pendingMedia";
 import { fileToBase64, uploadReportMedia } from "@/lib/reports/upload";
 import { Button } from "@/components/ui/button";
 
@@ -40,24 +47,56 @@ export function CitizenReportForm({ author }: CitizenReportFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [meta, setMeta] = useState<ReportCaptureMeta | null>(null);
+  const [metaLoading, setMetaLoading] = useState(true);
+  const [mobileCapture, setMobileCapture] = useState(false);
+
+  useEffect(() => {
+    setMobileCapture(isMobileClient());
+    const pending = takePendingReportMedia();
+    if (pending) {
+      setFile(pending);
+      setPreview(URL.createObjectURL(pending));
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setMetaLoading(true);
+    void captureReportMeta().then((next) => {
+      if (!cancelled) {
+        setMeta(next);
+        setMetaLoading(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function onFile(next: File | null) {
     setFile(next);
-    if (preview) URL.revokeObjectURL(preview);
-    setPreview(next ? URL.createObjectURL(next) : null);
+    setPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return next ? URL.createObjectURL(next) : null;
+    });
   }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (!file || submitting) return;
     setError(null);
-    setStatus("Uploading media…");
+    setStatus("Capturing location & device…");
     setSubmitting(true);
 
     const reportId = crypto.randomUUID();
     const mediaType = file.type.startsWith("video/") ? "video" : "photo";
 
     try {
+      const captured = meta ?? (await captureReportMeta());
+      setMeta(captured);
+
+      setStatus("Uploading media…");
       const uploaded = await uploadReportMedia({
         citizenUid: author.uid,
         reportId,
@@ -78,14 +117,18 @@ export function CitizenReportForm({ author }: CitizenReportFormProps) {
         mediaPath: uploaded.mediaPath,
         mediaUrl: uploaded.mediaUrl,
         mediaMime: uploaded.mediaMime,
-        lat: null,
-        lng: null,
+        mediaSource: mobileCapture ? "mobile-camera" : "desktop-file",
+        lat: captured.lat,
+        lng: captured.lng,
+        locationAccuracyM: captured.locationAccuracyM,
+        locationLabel: captured.locationLabel,
+        device: captured.device,
+        ipAddress: captured.ipAddress,
       });
 
       await markReportValidating(id);
-      setStatus("Gemini checking if this looks legit…");
+      setStatus("Gemini verifying…");
 
-      // Keep request bodies small — full video bytes overwhelm the validate API.
       const canInline =
         mediaType === "photo" && file.size <= 3.5 * 1024 * 1024;
       const mediaBase64 = canInline ? await fileToBase64(file) : undefined;
@@ -128,9 +171,9 @@ export function CitizenReportForm({ author }: CitizenReportFormProps) {
 
       setStatus(
         data.verdict === "legit"
-          ? "Marked legit — officers can use this in the queue."
+          ? "Verified by Gemini — officers can use this in the queue."
           : data.verdict === "rejected"
-            ? "Flagged as not legit / spam."
+            ? "Flagged as not verified / spam."
             : "Needs officer review.",
       );
       setTitle("");
@@ -143,6 +186,14 @@ export function CitizenReportForm({ author }: CitizenReportFormProps) {
       setSubmitting(false);
     }
   }
+
+  const deviceLine = meta?.device ?? readDeviceLabel();
+  const locationLine = metaLoading
+    ? "Getting GPS…"
+    : (meta?.locationLabel ?? "Location unavailable");
+  const ipLine = metaLoading
+    ? "Getting IP…"
+    : (meta?.ipAddress ?? "IP unavailable");
 
   return (
     <form
@@ -157,10 +208,41 @@ export function CitizenReportForm({ author }: CitizenReportFormProps) {
           What’s happening?
         </h2>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Upload a photo or short video. It enters the AI validation queue so
-          command can trust what’s real when many people post at once.
+          {mobileCapture
+            ? "Live field capture — photo or short video, then fill details and submit."
+            : "Upload a photo or short video from this computer, then fill details and submit."}
         </p>
       </div>
+
+      <label className="flex cursor-pointer flex-col items-center justify-center border border-dashed border-[var(--border)] bg-[var(--surface-raised)] px-4 py-6 transition hover:border-[var(--accent)]">
+        <input
+          type="file"
+          accept="image/*,video/*"
+          // Mobile: rear camera. Desktop: file picker only (no live capture).
+          {...(mobileCapture ? { capture: "environment" as const } : {})}
+          className="sr-only"
+          onChange={(e) => onFile(e.target.files?.[0] ?? null)}
+        />
+        {preview && file?.type.startsWith("image/") ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={preview}
+            alt="Preview"
+            className="mb-3 max-h-40 object-contain"
+          />
+        ) : preview && file?.type.startsWith("video/") ? (
+          <video src={preview} className="mb-3 max-h-40" controls muted />
+        ) : (
+          <ImagePlus className="mb-2 size-8 text-[var(--accent)]" aria-hidden />
+        )}
+        <span className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+          {file
+            ? file.name
+            : mobileCapture
+              ? "Take photo or video now"
+              : "Add photo or video"}
+        </span>
+      </label>
 
       <label className="block text-sm">
         <span className="mb-1 block text-[var(--muted)]">Title</span>
@@ -205,29 +287,42 @@ export function CitizenReportForm({ author }: CitizenReportFormProps) {
         </div>
       </fieldset>
 
-      <label className="flex cursor-pointer flex-col items-center justify-center border border-dashed border-[var(--border)] bg-[var(--surface-raised)] px-4 py-6 transition hover:border-[var(--accent)]">
-        <input
-          type="file"
-          accept="image/*,video/*"
-          className="sr-only"
-          onChange={(e) => onFile(e.target.files?.[0] ?? null)}
-        />
-        {preview && file?.type.startsWith("image/") ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={preview}
-            alt="Preview"
-            className="mb-3 max-h-40 object-contain"
-          />
-        ) : preview && file?.type.startsWith("video/") ? (
-          <video src={preview} className="mb-3 max-h-40" controls muted />
-        ) : (
-          <ImagePlus className="mb-2 size-8 text-[var(--accent)]" aria-hidden />
-        )}
-        <span className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
-          {file ? file.name : "Tap to add photo or video"}
-        </span>
-      </label>
+      <div className="border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-3">
+        <p className="font-mono text-[10px] tracking-[0.18em] text-[var(--muted)] uppercase">
+          Auto metadata · not editable
+        </p>
+        <ul className="mt-2 space-y-1.5 text-sm text-[var(--foreground)]">
+          <li className="flex items-start gap-2">
+            <MapPin className="mt-0.5 size-3.5 shrink-0 text-[var(--accent)]" />
+            <span>
+              <span className="text-[var(--muted)]">Location · </span>
+              {locationLine}
+            </span>
+          </li>
+          <li className="flex items-start gap-2">
+            <MonitorSmartphone className="mt-0.5 size-3.5 shrink-0 text-[var(--accent)]" />
+            <span>
+              <span className="text-[var(--muted)]">Device · </span>
+              {deviceLine}
+              <span className="text-[var(--muted)]">
+                {" "}
+                · {mobileCapture ? "field camera" : "desk upload"}
+              </span>
+            </span>
+          </li>
+          <li className="flex items-start gap-2 font-mono text-xs tracking-wide">
+            <span className="mt-0.5 inline-block w-3.5 shrink-0 text-center text-[var(--accent)]">
+              IP
+            </span>
+            <span>
+              <span className="font-sans text-sm text-[var(--muted)]">
+                IP ·{" "}
+              </span>
+              {ipLine}
+            </span>
+          </li>
+        </ul>
+      </div>
 
       {error ? (
         <p className="text-sm text-[var(--danger)]" role="alert">

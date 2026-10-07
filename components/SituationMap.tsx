@@ -4,8 +4,10 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AreaSearchSelect } from "@/components/AreaSearchSelect";
 import { MangluluwasChat } from "@/components/MangluluwasChat";
-import { ScenarioSwitcher } from "@/components/ScenarioSwitcher";
-import type { AssistPriority } from "@/lib/ai/assistTypes";
+import type {
+  AssistEscapeRoute,
+  AssistPriority,
+} from "@/lib/ai/assistTypes";
 import { useAiAssist } from "@/lib/ai/useAiAssist";
 import { rosterMatchesOpsArea } from "@/lib/geo/cebu";
 import {
@@ -13,6 +15,7 @@ import {
   isNangkaOpsArea,
   type MapArea,
 } from "@/lib/geo/mapAreas";
+import { useRoadEscapes } from "@/lib/geo/useRoadEscapes";
 import {
   CEBU_FLOOD_SAMPLES,
   floodSeverityLabel,
@@ -34,15 +37,16 @@ import { seedHouseholds, subscribeHouseholds } from "@/lib/households/api";
 import { CEBU_HOUSEHOLDS } from "@/lib/households/seed";
 import type { Household } from "@/lib/households/types";
 import {
-  getCat5Scenario,
+  CAT5_DURING,
   remapScenarioHouseholdIds,
-  type DrrmScenarioPhase,
 } from "@/lib/scenarios";
 import {
   fetchCebuWeather,
   isHazardousWeather,
   type AreaWeather,
 } from "@/lib/weather/openMeteo";
+
+const EMPTY_ESCAPES: AssistEscapeRoute[] = [];
 
 function seedAsHouseholds(): Household[] {
   return CEBU_HOUSEHOLDS.map((h, i) => ({
@@ -77,11 +81,9 @@ type SituationMapProps = {
 
 export function SituationMap({ officerUid }: SituationMapProps) {
   const [mapArea, setMapArea] = useState<MapArea>(DEFAULT_MAP_AREA);
-  const [phase, setPhase] = useState<DrrmScenarioPhase>("during");
   const scenario = useMemo(
-    () =>
-      remapScenarioHouseholdIds(getCat5Scenario(phase), (i) => `seed-${i}`),
-    [phase],
+    () => remapScenarioHouseholdIds(CAT5_DURING, (i) => `seed-${i}`),
+    [],
   );
   const scenarioPriorities = useMemo(() => {
     const map: Record<string, AssistPriority> = {};
@@ -115,6 +117,11 @@ export function SituationMap({ officerUid }: SituationMapProps) {
     selectChat,
     deleteChat,
   } = useAiAssist();
+  const hasAiOverlay = Object.keys(assistPriorities).length > 0;
+  const scenarioEscapes = useRoadEscapes(
+    nangkaOps && !hasAiOverlay ? scenario.escapes : EMPTY_ESCAPES,
+    { deferMs: 800 },
+  );
 
   useEffect(() => {
     setRosterReady(false);
@@ -187,7 +194,7 @@ export function SituationMap({ officerUid }: SituationMapProps) {
 
     loadWeather();
     loadQuakes();
-    const weatherId = window.setInterval(loadWeather, 10 * 60 * 1000);
+    const weatherId = window.setInterval(loadWeather, 30 * 60 * 1000);
     const quakeId = window.setInterval(loadQuakes, 5 * 60 * 1000);
     return () => {
       cancelled = true;
@@ -207,7 +214,6 @@ export function SituationMap({ officerUid }: SituationMapProps) {
     mapArea.center.lng,
     11,
   );
-  const hasAiOverlay = Object.keys(assistPriorities).length > 0;
   const mapPriorities = nangkaOps
     ? hasAiOverlay
       ? assistPriorities
@@ -216,7 +222,7 @@ export function SituationMap({ officerUid }: SituationMapProps) {
   const mapEscapes = nangkaOps
     ? hasAiOverlay
       ? escapeRoutes
-      : scenario.escapes
+      : scenarioEscapes
     : [];
 
   return (
@@ -224,12 +230,9 @@ export function SituationMap({ officerUid }: SituationMapProps) {
       <div className="relative z-30 flex flex-col gap-2.5 border-b border-[var(--border)] bg-[var(--surface-raised)] px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <div className="relative z-30 min-w-0">
           <p className="font-mono text-[9px] tracking-[0.2em] text-[var(--accent)] uppercase">
-            Area · {scenario.eyebrow}
+            Area · Ops
           </p>
           <AreaSearchSelect value={mapArea} onChange={setMapArea} />
-          <div className="mt-2">
-            <ScenarioSwitcher phase={phase} onChange={setPhase} />
-          </div>
           <p className="mt-1 text-xs text-[var(--muted)] sm:text-sm">
             {nangkaOps ? (
               <>
@@ -309,7 +312,7 @@ export function SituationMap({ officerUid }: SituationMapProps) {
       <div className="relative z-0 grid overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(320px,28vw)]">
         <div className="relative z-0 h-[320px] sm:h-[400px] lg:h-[min(70vh,720px)]">
           <AreaMapInner
-            key={`ops-map-${phase}`}
+            key="ops-map"
             area={mapArea}
             forceLayers={nangkaOps}
             households={mapHouseholds}
@@ -360,95 +363,113 @@ export function SituationMap({ officerUid }: SituationMapProps) {
 
       <div className="grid gap-0 border-t border-[var(--border)] sm:grid-cols-2">
         <HazardList
-          title="Sample · floods"
+          title="Demo · floods"
           hint="Blue squares on map · demo inundation (not live PAGASA)."
           borderClass="border-b sm:border-r"
         >
-          {CEBU_FLOOD_SAMPLES.map((fl) => (
-            <li
-              key={fl.id}
-              className="flex flex-wrap items-baseline justify-between gap-2 px-3 py-2.5 text-sm"
-            >
-              <span>
-                <span
-                  className={`font-mono text-[10px] uppercase ${
-                    fl.severity === "critical"
-                      ? "text-[var(--danger)]"
-                      : fl.severity === "warning"
-                        ? "text-[var(--warn)]"
-                        : "text-[var(--muted)]"
-                  }`}
-                >
-                  {floodSeverityLabel(fl.severity)}
-                </span>{" "}
-                {fl.name}
-                <span className="text-[var(--muted)]"> · {fl.depthCm} cm</span>
-              </span>
-              <span className="font-mono text-[10px] text-[var(--muted)]">
-                {fl.purokHint}
-              </span>
+          {scenario.floods.length === 0 ? (
+            <li className="px-3 py-4 text-sm text-[var(--muted)]">
+              No flood pins.
             </li>
-          ))}
+          ) : (
+            scenario.floods.map((fl) => (
+              <li
+                key={fl.id}
+                className="flex flex-wrap items-baseline justify-between gap-2 px-3 py-2.5 text-sm"
+              >
+                <span>
+                  <span
+                    className={`font-mono text-[10px] uppercase ${
+                      fl.severity === "critical"
+                        ? "text-[var(--danger)]"
+                        : fl.severity === "warning"
+                          ? "text-[var(--warn)]"
+                          : "text-[var(--muted)]"
+                    }`}
+                  >
+                    {floodSeverityLabel(fl.severity)}
+                  </span>{" "}
+                  {fl.name}
+                  <span className="text-[var(--muted)]"> · {fl.depthCm} cm</span>
+                </span>
+                <span className="font-mono text-[10px] text-[var(--muted)]">
+                  {fl.purokHint}
+                </span>
+              </li>
+            ))
+          )}
         </HazardList>
 
         <HazardList
-          title="Sample · typhoon"
+          title="Demo · typhoon"
           hint="Lucide Tornado icons on map · demo cyclone track (not live PAGASA)."
           borderClass="border-b"
         >
-          {CEBU_TYPHOON_SAMPLES.map((ty) => (
-            <li
-              key={ty.id}
-              className="flex flex-col gap-0.5 px-3 py-2.5 text-sm"
-            >
-              <span>
-                <span className="font-mono text-[10px] text-[var(--accent)] uppercase">
-                  {typhoonCategoryLabel(ty.category)}
-                </span>{" "}
-                {ty.name}
-              </span>
-              <span className="font-mono text-[10px] text-[var(--muted)]">
-                {ty.maxWindsKmh} km/h · {Math.round(ty.distanceKm)} km away ·{" "}
-                {ty.etaNote}
-              </span>
+          {scenario.typhoons.length === 0 ? (
+            <li className="px-3 py-4 text-sm text-[var(--muted)]">
+              No typhoon pins.
             </li>
-          ))}
+          ) : (
+            scenario.typhoons.map((ty) => (
+              <li
+                key={ty.id}
+                className="flex flex-col gap-0.5 px-3 py-2.5 text-sm"
+              >
+                <span>
+                  <span className="font-mono text-[10px] text-[var(--accent)] uppercase">
+                    {typhoonCategoryLabel(ty.category)}
+                  </span>{" "}
+                  {ty.name}
+                </span>
+                <span className="font-mono text-[10px] text-[var(--muted)]">
+                  {ty.maxWindsKmh} km/h · {Math.round(ty.distanceKm)} km away ·{" "}
+                  {ty.etaNote}
+                </span>
+              </li>
+            ))
+          )}
         </HazardList>
 
         <HazardList
-          title="Sample · landslides"
+          title="Demo · landslides"
           hint="Lucide Mountain icons on map · demo slope incidents (not live MGB)."
           borderClass="border-b sm:border-b-0 sm:border-r"
         >
-          {CEBU_LANDSLIDE_SAMPLES.map((ls) => (
-            <li
-              key={ls.id}
-              className="flex flex-wrap items-baseline justify-between gap-2 px-3 py-2.5 text-sm"
-            >
-              <span>
-                <span
-                  className={`font-mono text-[10px] uppercase ${
-                    ls.severity === "critical"
-                      ? "text-[var(--danger)]"
-                      : ls.severity === "warning"
-                        ? "text-[var(--warn)]"
-                        : "text-[var(--muted)]"
-                  }`}
-                >
-                  {landslideSeverityLabel(ls.severity)}
-                </span>{" "}
-                {ls.name}
-              </span>
-              <span className="font-mono text-[10px] text-[var(--muted)]">
-                {ls.purokHint}
-              </span>
+          {scenario.landslides.length === 0 ? (
+            <li className="px-3 py-4 text-sm text-[var(--muted)]">
+              No landslide pins.
             </li>
-          ))}
+          ) : (
+            scenario.landslides.map((ls) => (
+              <li
+                key={ls.id}
+                className="flex flex-wrap items-baseline justify-between gap-2 px-3 py-2.5 text-sm"
+              >
+                <span>
+                  <span
+                    className={`font-mono text-[10px] uppercase ${
+                      ls.severity === "critical"
+                        ? "text-[var(--danger)]"
+                        : ls.severity === "warning"
+                          ? "text-[var(--warn)]"
+                          : "text-[var(--muted)]"
+                    }`}
+                  >
+                    {landslideSeverityLabel(ls.severity)}
+                  </span>{" "}
+                  {ls.name}
+                </span>
+                <span className="font-mono text-[10px] text-[var(--muted)]">
+                  {ls.purokHint}
+                </span>
+              </li>
+            ))
+          )}
         </HazardList>
 
         <HazardList
-          title="Real · earthquakes"
-          hint="USGS M2.5+ last 7 days within 400 km."
+          title="Live · earthquakes"
+          hint="USGS M2.5+ last 7 days within 400 km — not tied to the situation switcher."
           borderClass=""
         >
           {quakeError ? (

@@ -63,23 +63,49 @@ service cloud.firestore {
       // Public feed can list reports; writers stay authenticated.
       allow read: if true;
       // Citizens and officers can both file field reports.
-      allow create: if (isCitizen() || isOfficer())
-        && request.resource.data.citizenUid == request.auth.uid
-        && request.resource.data.status == "queued"
-        && request.resource.data.title is string
-        && request.resource.data.title.size() > 0
-        && request.resource.data.mediaUrl is string
-        && request.resource.data.mediaUrl.size() > 0;
-      allow update: if signedIn() && (
-        isOfficer()
-        || (
-          resource.data.citizenUid == request.auth.uid
-          && request.resource.data.citizenUid == resource.data.citizenUid
+      allow create: if (
+        (
+          (isCitizen() || isOfficer())
+          && request.resource.data.citizenUid == request.auth.uid
+          && request.resource.data.status == "queued"
+          && request.resource.data.title is string
+          && request.resource.data.title.size() > 0
+          && request.resource.data.mediaUrl is string
+          && request.resource.data.mediaUrl.size() > 0
         )
         || (
-          // Comment/reaction counters only — any signed-in user
-          request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(["commentCount", "reactionCounts", "updatedAt", "updatedAtServer"])
+          // Curated map image-report seeds (rpt-*) — create-if-missing from the map.
+          reportId.matches('rpt-.*')
+          && request.resource.data.citizenUid == "demo-map-seed"
+          && request.resource.data.status == "legit"
+          && request.resource.data.title is string
+          && request.resource.data.title.size() > 0
+          && request.resource.data.mediaUrl is string
+          && request.resource.data.mediaUrl.size() > 0
+        )
+      );
+      allow update: if (
+        (
+          signedIn() && (
+            isOfficer()
+            || (
+              resource.data.citizenUid == request.auth.uid
+              && request.resource.data.citizenUid == resource.data.citizenUid
+            )
+            || (
+              // Comment/reaction counters only — any signed-in user
+              request.resource.data.diff(resource.data).affectedKeys()
+                .hasOnly(["commentCount", "reactionCounts", "updatedAt", "updatedAtServer"])
+            )
+          )
+        )
+        || (
+          // Demo map seeds: attach nearby citizen name/purok after create
+          reportId.matches('rpt-.*')
+          && resource.data.citizenUid == "demo-map-seed"
+          && request.resource.data.citizenUid == "demo-map-seed"
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(["citizenName", "citizenPurok", "updatedAt", "updatedAtServer"])
         )
       );
       allow delete: if isOfficer();
@@ -106,6 +132,20 @@ service cloud.firestore {
           && request.resource.data.type in ["like", "helpful", "concern"];
         allow delete: if signedIn() && request.auth.uid == reactionUid;
       }
+    }
+
+    // Website bug reports — signed-in users only; officers can read.
+    match /supportTickets/{ticketId} {
+      allow read: if isOfficer();
+      allow create: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.kind == "bug"
+        && request.resource.data.summary is string
+        && request.resource.data.summary.size() > 0
+        && request.resource.data.summary.size() <= 200
+        && request.resource.data.details is string
+        && request.resource.data.details.size() <= 4000;
+      allow update, delete: if false;
     }
   }
 }
