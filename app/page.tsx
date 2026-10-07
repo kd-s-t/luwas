@@ -1,103 +1,66 @@
-import Image from "next/image";
+import { HomeCta } from "@/components/HomeCta";
+import { HomeNav } from "@/components/HomeNav";
+import { PublicSituationMap } from "@/components/PublicSituationMap";
 
-export default function Home() {
+export default function HomePage() {
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="relative min-h-screen overflow-hidden">
+      <HomeNav />
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
+      {/* Full-bleed ops map plane */}
+      <div
+        className="pointer-events-none absolute inset-0 dro-hero-map"
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[var(--surface)] via-[var(--surface)]/85 to-transparent"
+        aria-hidden
+      />
+
+      <main className="relative z-10 flex min-h-screen flex-col justify-end px-4 pb-16 pt-28 sm:justify-center sm:px-8 sm:pb-24 sm:pt-20 lg:max-w-[58%]">
+        <p className="dro-fade-up font-mono text-xs tracking-[0.28em] text-[var(--accent)] uppercase">
+          Barangay · LGU · DRRM
+        </p>
+
+        <h1 className="dro-fade-up dro-delay-1 mt-3 font-[family-name:var(--font-display)] text-5xl font-semibold leading-[0.95] tracking-wide text-[var(--foreground)] sm:text-6xl md:text-7xl lg:text-8xl">
+          Luwas
+        </h1>
+
+        <p className="dro-fade-up dro-delay-2 mt-5 max-w-md text-base leading-relaxed text-[var(--muted)] sm:text-lg">
+          Barangay DRRM command center — turn a hazard into household needs,
+          resource moves, and the right alerts.
+        </p>
+
+        <div className="dro-fade-up dro-delay-3 mt-8 flex flex-wrap items-center gap-4">
+          <HomeCta />
           <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="#live-map"
+            className="font-mono text-xs tracking-wider text-[var(--muted)] uppercase underline-offset-4 hover:text-[var(--accent)] hover:underline"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
+            View live map ↓
           </a>
         </div>
+
+        <p className="dro-fade-up dro-delay-4 mt-8 font-mono text-[10px] tracking-[0.18em] text-[var(--muted)] uppercase">
+          <span className="dro-pulse-dot mr-2 inline-block h-1.5 w-1.5 rounded-full bg-[var(--accent)] align-middle" />
+          Guidance for responders · not a life-safety guarantee
+        </p>
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+      <PublicSituationMap />
+
+      <section className="relative z-10 border-t border-[var(--border)] bg-[var(--surface-raised)] px-4 py-16 sm:px-8">
+        <div className="mx-auto max-w-3xl">
+          <h2 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-wide sm:text-4xl">
+            Built for the barangay desk
+          </h2>
+          <p className="mt-3 max-w-xl text-[var(--muted)]">
+            Capitan and DRRM officers open one situation board: hazard context
+            in, Gemini-assisted needs and resource routing out, then push, SMS,
+            or email to the right purok contacts.
+          </p>
+        </div>
+      </section>
     </div>
   );
 }
