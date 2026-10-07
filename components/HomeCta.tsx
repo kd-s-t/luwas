@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth/AuthProvider";
 
 export function HomeCta() {
-  const { user, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
 
   if (loading) {
     return (
@@ -13,12 +13,13 @@ export function HomeCta() {
   }
 
   if (user) {
+    const href = profile?.role === "citizen" ? "/citizen" : "/command";
     return (
       <Link
-        href="/command"
+        href={href}
         className="inline-flex items-center bg-[var(--accent)] px-6 py-3 font-medium text-[var(--on-accent)] transition hover:bg-[var(--accent-dim)]"
       >
-        Open command center
+        {profile?.role === "citizen" ? "Open citizen reports" : "Open command center"}
       </Link>
     );
   }
@@ -32,10 +33,16 @@ export function HomeCta() {
         Officer login
       </Link>
       <Link
-        href="/register"
+        href="/login/citizen"
         className="inline-flex items-center border border-[var(--border)] px-6 py-3 text-[var(--foreground)] transition hover:border-[var(--accent)]"
       >
-        Register
+        Citizen login
+      </Link>
+      <Link
+        href="/reports"
+        className="inline-flex items-center text-sm text-[var(--muted)] underline-offset-4 hover:text-[var(--accent)] hover:underline"
+      >
+        Reports
       </Link>
     </div>
   );

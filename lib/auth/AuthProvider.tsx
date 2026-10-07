@@ -18,8 +18,13 @@ import {
   type User,
 } from "firebase/auth";
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import type { AcceptedIdType } from "@/lib/auth/idTypes";
 import { getClientAuth, getClientDb, useEmulators } from "@/lib/firebase/client";
-import type { OfficerProfile } from "@/lib/auth/types";
+import type {
+  CitizenProfile,
+  OfficerProfile,
+  UserProfile,
+} from "@/lib/auth/types";
 
 function mapAuthError(err: unknown): Error {
   const code =
@@ -28,7 +33,10 @@ function mapAuthError(err: unknown): Error {
       : "";
   const message = err instanceof Error ? err.message : "Authentication failed";
 
-  if (code === "auth/network-request-failed" || message.includes("network-request-failed")) {
+  if (
+    code === "auth/network-request-failed" ||
+    message.includes("network-request-failed")
+  ) {
     if (useEmulators) {
       return new Error(
         "Cannot reach Firebase Auth emulator (127.0.0.1:9099). Start it with: npm run emulators (requires Java 21+).",
@@ -40,9 +48,20 @@ function mapAuthError(err: unknown): Error {
   return err instanceof Error ? err : new Error(message);
 }
 
+export type RegisterIdProof = {
+  idVerified: boolean;
+  idType: AcceptedIdType | null;
+  idConfidence: number | null;
+  idReason: string | null;
+  idSource: "gemini" | "local" | null;
+  photoURL?: string | null;
+  idDocumentPath?: string | null;
+  faceDocumentPath?: string | null;
+};
+
 type AuthContextValue = {
   user: User | null;
-  profile: OfficerProfile | null;
+  profile: UserProfile | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (input: {
@@ -50,15 +69,40 @@ type AuthContextValue = {
     password: string;
     displayName: string;
     orgName: string;
+    idProof: RegisterIdProof;
+  }) => Promise<void>;
+  registerCitizen: (input: {
+    email: string;
+    password: string;
+    displayName: string;
+    purok: string;
+    phone: string;
+    idProof: RegisterIdProof;
   }) => Promise<void>;
   logout: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+function idProofFields(proof: RegisterIdProof) {
+  return {
+    idVerified: proof.idVerified,
+    idType: proof.idType,
+    idConfidence: proof.idConfidence,
+    idReason: proof.idReason,
+    idVerifiedAt: proof.idVerified
+      ? new Date().toISOString()
+      : null,
+    idSource: proof.idSource,
+    photoURL: proof.photoURL ?? null,
+    idDocumentPath: proof.idDocumentPath ?? null,
+    faceDocumentPath: proof.faceDocumentPath ?? null,
+  };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<OfficerProfile | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -74,7 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const snap = await getDoc(doc(getClientDb(), "users", nextUser.uid));
         if (snap.exists()) {
-          setProfile(snap.data() as OfficerProfile);
+          setProfile(snap.data() as UserProfile);
         } else {
           setProfile(null);
         }
@@ -102,14 +146,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password: string;
       displayName: string;
       orgName: string;
+      idProof: RegisterIdProof;
     }) => {
+      if (!input.idProof.idVerified) {
+        throw new Error("ID verification required before registration.");
+      }
       try {
         const cred = await createUserWithEmailAndPassword(
           getClientAuth(),
           input.email,
           input.password,
         );
-        await updateProfile(cred.user, { displayName: input.displayName });
+        await updateProfile(cred.user, {
+          displayName: input.displayName,
+          photoURL: input.idProof.photoURL ?? undefined,
+        });
 
         const profileDoc: OfficerProfile = {
           uid: cred.user.uid,
@@ -118,6 +169,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           orgName: input.orgName,
           role: "officer",
           createdAt: new Date().toISOString(),
+          ...idProofFields(input.idProof),
+        };
+
+        await setDoc(doc(getClientDb(), "users", cred.user.uid), {
+          ...profileDoc,
+          createdAtServer: serverTimestamp(),
+        });
+        setProfile(profileDoc);
+      } catch (err) {
+        throw mapAuthError(err);
+      }
+    },
+    [],
+  );
+
+  const registerCitizen = useCallback(
+    async (input: {
+      email: string;
+      password: string;
+      displayName: string;
+      purok: string;
+      phone: string;
+      idProof: RegisterIdProof;
+    }) => {
+      if (!input.idProof.idVerified) {
+        throw new Error("ID verification required before registration.");
+      }
+      try {
+        const cred = await createUserWithEmailAndPassword(
+          getClientAuth(),
+          input.email,
+          input.password,
+        );
+        await updateProfile(cred.user, {
+          displayName: input.displayName,
+          photoURL: input.idProof.photoURL ?? undefined,
+        });
+
+        const profileDoc: CitizenProfile = {
+          uid: cred.user.uid,
+          email: input.email,
+          displayName: input.displayName,
+          purok: input.purok,
+          phone: input.phone,
+          role: "citizen",
+          createdAt: new Date().toISOString(),
+          ...idProofFields(input.idProof),
         };
 
         await setDoc(doc(getClientDb(), "users", cred.user.uid), {
@@ -138,8 +236,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ user, profile, loading, login, register, logout }),
-    [user, profile, loading, login, register, logout],
+    () => ({
+      user,
+      profile,
+      loading,
+      login,
+      register,
+      registerCitizen,
+      logout,
+    }),
+    [user, profile, loading, login, register, registerCitizen, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

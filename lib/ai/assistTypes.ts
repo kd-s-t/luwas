@@ -30,4 +30,6 @@ export type AssistResult = {
   escapes: AssistEscapeRoute[];
   mapHint: string;
   source: "gemini" | "local";
+  /** Google model id when source is gemini */
+  model?: string;
 };

@@ -5,9 +5,12 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { AuthCard } from "@/components/AuthCard";
 import { AuthGate } from "@/components/AuthGate";
-import { DEMO_OFFICER } from "@/lib/auth/demoAccount";
+import { DEMO_ID_PROOF, DEMO_OFFICER } from "@/lib/auth/demoAccount";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useEmulators } from "@/lib/firebase/client";
+import { doc, getDoc } from "firebase/firestore";
+import { getClientAuth, getClientDb } from "@/lib/firebase/client";
+import type { UserProfile } from "@/lib/auth/types";
 
 function isDemoCredentials(email: string, password: string) {
   return (
@@ -34,6 +37,17 @@ export default function LoginPage() {
     setError(null);
   }
 
+  async function redirectForCurrentUser() {
+    const uid = getClientAuth().currentUser?.uid;
+    if (!uid) {
+      router.replace("/command");
+      return;
+    }
+    const snap = await getDoc(doc(getClientDb(), "users", uid));
+    const profile = snap.exists() ? (snap.data() as UserProfile) : null;
+    router.replace(profile?.role === "citizen" ? "/citizen" : "/command");
+  }
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -48,7 +62,6 @@ export default function LoginPage() {
           /user-not-found|invalid-credential|INVALID_LOGIN_CREDENTIALS/i.test(
             message,
           );
-        // Local emulator: create the prefilled demo officer on first login
         if (useEmulators && missing && isDemoCredentials(trimmedEmail, password)) {
           try {
             await register({
@@ -56,6 +69,7 @@ export default function LoginPage() {
               password: DEMO_OFFICER.password,
               displayName: DEMO_OFFICER.displayName,
               orgName: DEMO_OFFICER.orgName,
+              idProof: DEMO_ID_PROOF,
             });
           } catch (regErr) {
             const regMsg =
@@ -70,7 +84,7 @@ export default function LoginPage() {
           throw err;
         }
       }
-      router.replace("/command");
+      await redirectForCurrentUser();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Login failed";
       setError(
@@ -87,10 +101,18 @@ export default function LoginPage() {
     <AuthGate mode="guest">
       <AuthCard
         title="Officer login"
-        subtitle="Sign in to Luwas."
+        subtitle="Sign in to Luwas command center."
         footer={
           <>
-            No account?{" "}
+            Citizen reporter?{" "}
+            <Link
+              href="/login/citizen"
+              className="text-[var(--accent)] hover:underline"
+            >
+              Citizen login
+            </Link>
+            {" · "}
+            No officer account?{" "}
             <Link href="/register" className="text-[var(--accent)] hover:underline">
               Register
             </Link>
@@ -104,7 +126,7 @@ export default function LoginPage() {
               onClick={fillDemo}
               className="w-full border border-[var(--border)] px-3 py-2 font-mono text-xs tracking-wider text-[var(--muted)] uppercase transition hover:border-[var(--accent)] hover:text-[var(--foreground)]"
             >
-              Use demo account
+              Use demo officer
             </button>
           ) : null}
           <label className="block text-sm">

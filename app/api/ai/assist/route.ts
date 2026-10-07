@@ -1,6 +1,7 @@
-import { GoogleGenAI } from "@google/genai";
 import { NextResponse } from "next/server";
 import { buildEscapeRoutes } from "@/lib/ai/escapeRoutes";
+import { generateWithGeminiFallback } from "@/lib/ai/geminiGenerate";
+import { resolveGeminiModel } from "@/lib/ai/geminiModels";
 import { runLocalAssist } from "@/lib/ai/localAssist";
 import type { AssistResult } from "@/lib/ai/assistTypes";
 import type { FloodSample } from "@/lib/hazards/floodSamples";
@@ -17,6 +18,7 @@ type Body = {
   landslides: LandslideSample[];
   typhoons: TyphoonSample[];
   weatherLabel?: string;
+  model?: string;
 };
 
 function withEscapes(
@@ -47,13 +49,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
+  const model = resolveGeminiModel(body.model);
   const key = process.env.GEMINI_API_KEY;
   if (!key) {
-    return NextResponse.json(runLocalAssist(body));
+    const local = runLocalAssist(body);
+    return NextResponse.json({ ...local, model });
   }
 
   try {
-    const ai = new GoogleGenAI({ apiKey: key });
     const compactHouseholds = body.households.map((h) => ({
       id: h.id,
       ownerName: h.ownerName,
@@ -82,22 +85,26 @@ Landslides: ${JSON.stringify(body.landslides)}
 Typhoons: ${JSON.stringify(body.typhoons)}
 Households: ${JSON.stringify(compactHouseholds)}`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: prompt,
-    });
+    const { text, model: usedModel } = await generateWithGeminiFallback(
+      key,
+      model,
+      prompt,
+    );
 
-    const text = response.text ?? "";
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       const local = runLocalAssist(body);
       return NextResponse.json({
         ...local,
+        model: usedModel,
         summary: `${local.summary} (Gemini parse fallback)`,
       });
     }
 
-    const parsed = JSON.parse(jsonMatch[0]) as Omit<AssistResult, "source" | "escapes">;
+    const parsed = JSON.parse(jsonMatch[0]) as Omit<
+      AssistResult,
+      "source" | "escapes" | "model"
+    >;
     const result = withEscapes(
       {
         summary: String(parsed.summary ?? "Assist complete."),
@@ -105,6 +112,7 @@ Households: ${JSON.stringify(compactHouseholds)}`;
         actions: Array.isArray(parsed.actions) ? parsed.actions.slice(0, 10) : [],
         mapHint: String(parsed.mapHint ?? "Map updated with priority homes."),
         source: "gemini",
+        model: usedModel,
       },
       body,
     );
@@ -113,6 +121,7 @@ Households: ${JSON.stringify(compactHouseholds)}`;
     const local = runLocalAssist(body);
     return NextResponse.json({
       ...local,
+      model,
       summary: `${local.summary} (Gemini unavailable — local assist used.)`,
     });
   }

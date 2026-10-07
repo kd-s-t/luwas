@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
 :root {
   --surface: #ffffff;
@@ -186,28 +187,6 @@ button {
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.3);
 }
 
-.dro-map-marker-slide {
-  display: block;
-  width: 12px;
-  height: 12px;
-  background: #8b5a2b;
-  transform: rotate(45deg);
-  border: 2px solid #ffffff;
-  box-shadow: 0 0 0 1px rgba(139, 90, 43, 0.45);
-}
-
-.dro-map-marker-slide-watch {
-  background: #a67c52;
-}
-
-.dro-map-marker-slide-warning {
-  background: #b8860b;
-}
-
-.dro-map-marker-slide-critical {
-  background: #8b4513;
-}
-
 .dro-map-marker-flood {
   display: block;
   width: 12px;
@@ -229,14 +208,33 @@ button {
   background: #1d4ed8;
 }
 
-.dro-map-marker-typhoon-wrap {
-  background: transparent !important;
-  border: none !important;
+/* Lucide SVG markers (Tornado / Mountain) on Leaflet */
+.dro-map-lucide-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  border: 1.5px solid currentColor;
+  border-radius: 9999px;
+  box-shadow: 0 1px 4px rgba(15, 42, 28, 0.2);
 }
 
-.dro-map-marker-typhoon {
+.dro-map-lucide-wrap-typhoon {
+  width: 28px;
+  height: 28px;
+  color: #1d4ed8;
+  border-color: #1d4ed8;
+}
+
+.dro-map-lucide-wrap-slide {
+  width: 22px;
+  height: 22px;
+}
+
+.dro-map-lucide-typhoon,
+.dro-map-lucide-slide {
   display: block;
-  filter: drop-shadow(0 1px 3px rgba(15, 42, 28, 0.28));
+  filter: drop-shadow(0 0 0 transparent);
 }
 
 .dro-map-marker-dot-shelter {
@@ -245,6 +243,81 @@ button {
   background: #0f5c38;
   border: 2px solid #ffffff;
   box-shadow: 0 0 0 2px rgba(31, 143, 85, 0.45);
+}
+
+.dro-map-marker-dot-you {
+  width: 14px;
+  height: 14px;
+  background: #0ea5e9;
+  border: 2px solid #ffffff;
+  box-shadow:
+    0 0 0 3px rgba(14, 165, 233, 0.35),
+    0 0 0 1px rgba(14, 165, 233, 0.5);
+  animation: dro-pulse 1.8s ease-in-out infinite;
+}
+
+.dro-map-marker-fire {
+  display: block;
+  width: 12px;
+  height: 12px;
+  background: #ea580c;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 0 2px rgba(234, 88, 12, 0.4);
+  clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+}
+
+.dro-map-marker-fire-watch {
+  background: #fb923c;
+}
+
+.dro-map-marker-fire-warning {
+  background: #ea580c;
+}
+
+.dro-map-marker-fire-critical {
+  background: #c2410c;
+  box-shadow: 0 0 0 3px rgba(194, 65, 12, 0.35);
+}
+
+.dro-map-marker-report {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  background: #ffffff;
+  border: 1.5px solid #b45309;
+  color: #b45309;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: 0 1px 4px rgba(15, 42, 28, 0.2);
+}
+
+.dro-map-marker-report-blockage {
+  border-color: #b45309;
+  color: #b45309;
+}
+
+.dro-map-marker-report-flood {
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+.dro-map-marker-report-fire {
+  border-color: #c2410c;
+  color: #c2410c;
+}
+
+.dro-map-marker-report-warning {
+  border-color: #ca8a04;
+  color: #ca8a04;
+}
+
+.dro-map-marker-report-welfare {
+  border-color: #7c3aed;
+  color: #7c3aed;
 }
 
 .dro-map-escape-arrow-wrap {

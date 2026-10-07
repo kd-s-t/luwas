@@ -12,8 +12,14 @@ import {
 } from "react-leaflet";
 import L from "leaflet";
 import type { AssistEscapeRoute, AssistPriority } from "@/lib/ai/assistTypes";
-import { CEBU_AREA } from "@/lib/geo/cebu";
+import {
+  DEFAULT_MAP_AREA,
+  isNangkaOpsArea,
+  type MapArea,
+} from "@/lib/geo/mapAreas";
 import { NANGKA_SAFE_POINTS } from "@/lib/geo/safePoints";
+import type { FireSample } from "@/lib/hazards/fireSamples";
+import { fireSeverityLabel } from "@/lib/hazards/fireSamples";
 import type { FloodSample } from "@/lib/hazards/floodSamples";
 import { floodSeverityLabel } from "@/lib/hazards/floodSamples";
 import type { LandslideSample } from "@/lib/hazards/landslideSamples";
@@ -22,6 +28,12 @@ import type { TyphoonSample } from "@/lib/hazards/typhoonSamples";
 import { typhoonCategoryLabel } from "@/lib/hazards/typhoonSamples";
 import type { QuakeEvent } from "@/lib/hazards/usgsEarthquakes";
 import type { Household } from "@/lib/households/types";
+import {
+  lucideLandslideMarkerHtml,
+  lucideTyphoonMarkerHtml,
+  reportPinMarkerHtml,
+} from "@/lib/map/lucideMarkerHtml";
+import type { ScenarioReportPin } from "@/lib/scenarios/types";
 import "leaflet/dist/leaflet.css";
 
 const houseIcon = L.divIcon({
@@ -61,9 +73,9 @@ function quakeIcon(mag: number | null) {
 function landslideIcon(severity: LandslideSample["severity"]) {
   return L.divIcon({
     className: "dro-map-marker",
-    html: `<span class="dro-map-marker-slide dro-map-marker-slide-${severity}"></span>`,
-    iconSize: [16, 16],
-    iconAnchor: [8, 8],
+    html: lucideLandslideMarkerHtml(severity, 22),
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
   });
 }
 
@@ -76,23 +88,13 @@ function floodIcon(severity: FloodSample["severity"]) {
   });
 }
 
-/** Classic tropical cyclone / typhoon spiral (eye + rainbands). */
-const TYPHOON_SVG = `<svg class="dro-map-marker-typhoon" viewBox="0 0 32 32" width="30" height="30" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="16" cy="16" r="14" fill="#dbeafe" stroke="#1d4ed8" stroke-width="1.5"/>
-  <path fill="#2563eb" d="M16 4c4.2 1.2 7.5 4.2 8.8 8.2-2.8-1.8-6-2.6-8.8-2.4V4z"/>
-  <path fill="#1d4ed8" d="M28 16c-1.2 4.2-4.2 7.5-8.2 8.8 1.8-2.8 2.6-6 2.4-8.8H28z"/>
-  <path fill="#3b82f6" d="M16 28c-4.2-1.2-7.5-4.2-8.8-8.2 2.8 1.8 6 2.6 8.8 2.4V28z"/>
-  <path fill="#60a5fa" d="M4 16c1.2-4.2 4.2-7.5 8.2-8.8-1.8 2.8-2.6 6-2.4 8.8H4z"/>
-  <circle cx="16" cy="16" r="4.2" fill="#ffffff" stroke="#1e40af" stroke-width="1.5"/>
-  <circle cx="16" cy="16" r="1.6" fill="#1e40af"/>
-</svg>`;
-
+/** Lucide Tornado — typhoon / tropical cyclone marker. */
 function typhoonIcon() {
   return L.divIcon({
-    className: "dro-map-marker dro-map-marker-typhoon-wrap",
-    html: TYPHOON_SVG,
-    iconSize: [30, 30],
-    iconAnchor: [15, 15],
+    className: "dro-map-marker",
+    html: lucideTyphoonMarkerHtml(28),
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
   });
 }
 
@@ -112,11 +114,100 @@ const shelterIcon = L.divIcon({
   iconAnchor: [7, 7],
 });
 
+const youIcon = L.divIcon({
+  className: "dro-map-marker",
+  html: "<span class='dro-map-marker-dot dro-map-marker-dot-you'></span>",
+  iconSize: [16, 16],
+  iconAnchor: [8, 8],
+});
+
+function fireIcon(severity: FireSample["severity"]) {
+  return L.divIcon({
+    className: "dro-map-marker",
+    html: `<span class="dro-map-marker-fire dro-map-marker-fire-${severity}"></span>`,
+    iconSize: [14, 14],
+    iconAnchor: [7, 10],
+  });
+}
+
+function reportIcon(kind: ScenarioReportPin["kind"]) {
+  return L.divIcon({
+    className: "dro-map-marker",
+    html: reportPinMarkerHtml(kind),
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
+  });
+}
+
+function RecenterOnArea({
+  area,
+  userLocation,
+  skip,
+}: {
+  area: MapArea;
+  userLocation?: { lat: number; lng: number } | null;
+  skip?: boolean;
+}) {
+  const map = useMap();
+  useEffect(() => {
+    if (skip) return;
+    const lat = userLocation?.lat ?? area.center.lat;
+    const lng = userLocation?.lng ?? area.center.lng;
+    const zoom = userLocation ? Math.max(area.zoom, 16) : area.zoom;
+    map.flyTo([lat, lng], zoom, { duration: 0.85 });
+  }, [
+    skip,
+    area.center.lat,
+    area.center.lng,
+    area.zoom,
+    area.id,
+    userLocation?.lat,
+    userLocation?.lng,
+    map,
+  ]);
+  return null;
+}
+
+function FitTyphoonTrack({
+  typhoons,
+  area,
+  enabled,
+}: {
+  typhoons: TyphoonSample[];
+  area: MapArea;
+  enabled: boolean;
+}) {
+  const map = useMap();
+  useEffect(() => {
+    if (!enabled) return;
+    const points: [number, number][] = [
+      [area.center.lat, area.center.lng],
+    ];
+    const eyeNear = typhoons.some((t) => t.distanceKm < 60);
+    for (const ty of typhoons) {
+      points.push([ty.lat, ty.lng]);
+      if (!eyeNear) {
+        for (const p of ty.track ?? []) {
+          points.push([p.lat, p.lng]);
+        }
+      }
+    }
+    if (points.length < 2) return;
+    map.fitBounds(L.latLngBounds(points).pad(eyeNear ? 0.45 : 0.18), {
+      animate: true,
+      maxZoom: eyeNear ? 13 : 9,
+    });
+  }, [typhoons, area.center.lat, area.center.lng, enabled, map]);
+  return null;
+}
+
 function FitHouseholds({
+  area,
   households,
   highlightIds,
   escapeRoutes,
 }: {
+  area: MapArea;
   households: Household[];
   highlightIds: string[];
   escapeRoutes: AssistEscapeRoute[];
@@ -124,6 +215,10 @@ function FitHouseholds({
   const map = useMap();
 
   useEffect(() => {
+    if (!isNangkaOpsArea(area)) {
+      return;
+    }
+
     const focus =
       highlightIds.length > 0
         ? households.filter(
@@ -133,7 +228,7 @@ function FitHouseholds({
         : households.filter((h) => h.lat != null && h.lng != null);
 
     const points: [number, number][] = [
-      [CEBU_AREA.center.lat, CEBU_AREA.center.lng],
+      [area.center.lat, area.center.lng],
     ];
     for (const h of focus) {
       points.push([h.lat!, h.lng!]);
@@ -146,10 +241,7 @@ function FitHouseholds({
     }
 
     if (points.length <= 1 && focus.length === 0) {
-      map.setView(
-        [CEBU_AREA.center.lat, CEBU_AREA.center.lng],
-        CEBU_AREA.zoom,
-      );
+      map.setView([area.center.lat, area.center.lng], area.zoom);
       return;
     }
 
@@ -157,39 +249,62 @@ function FitHouseholds({
     map.fitBounds(
       bounds.pad(highlightIds.length || escapeRoutes.length ? 0.55 : 0.35),
     );
-  }, [households, highlightIds, escapeRoutes, map]);
+  }, [area, households, highlightIds, escapeRoutes, map]);
 
   return null;
 }
 
 type AreaMapInnerProps = {
+  area?: MapArea;
+  /** Visitor GPS pin — map flies here when set */
+  userLocation?: { lat: number; lng: number } | null;
+  /** Keep Nangka demo / scenario layers even if the visitor is elsewhere */
+  forceLayers?: boolean;
   households: Household[];
   quakes: QuakeEvent[];
   landslides: LandslideSample[];
   floods: FloodSample[];
   typhoons: TyphoonSample[];
+  fires?: FireSample[];
+  reportPins?: ScenarioReportPin[];
   /** householdId → AI priority — updates marker style + map focus */
   assistPriorities?: Record<string, AssistPriority>;
   escapeRoutes?: AssistEscapeRoute[];
 };
 
 export default function AreaMapInner({
+  area = DEFAULT_MAP_AREA,
+  userLocation = null,
+  forceLayers = false,
   households,
   quakes,
   landslides,
   floods,
   typhoons,
+  fires = [],
+  reportPins = [],
   assistPriorities = {},
   escapeRoutes = [],
 }: AreaMapInnerProps) {
-  const mapped = households.filter((h) => h.lat != null && h.lng != null);
+  const showDemoLayers = forceLayers || isNangkaOpsArea(area);
+  const mapped = showDemoLayers
+    ? households.filter((h) => h.lat != null && h.lng != null)
+    : [];
   const highlightIds = Object.keys(assistPriorities);
-  const activeShelterIds = new Set(escapeRoutes.map((r) => r.destinationId));
+  const layerLandslides = showDemoLayers ? landslides : [];
+  const layerFloods = showDemoLayers ? floods : [];
+  const layerTyphoons = showDemoLayers ? typhoons : [];
+  const layerFires = showDemoLayers ? fires : [];
+  const layerReports = showDemoLayers ? reportPins : [];
+  const layerEscapes = showDemoLayers ? escapeRoutes : [];
+  const layerSafePoints = showDemoLayers ? NANGKA_SAFE_POINTS : [];
+  const activeShelterIds = new Set(layerEscapes.map((r) => r.destinationId));
+  const hasForecastTrack = layerTyphoons.some((t) => (t.track?.length ?? 0) > 1);
 
   return (
     <MapContainer
-      center={[CEBU_AREA.center.lat, CEBU_AREA.center.lng]}
-      zoom={CEBU_AREA.zoom}
+      center={[area.center.lat, area.center.lng]}
+      zoom={area.zoom}
       className="h-full w-full [&_.leaflet-control-attribution]:text-[9px]"
       scrollWheelZoom={false}
     >
@@ -197,26 +312,52 @@ export default function AreaMapInner({
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-      <Circle
-        center={[CEBU_AREA.center.lat, CEBU_AREA.center.lng]}
-        radius={450}
-        pathOptions={{
-          color: "#1f8f55",
-          weight: 1,
-          fillColor: "#1f8f55",
-          fillOpacity: 0.1,
-        }}
+      <RecenterOnArea
+        area={area}
+        userLocation={userLocation}
+        skip={hasForecastTrack && !userLocation}
       />
-      <Marker
-        position={[CEBU_AREA.center.lat, CEBU_AREA.center.lng]}
-        icon={hallIcon}
-      >
-        <Popup>
-          <strong>Nangka Barangay Hall</strong>
-          <br />
-          {CEBU_AREA.name}
-        </Popup>
-      </Marker>
+      <FitTyphoonTrack
+        typhoons={layerTyphoons}
+        area={area}
+        enabled={hasForecastTrack && !userLocation}
+      />
+      {!userLocation ? (
+        <Circle
+          center={[area.center.lat, area.center.lng]}
+          radius={450}
+          pathOptions={{
+            color: "#1f8f55",
+            weight: 1,
+            fillColor: "#1f8f55",
+            fillOpacity: 0.1,
+          }}
+        />
+      ) : null}
+      {!userLocation ? (
+        <Marker
+          position={[area.center.lat, area.center.lng]}
+          icon={hallIcon}
+        >
+          <Popup>
+            <strong>Brgy. {area.barangay} hall</strong>
+            <br />
+            {area.name}
+          </Popup>
+        </Marker>
+      ) : (
+        <Marker
+          position={[userLocation.lat, userLocation.lng]}
+          icon={youIcon}
+          zIndexOffset={1000}
+        >
+          <Popup>
+            <strong>You are here</strong>
+            <br />
+            {area.name}
+          </Popup>
+        </Marker>
+      )}
       {mapped.map((h) => {
         const priority = assistPriorities[h.id];
         return (
@@ -269,7 +410,7 @@ export default function AreaMapInner({
           </Popup>
         </Marker>
       ))}
-      {landslides.map((ls) => (
+      {layerLandslides.map((ls) => (
         <Marker
           key={ls.id}
           position={[ls.lat, ls.lng]}
@@ -286,7 +427,7 @@ export default function AreaMapInner({
           </Popup>
         </Marker>
       ))}
-      {floods.map((fl) => (
+      {layerFloods.map((fl) => (
         <Marker
           key={fl.id}
           position={[fl.lat, fl.lng]}
@@ -305,40 +446,121 @@ export default function AreaMapInner({
           </Popup>
         </Marker>
       ))}
-      {typhoons.map((ty) => (
+      {layerTyphoons.map((ty) =>
+        ty.track && ty.track.length > 1 ? (
+          <Polyline
+            key={`${ty.id}-track`}
+            positions={ty.track.map(
+              (p) => [p.lat, p.lng] as [number, number],
+            )}
+            pathOptions={{
+              color: "#1d4ed8",
+              weight: 3,
+              opacity: 0.85,
+              dashArray: "8 10",
+            }}
+          />
+        ) : null,
+      )}
+      {layerTyphoons.map((ty) => (
+        <Fragment key={`${ty.id}-eye`}>
+          <Marker position={[ty.lat, ty.lng]} icon={typhoonIcon()}>
+            <Popup>
+              <strong>{ty.name}</strong>
+              <br />
+              Eye · {typhoonCategoryLabel(ty.category)} · {ty.maxWindsKmh} km/h
+              <br />
+              {ty.movement}
+              <br />
+              {Math.round(ty.distanceKm)} km from Nangka · {ty.etaNote}
+              <br />
+              {ty.notes}
+            </Popup>
+          </Marker>
+          {(ty.windRadiiKm
+            ? [
+                {
+                  key: "gale",
+                  km: ty.windRadiiKm.gale,
+                  color: "#93c5fd",
+                  fill: 0.03,
+                },
+                {
+                  key: "storm",
+                  km: ty.windRadiiKm.storm,
+                  color: "#3b82f6",
+                  fill: 0.05,
+                },
+                {
+                  key: "typhoon",
+                  km: ty.windRadiiKm.typhoon,
+                  color: "#1d4ed8",
+                  fill: 0.08,
+                },
+              ]
+            : [
+                {
+                  key: "approx",
+                  km: Math.max(20, ty.distanceKm * 0.4),
+                  color: "#2563eb",
+                  fill: 0.04,
+                },
+              ]
+          ).map((ring) => (
+            <Circle
+              key={`${ty.id}-${ring.key}`}
+              center={[ty.lat, ty.lng]}
+              radius={ring.km * 1000}
+              pathOptions={{
+                color: ring.color,
+                weight: 1,
+                dashArray: "4 6",
+                fillColor: ring.color,
+                fillOpacity: ring.fill,
+              }}
+            />
+          ))}
+        </Fragment>
+      ))}
+      {layerFires.map((fi) => (
         <Marker
-          key={ty.id}
-          position={[ty.lat, ty.lng]}
-          icon={typhoonIcon()}
+          key={fi.id}
+          position={[fi.lat, fi.lng]}
+          icon={fireIcon(fi.severity)}
+          zIndexOffset={850}
         >
           <Popup>
-            <strong>{ty.name}</strong>
+            <strong>Fire · {fireSeverityLabel(fi.severity)}</strong>
             <br />
-            {typhoonCategoryLabel(ty.category)} · {ty.maxWindsKmh} km/h
+            {fi.name}
             <br />
-            {ty.movement}
+            {fi.place} ({fi.purokHint})
             <br />
-            {Math.round(ty.distanceKm)} km from Nangka · {ty.etaNote}
-            <br />
-            {ty.notes}
+            {fi.notes}
           </Popup>
         </Marker>
       ))}
-      {typhoons.map((ty) => (
-        <Circle
-          key={`${ty.id}-ring`}
-          center={[ty.lat, ty.lng]}
-          radius={Math.max(20000, ty.distanceKm * 400)}
-          pathOptions={{
-            color: "#2563eb",
-            weight: 1,
-            dashArray: "4 6",
-            fillColor: "#3b82f6",
-            fillOpacity: 0.04,
-          }}
-        />
+      {layerReports.map((rp) => (
+        <Marker
+          key={rp.id}
+          position={[rp.lat, rp.lng]}
+          icon={reportIcon(rp.kind)}
+          zIndexOffset={860}
+        >
+          <Popup>
+            <strong>{rp.title}</strong>
+            <br />
+            <span className="font-mono text-xs uppercase">
+              {rp.sourceLabel}
+            </span>
+            <br />
+            {rp.purokHint}
+            <br />
+            {rp.notes}
+          </Popup>
+        </Marker>
       ))}
-      {escapeRoutes.map((route) => {
+      {layerEscapes.map((route) => {
         const path = route.path?.length >= 2 ? route.path : [route.from, route.to];
         const mid = path[Math.floor(path.length * 0.55)] ?? route.to;
         return (
@@ -369,8 +591,9 @@ export default function AreaMapInner({
           </Fragment>
         );
       })}
-      {NANGKA_SAFE_POINTS.filter((sp) => activeShelterIds.has(sp.id)).map(
-        (sp) => (
+      {layerSafePoints
+        .filter((sp) => activeShelterIds.has(sp.id))
+        .map((sp) => (
           <Marker
             key={sp.id}
             position={[sp.lat, sp.lng]}
@@ -383,13 +606,15 @@ export default function AreaMapInner({
               {sp.notes}
             </Popup>
           </Marker>
-        ),
-      )}
-      <FitHouseholds
-        households={households}
-        highlightIds={highlightIds}
-        escapeRoutes={escapeRoutes}
-      />
+        ))}
+      {showDemoLayers && !userLocation && !hasForecastTrack ? (
+        <FitHouseholds
+          area={area}
+          households={mapped}
+          highlightIds={highlightIds}
+          escapeRoutes={layerEscapes}
+        />
+      ) : null}
     </MapContainer>
   );
 }

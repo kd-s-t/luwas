@@ -1,16 +1,8 @@
 import { CEBU_AREA } from "@/lib/geo/cebu";
+import type { AreaWeather } from "@/lib/weather/types";
 
-export type AreaWeather = {
-  temperatureC: number;
-  feelsLikeC: number;
-  humidity: number;
-  windKmh: number;
-  precipitationMm: number;
-  weatherCode: number;
-  label: string;
-  isDay: boolean;
-  updatedAt: string;
-};
+export type { AreaWeather } from "@/lib/weather/types";
+export { isHazardousWeather } from "@/lib/weather/types";
 
 const WMO_LABELS: Record<number, string> = {
   0: "Clear sky",
@@ -42,11 +34,8 @@ export function weatherLabel(code: number): string {
   return WMO_LABELS[code] ?? `Code ${code}`;
 }
 
-export function isHazardousWeather(code: number, precipMm: number): boolean {
-  return precipMm >= 2 || code >= 61 || code === 95 || code === 96 || code === 99;
-}
-
-export async function fetchCebuWeather(): Promise<AreaWeather> {
+/** Fallback when Google Weather key is unset. */
+export async function fetchOpenMeteoCebuWeather(): Promise<AreaWeather> {
   const { lat, lng } = CEBU_AREA.center;
   const url = new URL("https://api.open-meteo.com/v1/forecast");
   url.searchParams.set("latitude", String(lat));
@@ -87,5 +76,18 @@ export async function fetchCebuWeather(): Promise<AreaWeather> {
     label: weatherLabel(c.weather_code),
     isDay: Boolean(c.is_day),
     updatedAt: c.time,
+    source: "open-meteo",
   };
+}
+
+/**
+ * Client-side helper — hits Luwas `/api/weather` so the Google key stays server-only.
+ */
+export async function fetchCebuWeather(): Promise<AreaWeather> {
+  const res = await fetch("/api/weather", { cache: "no-store" });
+  if (!res.ok) {
+    const err = (await res.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(err?.error ?? `Weather fetch failed (${res.status})`);
+  }
+  return (await res.json()) as AreaWeather;
 }

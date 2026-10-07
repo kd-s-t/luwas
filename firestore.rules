@@ -1,32 +1,111 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isOfficer() {
+      return signedIn() && userDoc().role == "officer";
+    }
+
+    function isCitizen() {
+      return signedIn() && userDoc().role == "citizen";
+    }
+
     match /users/{userId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null
+      allow read: if signedIn() && request.auth.uid == userId;
+      allow create: if signedIn()
         && request.auth.uid == userId
-        && request.resource.data.role == "officer"
         && request.resource.data.email is string
         && request.resource.data.displayName is string
-        && request.resource.data.orgName is string;
-      allow update, delete: if false;
+        && (
+          (
+            request.resource.data.role == "officer"
+            && request.resource.data.orgName is string
+          )
+          || (
+            request.resource.data.role == "citizen"
+            && request.resource.data.purok is string
+            && request.resource.data.phone is string
+          )
+        );
+      // After ID verify — store selfie URL + document paths only
+      allow update: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(["photoURL", "idDocumentPath", "faceDocumentPath"]);
+      allow delete: if false;
     }
 
     match /households/{householdId} {
-      allow read: if request.auth != null
+      allow read: if signedIn()
         && resource.data.officerUid == request.auth.uid;
-      allow create: if request.auth != null
+      allow create: if signedIn()
         && request.resource.data.officerUid == request.auth.uid
         && request.resource.data.ownerName is string
         && request.resource.data.ownerName.size() > 0
         && request.resource.data.address is string
         && request.resource.data.address.size() > 0
         && request.resource.data.phone is string;
-      allow update: if request.auth != null
+      allow update: if signedIn()
         && resource.data.officerUid == request.auth.uid
         && request.resource.data.officerUid == request.auth.uid;
-      allow delete: if request.auth != null
+      allow delete: if signedIn()
         && resource.data.officerUid == request.auth.uid;
+    }
+
+    match /reports/{reportId} {
+      // Public feed can list reports; writers stay authenticated.
+      allow read: if true;
+      // Citizens and officers can both file field reports.
+      allow create: if (isCitizen() || isOfficer())
+        && request.resource.data.citizenUid == request.auth.uid
+        && request.resource.data.status == "queued"
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.mediaUrl is string
+        && request.resource.data.mediaUrl.size() > 0;
+      allow update: if signedIn() && (
+        isOfficer()
+        || (
+          resource.data.citizenUid == request.auth.uid
+          && request.resource.data.citizenUid == resource.data.citizenUid
+        )
+        || (
+          // Comment/reaction counters only — any signed-in user
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(["commentCount", "reactionCounts", "updatedAt", "updatedAtServer"])
+        )
+      );
+      allow delete: if isOfficer();
+
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if signedIn()
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() < 2000
+          && request.resource.data.displayName is string;
+        allow update: if false;
+        allow delete: if signedIn() && (
+          resource.data.uid == request.auth.uid || isOfficer()
+        );
+      }
+
+      match /reactions/{reactionUid} {
+        allow read: if true;
+        allow create, update: if signedIn()
+          && request.auth.uid == reactionUid
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.type in ["like", "helpful", "concern"];
+        allow delete: if signedIn() && request.auth.uid == reactionUid;
+      }
     }
   }
 }

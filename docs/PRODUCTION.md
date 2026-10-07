@@ -6,7 +6,7 @@ Local emulators require a JDK (Java 21+). Production does not run emulators.
 
 ## Product
 
-**Luwas** — barangay / LGU DRRM command center. Theme: Sustainability and social impact (AI Builder Cup 2026).
+**Luwas** (*Logistics & Unified Workflow for Aid & Safety*) — barangay / LGU DRRM command center. Theme: Sustainability and social impact (AI Builder Cup 2026).
 
 Gemini orchestrates needs and resources; Firebase hosts auth, data, and the live app. Frame as **orchestration + guidance for responders**, not realtime life-safety guarantees.
 

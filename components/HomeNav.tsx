@@ -1,24 +1,53 @@
 "use client";
 
 import Link from "next/link";
+import { motion, useReducedMotion } from "framer-motion";
+import { easeOut } from "@/components/motion/primitives";
 import { useAuth } from "@/lib/auth/AuthProvider";
 
 export function HomeNav() {
-  const { user, loading, logout } = useAuth();
+  const { user, profile, loading, logout } = useAuth();
+  const reduce = useReducedMotion();
+  const role = profile?.role;
 
   return (
-    <header className="absolute inset-x-0 top-0 z-20 flex items-center justify-between px-4 py-5 sm:px-8">
+    <motion.header
+      className="absolute inset-x-0 top-0 z-20 flex items-center justify-between px-4 py-5 sm:px-8"
+      initial={reduce ? false : { opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: easeOut }}
+    >
       <p className="font-mono text-[10px] tracking-[0.22em] text-[var(--accent)] uppercase">
-        Luwas · Public
+        Luwas
       </p>
       <nav className="flex items-center gap-4 text-sm">
+        <Link
+          href="/reports"
+          className="text-[var(--muted)] transition hover:text-[var(--foreground)]"
+        >
+          Reports
+        </Link>
+        <Link
+          href="/barangays"
+          className="text-[var(--muted)] transition hover:text-[var(--foreground)]"
+        >
+          Barangays
+        </Link>
         {loading ? null : user ? (
           <>
+            {role === "officer" ? (
+              <Link
+                href="/command"
+                className="text-[var(--muted)] transition hover:text-[var(--foreground)]"
+              >
+                Command
+              </Link>
+            ) : null}
             <Link
-              href="/command"
+              href="/citizen"
               className="text-[var(--muted)] transition hover:text-[var(--foreground)]"
             >
-              Command
+              My posts
             </Link>
             <button
               type="button"
@@ -40,7 +69,13 @@ export function HomeNav() {
               href="/login"
               className="text-[var(--muted)] transition hover:text-[var(--foreground)]"
             >
-              Login
+              Officer
+            </Link>
+            <Link
+              href="/login/citizen"
+              className="text-[var(--muted)] transition hover:text-[var(--foreground)]"
+            >
+              Citizen
             </Link>
             <Link
               href="/register"
@@ -51,6 +86,6 @@ export function HomeNav() {
           </>
         )}
       </nav>
-    </header>
+    </motion.header>
   );
 }

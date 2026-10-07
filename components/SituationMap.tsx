@@ -2,9 +2,17 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { AiAssistControls } from "@/components/AiAssistControls";
+import { AreaSearchSelect } from "@/components/AreaSearchSelect";
+import { MangluluwasChat } from "@/components/MangluluwasChat";
+import { ScenarioSwitcher } from "@/components/ScenarioSwitcher";
+import type { AssistPriority } from "@/lib/ai/assistTypes";
 import { useAiAssist } from "@/lib/ai/useAiAssist";
-import { CEBU_AREA, rosterMatchesOpsArea } from "@/lib/geo/cebu";
+import { rosterMatchesOpsArea } from "@/lib/geo/cebu";
+import {
+  DEFAULT_MAP_AREA,
+  isNangkaOpsArea,
+  type MapArea,
+} from "@/lib/geo/mapAreas";
 import {
   CEBU_FLOOD_SAMPLES,
   floodSeverityLabel,
@@ -25,6 +33,11 @@ import {
 import { seedHouseholds, subscribeHouseholds } from "@/lib/households/api";
 import { CEBU_HOUSEHOLDS } from "@/lib/households/seed";
 import type { Household } from "@/lib/households/types";
+import {
+  getCat5Scenario,
+  remapScenarioHouseholdIds,
+  type DrrmScenarioPhase,
+} from "@/lib/scenarios";
 import {
   fetchCebuWeather,
   isHazardousWeather,
@@ -63,6 +76,18 @@ type SituationMapProps = {
 };
 
 export function SituationMap({ officerUid }: SituationMapProps) {
+  const [mapArea, setMapArea] = useState<MapArea>(DEFAULT_MAP_AREA);
+  const [phase, setPhase] = useState<DrrmScenarioPhase>("during");
+  const scenario = useMemo(
+    () =>
+      remapScenarioHouseholdIds(getCat5Scenario(phase), (i) => `seed-${i}`),
+    [phase],
+  );
+  const scenarioPriorities = useMemo(() => {
+    const map: Record<string, AssistPriority> = {};
+    for (const a of scenario.actions) map[a.householdId] = a.priority;
+    return map;
+  }, [scenario.actions]);
   const [households, setHouseholds] = useState<Household[]>([]);
   const [rosterReady, setRosterReady] = useState(false);
   const [migrating, setMigrating] = useState(false);
@@ -72,14 +97,23 @@ export function SituationMap({ officerUid }: SituationMapProps) {
   const [quakes, setQuakes] = useState<QuakeEvent[]>([]);
   const [quakeError, setQuakeError] = useState<string | null>(null);
   const migrateAttempted = useRef(false);
+  const nangkaOps = isNangkaOpsArea(mapArea);
   const {
     running,
+    messages,
     result,
     error: assistError,
+    model,
+    setModel,
+    activeChatId,
+    chats,
     assistPriorities,
     escapeRoutes,
-    runAssist,
+    sendMessage,
     clearAssist,
+    newChat,
+    selectChat,
+    deleteChat,
   } = useAiAssist();
 
   useEffect(() => {
@@ -169,41 +203,60 @@ export function SituationMap({ officerUid }: SituationMapProps) {
     weather &&
     isHazardousWeather(weather.weatherCode, weather.precipitationMm);
   const zoomUrl = zoomEarthUrl(
-    CEBU_AREA.center.lat,
-    CEBU_AREA.center.lng,
+    mapArea.center.lat,
+    mapArea.center.lng,
     11,
   );
+  const hasAiOverlay = Object.keys(assistPriorities).length > 0;
+  const mapPriorities = nangkaOps
+    ? hasAiOverlay
+      ? assistPriorities
+      : scenarioPriorities
+    : {};
+  const mapEscapes = nangkaOps
+    ? hasAiOverlay
+      ? escapeRoutes
+      : scenario.escapes
+    : [];
 
   return (
-    <section className="mb-8 overflow-hidden border border-[var(--border)] bg-[var(--surface-raised)]">
-      <div className="flex flex-col gap-4 border-b border-[var(--border)] px-4 py-4 sm:flex-row sm:items-end sm:justify-between sm:px-5">
-        <div>
-          <p className="font-mono text-[10px] tracking-[0.2em] text-[var(--accent)] uppercase">
-            Area · Live hazards
+    <section className="mb-6 w-full border-b border-[var(--border)] bg-[var(--surface-raised)]">
+      <div className="relative z-30 flex flex-col gap-2.5 border-b border-[var(--border)] bg-[var(--surface-raised)] px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <div className="relative z-30 min-w-0">
+          <p className="font-mono text-[9px] tracking-[0.2em] text-[var(--accent)] uppercase">
+            Area · {scenario.eyebrow}
           </p>
-          <h2 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-wide sm:text-3xl">
-            {CEBU_AREA.name}
-          </h2>
-          <p className="mt-1 text-sm text-[var(--muted)]">
-            Households + samples · {mappedCount} homes ·{" "}
-            {CEBU_FLOOD_SAMPLES.length} floods ·{" "}
-            {CEBU_LANDSLIDE_SAMPLES.length} slides ·{" "}
-            {CEBU_TYPHOON_SAMPLES.length} typhoon tracks
-            {quakes.length ? ` · ${quakes.length} quakes` : ""}
-            {migrating ? " · updating roster to Nangka…" : ""}
+          <AreaSearchSelect value={mapArea} onChange={setMapArea} />
+          <div className="mt-2">
+            <ScenarioSwitcher phase={phase} onChange={setPhase} />
+          </div>
+          <p className="mt-1 text-xs text-[var(--muted)] sm:text-sm">
+            {nangkaOps ? (
+              <>
+                {mappedCount} homes · {scenario.floods.length} floods ·{" "}
+                {scenario.landslides.length} slides · {scenario.typhoons.length}{" "}
+                typhoon · {scenario.fires.length} fire ·{" "}
+                {scenario.reportPins.length} reports
+                {quakes.length ? ` · ${quakes.length} quakes` : ""}
+                {migrating ? " · updating roster…" : ""}
+              </>
+            ) : (
+              <>Map centered on {mapArea.barangay} · demo hazard layers stay on Nangka</>
+            )}
+            {" · "}
+            <a
+              href={zoomUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="font-mono text-[10px] tracking-wider text-[var(--accent)] uppercase underline-offset-2 hover:underline"
+            >
+              Zoom Earth →
+            </a>
           </p>
-          <a
-            href={zoomUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-2 inline-block font-mono text-[10px] tracking-wider text-[var(--accent)] uppercase underline-offset-2 hover:underline"
-          >
-            Open Zoom Earth rain / satellite →
-          </a>
         </div>
 
         <div
-          className={`min-w-[14rem] border px-4 py-3 ${
+          className={`shrink-0 border px-3 py-2 sm:min-w-[16rem] ${
             hazard
               ? "border-[var(--warn)] bg-[var(--warn)]/10"
               : "border-[var(--border)] bg-[var(--surface)]"
@@ -216,73 +269,93 @@ export function SituationMap({ officerUid }: SituationMapProps) {
           ) : weatherError && !weather ? (
             <p className="text-xs text-[var(--danger)]">{weatherError}</p>
           ) : weather ? (
-            <>
-              <p className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
-                {hazard ? "Watch · precip / storm" : "Conditions now"}
-              </p>
-              <p className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tabular-nums">
-                {Math.round(weather.temperatureC)}°
-                <span className="ml-2 text-base font-normal text-[var(--muted)]">
-                  {weather.label}
-                </span>
-              </p>
-              <dl className="mt-2 grid grid-cols-3 gap-2 font-mono text-[10px] text-[var(--muted)] uppercase">
+            <div className="flex items-center gap-3">
+              <div className="min-w-0">
+                <p className="font-mono text-[9px] tracking-wider text-[var(--muted)] uppercase">
+                  {hazard ? "Watch" : "Now"}
+                </p>
+                <p className="font-[family-name:var(--font-display)] text-2xl font-semibold leading-none tabular-nums">
+                  {Math.round(weather.temperatureC)}°
+                  <span className="ml-1.5 text-sm font-normal text-[var(--muted)]">
+                    {weather.label}
+                  </span>
+                </p>
+              </div>
+              <dl className="grid grid-cols-3 gap-x-3 border-l border-[var(--border)] pl-3 font-mono text-[9px] text-[var(--muted)] uppercase">
                 <div>
                   <dt>Feels</dt>
                   <dd className="text-[var(--foreground)] normal-case">
-                    {Math.round(weather.feelsLikeC)}°C
+                    {Math.round(weather.feelsLikeC)}°
                   </dd>
                 </div>
                 <div>
                   <dt>Rain</dt>
                   <dd className="text-[var(--foreground)] normal-case">
-                    {weather.precipitationMm.toFixed(1)} mm
+                    {weather.precipitationMm.toFixed(1)}
                   </dd>
                 </div>
                 <div>
                   <dt>Wind</dt>
                   <dd className="text-[var(--foreground)] normal-case">
-                    {Math.round(weather.windKmh)} km/h
+                    {Math.round(weather.windKmh)}
                   </dd>
                 </div>
               </dl>
-              <p className="mt-2 font-mono text-[9px] text-[var(--muted)]">
-                Open-Meteo · Asia/Manila
-              </p>
-            </>
+            </div>
           ) : null}
         </div>
       </div>
 
-      <div className="relative h-[320px] sm:h-[400px]">
-        <AreaMapInner
-          key="nangka-ops-map"
-          households={mapHouseholds}
-          quakes={quakes}
-          landslides={CEBU_LANDSLIDE_SAMPLES}
-          floods={CEBU_FLOOD_SAMPLES}
-          typhoons={CEBU_TYPHOON_SAMPLES}
-          assistPriorities={assistPriorities}
-          escapeRoutes={escapeRoutes}
-        />
-      </div>
-
-      <div className="border-t border-[var(--border)] px-4 py-4 sm:px-5">
-        <AiAssistControls
-          running={running}
-          result={result}
-          error={assistError}
-          onClear={clearAssist}
-          onRun={() =>
-            runAssist({
-              households: mapHouseholds,
-              floods: CEBU_FLOOD_SAMPLES,
-              landslides: CEBU_LANDSLIDE_SAMPLES,
-              typhoons: CEBU_TYPHOON_SAMPLES,
-              weatherLabel: weather?.label,
-            })
-          }
-        />
+      <div className="relative z-0 grid overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(320px,28vw)]">
+        <div className="relative z-0 h-[320px] sm:h-[400px] lg:h-[min(70vh,720px)]">
+          <AreaMapInner
+            key={`ops-map-${phase}`}
+            area={mapArea}
+            forceLayers={nangkaOps}
+            households={mapHouseholds}
+            quakes={quakes}
+            landslides={scenario.landslides}
+            floods={scenario.floods}
+            typhoons={scenario.typhoons}
+            fires={scenario.fires}
+            reportPins={scenario.reportPins}
+            assistPriorities={mapPriorities}
+            escapeRoutes={mapEscapes}
+          />
+        </div>
+        <aside className="h-[420px] border-t border-[var(--border)] lg:h-[min(70vh,720px)] lg:border-t-0 lg:border-l">
+          <MangluluwasChat
+            className="border-0"
+            messages={messages}
+            running={running}
+            result={result}
+            error={assistError}
+            model={model}
+            onModelChange={setModel}
+            onClearMap={clearAssist}
+            chats={chats}
+            activeChatId={activeChatId}
+            onNewChat={newChat}
+            onSelectChat={selectChat}
+            onDeleteChat={deleteChat}
+            onSend={(text) =>
+              sendMessage(text, {
+                households: mapHouseholds,
+                floods: scenario.floods.length
+                  ? scenario.floods
+                  : CEBU_FLOOD_SAMPLES,
+                landslides: scenario.landslides.length
+                  ? scenario.landslides
+                  : CEBU_LANDSLIDE_SAMPLES,
+                typhoons: scenario.typhoons.length
+                  ? scenario.typhoons
+                  : CEBU_TYPHOON_SAMPLES,
+                weatherLabel: weather?.label,
+                model,
+              })
+            }
+          />
+        </aside>
       </div>
 
       <div className="grid gap-0 border-t border-[var(--border)] sm:grid-cols-2">
@@ -320,7 +393,7 @@ export function SituationMap({ officerUid }: SituationMapProps) {
 
         <HazardList
           title="Sample · typhoon"
-          hint="Typhoon spiral icons on map · demo cyclone track (not live PAGASA)."
+          hint="Lucide Tornado icons on map · demo cyclone track (not live PAGASA)."
           borderClass="border-b"
         >
           {CEBU_TYPHOON_SAMPLES.map((ty) => (
@@ -344,7 +417,7 @@ export function SituationMap({ officerUid }: SituationMapProps) {
 
         <HazardList
           title="Sample · landslides"
-          hint="Brown diamonds · demo slope incidents (not live MGB)."
+          hint="Lucide Mountain icons on map · demo slope incidents (not live MGB)."
           borderClass="border-b sm:border-b-0 sm:border-r"
         >
           {CEBU_LANDSLIDE_SAMPLES.map((ls) => (

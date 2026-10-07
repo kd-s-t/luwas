@@ -1,6 +1,8 @@
 # Luwas
 
-Barangay / LGU DRRM **command center**. Slice 1: officer **login / register** against Firebase Auth + Firestore.
+**Logistics & Unified Workflow for Aid & Safety** — barangay / LGU DRRM command center (Next.js, Tailwind, Lucide, shadcn/ui).
+
+Slice 1: officer **login / register** against Firebase Auth + Firestore.
 
 - **Local (now):** Next.js + Firebase Auth & Firestore **emulators**
 - **Production:** documented in [docs/PRODUCTION.md](docs/PRODUCTION.md); Terraform blueprint in `infra/` (do not apply for local)
@@ -23,37 +25,37 @@ Or install system-wide: `brew install openjdk@21` and link it per Homebrew’s c
 ## Local setup
 
 ```bash
-cp .env.example .env.local   # already defaults to emulators
-npm install
+cp .env.example .env.local && npm install && npm run start:local
 ```
 
-**Both processes must be running.** If you only run `npm run dev`, login shows `auth/network-request-failed`.
+That one line starts **Firestore/Auth emulators + Next.js**.  
+App: http://127.0.0.1:3000 · Emulator UI: http://127.0.0.1:4000
 
-Terminal 1 — emulators (uses local JDK under `.tools/jdk-21` if present):
-
-```bash
-npm run emulators
-```
-
-Wait until you see `All emulators ready`.  
-Emulator UI: http://127.0.0.1:4000 · Auth `:9099` · Firestore `:8080`
-
-Terminal 2 — app:
-
-```bash
-npm run dev
-```
+(First time only needs `cp` + `npm install`; after that just `npm run start:local`.)
 
 Open http://127.0.0.1:3000 → **Register** once (demo fields auto-fill) → `/command`. After that, Login works.
 
-**Demo account** (emulators only): `officer@nangka.consolacion.demo` / `demo1234` — Maria Santos, Brgy. Nangka MDRRMO (Consolacion, Cebu).
+**Demo officer** (emulators only): `officer@nangka.consolacion.demo` / `demo1234` — Maria Santos, Brgy. Nangka MDRRMO.
+
+**Demo citizens** (emulators only, password `demo1234`) — login at `/login/citizen`:
+
+| Email | Name | Purok |
+|-------|------|-------|
+| `juan.delacruz@nangka.citizen.demo` | Juan Dela Cruz | Purok 1 |
+| `ana.reyes@nangka.citizen.demo` | Ana Reyes | Purok 2 |
+| `carlo.bautista@nangka.citizen.demo` | Carlo Bautista | Purok 3 |
+| `liza.mendez@nangka.citizen.demo` | Liza Mendez | Purok 4 |
+| `marco.tan@nangka.citizen.demo` | Marco Tan | Purok 5 |
+
+Citizens upload photo/video hazard reports → AI validation queue (`queued` → Gemini/local verdict) → officers review on `/command`.
 
 ## Scripts
 
 | Script | Purpose |
 |--------|---------|
-| `npm run dev` | Next.js local app |
-| `npm run emulators` | Auth + Firestore emulators |
+| `npm run start:local` | Emulators + Next.js (one command) |
+| `npm run dev` | Next.js only |
+| `npm run emulators` | Auth + Firestore + Storage emulators |
 | `npm run build` | Production build |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | TypeScript (`tsc --noEmit`) |
@@ -67,6 +69,10 @@ GitHub: [kd-s-t/luwas](https://github.com/kd-s-t/luwas)
 - **App Hosting** — connect the repo in Firebase console for Next.js CD
 
 Details: [.github/workflows/README.md](.github/workflows/README.md)
+
+## Weather
+
+Set `GOOGLE_WEATHER_API_KEY` in `.env.local` (Maps Platform **Weather API**). The app serves live conditions for Brgy. Nangka via `/api/weather`. If the key is unset, it falls back to Open-Meteo.
 
 ## Production
 

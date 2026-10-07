@@ -1,5 +1,6 @@
 "use client";
 
+import { Plus } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   addHousehold,
@@ -15,6 +16,16 @@ import {
 import { CEBU_HOUSEHOLDS } from "@/lib/households/seed";
 import type { Household } from "@/lib/households/types";
 import { useEmulators } from "@/lib/firebase/client";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 function formatUpdatedAt(iso: string): string {
   if (!iso) return "—";
@@ -44,6 +55,7 @@ const emptyForm = {
 export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
   const [rows, setRows] = useState<Household[]>([]);
   const [form, setForm] = useState(emptyForm);
+  const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [seeding, setSeeding] = useState(false);
@@ -59,7 +71,6 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
       (next) => {
         setRows(next);
         setLoading(false);
-        setError(null);
       },
       (err) => {
         setError(err.message);
@@ -78,6 +89,21 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
     return latest;
   }, [rows]);
 
+  function openModal() {
+    setError(null);
+    setImportMsg(null);
+    setOpen(true);
+  }
+
+  function closeModal(next = false) {
+    setOpen(next);
+    if (!next) {
+      setForm(emptyForm);
+      setError(null);
+      setImportMsg(null);
+    }
+  }
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -85,6 +111,7 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
     try {
       await addHousehold(officerUid, orgName, form);
       setForm(emptyForm);
+      setOpen(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save household");
     } finally {
@@ -170,112 +197,7 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
   }
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,22rem)_1fr]">
-      <section className="border border-[var(--border)] bg-[var(--surface-raised)] p-5 sm:p-6">
-        <p className="font-mono text-[10px] tracking-[0.2em] text-[var(--accent)] uppercase">
-          Add household
-        </p>
-        <h2 className="mt-1 font-[family-name:var(--font-display)] text-2xl font-semibold tracking-wide">
-          Local house owner
-        </h2>
-        <p className="mt-1 text-sm text-[var(--muted)]">
-          Add one by one, or import a CSV for bulk insert.
-        </p>
-
-        <div className="mt-4 flex flex-wrap gap-2">
-          <input
-            ref={csvInputRef}
-            type="file"
-            accept=".csv,text/csv"
-            className="hidden"
-            onChange={(e) => onCsvFile(e.target.files?.[0] ?? null)}
-          />
-          <button
-            type="button"
-            disabled={importing}
-            onClick={() => csvInputRef.current?.click()}
-            className="border border-[var(--accent)] bg-[var(--accent)]/10 px-3 py-2 text-sm font-medium text-[var(--accent)] transition hover:bg-[var(--accent)]/20 disabled:opacity-60"
-          >
-            {importing ? "Importing…" : "Import CSV"}
-          </button>
-          <button
-            type="button"
-            onClick={downloadCsvTemplate}
-            className="border border-[var(--border)] px-3 py-2 text-sm text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-[var(--foreground)]"
-          >
-            Download template
-          </button>
-        </div>
-        <p className="mt-2 font-mono text-[10px] tracking-wide text-[var(--muted)] uppercase">
-          Columns: ownerName, address, purok, phone, email, notes, lat, lng
-        </p>
-        {importMsg ? (
-          <p className="mt-2 text-sm text-[var(--accent)]" role="status">
-            {importMsg}
-          </p>
-        ) : null}
-
-        <form onSubmit={onSubmit} className="mt-5 space-y-3">
-          <Field
-            label="House owner name"
-            required
-            value={form.ownerName}
-            onChange={(v) => setForm((f) => ({ ...f, ownerName: v }))}
-          />
-          <Field
-            label="Address / landmark"
-            required
-            value={form.address}
-            onChange={(v) => setForm((f) => ({ ...f, address: v }))}
-          />
-          <Field
-            label="Purok / sitio"
-            value={form.purok}
-            onChange={(v) => setForm((f) => ({ ...f, purok: v }))}
-            placeholder="e.g. Purok 3"
-          />
-          <Field
-            label="Phone / SMS"
-            required
-            value={form.phone}
-            onChange={(v) => setForm((f) => ({ ...f, phone: v }))}
-            placeholder="09XXXXXXXXX"
-          />
-          <Field
-            label="Email"
-            type="email"
-            value={form.email}
-            onChange={(v) => setForm((f) => ({ ...f, email: v }))}
-          />
-          <label className="block text-sm">
-            <span className="mb-1.5 block text-[var(--muted)]">Notes</span>
-            <textarea
-              rows={2}
-              value={form.notes}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, notes: e.target.value }))
-              }
-              placeholder="PWD, elderly, needs meds…"
-              className="w-full resize-y border border-[var(--border)] bg-[var(--input)] px-3 py-2 outline-none focus:border-[var(--accent)] placeholder:text-[var(--muted)]/50"
-            />
-          </label>
-
-          {error ? (
-            <p className="text-sm text-[var(--danger)]" role="alert">
-              {error}
-            </p>
-          ) : null}
-
-          <button
-            type="submit"
-            disabled={saving}
-            className="w-full bg-[var(--accent)] px-4 py-2.5 font-medium text-[var(--on-accent)] transition hover:bg-[var(--accent-dim)] disabled:opacity-60"
-          >
-            {saving ? "Saving…" : "Add to barangay list"}
-          </button>
-        </form>
-      </section>
-
+    <div>
       <section>
         <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
           <div>
@@ -291,26 +213,37 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
               </p>
             ) : null}
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <p className="font-mono text-xs text-[var(--muted)]">
               {loading
                 ? "…"
                 : `${rows.length} household${rows.length === 1 ? "" : "s"}`}
             </p>
+            <Button type="button" size="sm" onClick={openModal}>
+              <Plus className="size-4" aria-hidden />
+              Add household
+            </Button>
             {useEmulators ? (
-              <button
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={onSeedCebu}
                 disabled={seeding || loading}
-                className="border border-[var(--border)] px-3 py-1.5 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase transition hover:border-[var(--accent)] hover:text-[var(--foreground)] disabled:opacity-50"
               >
                 {seeding
                   ? "Seeding…"
-                  : `Seed Nangka Consolacion (${CEBU_HOUSEHOLDS.length})`}
-              </button>
+                  : `Seed Nangka (${CEBU_HOUSEHOLDS.length})`}
+              </Button>
             ) : null}
           </div>
         </div>
+
+        {error && !open ? (
+          <p className="mb-3 text-sm text-[var(--danger)]" role="alert">
+            {error}
+          </p>
+        ) : null}
 
         {loading ? (
           <p className="font-mono text-sm text-[var(--muted)]">Loading roster…</p>
@@ -318,20 +251,26 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
           <div className="border border-dashed border-[var(--border)] bg-[var(--surface-panel)]/50 px-5 py-10 text-[var(--muted)]">
             <p>
               No households yet. Add a local house owner, or seed sample homes
-              for Brgy. Nangka, Consolacion, Cebu (Purok 1–6 Access Road).
+              for Brgy. Nangka, Consolacion, Cebu.
             </p>
-            {useEmulators ? (
-              <button
-                type="button"
-                onClick={onSeedCebu}
-                disabled={seeding}
-                className="mt-4 bg-[var(--accent)] px-4 py-2.5 text-sm font-medium text-[var(--on-accent)] transition hover:bg-[var(--accent-dim)] disabled:opacity-60"
-              >
-                {seeding
-                  ? "Seeding…"
-                  : `Seed ${CEBU_HOUSEHOLDS.length} Nangka Consolacion households`}
-              </button>
-            ) : null}
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button type="button" onClick={openModal}>
+                <Plus className="size-4" aria-hidden />
+                Add household
+              </Button>
+              {useEmulators ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onSeedCebu}
+                  disabled={seeding}
+                >
+                  {seeding
+                    ? "Seeding…"
+                    : `Seed ${CEBU_HOUSEHOLDS.length} Nangka households`}
+                </Button>
+              ) : null}
+            </div>
           </div>
         ) : (
           <ul className="divide-y divide-[var(--border)] border border-[var(--border)] bg-[var(--surface-raised)]">
@@ -357,18 +296,142 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
                     Updated · {formatUpdatedAt(h.updatedAt || h.createdAt)}
                   </p>
                 </div>
-                <button
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={() => onRemove(h.id, h.ownerName)}
-                  className="shrink-0 self-start border border-[var(--border)] px-2.5 py-1 text-xs text-[var(--muted)] transition hover:border-[var(--danger)] hover:text-[var(--danger)]"
                 >
                   Remove
-                </button>
+                </Button>
               </li>
             ))}
           </ul>
         )}
       </section>
+
+      <Dialog open={open} onOpenChange={closeModal}>
+        <DialogContent>
+          <DialogHeader>
+            <p className="font-mono text-[10px] tracking-[0.2em] text-[var(--accent)] uppercase">
+              Add household
+            </p>
+            <DialogTitle>Local house owner</DialogTitle>
+            <DialogDescription>
+              Add one by one, or import a CSV for bulk insert.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogBody className="space-y-4">
+            <div className="flex flex-wrap gap-2">
+              <input
+                ref={csvInputRef}
+                type="file"
+                accept=".csv,text/csv"
+                className="hidden"
+                onChange={(e) => onCsvFile(e.target.files?.[0] ?? null)}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={importing}
+                onClick={() => csvInputRef.current?.click()}
+                className="border-[var(--accent)] text-[var(--accent)] hover:border-[var(--accent)]"
+              >
+                {importing ? "Importing…" : "Import CSV"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={downloadCsvTemplate}
+              >
+                Download template
+              </Button>
+            </div>
+            <p className="font-mono text-[10px] tracking-wide text-[var(--muted)] uppercase">
+              Columns: ownerName, address, purok, phone, email, notes, lat, lng
+            </p>
+            {importMsg ? (
+              <p className="text-sm text-[var(--accent)]" role="status">
+                {importMsg}
+              </p>
+            ) : null}
+
+            <form id="add-household-form" onSubmit={onSubmit} className="space-y-3">
+              <Field
+                label="House owner name"
+                required
+                value={form.ownerName}
+                onChange={(v) => setForm((f) => ({ ...f, ownerName: v }))}
+              />
+              <Field
+                label="Address / landmark"
+                required
+                value={form.address}
+                onChange={(v) => setForm((f) => ({ ...f, address: v }))}
+              />
+              <Field
+                label="Purok / sitio"
+                value={form.purok}
+                onChange={(v) => setForm((f) => ({ ...f, purok: v }))}
+                placeholder="e.g. Purok 3"
+              />
+              <Field
+                label="Phone / SMS"
+                required
+                value={form.phone}
+                onChange={(v) => setForm((f) => ({ ...f, phone: v }))}
+                placeholder="09XXXXXXXXX"
+              />
+              <Field
+                label="Email"
+                type="email"
+                value={form.email}
+                onChange={(v) => setForm((f) => ({ ...f, email: v }))}
+              />
+              <label className="block text-sm">
+                <span className="mb-1.5 block text-[var(--muted)]">Notes</span>
+                <textarea
+                  rows={2}
+                  value={form.notes}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, notes: e.target.value }))
+                  }
+                  placeholder="PWD, elderly, needs meds…"
+                  className="w-full resize-y border border-[var(--border)] bg-[var(--input)] px-3 py-2 outline-none focus:border-[var(--accent)] placeholder:text-[var(--muted)]/50"
+                />
+              </label>
+
+              {error ? (
+                <p className="text-sm text-[var(--danger)]" role="alert">
+                  {error}
+                </p>
+              ) : null}
+            </form>
+          </DialogBody>
+
+          <DialogFooter>
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => closeModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                form="add-household-form"
+                disabled={saving}
+              >
+                {saving ? "Saving…" : "Add to barangay list"}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

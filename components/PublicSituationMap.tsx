@@ -1,13 +1,18 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useState } from "react";
-import { AiAssistControls } from "@/components/AiAssistControls";
-import { useAiAssist } from "@/lib/ai/useAiAssist";
-import { CEBU_AREA } from "@/lib/geo/cebu";
-import { CEBU_FLOOD_SAMPLES } from "@/lib/hazards/floodSamples";
-import { CEBU_LANDSLIDE_SAMPLES } from "@/lib/hazards/landslideSamples";
-import { CEBU_TYPHOON_SAMPLES } from "@/lib/hazards/typhoonSamples";
+import {
+  Flame,
+  LocateFixed,
+  Loader2,
+  Mountain,
+  Tornado,
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { AssistPriority } from "@/lib/ai/assistTypes";
+import { ScenarioNeedsPanel } from "@/components/ScenarioNeedsPanel";
+import { ScenarioSwitcher } from "@/components/ScenarioSwitcher";
+import { DEFAULT_MAP_AREA, type MapArea } from "@/lib/geo/mapAreas";
 import {
   fetchNearbyEarthquakes,
   zoomEarthUrl,
@@ -15,6 +20,10 @@ import {
 } from "@/lib/hazards/usgsEarthquakes";
 import { CEBU_HOUSEHOLDS } from "@/lib/households/seed";
 import type { Household } from "@/lib/households/types";
+import {
+  getCat5Scenario,
+  type DrrmScenarioPhase,
+} from "@/lib/scenarios";
 import {
   fetchCebuWeather,
   isHazardousWeather,
@@ -29,6 +38,21 @@ const AreaMapInner = dynamic(() => import("@/components/AreaMapInner"), {
     </div>
   ),
 });
+
+type LocateStatus =
+  | "idle"
+  | "prompting"
+  | "locating"
+  | "ready"
+  | "denied"
+  | "error";
+
+type LocateApiResponse = {
+  area: MapArea;
+  matched: boolean;
+  displayName: string;
+  user: { lat: number; lng: number };
+};
 
 function seedAsHouseholds(): Household[] {
   return CEBU_HOUSEHOLDS.map((h, i) => ({
@@ -50,18 +74,27 @@ function seedAsHouseholds(): Household[] {
 
 export function PublicSituationMap() {
   const households = useMemo(() => seedAsHouseholds(), []);
+  const [phase, setPhase] = useState<DrrmScenarioPhase>("during");
+  const bundle = useMemo(() => getCat5Scenario(phase), [phase]);
+  const assistPriorities = useMemo(() => {
+    const map: Record<string, AssistPriority> = {};
+    for (const a of bundle.actions) {
+      map[a.householdId] = a.priority;
+    }
+    return map;
+  }, [bundle.actions]);
+
   const [weather, setWeather] = useState<AreaWeather | null>(null);
   const [weatherError, setWeatherError] = useState<string | null>(null);
   const [quakes, setQuakes] = useState<QuakeEvent[]>([]);
-  const {
-    running,
-    result,
-    error: assistError,
-    assistPriorities,
-    escapeRoutes,
-    runAssist,
-    clearAssist,
-  } = useAiAssist();
+  const [area, setArea] = useState<MapArea>(DEFAULT_MAP_AREA);
+  const [userLocation, setUserLocation] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
+  const [locateStatus, setLocateStatus] = useState<LocateStatus>("prompting");
+  const [locateError, setLocateError] = useState<string | null>(null);
+  const [matched, setMatched] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -93,39 +126,141 @@ export function PublicSituationMap() {
     };
   }, []);
 
+  const applyCoords = useCallback(async (lat: number, lng: number) => {
+    setLocateStatus("locating");
+    setLocateError(null);
+    try {
+      const res = await fetch(
+        `/api/geo/locate?lat=${encodeURIComponent(String(lat))}&lng=${encodeURIComponent(String(lng))}`,
+      );
+      if (!res.ok) throw new Error("Could not resolve barangay");
+      const data = (await res.json()) as LocateApiResponse;
+      setArea(data.area);
+      setUserLocation(data.user);
+      setMatched(data.matched);
+      setLocateStatus("ready");
+    } catch (err) {
+      setUserLocation({ lat, lng });
+      setArea({
+        ...DEFAULT_MAP_AREA,
+        id: `gps/${lat.toFixed(4)},${lng.toFixed(4)}`,
+        name: "Your location",
+        center: { lat, lng },
+        zoom: 16,
+      });
+      setMatched(false);
+      setLocateStatus("error");
+      setLocateError(
+        err instanceof Error ? err.message : "Could not resolve barangay",
+      );
+    }
+  }, []);
+
+  const requestLocation = useCallback(() => {
+    if (!navigator.geolocation) {
+      setLocateStatus("error");
+      setLocateError("Geolocation is not supported in this browser.");
+      return;
+    }
+
+    setLocateStatus("locating");
+    setLocateError(null);
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        void applyCoords(pos.coords.latitude, pos.coords.longitude);
+      },
+      (err) => {
+        if (err.code === err.PERMISSION_DENIED) {
+          setLocateStatus("denied");
+          setLocateError("Location permission denied.");
+        } else {
+          setLocateStatus("error");
+          setLocateError(err.message || "Could not read your location.");
+        }
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60_000 },
+    );
+  }, [applyCoords]);
+
+  useEffect(() => {
+    requestLocation();
+  }, [requestLocation]);
+
+  function onPhaseChange(next: DrrmScenarioPhase) {
+    setPhase(next);
+    // Keep scenario focused on Nangka ops; visitor pin stays if already set
+    setArea(DEFAULT_MAP_AREA);
+  }
+
   const hazard =
     weather &&
     isHazardousWeather(weather.weatherCode, weather.precipitationMm);
-  const zoomUrl = zoomEarthUrl(
-    CEBU_AREA.center.lat,
-    CEBU_AREA.center.lng,
-    11,
-  );
+  const mapCenter = DEFAULT_MAP_AREA.center;
+  const zoomUrl = zoomEarthUrl(mapCenter.lat, mapCenter.lng, 11);
+
+  const locateEyebrow =
+    locateStatus === "ready"
+      ? matched
+        ? `Located · Brgy. ${area.barangay}`
+        : "Located · approximate"
+      : locateStatus === "locating"
+        ? "Finding your barangay…"
+        : null;
 
   return (
     <section
       id="live-map"
-      className="relative z-10 border-t border-[var(--border)] bg-[var(--surface)] px-4 py-12 sm:px-8 sm:py-16"
+      className="relative z-10 border-t border-[var(--border)] bg-[var(--surface)] py-12 sm:py-16"
     >
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
+      <div className="w-full">
+        <div className="mb-6 flex flex-col gap-4 px-4 sm:flex-row sm:items-end sm:justify-between sm:px-8">
+          <div className="min-w-0 flex-1">
             <p className="font-mono text-xs tracking-[0.25em] text-[var(--accent)] uppercase">
-              Public view · Consolacion
+              {bundle.eyebrow}
+              {locateEyebrow ? ` · ${locateEyebrow}` : ""}
             </p>
             <h2 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-wide sm:text-4xl">
-              {CEBU_AREA.name}
+              {DEFAULT_MAP_AREA.name}
             </h2>
-            <p className="mt-2 max-w-xl text-[var(--muted)]">
-              Live weather and earthquakes, plus sample floods, landslides, and
-              typhoon tracks for the demo barangay. Officers see the full
-              roster after login.
-            </p>
+            <p className="mt-2 max-w-xl text-[var(--muted)]">{bundle.blurb}</p>
+
+            <div className="mt-4 flex flex-wrap items-end gap-4">
+              <ScenarioSwitcher phase={phase} onChange={onPhaseChange} />
+              {(locateStatus === "prompting" ||
+                locateStatus === "locating" ||
+                locateStatus === "denied" ||
+                locateStatus === "error") && (
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={requestLocation}
+                    disabled={locateStatus === "locating"}
+                    className="inline-flex items-center gap-2 border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2 font-mono text-[10px] tracking-wider text-[var(--foreground)] uppercase transition hover:border-[var(--accent)] disabled:opacity-60"
+                  >
+                    {locateStatus === "locating" ? (
+                      <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                    ) : (
+                      <LocateFixed className="size-3.5" aria-hidden />
+                    )}
+                    {locateStatus === "locating"
+                      ? "Locating…"
+                      : locateStatus === "denied" || locateStatus === "error"
+                        ? "Try location again"
+                        : "Use my location"}
+                  </button>
+                  {locateError ? (
+                    <p className="text-xs text-[var(--danger)]">{locateError}</p>
+                  ) : null}
+                </div>
+              )}
+            </div>
+
             <a
               href={zoomUrl}
               target="_blank"
               rel="noreferrer"
-              className="mt-2 inline-block font-mono text-[10px] tracking-wider text-[var(--accent)] uppercase underline-offset-2 hover:underline"
+              className="mt-3 inline-block font-mono text-[10px] tracking-wider text-[var(--accent)] uppercase underline-offset-2 hover:underline"
             >
               Open Zoom Earth rain / satellite →
             </a>
@@ -164,87 +299,75 @@ export function PublicSituationMap() {
           </div>
         </div>
 
-        <div className="overflow-hidden border border-[var(--border)] bg-[var(--surface-raised)]">
-          <div className="relative h-[360px] sm:h-[440px]">
+        <div className="mb-4 px-4 sm:px-8">
+          <ScenarioNeedsPanel bundle={bundle} />
+        </div>
+
+        <div className="w-full overflow-hidden border-y border-[var(--border)] bg-[var(--surface-raised)]">
+          <div className="relative h-[360px] sm:h-[440px] lg:h-[min(70vh,720px)]">
             <AreaMapInner
+              key={phase}
+              area={DEFAULT_MAP_AREA}
+              userLocation={userLocation}
+              forceLayers
               households={households}
               quakes={quakes}
-              landslides={CEBU_LANDSLIDE_SAMPLES}
-              floods={CEBU_FLOOD_SAMPLES}
-              typhoons={CEBU_TYPHOON_SAMPLES}
+              landslides={bundle.landslides}
+              floods={bundle.floods}
+              typhoons={bundle.typhoons}
+              fires={bundle.fires}
+              reportPins={bundle.reportPins}
               assistPriorities={assistPriorities}
-              escapeRoutes={escapeRoutes}
-            />
-          </div>
-          <div className="border-t border-[var(--border)] px-4 py-4">
-            <AiAssistControls
-              running={running}
-              result={result}
-              error={assistError}
-              onClear={clearAssist}
-              onRun={() =>
-                runAssist({
-                  households,
-                  floods: CEBU_FLOOD_SAMPLES,
-                  landslides: CEBU_LANDSLIDE_SAMPLES,
-                  typhoons: CEBU_TYPHOON_SAMPLES,
-                  weatherLabel: weather?.label,
-                })
-              }
+              escapeRoutes={bundle.escapes}
             />
           </div>
           <div className="flex flex-wrap gap-x-5 gap-y-2 border-t border-[var(--border)] px-4 py-3 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+            {userLocation ? (
+              <span>
+                <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-[#0ea5e9] align-middle" />
+                You are here
+              </span>
+            ) : null}
             <span>
-              <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-[var(--accent)] align-middle" />
-              Households {households.length}
+              <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-[var(--danger)] align-middle" />
+              Evacuate{" "}
+              {bundle.needs.filter((n) => n.priority === "evacuate").length}
             </span>
             <span>
               <span className="mr-1.5 inline-block h-2 w-2 bg-[#2563eb] align-middle" />
-              Floods {CEBU_FLOOD_SAMPLES.length}
+              Floods {bundle.floods.length}
+            </span>
+            {bundle.fires.length > 0 ? (
+              <span className="inline-flex items-center gap-1.5">
+                <Flame
+                  className="size-3.5 shrink-0 text-[#ea580c]"
+                  strokeWidth={2.5}
+                  aria-hidden
+                />
+                Fires {bundle.fires.length}
+              </span>
+            ) : null}
+            {bundle.landslides.length > 0 ? (
+              <span className="inline-flex items-center gap-1.5">
+                <Mountain
+                  className="size-3.5 shrink-0 text-[#8b5a2b]"
+                  strokeWidth={2.5}
+                  aria-hidden
+                />
+                Landslides {bundle.landslides.length}
+              </span>
+            ) : null}
+            <span className="inline-flex items-center gap-1.5">
+              <Tornado
+                className="size-3.5 shrink-0 text-[#1d4ed8]"
+                strokeWidth={2.5}
+                aria-hidden
+              />
+              Typhoon {bundle.typhoons.length}
             </span>
             <span>
-              <span className="mr-1.5 inline-block h-2 w-2 rotate-45 bg-[#8b5a2b] align-middle" />
-              Landslides {CEBU_LANDSLIDE_SAMPLES.length}
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <svg
-                viewBox="0 0 32 32"
-                width="14"
-                height="14"
-                aria-hidden
-                className="shrink-0"
-              >
-                <circle
-                  cx="16"
-                  cy="16"
-                  r="14"
-                  fill="#dbeafe"
-                  stroke="#1d4ed8"
-                  strokeWidth="1.5"
-                />
-                <path
-                  fill="#2563eb"
-                  d="M16 4c4.2 1.2 7.5 4.2 8.8 8.2-2.8-1.8-6-2.6-8.8-2.4V4z"
-                />
-                <path
-                  fill="#1d4ed8"
-                  d="M28 16c-1.2 4.2-4.2 7.5-8.2 8.8 1.8-2.8 2.6-6 2.4-8.8H28z"
-                />
-                <path
-                  fill="#3b82f6"
-                  d="M16 28c-4.2-1.2-7.5-4.2-8.8-8.2 2.8 1.8 6 2.6 8.8 2.4V28z"
-                />
-                <circle
-                  cx="16"
-                  cy="16"
-                  r="4"
-                  fill="#fff"
-                  stroke="#1e40af"
-                  strokeWidth="1.5"
-                />
-                <circle cx="16" cy="16" r="1.5" fill="#1e40af" />
-              </svg>
-              Typhoon {CEBU_TYPHOON_SAMPLES.length}
+              <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-[#b45309] align-middle" />
+              Reports {bundle.reportPins.length}
             </span>
             <span>
               <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-[var(--danger)] align-middle" />

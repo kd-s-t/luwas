@@ -5,12 +5,28 @@ export type TyphoonCategory =
   | "typhoon"
   | "super_typhoon";
 
+export type TyphoonTrackPoint = {
+  lat: number;
+  lng: number;
+  /** Optional forecast / observed label */
+  label?: string;
+  /** ISO timestamp when known */
+  at?: string;
+};
+
+export type TyphoonWindRadiiKm = {
+  /** Approx gale / signal outer radius */
+  gale: number;
+  storm: number;
+  typhoon: number;
+};
+
 export type TyphoonSample = {
   id: string;
   name: string;
   internationalName: string;
   category: TyphoonCategory;
-  /** Approximate center of circulation */
+  /** Approximate center of circulation (eye) */
   lat: number;
   lng: number;
   maxWindsKmh: number;
@@ -19,6 +35,10 @@ export type TyphoonSample = {
   etaNote: string;
   reportedAt: string;
   notes: string;
+  /** Forecast or observed track (eye positions). Drawn as a polyline. */
+  track?: TyphoonTrackPoint[];
+  /** Concentric wind-field radii in km from the eye. */
+  windRadiiKm?: TyphoonWindRadiiKm;
 };
 
 /**
