@@ -59,6 +59,18 @@ service cloud.firestore {
         && resource.data.officerUid == request.auth.uid;
     }
 
+    // Barangay / LGU staff directory (captain, MDRRMO, tanods, …).
+    match /barangayStaff/{staffId} {
+      allow read: if isOfficer();
+      allow create, update: if isOfficer()
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() > 0
+        && request.resource.data.title is string
+        && request.resource.data.barangayId is string
+        && request.resource.data.barangayId.size() > 0;
+      allow delete: if isOfficer();
+    }
+
     match /reports/{reportId} {
       // Public feed can list reports; writers stay authenticated.
       allow read: if true;

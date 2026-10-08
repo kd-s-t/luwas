@@ -17,7 +17,7 @@ export function ScenarioTopBar() {
       <div className="flex flex-col gap-2 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:px-8">
         <div className="min-w-0">
           <p className="font-mono text-[9px] tracking-[0.22em] text-[var(--accent)] uppercase">
-            Situation · {bundle.label}
+            Odette simulation · {bundle.label}
           </p>
           <p className="mt-0.5 line-clamp-2 text-xs text-[var(--muted)] sm:line-clamp-1 sm:max-w-2xl">
             {bundle.blurb}

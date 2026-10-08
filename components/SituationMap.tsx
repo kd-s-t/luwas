@@ -9,7 +9,14 @@ import type {
   AssistPriority,
 } from "@/lib/ai/assistTypes";
 import { useAiAssist } from "@/lib/ai/useAiAssist";
+import { useAuth } from "@/lib/auth/AuthProvider";
+import { isOfficer } from "@/lib/auth/types";
 import { rosterMatchesOpsArea } from "@/lib/geo/cebu";
+import {
+  getBarangayMapPack,
+  householdsInArea,
+  mapAreaFromReportScope,
+} from "@/lib/geo/barangayMapPack";
 import {
   DEFAULT_MAP_AREA,
   isNangkaOpsArea,
@@ -33,13 +40,18 @@ import {
   zoomEarthUrl,
   type QuakeEvent,
 } from "@/lib/hazards/usgsEarthquakes";
-import { seedHouseholds, subscribeHouseholds } from "@/lib/households/api";
+import {
+  ensureCuratedHouseholds,
+  seedHouseholds,
+  subscribeHouseholds,
+} from "@/lib/households/api";
 import {
   CEBU_HOUSEHOLDS,
   NANGKA_CENSUS_2020,
   NANGKA_HOUSEHOLD_TARGET,
 } from "@/lib/households/seed";
 import type { Household } from "@/lib/households/types";
+import { officerReportScope } from "@/lib/reports/barangayScope";
 import { useScenario } from "@/lib/scenarios";
 import {
   fetchCebuWeather,
@@ -81,13 +93,31 @@ type SituationMapProps = {
 };
 
 export function SituationMap({ officerUid }: SituationMapProps) {
-  const [mapArea, setMapArea] = useState<MapArea>(DEFAULT_MAP_AREA);
+  const { profile } = useAuth();
+  const defaultArea = useMemo(() => {
+    if (isOfficer(profile)) {
+      return mapAreaFromReportScope(officerReportScope(profile.orgName));
+    }
+    return DEFAULT_MAP_AREA;
+  }, [profile]);
+  const [mapArea, setMapArea] = useState<MapArea>(defaultArea);
+  const areaBootstrapped = useRef(false);
+  useEffect(() => {
+    if (areaBootstrapped.current) return;
+    areaBootstrapped.current = true;
+    setMapArea(defaultArea);
+  }, [defaultArea]);
+
   const { officerBundle: scenario } = useScenario();
+  const pack = useMemo(
+    () => getBarangayMapPack(mapArea, scenario),
+    [mapArea, scenario],
+  );
   const scenarioPriorities = useMemo(() => {
     const map: Record<string, AssistPriority> = {};
-    for (const a of scenario.actions) map[a.householdId] = a.priority;
+    for (const a of pack.scenarioActions) map[a.householdId] = a.priority;
     return map;
-  }, [scenario.actions]);
+  }, [pack.scenarioActions]);
   const [households, setHouseholds] = useState<Household[]>([]);
   const [rosterReady, setRosterReady] = useState(false);
   const [migrating, setMigrating] = useState(false);
@@ -97,6 +127,7 @@ export function SituationMap({ officerUid }: SituationMapProps) {
   const [quakes, setQuakes] = useState<QuakeEvent[]>([]);
   const [quakeError, setQuakeError] = useState<string | null>(null);
   const migrateAttempted = useRef(false);
+  const curatedSynced = useRef(false);
   const nangkaOps = isNangkaOpsArea(mapArea);
   const {
     running,
@@ -109,21 +140,23 @@ export function SituationMap({ officerUid }: SituationMapProps) {
     chats,
     assistPriorities,
     escapeRoutes,
+    callListVisible,
     sendMessage,
-    clearAssist,
+    clearCallList,
     newChat,
     selectChat,
     deleteChat,
   } = useAiAssist();
   const hasAiOverlay = Object.keys(assistPriorities).length > 0;
   const scenarioEscapes = useRoadEscapes(
-    nangkaOps && !hasAiOverlay ? scenario.escapes : EMPTY_ESCAPES,
+    nangkaOps && !hasAiOverlay ? pack.scenarioEscapes : EMPTY_ESCAPES,
     { deferMs: 800 },
   );
 
   useEffect(() => {
     setRosterReady(false);
     migrateAttempted.current = false;
+    curatedSynced.current = false;
     return subscribeHouseholds(officerUid, (rows) => {
       setHouseholds(rows);
       setRosterReady(true);
@@ -145,12 +178,29 @@ export function SituationMap({ officerUid }: SituationMapProps) {
       .finally(() => setMigrating(false));
   }, [rosterReady, households, officerUid, migrating]);
 
+  // Add Ken / other curated pins if roster was seeded before they existed.
+  useEffect(() => {
+    if (!rosterReady || migrating || curatedSynced.current) return;
+    if (households.length === 0 || !rosterMatchesOpsArea(households)) return;
+    curatedSynced.current = true;
+    void ensureCuratedHouseholds(
+      officerUid,
+      "Brgy. Nangka MDRRMO",
+      households,
+    ).catch(() => {
+      curatedSynced.current = false;
+    });
+  }, [rosterReady, migrating, households, officerUid]);
+
   const mapHouseholds = useMemo(() => {
+    if (!nangkaOps) {
+      return householdsInArea(households, mapArea);
+    }
     if (households.length > 0 && rosterMatchesOpsArea(households)) {
       return households;
     }
     return seedAsHouseholds();
-  }, [households]);
+  }, [households, nangkaOps, mapArea]);
 
   useEffect(() => {
     let cancelled = false;
@@ -222,14 +272,16 @@ export function SituationMap({ officerUid }: SituationMapProps) {
       ? escapeRoutes
       : scenarioEscapes
     : [];
+  // Flood footprints only after Run triage on Nangka (AI prediction).
+  const mapFloods =
+    nangkaOps && result?.predictedFloods?.length
+      ? result.predictedFloods
+      : [];
 
   return (
-    <section className="mb-6 w-full border-b border-[var(--border)] bg-[var(--surface-raised)]">
+    <section className="w-full border-b border-[var(--border)] bg-[var(--surface-raised)]">
       <div className="relative z-30 flex flex-col gap-2.5 border-b border-[var(--border)] bg-[var(--surface-raised)] px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <div className="relative z-30 min-w-0">
-          <p className="font-mono text-[9px] tracking-[0.2em] text-[var(--accent)] uppercase">
-            Area · Ops
-          </p>
           <AreaSearchSelect value={mapArea} onChange={setMapArea} />
           <p className="mt-1 text-xs text-[var(--muted)] sm:text-sm">
             {nangkaOps ? (
@@ -238,15 +290,17 @@ export function SituationMap({ officerUid }: SituationMapProps) {
                 {mappedCount >= NANGKA_HOUSEHOLD_TARGET
                   ? ` · ~${NANGKA_CENSUS_2020.toLocaleString()} people (PSA 2020)`
                   : ""}{" "}
-                · {scenario.floods.length} floods ·{" "}
-                {scenario.landslides.length} slides · {scenario.typhoons.length}{" "}
-                typhoon · {scenario.fires.length} fire ·{" "}
-                {scenario.reportPins.length} reports
+                · {mapFloods.length} AI floods ·{" "}
+                {pack.landslides.length} slides · {pack.typhoons.length} typhoon
+                · {pack.fires.length} fire · {pack.reportPins.length} reports
                 {quakes.length ? ` · ${quakes.length} quakes` : ""}
                 {migrating ? " · updating roster…" : ""}
               </>
             ) : (
-              <>Map centered on {mapArea.barangay} · demo hazard layers stay on Nangka</>
+              <>
+                {mapArea.barangay} map · no local hazard layers yet
+                {quakes.length ? ` · ${quakes.length} quakes` : ""}
+              </>
             )}
             {" · "}
             <a
@@ -312,23 +366,23 @@ export function SituationMap({ officerUid }: SituationMapProps) {
       </div>
 
       <div className="relative z-0 grid overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(320px,28vw)]">
-        <div className="relative z-0 h-[320px] sm:h-[400px] lg:h-[min(70vh,720px)]">
+        <div className="relative z-0 h-[min(62dvh,560px)] sm:h-[min(68dvh,680px)] lg:h-[calc(100dvh-11rem)]">
           <AreaMapInner
-            key="ops-map"
+            key={mapArea.id}
             area={mapArea}
-            forceLayers={nangkaOps}
             households={mapHouseholds}
             quakes={quakes}
-            landslides={scenario.landslides}
-            floods={scenario.floods}
-            typhoons={scenario.typhoons}
-            fires={scenario.fires}
-            reportPins={scenario.reportPins}
+            landslides={pack.landslides}
+            floods={mapFloods}
+            typhoons={pack.typhoons}
+            fires={pack.fires}
+            reportPins={pack.reportPins}
+            safePoints={pack.safePoints}
             assistPriorities={mapPriorities}
             escapeRoutes={mapEscapes}
           />
         </div>
-        <aside className="h-[420px] border-t border-[var(--border)] lg:h-[min(70vh,720px)] lg:border-t-0 lg:border-l">
+        <aside className="h-[min(62dvh,560px)] border-t border-[var(--border)] sm:h-[min(68dvh,680px)] lg:h-[calc(100dvh-11rem)] lg:border-t-0 lg:border-l">
           <MangluluwasChat
             className="border-0"
             messages={messages}
@@ -338,7 +392,8 @@ export function SituationMap({ officerUid }: SituationMapProps) {
             error={assistError}
             model={model}
             onModelChange={setModel}
-            onClearMap={clearAssist}
+            callListVisible={callListVisible}
+            onClearCallList={clearCallList}
             chats={chats}
             activeChatId={activeChatId}
             onNewChat={newChat}
@@ -347,15 +402,21 @@ export function SituationMap({ officerUid }: SituationMapProps) {
             onSend={(text) =>
               sendMessage(text, {
                 households: mapHouseholds,
-                floods: scenario.floods.length
-                  ? scenario.floods
-                  : CEBU_FLOOD_SAMPLES,
-                landslides: scenario.landslides.length
-                  ? scenario.landslides
-                  : CEBU_LANDSLIDE_SAMPLES,
-                typhoons: scenario.typhoons.length
-                  ? scenario.typhoons
-                  : CEBU_TYPHOON_SAMPLES,
+                floods: mapFloods.length
+                  ? mapFloods
+                  : nangkaOps
+                    ? CEBU_FLOOD_SAMPLES
+                    : [],
+                landslides: pack.landslides.length
+                  ? pack.landslides
+                  : nangkaOps
+                    ? CEBU_LANDSLIDE_SAMPLES
+                    : [],
+                typhoons: pack.typhoons.length
+                  ? pack.typhoons
+                  : nangkaOps
+                    ? CEBU_TYPHOON_SAMPLES
+                    : [],
                 weatherLabel: weather?.label,
                 model,
               })
@@ -366,16 +427,16 @@ export function SituationMap({ officerUid }: SituationMapProps) {
 
       <div className="grid gap-0 border-t border-[var(--border)] sm:grid-cols-2">
         <HazardList
-          title="Demo · floods"
-          hint="Blue squares on map · demo inundation (not live PAGASA)."
+          title="Floods"
+          hint="Run triage sets these AI flood footprints. Clear list hides the call sheet — map stays."
           borderClass="border-b sm:border-r"
         >
-          {scenario.floods.length === 0 ? (
+          {mapFloods.length === 0 ? (
             <li className="px-3 py-4 text-sm text-[var(--muted)]">
-              No flood pins.
+              No AI flood prediction yet — run triage.
             </li>
           ) : (
-            scenario.floods.map((fl) => (
+            mapFloods.map((fl) => (
               <li
                 key={fl.id}
                 className="flex flex-wrap items-baseline justify-between gap-2 px-3 py-2.5 text-sm"
@@ -404,16 +465,18 @@ export function SituationMap({ officerUid }: SituationMapProps) {
         </HazardList>
 
         <HazardList
-          title="Demo · typhoon"
-          hint="Lucide Tornado icons on map · demo cyclone track (not live PAGASA)."
+          title="Typhoon"
+          hint="Eye / track from IBTrACS Odette (Rai) on this phase’s timeline."
           borderClass="border-b"
         >
-          {scenario.typhoons.length === 0 ? (
+          {pack.typhoons.length === 0 ? (
             <li className="px-3 py-4 text-sm text-[var(--muted)]">
-              No typhoon pins.
+              {pack.empty
+                ? "No typhoon layer for this barangay yet."
+                : "No typhoon pins."}
             </li>
           ) : (
-            scenario.typhoons.map((ty) => (
+            pack.typhoons.map((ty) => (
               <li
                 key={ty.id}
                 className="flex flex-col gap-0.5 px-3 py-2.5 text-sm"
@@ -434,16 +497,18 @@ export function SituationMap({ officerUid }: SituationMapProps) {
         </HazardList>
 
         <HazardList
-          title="Demo · landslides"
-          hint="Lucide Mountain icons on map · demo slope incidents (not live MGB)."
+          title="Landslides"
+          hint="Slope incidents for this Odette phase (not a live MGB feed)."
           borderClass="border-b sm:border-b-0 sm:border-r"
         >
-          {scenario.landslides.length === 0 ? (
+          {pack.landslides.length === 0 ? (
             <li className="px-3 py-4 text-sm text-[var(--muted)]">
-              No landslide pins.
+              {pack.empty
+                ? "No landslide layer for this barangay yet."
+                : "No landslide pins."}
             </li>
           ) : (
-            scenario.landslides.map((ls) => (
+            pack.landslides.map((ls) => (
               <li
                 key={ls.id}
                 className="flex flex-wrap items-baseline justify-between gap-2 px-3 py-2.5 text-sm"
@@ -471,8 +536,8 @@ export function SituationMap({ officerUid }: SituationMapProps) {
         </HazardList>
 
         <HazardList
-          title="Live · earthquakes"
-          hint="USGS M2.5+ last 7 days within 400 km — not part of the Odette demo."
+          title="Earthquakes"
+          hint="Live USGS M2.5+ last 7 days within 400 km."
           borderClass=""
         >
           {quakeError ? (

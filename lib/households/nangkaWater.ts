@@ -1,7 +1,7 @@
 /**
  * OSM waterway centerlines through Brgy. Nangka (Consolacion) — used to keep
  * synthetic household pins off rivers/creeks. Source: OpenStreetMap ways
- * Cansaga River (97925677) + Jagobiao Creek (97925682), clipped to the demo bbox.
+ * Cansaga River (97925677) + Jagobiao Creek (97925682), clipped to the Nangka bbox.
  */
 
 export type WaterLatLng = { lat: number; lng: number };

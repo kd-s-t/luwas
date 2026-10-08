@@ -14,6 +14,10 @@ import {
   markReportValidating,
   updateReportValidation,
 } from "@/lib/reports/api";
+import {
+  DEFAULT_REPORT_BARANGAY,
+  DEFAULT_REPORT_LGU,
+} from "@/lib/reports/barangayScope";
 import type { ReportHazardHint } from "@/lib/reports/types";
 import { takePendingReportMedia } from "@/lib/reports/pendingMedia";
 import { fileToBase64, uploadReportMedia } from "@/lib/reports/upload";
@@ -109,6 +113,8 @@ export function CitizenReportForm({ author }: CitizenReportFormProps) {
         citizenUid: author.uid,
         citizenName: author.displayName,
         citizenPurok: authorPlace(author),
+        barangay: DEFAULT_REPORT_BARANGAY,
+        lgu: DEFAULT_REPORT_LGU,
         citizenPhotoURL: author.photoURL ?? null,
         title: title.trim(),
         notes: notes.trim(),

@@ -5,19 +5,18 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { AuthCard } from "@/components/AuthCard";
 import { AuthGate } from "@/components/AuthGate";
-import { DEMO_ID_PROOF, DEMO_OFFICER } from "@/lib/auth/demoAccount";
+import { DEMO_OFFICER } from "@/lib/auth/demoAccount";
+import {
+  DEMO_ID_PROOF,
+  DEMO_OFFICERS,
+  findDemoOfficer,
+  type DemoOfficer,
+} from "@/lib/auth/demoOfficers";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useEmulators } from "@/lib/firebase/client";
 import { doc, getDoc } from "firebase/firestore";
 import { getClientAuth, getClientDb } from "@/lib/firebase/client";
 import type { UserProfile } from "@/lib/auth/types";
-
-function isDemoCredentials(email: string, password: string) {
-  return (
-    email.trim().toLowerCase() === DEMO_OFFICER.email &&
-    password === DEMO_OFFICER.password
-  );
-}
 
 export default function LoginPage() {
   const { login, register } = useAuth();
@@ -31,42 +30,43 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  async function loginDemo() {
-    setEmail(DEMO_OFFICER.email);
-    setPassword(DEMO_OFFICER.password);
+  async function ensureDemoOfficer(officer: DemoOfficer) {
+    try {
+      await login(officer.email, officer.password);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "";
+      const missing =
+        /user-not-found|invalid-credential|INVALID_LOGIN_CREDENTIALS/i.test(
+          message,
+        );
+      if (!useEmulators || !missing) throw err;
+      try {
+        await register({
+          email: officer.email,
+          password: officer.password,
+          displayName: officer.displayName,
+          orgName: officer.orgName,
+          idProof: DEMO_ID_PROOF,
+        });
+      } catch (regErr) {
+        const regMsg =
+          regErr instanceof Error ? regErr.message : String(regErr);
+        if (/email-already-in-use/i.test(regMsg)) {
+          await login(officer.email, officer.password);
+        } else {
+          throw regErr;
+        }
+      }
+    }
+  }
+
+  async function loginAs(officer: DemoOfficer) {
+    setEmail(officer.email);
+    setPassword(officer.password);
     setError(null);
     setSubmitting(true);
     try {
-      try {
-        await login(DEMO_OFFICER.email, DEMO_OFFICER.password);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "";
-        const missing =
-          /user-not-found|invalid-credential|INVALID_LOGIN_CREDENTIALS/i.test(
-            message,
-          );
-        if (useEmulators && missing) {
-          try {
-            await register({
-              email: DEMO_OFFICER.email,
-              password: DEMO_OFFICER.password,
-              displayName: DEMO_OFFICER.displayName,
-              orgName: DEMO_OFFICER.orgName,
-              idProof: DEMO_ID_PROOF,
-            });
-          } catch (regErr) {
-            const regMsg =
-              regErr instanceof Error ? regErr.message : String(regErr);
-            if (/email-already-in-use/i.test(regMsg)) {
-              await login(DEMO_OFFICER.email, DEMO_OFFICER.password);
-            } else {
-              throw regErr;
-            }
-          }
-        } else {
-          throw err;
-        }
-      }
+      await ensureDemoOfficer(officer);
       await redirectForCurrentUser();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
@@ -92,35 +92,11 @@ export default function LoginPage() {
     setSubmitting(true);
     const trimmedEmail = email.trim();
     try {
-      try {
+      const demo = findDemoOfficer(trimmedEmail, password);
+      if (useEmulators && demo) {
+        await ensureDemoOfficer(demo);
+      } else {
         await login(trimmedEmail, password);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "";
-        const missing =
-          /user-not-found|invalid-credential|INVALID_LOGIN_CREDENTIALS/i.test(
-            message,
-          );
-        if (useEmulators && missing && isDemoCredentials(trimmedEmail, password)) {
-          try {
-            await register({
-              email: DEMO_OFFICER.email,
-              password: DEMO_OFFICER.password,
-              displayName: DEMO_OFFICER.displayName,
-              orgName: DEMO_OFFICER.orgName,
-              idProof: DEMO_ID_PROOF,
-            });
-          } catch (regErr) {
-            const regMsg =
-              regErr instanceof Error ? regErr.message : String(regErr);
-            if (/email-already-in-use/i.test(regMsg)) {
-              await login(trimmedEmail, password);
-            } else {
-              throw regErr;
-            }
-          }
-        } else {
-          throw err;
-        }
       }
       await redirectForCurrentUser();
     } catch (err) {
@@ -139,7 +115,7 @@ export default function LoginPage() {
     <AuthGate mode="guest">
       <AuthCard
         title="Officer login"
-        subtitle="Sign in to Luwas command center."
+        subtitle="Captain, MDRRMO, or LGU — sign in to Luwas command."
         footer={
           <>
             Citizen reporter?{" "}
@@ -159,14 +135,29 @@ export default function LoginPage() {
       >
         <form onSubmit={onSubmit} className="space-y-4">
           {useEmulators ? (
-            <button
-              type="button"
-              onClick={() => void loginDemo()}
-              disabled={submitting}
-              className="w-full border border-[var(--border)] px-3 py-2 font-mono text-xs tracking-wider text-[var(--muted)] uppercase transition hover:border-[var(--accent)] hover:text-[var(--foreground)] disabled:opacity-60"
-            >
-              {submitting ? "Signing in…" : "Use demo officer"}
-            </button>
+            <div className="space-y-2">
+              <p className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+                Demo roles
+              </p>
+              <div className="grid gap-2">
+                {DEMO_OFFICERS.map((o) => (
+                  <button
+                    key={o.id}
+                    type="button"
+                    onClick={() => void loginAs(o)}
+                    disabled={submitting}
+                    className="w-full border border-[var(--border)] px-3 py-2 text-left transition hover:border-[var(--accent)] disabled:opacity-60"
+                  >
+                    <span className="block text-sm font-medium text-[var(--foreground)]">
+                      {o.label}
+                    </span>
+                    <span className="block font-mono text-[10px] text-[var(--muted)]">
+                      {o.email}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
           ) : null}
           <label className="block text-sm">
             <span className="mb-1.5 block text-[var(--muted)]">Email</span>

@@ -4,6 +4,16 @@ import { useEffect, useMemo, useState } from "react";
 import { PostReportButton } from "@/components/PostReportButton";
 import { PublicReportCard } from "@/components/PublicReportCard";
 import { FadeIn } from "@/components/motion/primitives";
+import { useAuth } from "@/lib/auth/AuthProvider";
+import type { LatLng } from "@/lib/geo/cebu";
+import {
+  reportInScope,
+  scopeAnchor,
+  scopeForProfile,
+  scopeLabel,
+  sortReportsByDistance,
+} from "@/lib/reports/barangayScope";
+import { captureReportMeta } from "@/lib/reports/captureMeta";
 import { ensureAllMapReportsInDb } from "@/lib/reports/seedMapReport";
 import { subscribePublicReports } from "@/lib/reports/socialApi";
 import {
@@ -47,11 +57,16 @@ function matchesSearch(report: HazardReport, q: string): boolean {
 }
 
 export function PublicReportsFeed() {
+  const { profile } = useAuth();
   const [rows, setRows] = useState<HazardReport[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [year, setYear] = useState<"all" | number>("all");
   const [category, setCategory] = useState<"all" | ReportHazardHint>("all");
   const [search, setSearch] = useState("");
+  const [here, setHere] = useState<LatLng | null>(null);
+
+  const scope = useMemo(() => scopeForProfile(profile), [profile]);
+  const anchor = useMemo(() => here ?? scopeAnchor(scope), [here, scope]);
 
   useEffect(() => {
     let unsub: (() => void) | undefined;
@@ -77,26 +92,45 @@ export function PublicReportsFeed() {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    void captureReportMeta().then((meta) => {
+      if (cancelled) return;
+      if (meta.lat != null && meta.lng != null) {
+        setHere({ lat: meta.lat, lng: meta.lng });
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const scoped = useMemo(() => {
+    if (!rows) return null;
+    return rows.filter((r) => reportInScope(r, scope));
+  }, [rows, scope]);
+
   const years = useMemo(() => {
-    if (!rows) return [] as number[];
+    if (!scoped) return [] as number[];
     const set = new Set<number>();
-    for (const r of rows) {
+    for (const r of scoped) {
       const y = reportYear(r);
       if (y != null) set.add(y);
     }
     return [...set].sort((a, b) => b - a);
-  }, [rows]);
+  }, [scoped]);
 
   const filtered = useMemo(() => {
-    if (!rows) return [];
+    if (!scoped) return [];
     const q = search.trim().toLowerCase();
-    return rows.filter((r) => {
+    const matched = scoped.filter((r) => {
       if (year !== "all" && reportYear(r) !== year) return false;
       if (category !== "all" && r.hazardHint !== category) return false;
       if (!matchesSearch(r, q)) return false;
       return true;
     });
-  }, [rows, year, category, search]);
+    return sortReportsByDistance(matched, anchor).map((x) => x.report);
+  }, [scoped, year, category, search, anchor]);
 
   if (error) {
     return (
@@ -109,7 +143,7 @@ export function PublicReportsFeed() {
     );
   }
 
-  if (rows == null) {
+  if (rows == null || scoped == null) {
     return (
       <p className="font-mono text-sm tracking-wider text-[var(--muted)] uppercase">
         Loading reports…
@@ -197,17 +231,19 @@ export function PublicReportsFeed() {
             "font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase",
           )}
         >
-          Showing {filtered.length} of {rows.length}
+          {scopeLabel(scope)} · nearest first · showing {filtered.length} of{" "}
+          {scoped.length}
         </p>
       </div>
 
-      {rows.length === 0 ? (
+      {scoped.length === 0 ? (
         <div className="border border-dashed border-[var(--border)] px-6 py-14 text-center">
           <p className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-wide">
             No reports yet
           </p>
           <p className="mx-auto mt-2 max-w-sm text-sm text-[var(--muted)]">
-            When residents post field photos, they show up here for the barangay.
+            When residents post field photos in {scopeLabel(scope)}, they show
+            up here.
           </p>
           <div className="mt-5 flex justify-center">
             <PostReportButton />

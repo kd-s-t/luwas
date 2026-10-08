@@ -5,9 +5,12 @@ export type ChatRole = "user" | "assistant";
 export type SmsLogEntry = {
   to: string;
   ok: boolean;
+  channel?: "sms" | "email";
   ownerName?: string;
   phoneDisplay?: string;
+  emailDisplay?: string;
   priority?: string;
+  subject?: string;
   body?: string;
   error?: string;
   provider?: string;
@@ -31,6 +34,11 @@ export type ChatThread = {
   messages: ChatMessage[];
   /** Last map assist applied in this thread (restored on switch). */
   result: AssistResult | null;
+  /**
+   * Evacuate / prepare call list panel. Cleared after SMS or Clear —
+   * map colors / AI floods stay via `result`.
+   */
+  callListVisible?: boolean;
   createdAt: string;
   updatedAt: string;
 };

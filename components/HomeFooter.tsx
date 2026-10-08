@@ -15,6 +15,12 @@ const POWERED_BY = [
     src: "/brands/google-weather.png",
   },
   {
+    name: "Google Maps",
+    href: "https://developers.google.com/maps",
+    role: "Elevation & places",
+    src: "/brands/google-maps.png",
+  },
+  {
     name: "Firebase",
     href: "https://firebase.google.com/",
     role: "Auth & data",

@@ -52,6 +52,13 @@ export const DEMO_CITIZENS = [
     purok: "Purok 5",
     phone: "+63 917 100 0005",
   },
+  {
+    displayName: "Ken Dan S. Tinio",
+    email: "kendantinio@gmail.com",
+    password: "demo1234",
+    purok: "Purok 6",
+    phone: "09606075119",
+  },
 ] as const;
 
 export type DemoCitizen = (typeof DEMO_CITIZENS)[number];

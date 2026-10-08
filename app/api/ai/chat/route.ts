@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   enrichActionsWithContacts,
-  formatAssistCallReply,
+  formatChatAssistReply,
 } from "@/lib/ai/callList";
 import { buildEscapeRoutes } from "@/lib/ai/escapeRoutes";
 import type { AssistResult } from "@/lib/ai/assistTypes";
@@ -47,10 +47,13 @@ function withEscapes(
   },
   body: Body,
 ): AssistResult {
+  const floodLayer = partial.predictedFloods?.length
+    ? partial.predictedFloods
+    : body.floods;
   const escapes = buildEscapeRoutes(
     partial.actions,
     body.households,
-    body.floods,
+    floodLayer,
     body.landslides,
   );
   const actions = enrichActionsWithContacts(partial.actions, body.households);
@@ -113,8 +116,10 @@ export async function POST(req: Request) {
     lng: h.lng,
   }));
 
-  const prompt = `You are Mangluluwas, the Luwas DRRM chat agent for Brgy. Nangka, Consolacion, Cebu (Cebuano/English OK).
-Be concise, calm, and actionable for barangay officers. Guidance for responders — not a life-safety guarantee.
+  const prompt = `You are Mangluluwas, the Luwas DRRM chat agent for Brgy. Nangka, Consolacion, Cebu.
+Reply in English by default. Only use Cebuano/Bisaya if the officer clearly writes in Cebuano/Bisaya.
+Talk like a calm barangay DRRM colleague — full sentences, warm and clear, not a telegram or robot checklist.
+Guidance for responders — not a life-safety guarantee.
 
 Return ONLY valid JSON (no markdown) matching:
 {
@@ -126,11 +131,27 @@ Return ONLY valid JSON (no markdown) matching:
   "mapHint": string (if updateMap)
 }
 
-Set updateMap=true when the officer asks for triage, priorities, evacuate/prepare lists, escape routes, or map highlights.
-Do not truncate the affected list — the server computes every evacuate/prepare household from hazards.
-When updateMap=true, reply with counts and guidance; the full call list is attached server-side.
-Safe points (server draws escape arrows): ${JSON.stringify(
-    NANGKA_SAFE_POINTS.map((s) => ({ id: s.id, name: s.name })),
+Reply style (required):
+- Answer the officer’s question first (what to do, timeline, who moves vs who stays).
+- 2–4 short paragraphs. Sound human. You may open with a brief acknowledgement (“Three days is a real window — let’s use it.”).
+- For incoming storms / “what do we do?”, always suggest starting logistics now: buy goods and drinking water; stock evacuation centers, schools used as shelters, and barangay halls (food, water, cooking fuel, medicine, blankets, hygiene kits, flashlights/power banks).
+- Also urge households (especially yellow / shelter-in-place) to buy and stock their own water, food, and cooking fuel before roads get bad.
+- When updateMap=true, ALWAYS explain map colors in plain words inside "reply":
+  · Red household dots = evacuate (low ground / flood belt)
+  · Yellow household dots = prepare / shelter in place on higher lots (stock water, food, cooking fuel)
+  · Blue squares = AI-predicted flood footprints
+- Do NOT paste long household call lists, phone numbers, or “Call · evacuate” lines in "reply" — the UI shows the call list separately.
+- Mention that they can alert flagged homes by SMS/email from the call list when ready.
+- Rule of thumb: low ground / flood belt → evacuate; high ground → shelter in place and stock up (not escape).
+
+Set updateMap=true when the officer asks for triage, priorities, evacuate/prepare lists, escape routes, map highlights, OR what to do about an incoming typhoon/storm/flood (e.g. “cat 5 coming”, “what do we do”).
+Do not truncate the affected list — the server computes every evacuate/prepare household from hazards + elevation.
+When updateMap=true the server also paints AI-predicted flood footprints (elevation + storm context).
+Evacuation centers only (escape arrows — not hall/chapel): ${JSON.stringify(
+    NANGKA_SAFE_POINTS.filter((s) => s.isEvacCenter).map((s) => ({
+      id: s.id,
+      name: s.name,
+    })),
   )}
 
 Weather: ${situation.weatherLabel ?? "unknown"}
@@ -170,14 +191,17 @@ Officer: ${message}`;
     }
 
     // Full affected roster from local rules (Gemini cannot list thousands of ids).
-    const local = runLocalAssist(situation);
+    const local = runLocalAssist({ ...situation, floodSource: "gemini" });
     const assist = withEscapes(
       {
         summary: String(parsed.summary ?? local.summary),
         focusHazard: parsed.focusHazard ?? local.focusHazard,
         actions: local.actions,
+        predictedFloods: local.predictedFloods,
         mapHint: String(
-          parsed.mapHint ?? local.mapHint ?? "Map updated with priority homes.",
+          parsed.mapHint ??
+            local.mapHint ??
+            "Map updated with AI flood footprints and priority homes.",
         ),
         source: "gemini",
         model: usedModel,
@@ -186,12 +210,9 @@ Officer: ${message}`;
     );
 
     const geminiReply = String(parsed.reply);
-    const reply = formatAssistCallReply(
-      geminiReply,
-      assist.actions,
-      situation.households,
-      [assist.mapHint],
-    );
+    const reply = formatChatAssistReply(geminiReply, assist.actions, [
+      assist.mapHint,
+    ]);
 
     return NextResponse.json({
       reply,

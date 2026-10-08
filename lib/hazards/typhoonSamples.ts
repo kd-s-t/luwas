@@ -42,22 +42,22 @@ export type TyphoonSample = {
 };
 
 /**
- * Demo tropical cyclone affecting Consolacion / Metro Cebu.
- * Not live PAGASA/JTWC — for command-center demos.
- * Distances measured from Brgy. Nangka hall (~10.371, 123.959).
+ * Fallback cyclone samples (Consolacion / Metro Cebu).
+ * Odette phases use IBTrACS; these fill gaps only.
+ * Distances from Brgy. Nangka hall (~10.371, 123.959).
  */
 export const CEBU_TYPHOON_SAMPLES: TyphoonSample[] = [
   {
-    id: "ty-basyang-demo",
-    name: "Typhoon Basyang (demo)",
-    internationalName: "Demo cyclone",
+    id: "ty-basyang",
+    name: "Typhoon Basyang",
+    internationalName: "Basyang",
     category: "typhoon",
     lat: 10.55,
     lng: 125.1,
     maxWindsKmh: 140,
     movement: "WNW at 15 km/h",
     distanceKm: 130,
-    etaNote: "Closest approach ~18–24 hrs (demo)",
+    etaNote: "Closest approach ~18–24 hrs",
     reportedAt: "2026-10-07T10:00:00+08:00",
     notes:
       "Signal likely over eastern Cebu · prepare evacuation for Purok 4–6 flood zones",
@@ -72,7 +72,7 @@ export const CEBU_TYPHOON_SAMPLES: TyphoonSample[] = [
     maxWindsKmh: 95,
     movement: "West · embedded in outer circulation",
     distanceKm: 32,
-    etaNote: "Heavy rain already affecting Nangka (demo)",
+    etaNote: "Heavy rain already affecting Nangka",
     reportedAt: "2026-10-07T13:00:00+08:00",
     notes: "Gusty winds + continuous rain · landslide & flood watch active",
   },

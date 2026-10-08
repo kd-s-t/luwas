@@ -11,6 +11,11 @@ import {
   type Unsubscribe,
 } from "firebase/firestore";
 import { getClientDb } from "@/lib/firebase/client";
+import {
+  DEFAULT_REPORT_BARANGAY,
+  DEFAULT_REPORT_LGU,
+  resolveReportPlace,
+} from "@/lib/reports/barangayScope";
 import { EMPTY_REACTION_COUNTS } from "@/lib/reports/socialTypes";
 import type {
   HazardReport,
@@ -26,11 +31,20 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
   const counts = data.reactionCounts as
     | { like?: number; helpful?: number; concern?: number }
     | undefined;
+  const place = resolveReportPlace({
+    barangay: data.barangay != null ? String(data.barangay) : "",
+    lgu: data.lgu != null ? String(data.lgu) : "",
+    citizenPurok: String(data.citizenPurok ?? ""),
+    lat: typeof data.lat === "number" ? data.lat : null,
+    lng: typeof data.lng === "number" ? data.lng : null,
+  });
   return {
     id,
     citizenUid: String(data.citizenUid ?? ""),
     citizenName: String(data.citizenName ?? ""),
     citizenPurok: String(data.citizenPurok ?? ""),
+    barangay: place.barangay,
+    lgu: place.lgu,
     citizenPhotoURL:
       data.citizenPhotoURL != null ? String(data.citizenPhotoURL) : null,
     title: String(data.title ?? ""),
@@ -75,6 +89,8 @@ export async function createHazardReport(input: {
   citizenUid: string;
   citizenName: string;
   citizenPurok: string;
+  barangay?: string;
+  lgu?: string;
   citizenPhotoURL?: string | null;
   title: string;
   notes: string;
@@ -97,6 +113,8 @@ export async function createHazardReport(input: {
   void _unusedId;
   await setDoc(doc(getClientDb(), COL, id), {
     ...fields,
+    barangay: input.barangay?.trim() || DEFAULT_REPORT_BARANGAY,
+    lgu: input.lgu?.trim() || DEFAULT_REPORT_LGU,
     citizenPhotoURL: input.citizenPhotoURL ?? null,
     mediaSource: input.mediaSource ?? null,
     locationAccuracyM: input.locationAccuracyM ?? null,

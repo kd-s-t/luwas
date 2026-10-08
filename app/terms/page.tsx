@@ -49,9 +49,9 @@ export default function TermsPage() {
             No emergency guarantee
           </h2>
           <p>
-            Maps, weather, AI suggestions, and demo scenarios can be incomplete
-            or delayed. Always follow LGU, barangay, PAGASA, and other official
-            instructions during hazards.
+            Maps, weather, AI suggestions, and the Odette simulation can be
+            incomplete or delayed. Always follow LGU, barangay, PAGASA, and other
+            official instructions during hazards.
           </p>
         </section>
         <section className="space-y-2">

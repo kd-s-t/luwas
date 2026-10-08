@@ -69,9 +69,9 @@ export default async function BarangayDetailPage({ params }: PageProps) {
       <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
         <MotionShell delay={0.06}>
           <p className="mb-6 border border-[var(--warn)]/40 bg-[var(--warn)]/10 px-3 py-2 text-xs text-[var(--muted)]">
-            Officer names are <strong>demo placeholders</strong> for Cup /
+            Officer names are <strong>fictional placeholders</strong> for Cup /
             training — not official DILG or COMELEC rolls. Responder stations
-            are directory estimates for ops demos.
+            are directory estimates for ops simulation.
           </p>
         </MotionShell>
 

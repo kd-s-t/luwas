@@ -5,30 +5,73 @@ import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { ReportStatusBadge } from "@/components/ReportStatusBadge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/lib/auth/AuthProvider";
+import { isOfficer } from "@/lib/auth/types";
+import type { LatLng } from "@/lib/geo/cebu";
 import { subscribeAllReports, updateReportValidation } from "@/lib/reports/api";
+import {
+  formatDistanceKm,
+  reportInScope,
+  scopeAnchor,
+  scopeForProfile,
+  scopeLabel,
+  sortReportsByDistance,
+} from "@/lib/reports/barangayScope";
+import { captureReportMeta } from "@/lib/reports/captureMeta";
 import type { HazardReport } from "@/lib/reports/types";
 
 type Filter = "queue" | "all" | "legit" | "rejected";
 
 export function ValidationQueue() {
+  const { profile } = useAuth();
   const [rows, setRows] = useState<HazardReport[]>([]);
   const [filter, setFilter] = useState<Filter>("queue");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [here, setHere] = useState<LatLng | null>(null);
+  const [hereLabel, setHereLabel] = useState("Brgy. hall");
+
+  const scope = useMemo(() => scopeForProfile(profile), [profile]);
+  const anchor = useMemo(() => here ?? scopeAnchor(scope), [here, scope]);
 
   useEffect(() => {
     return subscribeAllReports(setRows);
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    void captureReportMeta().then((meta) => {
+      if (cancelled) return;
+      if (meta.lat != null && meta.lng != null) {
+        setHere({ lat: meta.lat, lng: meta.lng });
+        setHereLabel("Your location");
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const scoped = useMemo(
+    () => rows.filter((r) => reportInScope(r, scope)),
+    [rows, scope],
+  );
+
   const filtered = useMemo(() => {
-    if (filter === "all") return rows;
-    if (filter === "legit") return rows.filter((r) => r.status === "legit");
-    if (filter === "rejected") return rows.filter((r) => r.status === "rejected");
-    return rows.filter((r) =>
+    if (filter === "all") return scoped;
+    if (filter === "legit") return scoped.filter((r) => r.status === "legit");
+    if (filter === "rejected")
+      return scoped.filter((r) => r.status === "rejected");
+    return scoped.filter((r) =>
       ["queued", "validating", "needs_review", "failed"].includes(r.status),
     );
-  }, [rows, filter]);
+  }, [scoped, filter]);
 
-  const queueCount = rows.filter((r) =>
+  const ranked = useMemo(
+    () => sortReportsByDistance(filtered, anchor),
+    [filtered, anchor],
+  );
+
+  const queueCount = scoped.filter((r) =>
     ["queued", "validating", "needs_review", "failed"].includes(r.status),
   ).length;
 
@@ -52,6 +95,8 @@ export function ValidationQueue() {
     }
   }
 
+  const orgHint = isOfficer(profile) ? profile.orgName : null;
+
   return (
     <section className="overflow-hidden border border-[var(--border)] bg-[var(--surface-raised)]">
       <div className="flex flex-col gap-2 border-b border-[var(--border)] px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:px-4">
@@ -63,8 +108,9 @@ export function ValidationQueue() {
             Citizen field reports
           </h2>
           <p className="text-xs text-[var(--muted)]">
-            {queueCount} awaiting review · Gemini screens uploads before they
-            count as verified hazards
+            {queueCount} awaiting review · showing {scopeLabel(scope)} only ·
+            nearest first ({hereLabel})
+            {orgHint ? ` · ${orgHint}` : ""}
           </p>
         </div>
         <div className="flex flex-wrap gap-1.5">
@@ -92,13 +138,13 @@ export function ValidationQueue() {
         </div>
       </div>
 
-      {filtered.length === 0 ? (
+      {ranked.length === 0 ? (
         <p className="px-4 py-8 text-sm text-[var(--muted)]">
-          No reports in this view. Citizens submit from /login/citizen.
+          No reports for {scopeLabel(scope)} in this view.
         </p>
       ) : (
         <ul className="divide-y divide-[var(--border)]">
-          {filtered.map((r) => (
+          {ranked.map(({ report: r, distanceKm }) => (
             <li
               key={r.id}
               className="grid gap-3 px-3 py-3 sm:grid-cols-[120px_1fr_auto] sm:px-4"
@@ -129,18 +175,22 @@ export function ValidationQueue() {
                   />
                   <p className="font-medium">{r.title}</p>
                   <ReportStatusBadge status={r.status} />
+                  <Badge variant="outline">
+                    {formatDistanceKm(distanceKm)}
+                  </Badge>
                   {r.aiSource ? (
                     <Badge variant="outline">via {r.aiSource}</Badge>
                   ) : null}
                 </div>
                 <p className="mt-0.5 text-xs text-[var(--muted)]">
-                  {r.citizenName} · {r.citizenPurok} · {r.hazardHint} ·{" "}
-                  {new Date(r.createdAt).toLocaleString()}
+                  {r.citizenName} · Brgy. {r.barangay} · {r.citizenPurok} ·{" "}
+                  {r.hazardHint} · {new Date(r.createdAt).toLocaleString()}
                 </p>
                 <p className="mt-1 text-sm text-[var(--foreground)]">{r.notes}</p>
                 {r.aiReason ? (
                   <p className="mt-1 text-xs text-[var(--muted)]">
-                    AI{r.aiConfidence != null
+                    AI
+                    {r.aiConfidence != null
                       ? ` (${Math.round(r.aiConfidence * 100)}%)`
                       : ""}
                     : {r.aiReason}

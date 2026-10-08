@@ -6,7 +6,13 @@ import type {
   AssistPriority,
   AssistResult,
 } from "@/lib/ai/assistTypes";
+import { predictAiFloods } from "@/lib/ai/predictFloods";
 import { enrichActionsWithContacts } from "@/lib/ai/callList";
+import {
+  clearBarangayMapSnapshot,
+  saveBarangayMapSnapshot,
+} from "@/lib/ai/barangayMapSnapshot";
+import { DEFAULT_MAP_AREA } from "@/lib/geo/mapAreas";
 import type {
   ChatApiResponse,
   ChatMessage,
@@ -82,6 +88,7 @@ export function useAiAssist() {
 
   const messages = active?.messages ?? [];
   const result = active?.result ?? null;
+  const callListVisible = Boolean(active?.callListVisible && result);
   resultRef.current = result;
 
   const assistPriorities = useMemo(() => {
@@ -97,6 +104,14 @@ export function useAiAssist() {
     return result?.escapes ?? [];
   }, [result]);
 
+  // Keep homepage Nangka map in sync with the active command triage overlay.
+  useEffect(() => {
+    if (!hydrated) return;
+    if (result?.actions.length || result?.predictedFloods?.length) {
+      saveBarangayMapSnapshot(DEFAULT_MAP_AREA.id, result);
+    }
+  }, [hydrated, result]);
+
   const patchActive = useCallback(
     (updater: (thread: ChatThread) => ChatThread) => {
       const id = activeIdRef.current;
@@ -108,26 +123,44 @@ export function useAiAssist() {
   );
 
   const applyAssist = useCallback(
-    async (assist: AssistResult, households: Household[] = []) => {
+    async (
+      assist: AssistResult,
+      households: Household[] = [],
+      typhoons: TyphoonSample[] = [],
+    ) => {
+      // Run triage always paints AI flood footprints on the map.
+      const floods =
+        assist.predictedFloods?.length && assist.predictedFloods.length > 0
+          ? assist.predictedFloods
+          : predictAiFloods({ typhoons, source: assist.source });
       const withContacts: AssistResult = {
         ...assist,
+        predictedFloods: floods,
         actions: enrichActionsWithContacts(assist.actions, households),
+        mapHint:
+          assist.mapHint ||
+          "AI flood footprints on map. Run triage sets predicted flood areas.",
       };
       patchActive((t) => ({
         ...t,
         result: withContacts,
+        callListVisible: true,
         updatedAt: new Date().toISOString(),
       }));
-      if (!withContacts.escapes?.length) return withContacts;
+      if (!withContacts.escapes?.length) {
+        saveBarangayMapSnapshot(DEFAULT_MAP_AREA.id, withContacts, households);
+        return withContacts;
+      }
 
       const routed = await enrichEscapesWithRoads(withContacts.escapes);
       const routedN = routed.filter((e) => e.routed).length;
       const next: AssistResult = {
         ...withContacts,
         escapes: routed,
+        predictedFloods: floods,
         mapHint:
           routedN > 0
-            ? "Green lines follow OSM streets to the nearest safe point."
+            ? "AI flood footprints on map · green lines follow streets to safe points."
             : withContacts.mapHint,
         summary:
           routedN > 0
@@ -137,8 +170,10 @@ export function useAiAssist() {
       patchActive((t) => ({
         ...t,
         result: next,
+        callListVisible: true,
         updatedAt: new Date().toISOString(),
       }));
+      saveBarangayMapSnapshot(DEFAULT_MAP_AREA.id, next, households);
       return next;
     },
     [patchActive],
@@ -164,6 +199,7 @@ export function useAiAssist() {
             householdId: a.householdId,
             ownerName: a.ownerName,
             phone: a.phone,
+            email: a.email,
             purok: a.purok,
             priority: a.priority,
           })),
@@ -171,37 +207,64 @@ export function useAiAssist() {
       });
       const data = (await res.json()) as {
         error?: string;
-        provider?: string;
+        provider?: string | { sms?: string; email?: string };
         sent?: number;
         failed?: number;
+        smsAttempted?: number;
+        emailAttempted?: number;
         skipped?: { ownerName?: string; reason: string }[];
         truncated?: boolean;
         results?: SmsLogEntry[];
       };
       if (!res.ok) {
-        throw new Error(data.error || `SMS failed (${res.status})`);
+        throw new Error(data.error || `Alert failed (${res.status})`);
       }
       const smsLog: SmsLogEntry[] = (data.results ?? []).map((r) => ({
         to: r.to,
         ok: r.ok,
+        channel: r.channel ?? "sms",
         ownerName: r.ownerName,
-        phoneDisplay: r.phoneDisplay ?? r.to,
+        phoneDisplay: r.phoneDisplay ?? (r.channel === "email" ? undefined : r.to),
+        emailDisplay: r.emailDisplay ?? (r.channel === "email" ? r.to : undefined),
         priority: r.priority,
+        subject: r.subject,
         body: r.body,
         error: r.error,
-        provider: r.provider ?? data.provider,
+        provider: r.provider,
       }));
       const skipN = data.skipped?.length ?? 0;
-      const sentN = data.sent ?? smsLog.filter((r) => r.ok).length;
-      const lines = [
-        data.provider === "demo"
-          ? `Demo SMS · ${sentN} message(s) logged (set TWILIO_* env for live Twilio).`
-          : `Twilio SMS · sent ${sentN}${data.failed ? ` · failed ${data.failed}` : ""}.`,
-      ];
-      if (skipN) lines.push(`Skipped ${skipN} (no/bad phone).`);
+      const smsN = smsLog.filter((r) => r.channel !== "email" && r.ok).length;
+      const emailN = smsLog.filter((r) => r.channel === "email" && r.ok).length;
+      const smsProv =
+        typeof data.provider === "object" ? data.provider.sms : data.provider;
+      const emailProv =
+        typeof data.provider === "object" ? data.provider.email : undefined;
+      const lines: string[] = [];
+      if (data.smsAttempted || smsN) {
+        lines.push(
+          smsProv === "demo"
+            ? `Odette simulation · ${smsN} SMS logged.`
+            : `Twilio SMS · sent ${smsN}${data.failed ? ` · some failed` : ""}.`,
+        );
+      }
+      if (data.emailAttempted || emailN) {
+        lines.push(
+          emailProv === "demo"
+            ? `Odette simulation · ${emailN} email(s) logged.`
+            : `Resend email · sent ${emailN}.`,
+        );
+      }
+      if (!lines.length) {
+        lines.push(`Alerts · ${data.sent ?? smsLog.filter((r) => r.ok).length} sent.`);
+      }
+      if (skipN) lines.push(`Skipped ${skipN} (no/bad phone or email).`);
       const fails = smsLog.filter((r) => !r.ok).slice(0, 3);
       for (const f of fails) {
         lines.push(`· ${f.to}: ${f.error ?? "failed"}`);
+      }
+      const total = smsLog.filter((r) => r.ok).length;
+      if (total > 0) {
+        lines.unshift(`${total} message(s) via available contacts (SMS and/or email).`);
       }
       return { reply: lines.join("\n"), smsLog };
     },
@@ -255,18 +318,18 @@ export function useAiAssist() {
             smsLog,
             createdAt: new Date().toISOString(),
           };
+          // After SMS: hide evacuate list only — map colors / floods stay.
           setThreads((prev) =>
             prev.map((t) => {
               if (t.id !== threadId) return t;
               return {
                 ...t,
                 messages: [...t.messages, assistantMsg],
-                result: null,
+                callListVisible: false,
                 updatedAt: new Date().toISOString(),
               };
             }),
           );
-          resultRef.current = null;
           return;
         }
 
@@ -298,14 +361,20 @@ export function useAiAssist() {
         let nextResult: AssistResult | null | undefined;
 
         if (data.assist) {
-          await applyAssist(data.assist, payload.households);
+          await applyAssist(
+            data.assist,
+            payload.households,
+            payload.typhoons,
+          );
           assistApplied = true;
         } else if (
-          /\b(clear|reset|remove)\b.*\b(highlight|map|pin|assist)\b/i.test(
+          /\b(clear|reset|remove)\b.*\b(highlight|map|pin|assist|flood)\b/i.test(
             trimmed,
           )
         ) {
+          // Explicit “clear map” in chat — remove overlays.
           nextResult = null;
+          clearBarangayMapSnapshot(DEFAULT_MAP_AREA.id);
         }
 
         const assistantMsg: ChatMessage = {
@@ -323,6 +392,12 @@ export function useAiAssist() {
               ...t,
               messages: [...t.messages, assistantMsg],
               result: nextResult === null ? null : t.result,
+              callListVisible:
+                nextResult === null
+                  ? false
+                  : assistApplied
+                    ? true
+                    : t.callListVisible,
               updatedAt: new Date().toISOString(),
             };
           }),
@@ -355,11 +430,24 @@ export function useAiAssist() {
     [applyAssist, dispatchSmsFromAssist, model, running],
   );
 
-  const clearAssist = useCallback(() => {
+  /** Hide evacuate / prepare list only — map dots + AI floods stay. */
+  const clearCallList = useCallback(() => {
     setError(null);
     patchActive((t) => ({
       ...t,
+      callListVisible: false,
+      updatedAt: new Date().toISOString(),
+    }));
+  }, [patchActive]);
+
+  /** Full map reset (chat “clear map” / rare). */
+  const clearAssist = useCallback(() => {
+    setError(null);
+    clearBarangayMapSnapshot(DEFAULT_MAP_AREA.id);
+    patchActive((t) => ({
+      ...t,
       result: null,
+      callListVisible: false,
       updatedAt: new Date().toISOString(),
     }));
   }, [patchActive]);
@@ -444,7 +532,9 @@ export function useAiAssist() {
     chats: threadSummaries,
     assistPriorities,
     escapeRoutes,
+    callListVisible,
     sendMessage,
+    clearCallList,
     clearAssist,
     newChat,
     selectChat,

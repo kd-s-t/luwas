@@ -1,0 +1,110 @@
+import {
+  formatDistanceKm,
+  haversineKm,
+} from "@/lib/email/alertMap";
+import {
+  DEFAULT_EMAIL_SAMPLE,
+  type EmailSampleContext,
+} from "@/lib/email/templates";
+import type { TextTemplateId } from "@/lib/sms/registry";
+
+export type TextParts = {
+  body: string;
+  /** Rough GSM-7 segment count (160 / 153). */
+  segments: number;
+};
+
+function segmentCount(body: string): number {
+  const len = body.length;
+  if (len <= 160) return 1;
+  return Math.ceil(len / 153);
+}
+
+function parts(body: string): TextParts {
+  return { body, segments: segmentCount(body) };
+}
+
+export function buildRegisterSms(
+  ctx: EmailSampleContext = DEFAULT_EMAIL_SAMPLE,
+): TextParts {
+  return parts(
+    `LUWAS: Hi ${ctx.name}, thanks for registering as a citizen of ${ctx.barangay}. ` +
+      `Open the Luwas app / site to verify your account and start receiving DRRM alerts.`,
+  );
+}
+
+export function buildVerifiedSms(
+  ctx: EmailSampleContext = DEFAULT_EMAIL_SAMPLE,
+): TextParts {
+  return parts(
+    `LUWAS: ${ctx.name}, your account is verified. ` +
+      `You will receive SMS alerts for ${ctx.barangay}, ${ctx.lgu}. Keep this number on.`,
+  );
+}
+
+export function buildWelcomeSms(
+  ctx: EmailSampleContext = DEFAULT_EMAIL_SAMPLE,
+): TextParts {
+  return parts(
+    `LUWAS · Welcome ${ctx.name}. You're on the ${ctx.barangay} (${ctx.purok}) alert roster. ` +
+      `We'll text evacuate / prepare / monitor guidance from MDRRMO. Reply STOP to opt out (demo).`,
+  );
+}
+
+export function buildEqAlertSms(
+  ctx: EmailSampleContext = DEFAULT_EMAIL_SAMPLE,
+): TextParts {
+  const eq = ctx.earthquake ?? DEFAULT_EMAIL_SAMPLE.earthquake!;
+  const dist = formatDistanceKm(haversineKm(ctx.home, eq));
+  const mag = `M${eq.magnitude.toFixed(1)}`;
+  return parts(
+    `LUWAS EQ ALERT · JUST NOW: ${mag} · ${dist} from your home (${ctx.purok}). ` +
+      `Epicenter: ${eq.place}. Drop, Cover, Hold. Check damage before going outside. ` +
+      `Follow barangay if told to evacuate.`,
+  );
+}
+
+export function buildFireAlertSms(
+  ctx: EmailSampleContext = DEFAULT_EMAIL_SAMPLE,
+): TextParts {
+  const fire = ctx.fire ?? DEFAULT_EMAIL_SAMPLE.fire!;
+  const dist = formatDistanceKm(haversineKm(ctx.home, fire));
+  return parts(
+    `LUWAS FIRE ALERT · JUST NOW: ${fire.name} · ${dist} from your home (${ctx.purok}). ` +
+      `${fire.place}. Move away from smoke/heat. Do not re-enter. Call BFP/barangay if you have info.`,
+  );
+}
+
+export function buildTyphoonAlertSms(
+  ctx: EmailSampleContext = DEFAULT_EMAIL_SAMPLE,
+): TextParts {
+  return parts(
+    `LUWAS TYPHOON WATCH · ~3 DAYS: Storm approaching ${ctx.barangay}. ` +
+      `Stock water/food/meds/power bank; secure roof & outdoor items; know escape to high ground. ` +
+      `Monitor Luwas & PAGASA — don't wait.`,
+  );
+}
+
+export function buildTextTemplate(
+  id: TextTemplateId,
+  ctx: EmailSampleContext = DEFAULT_EMAIL_SAMPLE,
+): TextParts {
+  switch (id) {
+    case "register":
+      return buildRegisterSms(ctx);
+    case "verified":
+      return buildVerifiedSms(ctx);
+    case "welcome":
+      return buildWelcomeSms(ctx);
+    case "eq_alert":
+      return buildEqAlertSms(ctx);
+    case "fire_alert":
+      return buildFireAlertSms(ctx);
+    case "typhoon_alert":
+      return buildTyphoonAlertSms(ctx);
+    default: {
+      const _exhaustive: never = id;
+      return _exhaustive;
+    }
+  }
+}

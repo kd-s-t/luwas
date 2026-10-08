@@ -85,21 +85,8 @@ const BEFORE_TYPHOONS = [odetteTyphoonForPhase("before")];
 const DURING_TYPHOONS = [odetteTyphoonForPhase("during")];
 const AFTER_TYPHOONS = [odetteTyphoonForPhase("after")];
 
-const BEFORE_FLOODS: FloodSample[] = [
-  {
-    id: "fl-before-watch-east",
-    name: "Flood watch · eastern Access Road",
-    place: "Low stretch, Purok 6",
-    purokHint: "Purok 6",
-    severity: "watch",
-    lat: 10.3684,
-    lng: 123.9661,
-    depthCm: 5,
-    reportedAt: "2021-12-15T20:00:00+08:00",
-    notes:
-      "Pre-Odette · Nangka listed flood-prone by Consolacion LGU (CDN, 15 Dec 2021) · demo pin",
-  },
-];
+/** Flood footprints are AI-predicted on triage — not pre-baked on the scenario. */
+const BEFORE_FLOODS: FloodSample[] = [];
 
 const AFTER_FLOODS: FloodSample[] = [
   {
@@ -108,7 +95,7 @@ const AFTER_FLOODS: FloodSample[] = [
     severity: "warning",
     depthCm: 45,
     notes:
-      "Post-Odette residual inundation (demo pin) · town reported thousands of damaged homes",
+      "Post-Odette residual inundation · town reported thousands of damaged homes",
     reportedAt: "2021-12-17T14:00:00+08:00",
   },
   {
@@ -116,7 +103,7 @@ const AFTER_FLOODS: FloodSample[] = [
     id: "fl-after-singko",
     severity: "watch",
     depthCm: 20,
-    notes: "Ponding / debris (demo pin)",
+    notes: "Ponding / debris after landfall",
     reportedAt: "2021-12-17T13:30:00+08:00",
   },
 ];
@@ -131,7 +118,7 @@ const AFTER_FIRES: FireSample[] = [
     lat: 10.3702,
     lng: 123.9635,
     reportedAt: "2026-10-08T15:55:00+08:00",
-    notes: "Sparking transformer · keep 50 m clear · BFP notified (demo)",
+    notes: "Sparking transformer · keep 50 m clear · BFP notified",
   },
   {
     id: "fire-debris-purok4",
@@ -174,11 +161,12 @@ const DURING_REPORTS: ScenarioReportPin[] = [
     href: "/reports/rpt-block-singko",
   },
   {
+    // Map pin near Sto. Niño Chapel → same seeded field report as /reports feed.
     id: "rpt-flood-chapel",
     title: "Flood road · chapel approach",
     kind: "flood",
-    lat: 10.36855,
-    lng: 123.96185,
+    lat: 10.3712,
+    lng: 123.9594,
     purokHint: "Purok 4",
     sourceLabel: "Image report · live",
     notes: "Flash flood across both lanes · road impassable",
@@ -187,15 +175,30 @@ const DURING_REPORTS: ScenarioReportPin[] = [
     href: "/reports/rpt-flood-chapel",
   },
   {
-    id: "rpt-warn-wind",
-    title: "Warning · flying roof sheet",
-    kind: "warning",
-    lat: 10.3712,
-    lng: 123.9594,
-    purokHint: "Purok 1",
+    id: "rpt-landslide-east-bank",
+    title: "Landslide · bank failure",
+    kind: "landslide",
+    lat: 10.3682,
+    lng: 123.9664,
+    purokHint: "Purok 6",
     sourceLabel: "Image report · live",
-    notes: "G.I. sheet hazard near Sto. Niño Chapel",
-    reportedAt: "2026-10-08T01:05:00+08:00",
+    notes: "Bank undercut · flood + slide compound risk",
+    reportedAt: "2026-10-07T11:05:00+08:00",
+    mediaUrl: "/reports/landslide-bank-failure.png",
+    href: "/reports/rpt-landslide-east-bank",
+  },
+  {
+    id: "rpt-landslide-cansaga",
+    title: "Landslide · debris slide",
+    kind: "landslide",
+    lat: 10.3742,
+    lng: 123.9562,
+    purokHint: "Purok 2",
+    sourceLabel: "Image report · live",
+    notes: "Mud/debris reached lane · 2 houses advised to evacuate to hall",
+    reportedAt: "2026-10-07T05:15:00+08:00",
+    mediaUrl: "/reports/landslide-bank-failure.png",
+    href: "/reports/rpt-landslide-cansaga",
   },
 ];
 
@@ -262,7 +265,7 @@ const BEFORE_ACTIONS: AssistHouseholdAction[] = [
 ];
 
 const DURING_ACTIONS: AssistHouseholdAction[] = [
-  action(10, "evacuate", "Odette impact · critical flood · Access Road blocked (demo)"),
+  action(10, "evacuate", "Odette impact · critical flood · Access Road blocked"),
   action(7, "evacuate", "Sheet flood at chapel · pregnant · move to shelter now"),
   action(3, "evacuate", "PWD · rising water + fallen tree blocks west exit"),
   action(2, "evacuate", "Single-storey in flood corridor · knee-deep ponding"),
@@ -304,9 +307,9 @@ export const CAT5_BEFORE: ScenarioBundle = {
   phase: "before",
   label: "Before Odette",
   shortLabel: "Before",
-  eyebrow: "Historical · Odette (Rai) · 15 Dec 2021",
+  eyebrow: "Odette simulation · Rai · 15 Dec 2021",
   blurb:
-    "Real IBTrACS track of Typhoon Odette approaching Visayas. Preemptive list for flood-prone Nangka households (demo roster on a real storm path).",
+    "Typhoon Odette approaching Visayas (IBTrACS track). Run triage for AI flood footprints + household priorities — high lots shelter in place.",
   typhoons: BEFORE_TYPHOONS,
   floods: BEFORE_FLOODS,
   landslides: [],
@@ -321,9 +324,9 @@ export const CAT5_DURING: ScenarioBundle = {
   phase: "during",
   label: "During Odette",
   shortLabel: "During",
-  eyebrow: "Historical · Odette (Rai) · 16 Dec 2021",
+  eyebrow: "Odette simulation · Rai · 16 Dec 2021",
   blurb:
-    "Real eye position near Cebu (~2 hrs before Carcar landfall). Flood / landslide / report pins are demo overlays on the observed track.",
+    "Eye near Cebu (~2 hrs before Carcar landfall). Flood, landslide, and field reports play out on the observed Odette track.",
   typhoons: DURING_TYPHOONS,
   floods: CEBU_FLOOD_SAMPLES,
   landslides: CEBU_LANDSLIDE_SAMPLES,
@@ -346,9 +349,9 @@ export const CAT5_AFTER: ScenarioBundle = {
   phase: "after",
   label: "After Odette",
   shortLabel: "After",
-  eyebrow: "Historical · Odette (Rai) · 17 Dec 2021",
+  eyebrow: "Odette simulation · Rai · 17 Dec 2021",
   blurb:
-    "Storm core west of Negros on the real track. Recovery: residual flood/fire demo pins + welfare checks. Consolacion had mass housing damage after Odette.",
+    "Storm core west of Negros. Recovery phase: residual flood/fire, welfare checks — Consolacion took heavy housing damage after Odette.",
   typhoons: AFTER_TYPHOONS,
   floods: AFTER_FLOODS,
   landslides: [],

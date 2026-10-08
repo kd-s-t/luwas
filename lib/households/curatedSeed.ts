@@ -126,4 +126,14 @@ export const CURATED_NANGKA_HOUSEHOLDS: HouseholdInput[] = [
     lat: 10.36822,
     lng: 123.96555,
   },
+  {
+    ownerName: "Ken Dan S. Tinio",
+    address: "Purok 6 · eastern Access Road (Cansaga corridor)",
+    purok: "Purok 6",
+    phone: "09606075119",
+    email: "kendantinio@gmail.com",
+    notes: "Citizen account · 3 household members · flood-fringe lot",
+    lat: 10.36845,
+    lng: 123.96605,
+  },
 ];

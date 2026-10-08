@@ -9,8 +9,18 @@ import {
   Tornado,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { AssistPriority } from "@/lib/ai/assistTypes";
-import { DEFAULT_MAP_AREA, type MapArea } from "@/lib/geo/mapAreas";
+import type { AssistEscapeRoute, AssistPriority } from "@/lib/ai/assistTypes";
+import {
+  loadBarangayMapSnapshot,
+  type BarangayMapSnapshot,
+} from "@/lib/ai/barangayMapSnapshot";
+import { runLocalAssist } from "@/lib/ai/localAssist";
+import { getBarangayMapPack } from "@/lib/geo/barangayMapPack";
+import {
+  DEFAULT_MAP_AREA,
+  isNangkaOpsArea,
+  type MapArea,
+} from "@/lib/geo/mapAreas";
 import { useRoadEscapes } from "@/lib/geo/useRoadEscapes";
 import {
   fetchNearbyEarthquakes,
@@ -73,18 +83,8 @@ function seedAsHouseholds(): Household[] {
 }
 
 export function PublicSituationMap() {
-  const households = useMemo(() => seedAsHouseholds(), []);
+  const nangkaHouseholds = useMemo(() => seedAsHouseholds(), []);
   const { bundle } = useScenario();
-  // Crow-flies first; OSRM street routing is deferred (slow public routers).
-  const roadEscapes = useRoadEscapes(bundle.escapes, { deferMs: 1200 });
-  const assistPriorities = useMemo(() => {
-    const map: Record<string, AssistPriority> = {};
-    for (const a of bundle.actions) {
-      map[a.householdId] = a.priority;
-    }
-    return map;
-  }, [bundle.actions]);
-
   const [weather, setWeather] = useState<AreaWeather | null>(null);
   const [weatherError, setWeatherError] = useState<string | null>(null);
   const [quakes, setQuakes] = useState<QuakeEvent[]>([]);
@@ -96,6 +96,76 @@ export function PublicSituationMap() {
   const [locateStatus, setLocateStatus] = useState<LocateStatus>("prompting");
   const [locateError, setLocateError] = useState<string | null>(null);
   const [matched, setMatched] = useState(false);
+  const [snapshot, setSnapshot] = useState<BarangayMapSnapshot | null>(null);
+
+  const pack = useMemo(
+    () => getBarangayMapPack(area, bundle),
+    [area, bundle],
+  );
+  const nangkaOps = isNangkaOpsArea(area);
+
+  // Odette triage only for Nangka pack — other brgys stay empty.
+  const assist = useMemo(() => {
+    if (!nangkaOps) return null;
+    return runLocalAssist({
+      households: nangkaHouseholds,
+      floods: pack.floods,
+      landslides: pack.landslides,
+      typhoons: pack.typhoons,
+      floodSource: "local",
+    });
+  }, [nangkaOps, nangkaHouseholds, pack.floods, pack.landslides, pack.typhoons]);
+
+  const assistPriorities = useMemo(() => {
+    const map: Record<string, AssistPriority> = {};
+    if (!assist) return map;
+    for (const a of assist.actions) {
+      map[a.householdId] = a.priority;
+    }
+    return map;
+  }, [assist]);
+
+  const mapFloods =
+    nangkaOps && snapshot?.predictedFloods?.length
+      ? snapshot.predictedFloods
+      : nangkaOps
+        ? (assist?.predictedFloods ?? [])
+        : [];
+
+  const mapEscapes: AssistEscapeRoute[] =
+    nangkaOps && snapshot?.escapes?.length
+      ? snapshot.escapes
+      : nangkaOps
+        ? (assist?.escapes ?? [])
+        : [];
+
+  const roadEscapes = useRoadEscapes(
+    nangkaOps && snapshot?.escapes?.length ? [] : mapEscapes,
+    { deferMs: 1200 },
+  );
+  const escapeRoutes =
+    nangkaOps && snapshot?.escapes?.length ? mapEscapes : roadEscapes;
+
+  const mapHouseholds = nangkaOps ? nangkaHouseholds : [];
+
+  useEffect(() => {
+    const reload = () => setSnapshot(loadBarangayMapSnapshot(area.id));
+    reload();
+    const onStorage = (e: StorageEvent) => {
+      if (
+        e.key === `luwas.barangay.publicMap.v1:${area.id}` ||
+        e.key === "luwas.nangka.publicMap.v1"
+      ) {
+        reload();
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    const id = window.setInterval(reload, 4000);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.clearInterval(id);
+    };
+  }, [area.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -197,8 +267,7 @@ export function PublicSituationMap() {
   const hazard =
     weather &&
     isHazardousWeather(weather.weatherCode, weather.precipitationMm);
-  const mapCenter = DEFAULT_MAP_AREA.center;
-  const zoomUrl = zoomEarthUrl(mapCenter.lat, mapCenter.lng, 11);
+  const zoomUrl = zoomEarthUrl(area.center.lat, area.center.lng, 11);
 
   const locateEyebrow =
     locateStatus === "ready"
@@ -222,13 +291,24 @@ export function PublicSituationMap() {
               {locateEyebrow ? ` · ${locateEyebrow}` : ""}
             </p>
             <h2 className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-wide sm:text-4xl">
-              {DEFAULT_MAP_AREA.name}
+              {area.name}
             </h2>
             <p className="mt-2 max-w-xl text-[var(--muted)]">
-              {NANGKA_HOUSEHOLD_TARGET.toLocaleString()} demo households · ~
-              {NANGKA_CENSUS_2020.toLocaleString()} people (PSA 2020) as small
-              house pins off the road. Hazard layers and Odette priorities for
-              training, plus live weather and USGS quakes.
+              {nangkaOps ? (
+                <>
+                  Nangka command-center layers:{" "}
+                  {NANGKA_HOUSEHOLD_TARGET.toLocaleString()} homes · ~
+                  {NANGKA_CENSUS_2020.toLocaleString()} people (PSA 2020), AI
+                  flood footprints, evacuate/prepare pins, and escape lines
+                  {snapshot ? " · synced from command triage" : ""}.
+                </>
+              ) : (
+                <>
+                  {area.barangay} map — each barangay has its own layers. No
+                  Nangka Odette data here yet; live weather and USGS quakes
+                  still show.
+                </>
+              )}
             </p>
 
             {(locateStatus === "prompting" ||
@@ -305,21 +385,22 @@ export function PublicSituationMap() {
         <div className="w-full overflow-hidden border-y border-[var(--border)] bg-[var(--surface-raised)]">
           <div className="relative h-[360px] sm:h-[440px] lg:h-[min(70vh,720px)]">
             <AreaMapInner
-              area={DEFAULT_MAP_AREA}
+              key={area.id}
+              area={area}
               userLocation={userLocation}
               onUserLocationChange={(loc) => {
                 void applyCoords(loc.lat, loc.lng);
               }}
-              forceLayers
-              households={households}
+              households={mapHouseholds}
               quakes={quakes}
-              landslides={bundle.landslides}
-              floods={bundle.floods}
-              typhoons={bundle.typhoons}
-              fires={bundle.fires}
-              reportPins={bundle.reportPins}
+              landslides={pack.landslides}
+              floods={mapFloods}
+              typhoons={pack.typhoons}
+              fires={pack.fires}
+              reportPins={pack.reportPins}
+              safePoints={pack.safePoints}
               assistPriorities={assistPriorities}
-              escapeRoutes={roadEscapes}
+              escapeRoutes={escapeRoutes}
             />
           </div>
           <div className="flex flex-wrap gap-x-5 gap-y-2 border-t border-[var(--border)] px-4 py-3 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
@@ -329,46 +410,61 @@ export function PublicSituationMap() {
                 You are here
               </span>
             ) : null}
-            <span>
-              <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-[var(--danger)] align-middle" />
-              Evacuate{" "}
-              {bundle.needs.filter((n) => n.priority === "evacuate").length}
-            </span>
-            <span>
-              <span className="mr-1.5 inline-block h-2 w-2 bg-[#2563eb] align-middle" />
-              Floods {bundle.floods.length}
-            </span>
-            {bundle.fires.length > 0 ? (
+            {nangkaOps ? (
+              <>
+                <span>
+                  <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-[var(--danger)] align-middle" />
+                  Evacuate{" "}
+                  {assist?.actions.filter((a) => a.priority === "evacuate")
+                    .length ?? 0}
+                </span>
+                <span>
+                  <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-[#b8860b] align-middle" />
+                  Prepare{" "}
+                  {assist?.actions.filter((a) => a.priority === "prepare")
+                    .length ?? 0}
+                </span>
+                <span>
+                  <span className="mr-1.5 inline-block h-2 w-2 bg-[#2563eb] align-middle" />
+                  AI floods {mapFloods.length}
+                </span>
+              </>
+            ) : (
+              <span>No local hazard layers yet</span>
+            )}
+            {pack.fires.length > 0 ? (
               <span className="inline-flex items-center gap-1.5">
                 <Flame
                   className="size-3.5 shrink-0 text-[#ea580c]"
                   strokeWidth={2.5}
                   aria-hidden
                 />
-                Fires {bundle.fires.length}
+                Fires {pack.fires.length}
               </span>
             ) : null}
-            {bundle.landslides.length > 0 ? (
+            {pack.landslides.length > 0 ? (
               <span className="inline-flex items-center gap-1.5">
                 <Mountain
                   className="size-3.5 shrink-0 text-[#8b5a2b]"
                   strokeWidth={2.5}
                   aria-hidden
                 />
-                Landslides {bundle.landslides.length}
+                Landslides {pack.landslides.length}
               </span>
             ) : null}
-            <span className="inline-flex items-center gap-1.5">
-              <Tornado
-                className="size-3.5 shrink-0 text-[#1d4ed8]"
-                strokeWidth={2.5}
-                aria-hidden
-              />
-              Typhoon {bundle.typhoons.length}
-            </span>
+            {pack.typhoons.length > 0 ? (
+              <span className="inline-flex items-center gap-1.5">
+                <Tornado
+                  className="size-3.5 shrink-0 text-[#1d4ed8]"
+                  strokeWidth={2.5}
+                  aria-hidden
+                />
+                Typhoon {pack.typhoons.length}
+              </span>
+            ) : null}
             <span>
               <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-[#b45309] align-middle" />
-              Reports {bundle.reportPins.length}
+              Reports {pack.reportPins.length}
             </span>
             <span>
               <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-[var(--danger)] align-middle" />

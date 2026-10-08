@@ -85,10 +85,10 @@ function SmsReplyBody({
 }
 
 const SUGGESTIONS = [
+  "A typhoon cat 5 is coming in 3 days — what do we do?",
   "Run triage",
-  "Who should evacuate?",
-  "Text them to evacuate",
-  "Any flood risk homes?",
+  "What do the red yellow and blue mean?",
+  "Alert them to evacuate",
   "Clear map highlights",
 ] as const;
 
@@ -107,13 +107,16 @@ type MangluluwasChatProps = {
   messages: ChatMessage[];
   running: boolean;
   result: AssistResult | null;
+  /** Show evacuate/prepare list; false after SMS / Clear (map stays). */
+  callListVisible?: boolean;
   /** Current roster — used to resolve names/phones on map assist chips. */
   households?: Household[];
   error: string | null;
   model: GeminiAssistModelId;
   onModelChange: (model: GeminiAssistModelId) => void;
   onSend: (text: string) => void;
-  onClearMap: () => void;
+  /** Clears evacuate list only — not map colors / floods. */
+  onClearCallList: () => void;
   chats: ChatSummary[];
   activeChatId: string;
   onNewChat: () => void;
@@ -126,12 +129,13 @@ export function MangluluwasChat({
   messages,
   running,
   result,
+  callListVisible = false,
   households = [],
   error,
   model,
   onModelChange,
   onSend,
-  onClearMap,
+  onClearCallList,
   chats,
   activeChatId,
   onNewChat,
@@ -145,9 +149,23 @@ export function MangluluwasChat({
   const listRef = useRef<HTMLDivElement>(null);
 
   const callActions = useMemo(() => {
-    if (!result?.actions.length) return [];
+    if (!callListVisible || !result?.actions.length) return [];
     return enrichActionsWithContacts(result.actions, households);
-  }, [result, households]);
+  }, [callListVisible, result, households]);
+
+  const evacuateActions = useMemo(
+    () => callActions.filter((a) => a.priority === "evacuate"),
+    [callActions],
+  );
+
+  const alertButtonLabel = useMemo(() => {
+    const withPhone = evacuateActions.some((a) => a.phone?.trim());
+    const withEmail = evacuateActions.some((a) => a.email?.trim());
+    if (withPhone && withEmail) return "Alert evacuate list (SMS + email)";
+    if (withEmail) return "Email evacuate list";
+    if (withPhone) return "Text evacuate list (SMS)";
+    return "Alert evacuate list";
+  }, [evacuateActions]);
 
   useEffect(() => {
     const el = listRef.current;
@@ -232,15 +250,15 @@ export function MangluluwasChat({
             >
               <Plus className="size-3.5" aria-hidden />
             </Button>
-            {result && !historyOpen ? (
+            {callListVisible && !historyOpen ? (
               <Button
                 type="button"
                 variant="outline"
                 size="icon"
                 className="size-8"
-                onClick={onClearMap}
-                aria-label="Clear map highlights"
-                title="Clear map"
+                onClick={onClearCallList}
+                aria-label="Clear evacuate list"
+                title="Clear evacuate list (map stays)"
               >
                 <Eraser className="size-3.5" aria-hidden />
               </Button>
@@ -424,12 +442,12 @@ export function MangluluwasChat({
             </p>
           ) : null}
 
-          {result ? (
+          {result && callListVisible ? (
             <div className="shrink-0 border-t border-[var(--accent)]/30 bg-[var(--surface-panel)] px-3 py-2 sm:px-4">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <p className="font-mono text-[10px] tracking-[0.2em] text-[var(--accent)] uppercase">
-                    Map · {result.focusHazard}
+                    Call list · {result.focusHazard}
                   </p>
                   <p className="mt-0.5 line-clamp-2 text-xs text-[var(--muted)]">
                     {result.mapHint}
@@ -437,10 +455,10 @@ export function MangluluwasChat({
                 </div>
                 <button
                   type="button"
-                  onClick={onClearMap}
+                  onClick={onClearCallList}
                   className="shrink-0 font-mono text-[9px] tracking-wider text-[var(--muted)] uppercase underline-offset-2 hover:text-[var(--accent)] hover:underline"
                 >
-                  Clear
+                  Clear list
                 </button>
               </div>
               {callActions.length ? (
@@ -480,27 +498,42 @@ export function MangluluwasChat({
                             >
                               {phone}
                             </a>
-                          ) : (
+                          ) : null}
+                          {a.email?.trim() ? (
+                            <a
+                              href={`mailto:${a.email.trim()}`}
+                              className="min-w-0 truncate font-mono text-[10px] text-[var(--accent)] underline-offset-2 hover:underline"
+                            >
+                              {a.email.trim()}
+                            </a>
+                          ) : null}
+                          {!phone && !a.email?.trim() ? (
                             <span className="font-mono text-[10px] text-[var(--muted)]">
-                              no phone
+                              no phone/email
                             </span>
-                          )}
+                          ) : null}
                         </li>
                       );
                     })}
                   </ul>
-                  {callActions.some((a) => a.priority === "evacuate") ? (
+                  {evacuateActions.length ? (
                     <button
                       type="button"
                       disabled={running}
-                      onClick={() => submit("Text them to evacuate")}
-                      className="mt-2 w-full border border-[var(--danger)]/50 bg-[var(--danger)]/10 px-2 py-1.5 font-mono text-[10px] tracking-wider text-[var(--danger)] uppercase transition hover:bg-[var(--danger)]/15 disabled:opacity-50"
+                      onClick={() => submit("Alert them to evacuate")}
+                      className="mt-2 w-full border border-[var(--danger)] bg-[var(--danger)] px-2 py-2 font-mono text-[10px] font-semibold tracking-wider text-white uppercase shadow-sm transition hover:brightness-110 disabled:cursor-not-allowed disabled:border-[var(--border)] disabled:bg-[var(--surface-panel)] disabled:text-[var(--muted)] disabled:opacity-100 disabled:shadow-none"
                     >
-                      Text evacuate list (Twilio SMS)
+                      {running ? "Sending alerts…" : alertButtonLabel}
                     </button>
                   ) : null}
                 </>
               ) : null}
+            </div>
+          ) : result && !callListVisible ? (
+            <div className="shrink-0 border-t border-[var(--border)] bg-[var(--surface-panel)]/60 px-3 py-2 sm:px-4">
+              <p className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+                Map still highlighted · list cleared after text
+              </p>
             </div>
           ) : null}
 
@@ -557,21 +590,28 @@ export function MangluluwasChat({
           <DialogHeader>
             <DialogTitle>Sent messages</DialogTitle>
             <DialogDescription>
-              {smsLogOpen?.length ?? 0} SMS{" "}
+              {smsLogOpen?.length ?? 0} alert
+              {(smsLogOpen?.length ?? 0) === 1 ? "" : "s"}{" "}
+              ({smsLogOpen?.filter((r) => r.channel === "email").length ?? 0}{" "}
+              email ·{" "}
+              {smsLogOpen?.filter((r) => r.channel !== "email").length ?? 0} SMS)
               {(smsLogOpen?.filter((r) => r.ok).length ?? 0) ===
               (smsLogOpen?.length ?? 0)
-                ? "logged"
-                : "attempted"}{" "}
+                ? " logged"
+                : " attempted"}{" "}
               for this blast.
             </DialogDescription>
           </DialogHeader>
           <DialogBody className="max-h-[min(60vh,28rem)] space-y-3">
             {(smsLogOpen ?? []).map((entry, i) => (
               <article
-                key={`${entry.to}-${i}`}
+                key={`${entry.channel ?? "sms"}-${entry.to}-${i}`}
                 className="border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5"
               >
                 <div className="flex flex-wrap items-center gap-1.5">
+                  <Badge variant="outline">
+                    {entry.channel === "email" ? "email" : "sms"}
+                  </Badge>
                   {entry.priority ? (
                     <Badge
                       variant={
@@ -589,7 +629,9 @@ export function MangluluwasChat({
                     {entry.ownerName?.trim() || "Resident"}
                   </span>
                   <span className="font-mono text-[10px] text-[var(--accent)]">
-                    {entry.phoneDisplay ?? entry.to}
+                    {entry.channel === "email"
+                      ? (entry.emailDisplay ?? entry.to)
+                      : (entry.phoneDisplay ?? entry.to)}
                   </span>
                   {!entry.ok ? (
                     <span className="font-mono text-[10px] text-[var(--danger)] uppercase">
@@ -597,6 +639,11 @@ export function MangluluwasChat({
                     </span>
                   ) : null}
                 </div>
+                {entry.subject ? (
+                  <p className="mt-1.5 text-xs font-medium text-[var(--foreground)]">
+                    {entry.subject}
+                  </p>
+                ) : null}
                 {entry.body ? (
                   <p className="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-[var(--foreground)]">
                     {entry.body}

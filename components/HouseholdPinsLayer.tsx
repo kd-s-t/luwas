@@ -41,7 +41,7 @@ export function HouseholdPinsLayer({
       if (h.lat == null || h.lng == null) continue;
       const priority = assistPriorities[h.id];
       const color = priority ? PRIORITY_COLOR[priority] : "#167445";
-      const radius = priority ? 3.5 : 2.25;
+      const radius = priority ? 2.25 : 1.5;
       const elevM = estimateElevM(h.lat, h.lng);
 
       const marker = L.circleMarker([h.lat, h.lng], {

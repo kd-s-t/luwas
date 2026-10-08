@@ -8,7 +8,11 @@ import { isOfficer } from "@/lib/auth/types";
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { href: "/command", label: "Map", match: (p: string) => p === "/command" },
+  {
+    href: "/command",
+    label: "Command center",
+    match: (p: string) => p === "/command",
+  },
   {
     href: "/command/reports",
     label: "Field reports",
@@ -23,6 +27,17 @@ const NAV = [
     href: "/command/households",
     label: "House owners",
     match: (p: string) => p.startsWith("/command/households"),
+  },
+  {
+    href: "/command/users",
+    label: "Users",
+    match: (p: string) => p.startsWith("/command/users"),
+  },
+  {
+    href: "/command/email",
+    label: "Templates",
+    match: (p: string) =>
+      p.startsWith("/command/email") || p.startsWith("/command/texts"),
   },
   {
     href: "/barangays",

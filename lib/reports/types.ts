@@ -13,7 +13,7 @@ export type ReportHazardHint =
   | "other";
 
 /**
- * Demo situation is locked to Odette (Rai) / Cat 5 peak (CAT5_DURING).
+ * Situation is locked to Odette (Rai) / Cat 5 peak (CAT5_DURING).
  * Show storm name + SSHS category on typhoon reports.
  */
 export function hazardHintLabel(hint: ReportHazardHint): string {
@@ -48,6 +48,9 @@ export type HazardReport = {
   citizenUid: string;
   citizenName: string;
   citizenPurok: string;
+  /** Barangay the report belongs to (officer queues filter on this). */
+  barangay: string;
+  lgu: string;
   citizenPhotoURL: string | null;
   title: string;
   notes: string;

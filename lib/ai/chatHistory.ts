@@ -8,7 +8,7 @@ export const WELCOME_MESSAGE: ChatMessage = {
   id: "welcome",
   role: "assistant",
   content:
-    "Kumusta — I’m Mangluluwas, your Luwas DRRM agent. Ask about the situation, or say “run triage” to prioritize households and draw escape routes on the map.",
+    "Kumusta — I’m Mangluluwas, your Luwas DRRM colleague for the Odette simulation. Ask what to do for a storm, or say “run triage” — I’ll paint the map (red = evacuate, yellow = prepare / shelter in place, blue = AI flood footprints) and remind you to stock water and goods at homes, evacuation centers, schools, and the barangay hall.",
   createdAt: new Date(0).toISOString(),
 };
 
@@ -29,6 +29,7 @@ export function createThread(partial?: Partial<ChatThread>): ChatThread {
     title: partial?.title ?? "New chat",
     messages: partial?.messages ?? [{ ...WELCOME_MESSAGE, id: `welcome-${newId()}` }],
     result: partial?.result ?? null,
+    callListVisible: partial?.callListVisible ?? false,
     createdAt: partial?.createdAt ?? now,
     updatedAt: partial?.updatedAt ?? now,
   };
@@ -61,6 +62,7 @@ export function loadHistory(): {
         ...t,
         title: t.title || titleFromMessages(t.messages),
         result: t.result ?? null,
+        callListVisible: t.callListVisible ?? Boolean(t.result?.actions?.length),
         createdAt: t.createdAt ?? new Date().toISOString(),
         updatedAt: t.updatedAt ?? t.createdAt ?? new Date().toISOString(),
       }));

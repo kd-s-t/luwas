@@ -4,7 +4,10 @@ import {
   compassLabel,
   distKm,
 } from "@/lib/geo/bearing";
-import { NANGKA_SAFE_POINTS } from "@/lib/geo/safePoints";
+import {
+  NANGKA_EVAC_CENTERS,
+  type SafePoint,
+} from "@/lib/geo/safePoints";
 import type { FloodSample } from "@/lib/hazards/floodSamples";
 import type { LandslideSample } from "@/lib/hazards/landslideSamples";
 import type { Household } from "@/lib/households/types";
@@ -30,18 +33,19 @@ function hazardPressure(
   return score;
 }
 
-function pickSafePoint(
+/** Pick nearest designated evacuation center (not hall / chapel). */
+function pickEvacCenter(
   from: { lat: number; lng: number },
   floods: FloodSample[],
   landslides: LandslideSample[],
-) {
-  let best = NANGKA_SAFE_POINTS[0];
+): SafePoint {
+  const centers = NANGKA_EVAC_CENTERS;
+  let best = centers[0]!;
   let bestScore = Number.POSITIVE_INFINITY;
 
-  for (const sp of NANGKA_SAFE_POINTS) {
+  for (const sp of centers) {
     const d = distKm(from, sp);
     const pressure = hazardPressure(sp, floods, landslides);
-    // Prefer low hazard, short walk, and higher ground (elevM from Google Elevation).
     const elevBonus = (sp.elevM ?? 0) / 40;
     const score = pressure * 10 + d - elevBonus;
     if (score < bestScore) {
@@ -52,7 +56,10 @@ function pickSafePoint(
   return best;
 }
 
-/** Build map escape arrows for evacuate/prepare households. */
+/**
+ * One escape direction per safe point (not a line per house).
+ * Arrow runs from the evacuate cluster centroid → shelter.
+ */
 export function buildEscapeRoutes(
   actions: AssistHouseholdAction[],
   households: Household[],
@@ -60,33 +67,54 @@ export function buildEscapeRoutes(
   landslides: LandslideSample[],
 ): AssistEscapeRoute[] {
   const byId = new Map(households.map((h) => [h.id, h]));
-  const routes: AssistEscapeRoute[] = [];
+
+  type Bucket = {
+    dest: SafePoint;
+    points: { lat: number; lng: number }[];
+  };
+  const buckets = new Map<string, Bucket>();
+
+  if (NANGKA_EVAC_CENTERS.length === 0) return [];
 
   for (const a of actions) {
-    if (a.priority === "monitor") continue;
+    if (a.priority !== "evacuate") continue;
     const h = byId.get(a.householdId);
     if (!h || h.lat == null || h.lng == null) continue;
-
     const from = { lat: h.lat, lng: h.lng };
-    const dest = pickSafePoint(from, floods, landslides);
-    const bearing = bearingDegrees(from, dest);
-    const distanceKm = distKm(from, dest);
+    const dest = pickEvacCenter(from, floods, landslides);
+    const bucket = buckets.get(dest.id) ?? { dest, points: [] };
+    bucket.points.push(from);
+    buckets.set(dest.id, bucket);
+  }
+
+  const routes: AssistEscapeRoute[] = [];
+  for (const [destId, bucket] of buckets) {
+    const n = bucket.points.length;
+    if (!n) continue;
+    const from = {
+      lat: bucket.points.reduce((s, p) => s + p.lat, 0) / n,
+      lng: bucket.points.reduce((s, p) => s + p.lng, 0) / n,
+    };
+    const to = { lat: bucket.dest.lat, lng: bucket.dest.lng };
+    const bearing = bearingDegrees(from, to);
+    const distanceKm = distKm(from, to);
     const direction = compassLabel(bearing);
 
     routes.push({
-      householdId: h.id,
+      householdId: `escape-dir-${destId}`,
       from,
-      to: { lat: dest.lat, lng: dest.lng },
-      destinationId: dest.id,
-      destinationName: dest.name,
+      to,
+      destinationId: destId,
+      destinationName: bucket.dest.name,
       bearing,
       direction,
       distanceKm,
-      instruction: `Head ${direction} toward ${dest.name} (~${Math.round(dest.elevM)} m elev · routing roads…)`,
-      path: [from, { lat: dest.lat, lng: dest.lng }],
+      instruction: `Evacuate ${direction} → ${bucket.dest.name} (~${Math.round(bucket.dest.elevM)} m) · ${n} household${n === 1 ? "" : "s"}`,
+      path: [from, to],
       routed: false,
     });
   }
 
-  return routes;
+  // Prefer primary hall first if multiple destinations.
+  return routes.sort((a, b) => a.distanceKm - b.distanceKm);
 }

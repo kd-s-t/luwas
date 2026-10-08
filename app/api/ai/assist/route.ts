@@ -26,10 +26,13 @@ function withEscapes(
   result: Omit<AssistResult, "escapes"> & { escapes?: AssistResult["escapes"] },
   body: Body,
 ): AssistResult {
+  const floodLayer = result.predictedFloods?.length
+    ? result.predictedFloods
+    : body.floods;
   const escapes = buildEscapeRoutes(
     result.actions,
     body.households,
-    body.floods,
+    floodLayer,
     body.landslides,
   );
   return {
@@ -77,9 +80,12 @@ Given hazards and households, return ONLY valid JSON (no markdown) matching:
   "actions": [{"householdId": string, "priority": "evacuate"|"prepare"|"monitor", "reason": string}],
   "mapHint": string
 }
-Rules: leave actions empty — the server flags EVERY flood/landslide/vulnerable household (no cap). Focus on summary, focusHazard, and mapHint.
-Safe points available (server will draw escape arrows): ${JSON.stringify(
-      NANGKA_SAFE_POINTS.map((s) => ({ id: s.id, name: s.name })),
+Rules: leave actions empty — the server flags households using hazards + elevation (low ground evacuate; high ground prepare/stock up). Focus on summary, focusHazard, and mapHint.
+Evacuation centers only (escape arrows — not hall/chapel): ${JSON.stringify(
+      NANGKA_SAFE_POINTS.filter((s) => s.isEvacCenter).map((s) => ({
+        id: s.id,
+        name: s.name,
+      })),
     )}
 
 Weather: ${body.weatherLabel ?? "unknown"}
@@ -94,7 +100,7 @@ Households: ${JSON.stringify(compactHouseholds)}`;
       prompt,
     );
 
-    const local = runLocalAssist(body);
+    const local = runLocalAssist({ ...body, floodSource: "gemini" });
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       return NextResponse.json({
@@ -113,6 +119,7 @@ Households: ${JSON.stringify(compactHouseholds)}`;
         summary: String(parsed.summary ?? local.summary),
         focusHazard: parsed.focusHazard ?? local.focusHazard,
         actions: local.actions,
+        predictedFloods: local.predictedFloods,
         mapHint: String(parsed.mapHint ?? local.mapHint),
         source: "gemini",
         model: usedModel,

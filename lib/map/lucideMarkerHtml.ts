@@ -64,7 +64,7 @@ export function lucideLandslideMarkerHtml(
 }
 
 export function reportPinMarkerHtml(
-  kind: "blockage" | "flood" | "fire" | "warning" | "welfare",
+  kind: "blockage" | "flood" | "fire" | "landslide" | "warning" | "welfare",
 ): string {
   const glyph =
     kind === "blockage"
@@ -73,8 +73,10 @@ export function reportPinMarkerHtml(
         ? "≈"
         : kind === "fire"
           ? "▲"
-          : kind === "warning"
-            ? "⚠"
-            : "?";
+          : kind === "landslide"
+            ? "▲"
+            : kind === "warning"
+              ? "⚠"
+              : "?";
   return `<span class="dro-map-marker-report dro-map-marker-report-${kind}">${glyph}</span>`;
 }

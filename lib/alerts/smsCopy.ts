@@ -12,19 +12,19 @@ export function buildEvacSmsBody(input: {
 
   if (input.priority === "evacuate") {
     return (
-      `LUWAS ALERT · ${brgy}: ${name}${place}, please EVACUATE now to the nearest barangay safe point / hall. ` +
-      `Follow road escape routes. This is guidance for responders — not a life-safety guarantee. ` +
+      `LUWAS ALERT · ${brgy}: ${name}${place}, please EVACUATE now to Consolacion Evacuation Center (or Center 2 / Nangka Elementary). ` +
+      `Follow road escape routes. Odette simulation for responders — not a life-safety guarantee. ` +
       `For emergencies call local PNP/BFP/barangay.`
     );
   }
   if (input.priority === "prepare") {
     return (
-      `LUWAS ALERT · ${brgy}: ${name}${place}, please PREPARE to evacuate — pack essentials, watch flood/wind, ` +
-      `await barangay instructions. Guidance only — call local responders if in danger.`
+      `LUWAS ALERT · ${brgy}: ${name}${place}, PREPARE — stock water, food, cooking fuel; watch flood/wind. ` +
+      `Odette simulation — call local responders if in danger.`
     );
   }
   return (
-    `LUWAS ALERT · ${brgy}: ${name}${place}, stay on MONITOR — check welfare and keep phone on. ` +
-    `Guidance only — call local responders if in danger.`
+    `LUWAS ALERT · ${brgy}: ${name}${place}, MONITOR — check welfare and keep phone on. ` +
+    `Odette simulation — call local responders if in danger.`
   );
 }

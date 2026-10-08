@@ -31,7 +31,11 @@ export function ScenarioNeedsPanel({
   );
   const blocked = bundle.needs.filter((n) => n.blocked);
   const liveReports = bundle.reportPins.filter(
-    (r) => r.kind === "blockage" || r.kind === "fire" || r.kind === "flood",
+    (r) =>
+      r.kind === "blockage" ||
+      r.kind === "fire" ||
+      r.kind === "flood" ||
+      r.kind === "landslide",
   );
 
   return (

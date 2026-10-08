@@ -1,9 +1,9 @@
-/** Officer asked Mangluluwas to SMS the priority / evacuate list. */
+/** Officer asked to alert the priority / evacuate list (SMS and/or email). */
 export function isSmsDispatchIntent(text: string): boolean {
   const t = text.trim();
   if (!t) return false;
   if (
-    /\b(text|sms|message)\b/i.test(t) &&
+    /\b(text|sms|email|message|alert|notify|blast)\b/i.test(t) &&
     /\b(evac|evacuate|them|household|priority|prepare|call\s*list|triage)\b/i.test(
       t,
     )
@@ -12,7 +12,7 @@ export function isSmsDispatchIntent(text: string): boolean {
   }
   if (
     /\bsend\b/i.test(t) &&
-    /\b(text|sms|message|evac|evacuate)\b/i.test(t)
+    /\b(text|sms|email|message|alert|evac|evacuate)\b/i.test(t)
   ) {
     return true;
   }

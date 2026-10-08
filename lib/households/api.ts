@@ -7,11 +7,13 @@ import {
   onSnapshot,
   query,
   serverTimestamp,
+  updateDoc,
   where,
   writeBatch,
   type Unsubscribe,
 } from "firebase/firestore";
 import { getClientDb } from "@/lib/firebase/client";
+import { CURATED_NANGKA_HOUSEHOLDS } from "@/lib/households/curatedSeed";
 import type { Household, HouseholdInput } from "@/lib/households/types";
 
 /** Firestore batch limit is 500; stay under for clear+seed headroom. */
@@ -187,4 +189,66 @@ export async function seedHouseholds(
   return addHouseholds(officerUid, orgName, inputs, (done, total) => {
     onProgress?.({ phase: "writing", done, total });
   });
+}
+
+function curatedMatchKey(h: { email?: string; phone?: string; ownerName?: string }) {
+  const email = h.email?.trim().toLowerCase() ?? "";
+  if (email) return `email:${email}`;
+  const phone = h.phone?.trim().replace(/\D/g, "") ?? "";
+  const name = h.ownerName?.trim().toLowerCase() ?? "";
+  return `phone:${phone}|name:${name}`;
+}
+
+/**
+ * Upsert curated Nangka pins (incl. Ken) into an existing roster without a
+ * full 2,900 reseed — adds missing rows, refreshes contact/coords if present.
+ */
+export async function ensureCuratedHouseholds(
+  officerUid: string,
+  orgName: string,
+  existing: Household[],
+): Promise<{ added: number; updated: number }> {
+  const byKey = new Map<string, Household>();
+  for (const h of existing) {
+    byKey.set(curatedMatchKey(h), h);
+  }
+
+  let added = 0;
+  let updated = 0;
+  const org = orgName.trim() || "Brgy. Nangka MDRRMO";
+
+  for (const input of CURATED_NANGKA_HOUSEHOLDS) {
+    const key = curatedMatchKey(input);
+    const hit = byKey.get(key);
+    if (!hit) {
+      await addHousehold(officerUid, org, input);
+      added += 1;
+      continue;
+    }
+    const needsUpdate =
+      hit.ownerName !== input.ownerName.trim() ||
+      hit.phone !== input.phone.trim() ||
+      hit.email !== input.email.trim() ||
+      hit.purok !== input.purok.trim() ||
+      hit.address !== input.address.trim() ||
+      hit.lat !== (input.lat ?? null) ||
+      hit.lng !== (input.lng ?? null);
+    if (!needsUpdate) continue;
+    const now = new Date().toISOString();
+    await updateDoc(doc(getClientDb(), "households", hit.id), {
+      ownerName: input.ownerName.trim(),
+      address: input.address.trim(),
+      purok: input.purok.trim(),
+      phone: input.phone.trim(),
+      email: input.email.trim(),
+      notes: input.notes.trim(),
+      lat: typeof input.lat === "number" ? input.lat : null,
+      lng: typeof input.lng === "number" ? input.lng : null,
+      updatedAt: now,
+      updatedAtServer: serverTimestamp(),
+    });
+    updated += 1;
+  }
+
+  return { added, updated };
 }

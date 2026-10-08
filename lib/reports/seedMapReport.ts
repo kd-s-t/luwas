@@ -7,6 +7,10 @@ import {
 } from "firebase/firestore";
 import { DEMO_CITIZENS, type DemoCitizen } from "@/lib/auth/demoAccount";
 import { getClientDb } from "@/lib/firebase/client";
+import {
+  DEFAULT_REPORT_BARANGAY,
+  DEFAULT_REPORT_LGU,
+} from "@/lib/reports/barangayScope";
 import { EMPTY_REACTION_COUNTS } from "@/lib/reports/socialTypes";
 import type { HazardReport, ReportHazardHint } from "@/lib/reports/types";
 import type { ScenarioReportPin } from "@/lib/scenarios/types";
@@ -18,6 +22,7 @@ const SEED_UID = "demo-map-seed";
 function hazardForKind(kind: ScenarioReportPin["kind"]): ReportHazardHint {
   if (kind === "flood") return "flood";
   if (kind === "fire") return "fire";
+  if (kind === "landslide") return "landslide";
   if (kind === "blockage") return "typhoon";
   return "other";
 }
@@ -90,10 +95,26 @@ export async function ensureMapReportInDb(
       data.citizenName === "Field reporter" ||
       data.citizenName === "Map seed";
 
-    if (staleName || data.citizenPurok !== citizen.purok) {
+    if (
+      staleName ||
+      data.citizenPurok !== citizen.purok ||
+      data.barangay !== DEFAULT_REPORT_BARANGAY ||
+      data.lgu !== DEFAULT_REPORT_LGU ||
+      data.lat !== pin.lat ||
+      data.lng !== pin.lng ||
+      data.title !== pin.title ||
+      data.notes !== pin.notes
+    ) {
       await updateDoc(ref, {
         citizenName: citizen.displayName,
         citizenPurok: citizen.purok,
+        barangay: DEFAULT_REPORT_BARANGAY,
+        lgu: DEFAULT_REPORT_LGU,
+        title: pin.title,
+        notes: pin.notes,
+        lat: pin.lat,
+        lng: pin.lng,
+        locationLabel: `${pin.lat.toFixed(5)}, ${pin.lng.toFixed(5)}`,
         updatedAt: new Date().toISOString(),
         updatedAtServer: serverTimestamp(),
       });
@@ -104,6 +125,8 @@ export async function ensureMapReportInDb(
       citizenUid: String(data.citizenUid ?? SEED_UID),
       citizenName: citizen.displayName,
       citizenPurok: citizen.purok,
+      barangay: DEFAULT_REPORT_BARANGAY,
+      lgu: DEFAULT_REPORT_LGU,
       citizenPhotoURL:
         data.citizenPhotoURL != null ? String(data.citizenPhotoURL) : null,
       title: String(data.title ?? pin.title),
@@ -160,6 +183,8 @@ export async function ensureMapReportInDb(
     citizenUid: SEED_UID,
     citizenName: citizen.displayName,
     citizenPurok: citizen.purok,
+    barangay: DEFAULT_REPORT_BARANGAY,
+    lgu: DEFAULT_REPORT_LGU,
     citizenPhotoURL: null,
     title: pin.title,
     notes: pin.notes,

@@ -11,11 +11,20 @@ export type FloodSample = {
   depthCm: number;
   reportedAt: string;
   notes: string;
+  /**
+   * Optional inundation / flood-prone footprints (closed rings).
+   * Prefer elevation cell quads so zones stay in valleys, not on hills.
+   */
+  footprints?: { lat: number; lng: number }[][];
+  /** @deprecated Prefer footprints — single ring if needed. */
+  footprint?: { lat: number; lng: number }[];
+  /** Soft circle fallback (meters) when no footprint is set. */
+  radiusM?: number;
 };
 
 /**
- * Demo flood samples along real Nangka (Consolacion) road corridors.
- * Not live PAGASA flood bulletins — for command-center demos.
+ * Flood samples along real Nangka (Consolacion) corridors for the Odette simulation.
+ * Not live PAGASA bulletins.
  */
 export const CEBU_FLOOD_SAMPLES: FloodSample[] = [
   {

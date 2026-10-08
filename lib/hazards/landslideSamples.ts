@@ -10,11 +10,15 @@ export type LandslideSample = {
   lng: number;
   reportedAt: string;
   notes: string;
+  /** Optional field photo shown in map popup / seeded reports. */
+  mediaUrl?: string;
 };
 
+const LANDSLIDE_MEDIA = "/reports/landslide-bank-failure.png";
+
 /**
- * Demo landslide samples on slopes toward Cebu North Road / Nangka edge.
- * Not live MGB events — sample incidents for command-center demos.
+ * Landslide samples on slopes toward Cebu North Road / Nangka edge.
+ * Used in the Odette During phase — not a live MGB feed.
  */
 export const CEBU_LANDSLIDE_SAMPLES: LandslideSample[] = [
   {
@@ -27,6 +31,7 @@ export const CEBU_LANDSLIDE_SAMPLES: LandslideSample[] = [
     lng: 123.9574,
     reportedAt: "2026-10-06T08:40:00+08:00",
     notes: "Fresh tension cracks after overnight rain · monitor alley access",
+    mediaUrl: LANDSLIDE_MEDIA,
   },
   {
     id: "ls-nangka-cansaga-edge",
@@ -38,6 +43,7 @@ export const CEBU_LANDSLIDE_SAMPLES: LandslideSample[] = [
     lng: 123.9562,
     reportedAt: "2026-10-07T05:15:00+08:00",
     notes: "Mud/debris reached lane · 2 houses advised to evacuate to hall",
+    mediaUrl: LANDSLIDE_MEDIA,
   },
   {
     id: "ls-nangka-school-cut",
@@ -49,6 +55,7 @@ export const CEBU_LANDSLIDE_SAMPLES: LandslideSample[] = [
     lng: 123.9585,
     reportedAt: "2026-10-05T16:20:00+08:00",
     notes: "Minor seepage · monitor if rain continues",
+    mediaUrl: LANDSLIDE_MEDIA,
   },
   {
     id: "ls-nangka-east-bank",
@@ -60,6 +67,7 @@ export const CEBU_LANDSLIDE_SAMPLES: LandslideSample[] = [
     lng: 123.9664,
     reportedAt: "2026-10-07T11:05:00+08:00",
     notes: "Bank undercut · flood + slide compound risk",
+    mediaUrl: LANDSLIDE_MEDIA,
   },
   {
     id: "ls-nangka-purok-singko",
@@ -71,6 +79,7 @@ export const CEBU_LANDSLIDE_SAMPLES: LandslideSample[] = [
     lng: 123.9638,
     reportedAt: "2026-10-04T09:00:00+08:00",
     notes: "Loose fill after heavy rain · tanods on standby",
+    mediaUrl: LANDSLIDE_MEDIA,
   },
 ];
 

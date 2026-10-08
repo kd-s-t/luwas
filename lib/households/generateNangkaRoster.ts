@@ -242,11 +242,11 @@ export function generateNangkaRoster(
 
     out.push({
       ownerName,
-      address: `${anchor.purok} residential lane · demo lot ${globalIndex + 1}`,
+      address: `${anchor.purok} residential lane · lot ${globalIndex + 1}`,
       purok: anchor.purok,
       phone,
       email: rand() > 0.35 ? slugEmail(ownerName, globalIndex) : "",
-      notes: `${tag} · ${members} household members · synthetic PSA-scale demo`,
+      notes: `${tag} · ${members} household members · PSA-scale roster`,
       lat,
       lng,
     });
@@ -255,7 +255,7 @@ export function generateNangkaRoster(
   return out;
 }
 
-/** Full demo roster — memoized once per module load. */
+/** Full Nangka roster — memoized once per module load. */
 export const CEBU_HOUSEHOLDS: HouseholdInput[] = generateNangkaRoster(
   NANGKA_HOUSEHOLD_TARGET,
 );

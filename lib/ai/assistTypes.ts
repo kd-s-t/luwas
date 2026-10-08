@@ -1,12 +1,15 @@
+import type { FloodSample } from "@/lib/hazards/floodSamples";
+
 export type AssistPriority = "evacuate" | "prepare" | "monitor";
 
 export type AssistHouseholdAction = {
   householdId: string;
   priority: AssistPriority;
   reason: string;
-  /** Filled from roster so officers can call without leaving chat. */
+  /** Filled from roster so officers can call / email without leaving chat. */
   ownerName?: string;
   phone?: string;
+  email?: string;
   purok?: string;
 };
 
@@ -36,4 +39,6 @@ export type AssistResult = {
   source: "gemini" | "local";
   /** Google model id when source is gemini */
   model?: string;
+  /** AI-predicted flood footprints (shown on map after triage). */
+  predictedFloods?: FloodSample[];
 };

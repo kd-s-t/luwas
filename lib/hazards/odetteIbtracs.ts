@@ -10,7 +10,7 @@ import type { TyphoonSample, TyphoonTrackPoint } from "@/lib/hazards/typhoonSamp
  *
  * Local name Odette (PAGASA). Landfall sequence included Carcar, Cebu
  * ~16 Dec 2021 22:00 PHT. Consolacion / Nangka were flood-prone and heavily
- * damaged (LGU / news sitreps) — household pins remain demo, track is real.
+ * damaged (LGU / news sitreps) — roster uses fictional names; Odette track is real.
  */
 
 const KT_TO_KMH = 1.852;
@@ -42,14 +42,33 @@ export const ODETTE_IBTRACS_POINTS = [
 export const ODETTE_SOURCE =
   "NOAA IBTrACS v04r01 · SID 2021346N05145 (RAI / Odette) · 6-hourly USA winds";
 
-function labelFor(iso: string, sshs: number): string {
-  const local = new Date(iso).toLocaleString("en-PH", {
+/** Carcar, Cebu landfall (~22:00 PHT 16 Dec 2021). */
+export const ODETTE_CEBU_LANDFALL_ISO = "2021-12-16T14:00:00Z";
+
+export function formatOdettePht(iso: string, opts?: { short?: boolean }): string {
+  return new Date(iso).toLocaleString("en-PH", {
     timeZone: "Asia/Manila",
     month: "short",
     day: "numeric",
-    hour: "2-digit",
+    hour: "numeric",
+    minute: "2-digit",
+    ...(opts?.short ? {} : { weekday: "short" }),
+  });
+}
+
+/** Compact map chip: "Dec 16 · 8:00 PM" */
+export function formatOdetteTrackChip(iso: string): string {
+  return new Date(iso).toLocaleString("en-PH", {
+    timeZone: "Asia/Manila",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
     minute: "2-digit",
   });
+}
+
+function labelFor(iso: string, sshs: number): string {
+  const local = formatOdettePht(iso);
   const cat =
     sshs >= 5
       ? "Cat 5"
@@ -61,6 +80,14 @@ function labelFor(iso: string, sshs: number): string {
             ? `Cat ${sshs}`
             : "TS";
   return `${local} PHT · ${cat}`;
+}
+
+function hoursUntilLandfall(fromIso: string): number {
+  return Math.round(
+    (new Date(ODETTE_CEBU_LANDFALL_ISO).getTime() -
+      new Date(fromIso).getTime()) /
+      3_600_000,
+  );
 }
 
 export function odetteTrack(): TyphoonTrackPoint[] {
@@ -119,6 +146,10 @@ export function odetteTyphoonForPhase(
   const distanceKm = Math.round(distKmToNangka(eye.lat, eye.lng));
   const maxWindsKmh = ktToKmh(eye.usaWindKt);
 
+  const landfallLocal = formatOdettePht(ODETTE_CEBU_LANDFALL_ISO);
+  const eyeLocal = formatOdettePht(eye.iso);
+  const hrs = hoursUntilLandfall(eye.iso);
+
   if (phase === "before") {
     return {
       id: "ty-odette-before",
@@ -130,7 +161,7 @@ export function odetteTyphoonForPhase(
       maxWindsKmh,
       movement: "WNW · approaching Visayas (IBTrACS)",
       distanceKm,
-      etaNote: "Historical · ~24–30 hrs before Cebu landfall window",
+      etaNote: `Now ${eyeLocal} PHT · Cebu landfall ETA ${landfallLocal} PHT (~${hrs} hrs)`,
       reportedAt: eye.iso,
       notes: `${ODETTE_SOURCE}. Pre-landfall snapshot. Consolacion LGU flagged Nangka as flood-prone ahead of Odette.`,
       track,
@@ -149,7 +180,7 @@ export function odetteTyphoonForPhase(
       maxWindsKmh,
       movement: "West · crossing Visayas (IBTrACS)",
       distanceKm,
-      etaNote: "Historical · ~2 hrs before Carcar, Cebu landfall (22:00 PHT)",
+      etaNote: `Now ${eyeLocal} PHT · Carcar landfall ETA ${landfallLocal} PHT (~${Math.max(0, hrs)} hrs)`,
       reportedAt: eye.iso,
       notes: `${ODETTE_SOURCE}. Peak USA winds earlier same day 150 kt (~${ktToKmh(150)} km/h). Consolacion: thousands of homes damaged (news / DSWD sitreps).`,
       track,
@@ -167,7 +198,7 @@ export function odetteTyphoonForPhase(
     maxWindsKmh,
     movement: "WNW · exiting toward Sulu Sea (IBTrACS)",
     distanceKm,
-    etaNote: "Historical · storm core has passed Metro Cebu",
+    etaNote: `Now ${eyeLocal} PHT · Cebu landfall was ${landfallLocal} PHT`,
     reportedAt: eye.iso,
     notes: `${ODETTE_SOURCE}. Recovery focus: welfare checks, debris, residual flood. Track remains the observed Odette path.`,
     track,

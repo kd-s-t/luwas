@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   addHousehold,
   addHouseholds,
+  ensureCuratedHouseholds,
   removeHousehold,
   seedHouseholds,
   subscribeHouseholds,
@@ -79,8 +80,11 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
   const [page, setPage] = useState(1);
   const csvInputRef = useRef<HTMLInputElement>(null);
 
+  const curatedSynced = useRef(false);
+
   useEffect(() => {
     setLoading(true);
+    curatedSynced.current = false;
     const unsub = subscribeHouseholds(
       officerUid,
       (next) => {
@@ -94,6 +98,19 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
     );
     return () => unsub();
   }, [officerUid]);
+
+  // Inject curated pins (Ken, etc.) into an already-seeded roster.
+  useEffect(() => {
+    if (loading || curatedSynced.current || rows.length === 0) return;
+    curatedSynced.current = true;
+    void ensureCuratedHouseholds(
+      officerUid,
+      orgName || "Brgy. Nangka MDRRMO",
+      rows,
+    ).catch(() => {
+      curatedSynced.current = false;
+    });
+  }, [loading, rows, officerUid, orgName]);
 
   const rosterUpdatedAt = useMemo(() => {
     let latest = "";
@@ -208,7 +225,7 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
         setSeedProgress,
       );
       setImportMsg(
-        `Seeded ${count.toLocaleString()} households · ~${NANGKA_CENSUS_2020.toLocaleString()} people (PSA 2020 demo).`,
+        `Seeded ${count.toLocaleString()} households · ~${NANGKA_CENSUS_2020.toLocaleString()} people (PSA 2020 · Odette sim).`,
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Seed failed");
@@ -328,8 +345,8 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
         ) : rows.length === 0 ? (
           <div className="border border-dashed border-[var(--border)] bg-[var(--surface-panel)]/50 px-5 py-10 text-[var(--muted)]">
             <p>
-              No households yet. Add a local house owner, or seed the census-scale
-              demo roster for Brgy. Nangka ({NANGKA_HOUSEHOLD_TARGET.toLocaleString()}{" "}
+              No households yet. Add a local house owner, or seed the Nangka roster
+              for the Odette simulation ({NANGKA_HOUSEHOLD_TARGET.toLocaleString()}{" "}
               households · ~{NANGKA_CENSUS_2020.toLocaleString()} people, PSA 2020).
             </p>
             <div className="mt-4 flex flex-wrap gap-2">

@@ -11,6 +11,7 @@ import {
   Circle,
   MapContainer,
   Marker,
+  Polygon,
   Polyline,
   Popup,
   TileLayer,
@@ -20,19 +21,19 @@ import L from "leaflet";
 import { Loader2, LocateFixed } from "lucide-react";
 import type { AssistEscapeRoute, AssistPriority } from "@/lib/ai/assistTypes";
 import { pointAndBearingAlongPath } from "@/lib/geo/bearing";
-import {
-  DEFAULT_MAP_AREA,
-  isNangkaOpsArea,
-  type MapArea,
-} from "@/lib/geo/mapAreas";
-import { NANGKA_SAFE_POINTS } from "@/lib/geo/safePoints";
+import { DEFAULT_MAP_AREA, type MapArea } from "@/lib/geo/mapAreas";
+import type { SafePoint } from "@/lib/geo/safePoints";
 import type { FireSample } from "@/lib/hazards/fireSamples";
 import { fireSeverityLabel } from "@/lib/hazards/fireSamples";
 import type { FloodSample } from "@/lib/hazards/floodSamples";
 import { floodSeverityLabel } from "@/lib/hazards/floodSamples";
 import type { LandslideSample } from "@/lib/hazards/landslideSamples";
 import { landslideSeverityLabel } from "@/lib/hazards/landslideSamples";
-import type { TyphoonSample } from "@/lib/hazards/typhoonSamples";
+import {
+  formatOdetteTrackChip,
+  ODETTE_CEBU_LANDFALL_ISO,
+} from "@/lib/hazards/odetteIbtracs";
+import type { TyphoonSample, TyphoonTrackPoint } from "@/lib/hazards/typhoonSamples";
 import { typhoonCategoryLabel } from "@/lib/hazards/typhoonSamples";
 import type { QuakeEvent } from "@/lib/hazards/usgsEarthquakes";
 import { HouseholdPinsLayer } from "@/components/HouseholdPinsLayer";
@@ -82,6 +83,57 @@ function floodIcon(severity: FloodSample["severity"]) {
     iconSize: [14, 14],
     iconAnchor: [7, 7],
   });
+}
+
+/** Chip sits above (or below) the track point so it never covers the eye. */
+function trackEtaIcon(
+  text: string,
+  emphasize = false,
+  side: "above" | "below" = "above",
+) {
+  const w = 92;
+  const h = 22;
+  // Anchor at the track point → label floats clear of the icon / line.
+  const iconAnchor: [number, number] =
+    side === "above" ? [w / 2, h + 10] : [w / 2, -10];
+  return L.divIcon({
+    className: "dro-map-marker dro-map-track-eta-wrap",
+    html: `<span class="dro-map-track-eta${emphasize ? " dro-map-track-eta-strong" : ""}">${text}</span>`,
+    iconSize: [w, h],
+    iconAnchor,
+  });
+}
+
+/**
+ * ~12h synoptic chips + endpoints. Skips the current eye so the typhoon
+ * marker stays visible; alternates above/below to reduce chip pile-ups.
+ */
+function trackEtaSamples(
+  track: TyphoonTrackPoint[],
+  eye?: { lat: number; lng: number; at?: string },
+): TyphoonTrackPoint[] {
+  const out: TyphoonTrackPoint[] = [];
+  for (let i = 0; i < track.length; i++) {
+    const p = track[i]!;
+    if (!p.at) continue;
+    const hour = new Date(p.at).getUTCHours();
+    const keep =
+      i === 0 ||
+      i === track.length - 1 ||
+      hour === 0 ||
+      hour === 12;
+    if (!keep) continue;
+    if (out.length && out[out.length - 1]!.at === p.at) continue;
+    // Never place a time chip on the live eye position.
+    if (eye) {
+      if (eye.at && p.at === eye.at) continue;
+      const dLat = Math.abs(p.lat - eye.lat);
+      const dLng = Math.abs(p.lng - eye.lng);
+      if (dLat < 0.15 && dLng < 0.25) continue;
+    }
+    out.push(p);
+  }
+  return out;
 }
 
 /** Lucide Tornado — typhoon / tropical cyclone marker. */
@@ -347,10 +399,6 @@ function FitHouseholds({
   const map = useMap();
 
   useEffect(() => {
-    if (!isNangkaOpsArea(area)) {
-      return;
-    }
-
     const focus =
       highlightIds.length > 0
         ? households.filter(
@@ -358,6 +406,12 @@ function FitHouseholds({
               highlightIds.includes(h.id) && h.lat != null && h.lng != null,
           )
         : households.filter((h) => h.lat != null && h.lng != null);
+
+    // Empty brgy packs: just center the map, don't fit empty bounds.
+    if (focus.length === 0 && escapeRoutes.length === 0) {
+      map.setView([area.center.lat, area.center.lng], area.zoom);
+      return;
+    }
 
     const points: [number, number][] = [
       [area.center.lat, area.center.lng],
@@ -392,7 +446,10 @@ type AreaMapInnerProps = {
   userLocation?: { lat: number; lng: number } | null;
   /** Called when the in-map locate control gets a fix */
   onUserLocationChange?: (loc: { lat: number; lng: number }) => void;
-  /** Keep Nangka demo / scenario layers even if the visitor is elsewhere */
+  /**
+   * @deprecated Parent should pass only this barangay’s pack layers.
+   * Kept for call-site compatibility; ignored.
+   */
   forceLayers?: boolean;
   households: Household[];
   quakes: QuakeEvent[];
@@ -401,6 +458,8 @@ type AreaMapInnerProps = {
   typhoons: TyphoonSample[];
   fires?: FireSample[];
   reportPins?: ScenarioReportPin[];
+  /** Safe / EC pins for this barangay pack (not global Nangka). */
+  safePoints?: SafePoint[];
   /** householdId → AI priority — updates marker style + map focus */
   assistPriorities?: Record<string, AssistPriority>;
   escapeRoutes?: AssistEscapeRoute[];
@@ -410,7 +469,7 @@ export default function AreaMapInner({
   area = DEFAULT_MAP_AREA,
   userLocation = null,
   onUserLocationChange,
-  forceLayers = false,
+  forceLayers: _forceLayers = false,
   households,
   quakes,
   landslides,
@@ -418,9 +477,11 @@ export default function AreaMapInner({
   typhoons,
   fires = [],
   reportPins = [],
+  safePoints = [],
   assistPriorities = {},
   escapeRoutes = [],
 }: AreaMapInnerProps) {
+  void _forceLayers;
   const flyRef = useRef<MapFlyFn | null>(null);
   const [localUser, setLocalUser] = useState<{
     lat: number;
@@ -428,19 +489,17 @@ export default function AreaMapInner({
   } | null>(null);
   const [focusNonce, setFocusNonce] = useState(0);
   const effectiveUser = userLocation ?? localUser;
-  const showDemoLayers = forceLayers || isNangkaOpsArea(area);
-  const mapped = showDemoLayers
-    ? households.filter((h) => h.lat != null && h.lng != null)
-    : [];
+  // Parent scopes layers per barangay pack — paint whatever is passed.
+  const mapped = households.filter((h) => h.lat != null && h.lng != null);
   const highlightIds = Object.keys(assistPriorities);
-  const layerLandslides = showDemoLayers ? landslides : [];
-  const layerFloods = showDemoLayers ? floods : [];
-  const layerTyphoons = showDemoLayers ? typhoons : [];
-  const layerFires = showDemoLayers ? fires : [];
-  const layerReports = showDemoLayers ? reportPins : [];
-  const layerEscapes = showDemoLayers ? escapeRoutes : [];
-  const layerSafePoints = showDemoLayers ? NANGKA_SAFE_POINTS : [];
-  const activeShelterIds = new Set(layerEscapes.map((r) => r.destinationId));
+  const layerLandslides = landslides;
+  const layerFloods = floods;
+  const layerTyphoons = typhoons;
+  const layerFires = fires;
+  const layerReports = reportPins;
+  const layerEscapes = escapeRoutes;
+  const layerSafePoints = safePoints;
+  const activeEvacIds = new Set(layerEscapes.map((r) => r.destinationId));
   const hasForecastTrack = layerTyphoons.some((t) => (t.track?.length ?? 0) > 1);
 
   const [basemap, setBasemap] = useState<"streets" | "terrain">("terrain");
@@ -488,7 +547,7 @@ export default function AreaMapInner({
         area={area}
         enabled={hasForecastTrack && !effectiveUser}
       />
-      {showDemoLayers || !effectiveUser ? (
+      {layerSafePoints.length === 0 && !effectiveUser ? (
         <Marker
           position={[area.center.lat, area.center.lng]}
           icon={hallIcon}
@@ -556,47 +615,164 @@ export default function AreaMapInner({
             {ls.place} ({ls.purokHint})
             <br />
             {ls.notes}
+            {ls.mediaUrl ? (
+              <>
+                <br />
+                <span className="font-mono text-xs uppercase">
+                  Image report · live
+                </span>
+                <br />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={ls.mediaUrl}
+                  alt=""
+                  style={{
+                    marginTop: 6,
+                    maxWidth: 180,
+                    width: "100%",
+                    height: "auto",
+                    display: "block",
+                    border: "1px solid #b7d9c6",
+                  }}
+                />
+              </>
+            ) : null}
           </Popup>
         </Marker>
       ))}
-      {layerFloods.map((fl) => (
-        <Marker
-          key={fl.id}
-          position={[fl.lat, fl.lng]}
-          icon={floodIcon(fl.severity)}
-        >
-          <Popup>
-            <strong>Flood · {floodSeverityLabel(fl.severity)}</strong>
-            <br />
-            {fl.name}
-            <br />
-            {fl.place} ({fl.purokHint})
-            <br />
-            Depth ~{fl.depthCm} cm
-            <br />
-            {fl.notes}
-          </Popup>
-        </Marker>
-      ))}
+      {layerFloods.map((fl) => {
+        const floodFill =
+          fl.severity === "critical"
+            ? { color: "#1d4ed8", fill: "#2563eb", opacity: 0.32 }
+            : fl.severity === "warning"
+              ? { color: "#2563eb", fill: "#3b82f6", opacity: 0.24 }
+              : { color: "#60a5fa", fill: "#93c5fd", opacity: 0.18 };
+        const rings = (
+          fl.footprints?.length
+            ? fl.footprints
+            : fl.footprint && fl.footprint.length >= 3
+              ? [fl.footprint]
+              : []
+        ).map((ring) =>
+          ring.map((p) => [p.lat, p.lng] as [number, number]),
+        );
+        return (
+          <Fragment key={fl.id}>
+            {rings.map((ring, i) => (
+              <Polygon
+                key={`${fl.id}-cell-${i}`}
+                positions={ring}
+                pathOptions={{
+                  color: floodFill.color,
+                  weight: 0.5,
+                  opacity: 0.35,
+                  fillColor: floodFill.fill,
+                  fillOpacity: floodFill.opacity,
+                }}
+              >
+                {i === 0 ? (
+                  <Popup>
+                    <strong>
+                      Flood zone · {floodSeverityLabel(fl.severity)}
+                    </strong>
+                    <br />
+                    {fl.name}
+                    <br />
+                    {fl.place}
+                    <br />
+                    {fl.notes}
+                  </Popup>
+                ) : null}
+              </Polygon>
+            ))}
+            {!rings.length && fl.radiusM && fl.radiusM > 0 ? (
+              <Circle
+                center={[fl.lat, fl.lng]}
+                radius={fl.radiusM}
+                pathOptions={{
+                  color: floodFill.color,
+                  weight: 1,
+                  opacity: 0.55,
+                  fillColor: floodFill.fill,
+                  fillOpacity: floodFill.opacity,
+                }}
+              />
+            ) : null}
+            <Marker
+              position={[fl.lat, fl.lng]}
+              icon={floodIcon(fl.severity)}
+              zIndexOffset={650}
+            >
+              <Popup>
+                <strong>Flood · {floodSeverityLabel(fl.severity)}</strong>
+                <br />
+                {fl.name}
+                <br />
+                {fl.place} ({fl.purokHint})
+                <br />
+                Depth ~{fl.depthCm} cm
+                <br />
+                {fl.notes}
+              </Popup>
+            </Marker>
+          </Fragment>
+        );
+      })}
       {layerTyphoons.map((ty) =>
         ty.track && ty.track.length > 1 ? (
-          <Polyline
-            key={`${ty.id}-track`}
-            positions={ty.track.map(
-              (p) => [p.lat, p.lng] as [number, number],
-            )}
-            pathOptions={{
-              color: "#1d4ed8",
-              weight: 3,
-              opacity: 0.85,
-              dashArray: "8 10",
-            }}
-          />
+          <Fragment key={`${ty.id}-track`}>
+            <Polyline
+              positions={ty.track.map(
+                (p) => [p.lat, p.lng] as [number, number],
+              )}
+              pathOptions={{
+                color: "#1d4ed8",
+                weight: 3,
+                opacity: 0.85,
+                dashArray: "8 10",
+              }}
+            />
+            {trackEtaSamples(ty.track, {
+              lat: ty.lat,
+              lng: ty.lng,
+              at: ty.reportedAt,
+            }).map((p, i) => (
+              <Marker
+                key={`${ty.id}-eta-${p.at}`}
+                position={[p.lat, p.lng]}
+                icon={trackEtaIcon(
+                  formatOdetteTrackChip(p.at!),
+                  p.at === ODETTE_CEBU_LANDFALL_ISO ||
+                    (p.at != null &&
+                      Math.abs(
+                        new Date(p.at).getTime() -
+                          new Date(ODETTE_CEBU_LANDFALL_ISO).getTime(),
+                      ) <
+                        4 * 3_600_000),
+                  i % 2 === 0 ? "above" : "below",
+                )}
+                zIndexOffset={720}
+              >
+                <Popup>
+                  <strong>Track · {formatOdetteTrackChip(p.at!)} PHT</strong>
+                  <br />
+                  {p.label ?? ty.name}
+                  <br />
+                  Cebu landfall ETA ·{" "}
+                  {formatOdetteTrackChip(ODETTE_CEBU_LANDFALL_ISO)} PHT
+                </Popup>
+              </Marker>
+            ))}
+          </Fragment>
         ) : null,
       )}
       {layerTyphoons.map((ty) => (
         <Fragment key={`${ty.id}-eye`}>
-          <Marker position={[ty.lat, ty.lng]} icon={typhoonIcon()}>
+          <Marker
+            position={[ty.lat, ty.lng]}
+            icon={typhoonIcon()}
+            zIndexOffset={960}
+          >
             <Popup>
               <strong>{ty.name}</strong>
               <br />
@@ -604,7 +780,9 @@ export default function AreaMapInner({
               <br />
               {ty.movement}
               <br />
-              {Math.round(ty.distanceKm)} km from Nangka · {ty.etaNote}
+              {Math.round(ty.distanceKm)} km from Nangka
+              <br />
+              <strong>{ty.etaNote}</strong>
               <br />
               {ty.notes}
             </Popup>
@@ -702,27 +880,44 @@ export default function AreaMapInner({
               {rp.purokHint}
               <br />
               {rp.notes}
+              {rp.mediaUrl ? (
+                <>
+                  <br />
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={rp.mediaUrl}
+                    alt=""
+                    style={{
+                      marginTop: 6,
+                      maxWidth: 180,
+                      width: "100%",
+                      height: "auto",
+                      display: "block",
+                      border: "1px solid #b7d9c6",
+                    }}
+                  />
+                </>
+              ) : null}
             </Popup>
           </Marker>
         );
       })}
-      {layerEscapes.map((route, escapeIndex) => {
+      {layerEscapes.map((route) => {
         const path =
           route.path?.length >= 2 ? route.path : [route.from, route.to];
         const positions = path.map(
           (p) => [p.lat, p.lng] as [number, number],
         );
-        // Chevron near shelter end, oriented to local tangent (not crow-fly bearing).
-        const tip = pointAndBearingAlongPath(path, 0.78);
-        const showChevron = escapeIndex < 48;
+        // One chevron mid-route — direction to go, not a line per house.
+        const tip = pointAndBearingAlongPath(path, 0.55);
         return (
-          <Fragment key={`escape-${route.householdId}`}>
+          <Fragment key={`escape-${route.destinationId}`}>
             <Polyline
               positions={positions}
               pathOptions={{
                 color: "#ffffff",
-                weight: route.routed ? 7 : 5,
-                opacity: 0.85,
+                weight: 8,
+                opacity: 0.9,
                 lineCap: "round",
                 lineJoin: "round",
               }}
@@ -731,52 +926,66 @@ export default function AreaMapInner({
               positions={positions}
               pathOptions={{
                 color: "#1f8f55",
-                weight: route.routed ? 3.5 : 2.5,
+                weight: 4.5,
                 opacity: 0.95,
                 lineCap: "round",
                 lineJoin: "round",
-                dashArray: "10 8",
+                dashArray: "12 10",
                 className: "dro-escape-flow",
               }}
             />
-            {showChevron ? (
-              <Marker
-                position={[tip.point.lat, tip.point.lng]}
-                icon={escapeChevronIcon(tip.bearing)}
-                zIndexOffset={900}
-              >
-                <Popup>
-                  <strong>
-                    Escape · {route.direction}
-                    {route.routed ? " · via roads" : ""}
-                  </strong>
-                  <br />
-                  {route.instruction}
-                </Popup>
-              </Marker>
-            ) : null}
+            <Marker
+              position={[tip.point.lat, tip.point.lng]}
+              icon={escapeChevronIcon(tip.bearing)}
+              zIndexOffset={900}
+            >
+              <Popup>
+                <strong>
+                  Go {route.direction} → {route.destinationName}
+                  {route.routed ? " · via roads" : ""}
+                </strong>
+                <br />
+                {route.instruction}
+              </Popup>
+            </Marker>
           </Fragment>
         );
       })}
-      {layerSafePoints
-        .filter((sp) => activeShelterIds.has(sp.id))
-        .map((sp) => (
+      {layerSafePoints.map((sp) => {
+        const role = sp.isEvacCenter
+          ? "Evacuation center"
+          : sp.kind === "hall"
+            ? "Command"
+            : "Landmark";
+        const active = activeEvacIds.has(sp.id);
+        return (
           <Marker
             key={sp.id}
             position={[sp.lat, sp.lng]}
-            icon={shelterIcon}
-            zIndexOffset={700}
+            icon={
+              sp.isEvacCenter || sp.kind === "hall" ? shelterIcon : hallIcon
+            }
+            zIndexOffset={active ? 720 : sp.isEvacCenter ? 700 : 680}
           >
             <Popup>
-              <strong>Safe point · {sp.name}</strong>
+              <strong>
+                {role} · {sp.name}
+              </strong>
               <br />
               Elevation ~{Math.round(sp.elevM)} m (Google Elevation)
               <br />
               {sp.notes}
+              {active ? (
+                <>
+                  <br />
+                  Active escape destination
+                </>
+              ) : null}
             </Popup>
           </Marker>
-        ))}
-      {showDemoLayers && !effectiveUser && !hasForecastTrack ? (
+        );
+      })}
+      {!effectiveUser && !hasForecastTrack ? (
         <FitHouseholds
           area={area}
           households={mapped}

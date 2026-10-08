@@ -11,6 +11,7 @@ import {
   type Unsubscribe,
 } from "firebase/firestore";
 import { getClientDb } from "@/lib/firebase/client";
+import { resolveReportPlace } from "@/lib/reports/barangayScope";
 import type { HazardReport } from "@/lib/reports/types";
 import {
   EMPTY_REACTION_COUNTS,
@@ -24,11 +25,20 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
   const counts = (data.reactionCounts as ReactionCounts | undefined) ?? {
     ...EMPTY_REACTION_COUNTS,
   };
+  const place = resolveReportPlace({
+    barangay: data.barangay != null ? String(data.barangay) : "",
+    lgu: data.lgu != null ? String(data.lgu) : "",
+    citizenPurok: String(data.citizenPurok ?? ""),
+    lat: typeof data.lat === "number" ? data.lat : null,
+    lng: typeof data.lng === "number" ? data.lng : null,
+  });
   return {
     id,
     citizenUid: String(data.citizenUid ?? ""),
     citizenName: String(data.citizenName ?? ""),
     citizenPurok: String(data.citizenPurok ?? ""),
+    barangay: place.barangay,
+    lgu: place.lgu,
     citizenPhotoURL:
       data.citizenPhotoURL != null ? String(data.citizenPhotoURL) : null,
     title: String(data.title ?? ""),

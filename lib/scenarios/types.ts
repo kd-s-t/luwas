@@ -10,11 +10,11 @@ import type { TyphoonSample } from "@/lib/hazards/typhoonSamples";
 
 export type DrrmScenarioPhase = "before" | "during" | "after";
 
-/** Demo citizen / image report pin on the map (blockage, fire, welfare). */
+/** Field / image report pin on the map (blockage, fire, welfare). */
 export type ScenarioReportPin = {
   id: string;
   title: string;
-  kind: "blockage" | "flood" | "fire" | "warning" | "welfare";
+  kind: "blockage" | "flood" | "fire" | "landslide" | "warning" | "welfare";
   lat: number;
   lng: number;
   purokHint: string;
