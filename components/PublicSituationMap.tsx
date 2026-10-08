@@ -17,9 +17,13 @@ import {
   zoomEarthUrl,
   type QuakeEvent,
 } from "@/lib/hazards/usgsEarthquakes";
-import { CEBU_HOUSEHOLDS } from "@/lib/households/seed";
+import {
+  CEBU_HOUSEHOLDS,
+  NANGKA_CENSUS_2020,
+  NANGKA_HOUSEHOLD_TARGET,
+} from "@/lib/households/seed";
 import type { Household } from "@/lib/households/types";
-import { CAT5_DURING } from "@/lib/scenarios";
+import { useScenario } from "@/lib/scenarios";
 import {
   fetchCebuWeather,
   isHazardousWeather,
@@ -70,7 +74,7 @@ function seedAsHouseholds(): Household[] {
 
 export function PublicSituationMap() {
   const households = useMemo(() => seedAsHouseholds(), []);
-  const bundle = CAT5_DURING;
+  const { bundle } = useScenario();
   // Crow-flies first; OSRM street routing is deferred (slow public routers).
   const roadEscapes = useRoadEscapes(bundle.escapes, { deferMs: 1200 });
   const assistPriorities = useMemo(() => {
@@ -221,9 +225,10 @@ export function PublicSituationMap() {
               {DEFAULT_MAP_AREA.name}
             </h2>
             <p className="mt-2 max-w-xl text-[var(--muted)]">
-              Demo hazard layers and household priorities for Brgy. Nangka —
-              floods, slides, and typhoon pins for training, plus live weather
-              and USGS quakes.
+              {NANGKA_HOUSEHOLD_TARGET.toLocaleString()} demo households · ~
+              {NANGKA_CENSUS_2020.toLocaleString()} people (PSA 2020) as small
+              house pins off the road. Hazard layers and Odette priorities for
+              training, plus live weather and USGS quakes.
             </p>
 
             {(locateStatus === "prompting" ||
@@ -302,6 +307,9 @@ export function PublicSituationMap() {
             <AreaMapInner
               area={DEFAULT_MAP_AREA}
               userLocation={userLocation}
+              onUserLocationChange={(loc) => {
+                void applyCoords(loc.lat, loc.lng);
+              }}
               forceLayers
               households={households}
               quakes={quakes}

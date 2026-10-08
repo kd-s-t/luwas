@@ -41,8 +41,9 @@ function pickSafePoint(
   for (const sp of NANGKA_SAFE_POINTS) {
     const d = distKm(from, sp);
     const pressure = hazardPressure(sp, floods, landslides);
-    // Prefer low hazard + short walk (km weighted lightly)
-    const score = pressure * 10 + d;
+    // Prefer low hazard, short walk, and higher ground (elevM from Google Elevation).
+    const elevBonus = (sp.elevM ?? 0) / 40;
+    const score = pressure * 10 + d - elevBonus;
     if (score < bestScore) {
       bestScore = score;
       best = sp;
@@ -81,7 +82,7 @@ export function buildEscapeRoutes(
       bearing,
       direction,
       distanceKm,
-      instruction: `Head ${direction} toward ${dest.name} (routing roads…)`,
+      instruction: `Head ${direction} toward ${dest.name} (~${Math.round(dest.elevM)} m elev · routing roads…)`,
       path: [from, { lat: dest.lat, lng: dest.lng }],
       routed: false,
     });

@@ -18,7 +18,7 @@ export default function CitizenPage() {
     ? `${profile.displayName} · ${profile.purok}`
     : isOfficer(profile)
       ? `${profile.displayName} · ${profile.orgName}`
-      : (profile?.displayName ?? user?.email ?? "Field reports");
+      : (user?.email ?? "Field reports");
 
   return (
     <AuthGate mode="protected">

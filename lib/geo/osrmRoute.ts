@@ -48,14 +48,18 @@ async function enrichOne(escape: AssistEscapeRoute): Promise<AssistEscapeRoute> 
   };
 }
 
+/** How many escape lines get live OSM routing (rest stay crow-flies). */
+const ROAD_ROUTE_CAP = 40;
+
 /** Replace crow-flies segments with OSM foot routes (max 3 concurrent). */
 export async function enrichEscapesWithRoads(
   escapes: AssistEscapeRoute[],
 ): Promise<AssistEscapeRoute[]> {
-  const out: AssistEscapeRoute[] = new Array(escapes.length);
+  const out = escapes.slice();
+  const toRoute = Math.min(ROAD_ROUTE_CAP, escapes.length);
   let i = 0;
-  const workers = Array.from({ length: Math.min(3, escapes.length) }, async () => {
-    while (i < escapes.length) {
+  const workers = Array.from({ length: Math.min(3, toRoute) }, async () => {
+    while (i < toRoute) {
       const idx = i++;
       out[idx] = await enrichOne(escapes[idx]!);
     }

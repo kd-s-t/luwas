@@ -8,10 +8,14 @@ import {
   query,
   serverTimestamp,
   where,
+  writeBatch,
   type Unsubscribe,
 } from "firebase/firestore";
 import { getClientDb } from "@/lib/firebase/client";
 import type { Household, HouseholdInput } from "@/lib/households/types";
+
+/** Firestore batch limit is 500; stay under for clear+seed headroom. */
+const BATCH_SIZE = 400;
 
 export function subscribeHouseholds(
   officerUid: string,
@@ -90,13 +94,54 @@ export async function removeHousehold(id: string): Promise<void> {
   await deleteDoc(doc(getClientDb(), "households", id));
 }
 
-export async function clearHouseholds(officerUid: string): Promise<void> {
+export async function clearHouseholds(
+  officerUid: string,
+  onProgress?: (done: number, total: number) => void,
+): Promise<void> {
   const q = query(
     collection(getClientDb(), "households"),
     where("officerUid", "==", officerUid),
   );
   const snap = await getDocs(q);
-  await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
+  const refs = snap.docs.map((d) => d.ref);
+  const total = refs.length;
+  if (total === 0) {
+    onProgress?.(0, 0);
+    return;
+  }
+  let done = 0;
+  for (let i = 0; i < refs.length; i += BATCH_SIZE) {
+    const chunk = refs.slice(i, i + BATCH_SIZE);
+    const batch = writeBatch(getClientDb());
+    for (const ref of chunk) batch.delete(ref);
+    await batch.commit();
+    done += chunk.length;
+    onProgress?.(done, total);
+  }
+}
+
+function householdDocPayload(
+  officerUid: string,
+  orgName: string,
+  input: HouseholdInput,
+) {
+  const now = new Date().toISOString();
+  return {
+    ownerName: input.ownerName.trim(),
+    address: input.address.trim(),
+    purok: input.purok.trim(),
+    phone: input.phone.trim(),
+    email: input.email.trim(),
+    notes: input.notes.trim(),
+    lat: typeof input.lat === "number" ? input.lat : null,
+    lng: typeof input.lng === "number" ? input.lng : null,
+    officerUid,
+    orgName,
+    createdAt: now,
+    updatedAt: now,
+    createdAtServer: serverTimestamp(),
+    updatedAtServer: serverTimestamp(),
+  };
 }
 
 /** Append many households (CSV import). Does not clear existing roster. */
@@ -104,21 +149,42 @@ export async function addHouseholds(
   officerUid: string,
   orgName: string,
   inputs: HouseholdInput[],
+  onProgress?: (done: number, total: number) => void,
 ): Promise<number> {
-  let count = 0;
-  for (const input of inputs) {
-    await addHousehold(officerUid, orgName, input);
-    count += 1;
+  const total = inputs.length;
+  let done = 0;
+  const col = collection(getClientDb(), "households");
+  for (let i = 0; i < inputs.length; i += BATCH_SIZE) {
+    const chunk = inputs.slice(i, i + BATCH_SIZE);
+    const batch = writeBatch(getClientDb());
+    for (const input of chunk) {
+      const ref = doc(col);
+      batch.set(ref, householdDocPayload(officerUid, orgName, input));
+    }
+    await batch.commit();
+    done += chunk.length;
+    onProgress?.(done, total);
   }
-  return count;
+  return done;
 }
+
+export type SeedHouseholdsProgress = {
+  phase: "clearing" | "writing";
+  done: number;
+  total: number;
+};
 
 /** Replace this officer's roster with the given seed (clears old rows first). */
 export async function seedHouseholds(
   officerUid: string,
   orgName: string,
   inputs: HouseholdInput[],
+  onProgress?: (p: SeedHouseholdsProgress) => void,
 ): Promise<number> {
-  await clearHouseholds(officerUid);
-  return addHouseholds(officerUid, orgName, inputs);
+  await clearHouseholds(officerUid, (done, total) => {
+    onProgress?.({ phase: "clearing", done, total });
+  });
+  return addHouseholds(officerUid, orgName, inputs, (done, total) => {
+    onProgress?.({ phase: "writing", done, total });
+  });
 }

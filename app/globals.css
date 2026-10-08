@@ -325,15 +325,43 @@ button {
   border: none !important;
 }
 
-.dro-map-escape-arrow {
+.dro-map-escape-chevron {
   display: block;
-  width: 0;
-  height: 0;
-  border-left: 7px solid transparent;
-  border-right: 7px solid transparent;
-  border-bottom: 16px solid #167445;
+  width: 28px;
+  height: 28px;
+  transform-origin: 50% 50%;
   filter: drop-shadow(0 1px 2px rgba(15, 42, 28, 0.35));
-  transform-origin: 50% 60%;
+}
+
+.dro-map-escape-chevron-halo {
+  fill: #ffffff;
+}
+
+.dro-map-escape-chevron-body {
+  fill: #1f8f55;
+}
+
+/* Dashed stroke marches toward the shelter so direction reads without the old triangle. */
+@keyframes dro-escape-dash {
+  to {
+    stroke-dashoffset: -36;
+  }
+}
+
+.leaflet-overlay-pane path.dro-escape-flow {
+  animation: dro-escape-dash 1.1s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .leaflet-overlay-pane path.dro-escape-flow {
+    animation: none;
+  }
+}
+
+/* Pinch / pan stay on the map — don't zoom the whole page. */
+.leaflet-container {
+  touch-action: none;
+  -ms-touch-action: none;
 }
 
 .leaflet-popup-content-wrapper {
@@ -353,3 +381,4 @@ button {
   font-size: 13px;
   line-height: 1.4;
 }
+

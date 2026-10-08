@@ -10,7 +10,7 @@ import { slugify } from "@/lib/geo/cebuBarangays";
  * `source` on each station). Verify before operational use — numbers change.
  */
 
-export type ResponderKind = "hotline" | "pnp" | "bfp" | "tanod";
+export type ResponderKind = "hotline" | "pnp" | "bfp" | "hospital" | "tanod";
 
 export type ResponderStation = {
   id: string;
@@ -36,6 +36,8 @@ type StationInput = Omit<ResponderStation, "id" | "kind">;
 type LguStations = {
   pnp: StationInput[];
   bfp: StationInput[];
+  /** Hospitals / RHUs with public ER or desk lines */
+  hospitals?: StationInput[];
   /** Barangay slug → local tanod / community outposts */
   tanodByBarangay?: Record<string, StationInput[]>;
 };
@@ -74,6 +76,31 @@ const CURATED: Record<string, LguStations> = {
         mobiles: ["0954 193 9101"],
         notes: "BFP · one municipal fire station for the whole LGU",
         source: "Consolacion LGU directory + Pulpogan barangay hotlines",
+      },
+    ],
+    hospitals: [
+      {
+        name: "Mendero Medical Center",
+        seat: "Pitogo",
+        covers: "Consolacion and north Cebu corridor · tertiary hospital",
+        address: "Cebu North Road / A. Tan St, Brgy. Pitogo, Consolacion, Cebu",
+        phones: [
+          "(032) 236-0091",
+          "(032) 239-4356",
+          "(032) 239-7151",
+          "(032) 239-7152",
+        ],
+        notes: "Private hospital · ER / admissions · verify line before ops use",
+        source: "CDN / Yellow Pages PH / PhilHealth Konsulta listings",
+      },
+      {
+        name: "Consolacion Municipal Health Center / RHU",
+        seat: "Poblacion (Central Nautical Hwy)",
+        covers: "Municipal primary care · not a full tertiary ER",
+        address: "Central Nautical Hwy, Consolacion, Cebu 6001",
+        phones: ["(032) 231-7105"],
+        notes: "LGU health center · office hours · dial 911 for life-threatening emergencies",
+        source: "Public place listings (verify with Municipal Health Office)",
       },
     ],
     tanodByBarangay: {
@@ -196,6 +223,27 @@ const CURATED: Record<string, LguStations> = {
         source: "Coverage note · city BFP network",
       },
     ],
+    hospitals: [
+      {
+        name: "Vicente Sotto Memorial Medical Center (VSMMC)",
+        seat: "Sambag II",
+        covers: "DOH tertiary / trauma referral · citywide & region",
+        address: "B. Rodriguez St, Sambag II, Cebu City 6000",
+        phones: ["(032) 253-9891", "(032) 382-5514"],
+        mobiles: ["0949 886 5964", "0920 970 7617"],
+        notes: "Public tertiary · ER · also dial 911 for medical dispatch",
+        source: "DOH-7 emergency directory / VSMMC public contacts",
+      },
+      {
+        name: "Cebu City Medical Center",
+        seat: "Cebu City",
+        covers: "City public hospital · trauma / IM desks",
+        phones: ["(032) 254-1058", "(032) 516-3934"],
+        mobiles: ["0943 340 2070"],
+        notes: "Public city hospital · verify current ER desk",
+        source: "Sugbo.ph hospital hotline list (public, verify)",
+      },
+    ],
   },
   "mandaue-city": {
     pnp: [
@@ -247,6 +295,17 @@ const CURATED: Record<string, LguStations> = {
         source: "mandauecity.gov.ph emergency hotlines",
       },
     ],
+    hospitals: [
+      {
+        name: "Mandaue City Hospital / City Health network",
+        seat: "Mandaue City",
+        covers: "City public health · escalate trauma to tertiary hospitals",
+        phones: ["911"],
+        notes:
+          "Use 911 for ambulance / trauma · confirm city hospital desk with LGU",
+        source: "Fallback · verify with Mandaue CHO",
+      },
+    ],
   },
   "lapu-lapu-city": {
     pnp: [
@@ -274,6 +333,16 @@ const CURATED: Record<string, LguStations> = {
         covers: "All Lapu-Lapu barangays",
         phones: ["(032) 340-0252"],
         source: "Public Lapu-Lapu emergency hotline lists",
+      },
+    ],
+    hospitals: [
+      {
+        name: "Lapu-Lapu City Hospital / Mactan medical desks",
+        seat: "Poblacion / Mactan",
+        covers: "Island residents · major trauma may transfer to Cebu City",
+        phones: ["911", "(032) 340-0252"],
+        notes: "Dial 911 for medical emergencies · verify hospital ER desk with CHO",
+        source: "Public emergency lists · verify locally",
       },
     ],
   },
@@ -500,6 +569,8 @@ export function responderKindLabel(kind: ResponderKind): string {
       return "Police (PNP)";
     case "bfp":
       return "Fire (BFP)";
+    case "hospital":
+      return "Hospital / health";
     case "tanod":
       return "Barangay tanod";
   }
@@ -530,6 +601,7 @@ export function respondersForBarangay(
     ...withIds("hotline", "ph", UNIVERSAL_EMERGENCY_LINES, "-911"),
     ...withIds("pnp", lguSlug, pack.pnp),
     ...withIds("bfp", lguSlug, pack.bfp),
+    ...withIds("hospital", lguSlug, pack.hospitals ?? []),
   ];
 
   const tanod = pack.tanodByBarangay?.[brgySlug];
@@ -540,7 +612,7 @@ export function respondersForBarangay(
   return list;
 }
 
-/** LGU-level PNP + BFP only (for directory cards). */
+/** LGU-level PNP + BFP + hospitals (for directory cards). */
 export function respondersForLgu(lguName: string): ResponderStation[] {
   const lguSlug = slugify(lguName);
   const pack = CURATED[lguSlug] ?? defaultStations(lguName);
@@ -548,5 +620,6 @@ export function respondersForLgu(lguName: string): ResponderStation[] {
     ...withIds("hotline", "ph", UNIVERSAL_EMERGENCY_LINES, "-911"),
     ...withIds("pnp", lguSlug, pack.pnp),
     ...withIds("bfp", lguSlug, pack.bfp),
+    ...withIds("hospital", lguSlug, pack.hospitals ?? []),
   ];
 }

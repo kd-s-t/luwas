@@ -1,4 +1,5 @@
 import type { AssistResult } from "@/lib/ai/assistTypes";
+import { formatAssistCallReply } from "@/lib/ai/callList";
 import type { ChatApiResponse } from "@/lib/ai/chatTypes";
 import { runLocalAssist } from "@/lib/ai/localAssist";
 import type { FloodSample } from "@/lib/hazards/floodSamples";
@@ -26,21 +27,22 @@ function wantsClear(message: string): boolean {
   );
 }
 
-function formatAssistReply(assist: AssistResult): string {
-  const evacuate = assist.actions.filter((a) => a.priority === "evacuate");
-  const prepare = assist.actions.filter((a) => a.priority === "prepare");
-  const lines = [
-    assist.summary,
-    evacuate.length
-      ? `Evacuate focus: ${evacuate.length} household(s).`
-      : null,
-    prepare.length ? `Prepare: ${prepare.length} household(s).` : null,
+function formatAssistReply(
+  assist: AssistResult,
+  households: Household[],
+): string {
+  const extras = [
     assist.escapes.length
-      ? `${assist.escapes.length} escape route(s) suggested toward safe points.`
-      : null,
+      ? `${assist.escapes.length} escape route(s) toward safe points — see map.`
+      : "",
     assist.mapHint,
-  ].filter(Boolean);
-  return lines.join(" ");
+  ];
+  return formatAssistCallReply(
+    assist.summary,
+    assist.actions,
+    households,
+    extras,
+  );
 }
 
 /** Deterministic chat when Gemini is unavailable. */
@@ -62,7 +64,7 @@ export function runLocalChat(
   if (!trimmed || wantsTriage(trimmed)) {
     const assist = runLocalAssist(situation);
     return {
-      reply: formatAssistReply(assist),
+      reply: formatAssistReply(assist, situation.households),
       source: "local",
       assist,
     };

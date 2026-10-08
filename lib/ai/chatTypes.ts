@@ -2,12 +2,25 @@ import type { AssistResult } from "@/lib/ai/assistTypes";
 
 export type ChatRole = "user" | "assistant";
 
+export type SmsLogEntry = {
+  to: string;
+  ok: boolean;
+  ownerName?: string;
+  phoneDisplay?: string;
+  priority?: string;
+  body?: string;
+  error?: string;
+  provider?: string;
+};
+
 export type ChatMessage = {
   id: string;
   role: ChatRole;
   content: string;
   /** Set when this assistant turn also updated the map. */
   assistApplied?: boolean;
+  /** SMS blast log for clickable “N message(s)” in the reply. */
+  smsLog?: SmsLogEntry[];
   createdAt?: string;
 };
 

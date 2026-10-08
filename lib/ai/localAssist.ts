@@ -1,4 +1,5 @@
 import type { AssistResult } from "@/lib/ai/assistTypes";
+import { enrichActionsWithContacts } from "@/lib/ai/callList";
 import { buildEscapeRoutes } from "@/lib/ai/escapeRoutes";
 import { distKm } from "@/lib/geo/bearing";
 import type { FloodSample } from "@/lib/hazards/floodSamples";
@@ -69,11 +70,12 @@ export function runLocalAssist(input: {
     }
   }
 
+  // All hazard-affected homes (evacuate + prepare). Skip typhoon-only "monitor"
+  // so the map/SMS list is every impacted household, not a short demo sample.
   const ranked = [
     ...actions.filter((a) => a.priority === "evacuate"),
     ...actions.filter((a) => a.priority === "prepare"),
-    ...actions.filter((a) => a.priority === "monitor"),
-  ].slice(0, 10);
+  ];
 
   const escapes = buildEscapeRoutes(ranked, households, floods, landslides);
 
@@ -87,11 +89,12 @@ export function runLocalAssist(input: {
           : "mixed";
 
   const evacuateN = ranked.filter((a) => a.priority === "evacuate").length;
+  const prepareN = ranked.filter((a) => a.priority === "prepare").length;
   const summary = [
     `AI assist (local rules): focus on ${focusHazard}.`,
-    evacuateN
-      ? `${evacuateN} household(s) flagged for priority evacuate.`
-      : "No immediate evacuate pins; prepare/monitor guidance applied.",
+    evacuateN || prepareN
+      ? `${evacuateN} evacuate · ${prepareN} prepare (all affected households).`
+      : "No immediate evacuate/prepare pins from current hazard samples.",
     escapes.length
       ? `${escapes.length} escape direction(s) drawn to nearest safe point.`
       : "",
@@ -106,7 +109,7 @@ export function runLocalAssist(input: {
   return {
     summary,
     focusHazard,
-    actions: ranked,
+    actions: enrichActionsWithContacts(ranked, households),
     escapes,
     mapHint:
       escapes.length > 0

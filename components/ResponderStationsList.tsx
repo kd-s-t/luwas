@@ -5,7 +5,28 @@ import {
   type ResponderStation,
 } from "@/lib/geo/responderStations";
 
-const KIND_ORDER: ResponderKind[] = ["hotline", "pnp", "bfp", "tanod"];
+const KIND_ORDER: ResponderKind[] = [
+  "hotline",
+  "pnp",
+  "bfp",
+  "hospital",
+  "tanod",
+];
+
+function kindChip(kind: ResponderKind): string {
+  switch (kind) {
+    case "pnp":
+      return "PNP";
+    case "bfp":
+      return "BFP";
+    case "hospital":
+      return "Hospital";
+    case "tanod":
+      return "Tanod";
+    default:
+      return "Hotline";
+  }
+}
 
 type ResponderStationsListProps = {
   stations: ResponderStation[];
@@ -111,9 +132,12 @@ export function ResponderStationsList({
                 ...(s.mobiles ?? []),
               ].join(" · ")}
             >
-              {s.kind === "pnp" ? "PNP" : s.kind === "bfp" ? "BFP" : "Tanod"} ·{" "}
-              {s.name.replace(/\s*\(BFP\)\s*$/, "")}
-              {s.phones?.[0] ? ` · ${s.phones[0]}` : ""}
+              {kindChip(s.kind)} · {s.name.replace(/\s*\(BFP\)\s*$/, "")}
+              {s.phones?.[0]
+                ? ` · ${s.phones[0]}`
+                : s.mobiles?.[0]
+                  ? ` · ${s.mobiles[0]}`
+                  : ""}
             </li>
           ))}
       </ul>
@@ -132,9 +156,10 @@ export function ResponderStationsList({
           Nearby responders
         </h2>
         <p className="mt-1 max-w-2xl text-sm text-[var(--muted)]">
-          Police (PNP) and fire (BFP) are usually city or municipal stations that
-          cover many barangays. Numbers are from public LGU / hotline directories
-          — verify before operational use. In life-threatening emergencies dial{" "}
+          Police (PNP), fire (BFP), and hospitals are usually city or municipal
+          facilities that cover many barangays. Numbers are from public LGU /
+          DOH / directory listings — verify before operational use. In
+          life-threatening emergencies dial{" "}
           <a
             href="tel:911"
             className="font-mono text-[var(--accent)] underline-offset-2 hover:underline"

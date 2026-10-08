@@ -1,6 +1,12 @@
 "use client";
 
-import { Fragment, useEffect } from "react";
+import {
+  Fragment,
+  useEffect,
+  useRef,
+  useState,
+  type MutableRefObject,
+} from "react";
 import {
   Circle,
   MapContainer,
@@ -11,7 +17,9 @@ import {
   useMap,
 } from "react-leaflet";
 import L from "leaflet";
+import { Loader2, LocateFixed } from "lucide-react";
 import type { AssistEscapeRoute, AssistPriority } from "@/lib/ai/assistTypes";
+import { pointAndBearingAlongPath } from "@/lib/geo/bearing";
 import {
   DEFAULT_MAP_AREA,
   isNangkaOpsArea,
@@ -27,6 +35,7 @@ import { landslideSeverityLabel } from "@/lib/hazards/landslideSamples";
 import type { TyphoonSample } from "@/lib/hazards/typhoonSamples";
 import { typhoonCategoryLabel } from "@/lib/hazards/typhoonSamples";
 import type { QuakeEvent } from "@/lib/hazards/usgsEarthquakes";
+import { HouseholdPinsLayer } from "@/components/HouseholdPinsLayer";
 import type { Household } from "@/lib/households/types";
 import {
   lucideLandslideMarkerHtml,
@@ -34,23 +43,10 @@ import {
   reportPinMarkerHtml,
 } from "@/lib/map/lucideMarkerHtml";
 import type { ScenarioReportPin } from "@/lib/scenarios/types";
+import { cn } from "@/lib/utils";
 import "leaflet/dist/leaflet.css";
 
-const houseIcon = L.divIcon({
-  className: "dro-map-marker",
-  html: "<span class='dro-map-marker-dot'></span>",
-  iconSize: [14, 14],
-  iconAnchor: [7, 7],
-});
-
-function priorityHouseIcon(priority: AssistPriority) {
-  return L.divIcon({
-    className: "dro-map-marker",
-    html: `<span class="dro-map-marker-dot dro-map-marker-dot-ai dro-map-marker-dot-ai-${priority}"></span>`,
-    iconSize: [18, 18],
-    iconAnchor: [9, 9],
-  });
-}
+type MapFlyFn = (lat: number, lng: number, zoom?: number) => void;
 
 const hallIcon = L.divIcon({
   className: "dro-map-marker dro-map-marker-hall",
@@ -98,12 +94,19 @@ function typhoonIcon() {
   });
 }
 
-function escapeArrowIcon(bearing: number) {
+/** Nav chevron — tip = forward. Bearing 0° = north (up on the map). */
+function escapeChevronIcon(bearing: number) {
+  const deg = Number.isFinite(bearing) ? bearing : 0;
   return L.divIcon({
     className: "dro-map-marker dro-map-escape-arrow-wrap",
-    html: `<span class="dro-map-escape-arrow" style="transform:rotate(${bearing}deg)"></span>`,
-    iconSize: [22, 22],
-    iconAnchor: [11, 11],
+    html: `<span class="dro-map-escape-chevron" style="transform:rotate(${deg}deg)" aria-hidden="true">
+      <svg viewBox="0 0 32 32" width="28" height="28" focusable="false">
+        <path class="dro-map-escape-chevron-halo" d="M16 3.2 L27.2 26.4 L16 20.8 L4.8 26.4 Z"/>
+        <path class="dro-map-escape-chevron-body" d="M16 5.4 L25.2 25 L16 19.8 L6.8 25 Z"/>
+      </svg>
+    </span>`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
   });
 }
 
@@ -139,6 +142,30 @@ function reportIcon(kind: ScenarioReportPin["kind"]) {
   });
 }
 
+/** Keep two-finger pinch on the map (Safari otherwise zooms the page). */
+function MapTouchGuard() {
+  const map = useMap();
+  useEffect(() => {
+    const el = map.getContainer();
+    el.style.touchAction = "none";
+
+    const blockGesture = (e: Event) => {
+      e.preventDefault();
+    };
+    // iOS Safari legacy gesture events
+    el.addEventListener("gesturestart", blockGesture, { passive: false });
+    el.addEventListener("gesturechange", blockGesture, { passive: false });
+    el.addEventListener("gestureend", blockGesture, { passive: false });
+
+    return () => {
+      el.removeEventListener("gesturestart", blockGesture);
+      el.removeEventListener("gesturechange", blockGesture);
+      el.removeEventListener("gestureend", blockGesture);
+    };
+  }, [map]);
+  return null;
+}
+
 function RecenterOnArea({
   area,
   userLocation,
@@ -166,6 +193,111 @@ function RecenterOnArea({
     map,
   ]);
   return null;
+}
+
+/** Re-fly when the locate control fires again (same coords). */
+function FlyToFocus({
+  target,
+  nonce,
+}: {
+  target: { lat: number; lng: number } | null;
+  nonce: number;
+}) {
+  const map = useMap();
+  useEffect(() => {
+    if (!target || nonce === 0) return;
+    map.flyTo([target.lat, target.lng], 16, { duration: 0.85 });
+  }, [target, nonce, map]);
+  return null;
+}
+
+function MapFlyBridge({ flyRef }: { flyRef: MutableRefObject<MapFlyFn | null> }) {
+  const map = useMap();
+  useEffect(() => {
+    flyRef.current = (lat, lng, zoom = 16) => {
+      map.flyTo([lat, lng], zoom, { duration: 0.85 });
+    };
+    return () => {
+      flyRef.current = null;
+    };
+  }, [map, flyRef]);
+  return null;
+}
+
+function LocateMeButton({
+  knownLocation,
+  flyRef,
+  onLocated,
+}: {
+  knownLocation: { lat: number; lng: number } | null;
+  flyRef: MutableRefObject<MapFlyFn | null>;
+  onLocated: (lat: number, lng: number) => void;
+}) {
+  const [status, setStatus] = useState<"idle" | "locating" | "error">("idle");
+  const [error, setError] = useState<string | null>(null);
+
+  function locate() {
+    if (!navigator.geolocation) {
+      setStatus("error");
+      setError("Location not supported");
+      return;
+    }
+    if (knownLocation) {
+      flyRef.current?.(knownLocation.lat, knownLocation.lng);
+    }
+    setStatus("locating");
+    setError(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude: lat, longitude: lng } = pos.coords;
+        onLocated(lat, lng);
+        flyRef.current?.(lat, lng);
+        setStatus("idle");
+      },
+      (err) => {
+        setStatus("error");
+        setError(
+          err.code === err.PERMISSION_DENIED
+            ? "Permission denied"
+            : "Could not locate",
+        );
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10_000,
+        maximumAge: 30_000,
+      },
+    );
+  }
+
+  return (
+    <div className="pointer-events-none absolute top-14 right-2.5 z-[1000] flex flex-col items-end gap-1">
+      <button
+        type="button"
+        onClick={() => {
+          if (status !== "locating") locate();
+        }}
+        title="Focus on my location"
+        aria-label="Focus on my location"
+        disabled={status === "locating"}
+        className={cn(
+          "pointer-events-auto flex size-9 items-center justify-center border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] shadow-sm transition hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:opacity-60",
+          knownLocation && status === "idle" && "text-[var(--accent)]",
+        )}
+      >
+        {status === "locating" ? (
+          <Loader2 className="size-4 animate-spin" aria-hidden />
+        ) : (
+          <LocateFixed className="size-4" aria-hidden />
+        )}
+      </button>
+      {error ? (
+        <p className="pointer-events-auto max-w-[9rem] border border-[var(--border)] bg-[var(--surface)] px-2 py-1 font-mono text-[9px] tracking-wide text-[var(--danger)] uppercase">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
 }
 
 function FitTyphoonTrack({
@@ -258,6 +390,8 @@ type AreaMapInnerProps = {
   area?: MapArea;
   /** Visitor GPS pin — map flies here when set */
   userLocation?: { lat: number; lng: number } | null;
+  /** Called when the in-map locate control gets a fix */
+  onUserLocationChange?: (loc: { lat: number; lng: number }) => void;
   /** Keep Nangka demo / scenario layers even if the visitor is elsewhere */
   forceLayers?: boolean;
   households: Household[];
@@ -275,6 +409,7 @@ type AreaMapInnerProps = {
 export default function AreaMapInner({
   area = DEFAULT_MAP_AREA,
   userLocation = null,
+  onUserLocationChange,
   forceLayers = false,
   households,
   quakes,
@@ -286,6 +421,13 @@ export default function AreaMapInner({
   assistPriorities = {},
   escapeRoutes = [],
 }: AreaMapInnerProps) {
+  const flyRef = useRef<MapFlyFn | null>(null);
+  const [localUser, setLocalUser] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
+  const [focusNonce, setFocusNonce] = useState(0);
+  const effectiveUser = userLocation ?? localUser;
   const showDemoLayers = forceLayers || isNangkaOpsArea(area);
   const mapped = showDemoLayers
     ? households.filter((h) => h.lat != null && h.lng != null)
@@ -301,40 +443,52 @@ export default function AreaMapInner({
   const activeShelterIds = new Set(layerEscapes.map((r) => r.destinationId));
   const hasForecastTrack = layerTyphoons.some((t) => (t.track?.length ?? 0) > 1);
 
+  const [basemap, setBasemap] = useState<"streets" | "terrain">("terrain");
+
+  function handleLocated(lat: number, lng: number) {
+    setLocalUser({ lat, lng });
+    setFocusNonce((n) => n + 1);
+    onUserLocationChange?.({ lat, lng });
+  }
+
   return (
+    <div className="relative h-full w-full">
     <MapContainer
       center={[area.center.lat, area.center.lng]}
       zoom={area.zoom}
-      className="h-full w-full [&_.leaflet-control-attribution]:text-[9px]"
+      className="h-full w-full touch-none [&_.leaflet-control-attribution]:text-[9px]"
       scrollWheelZoom={false}
+      touchZoom
+      bounceAtZoomLimits={false}
     >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
+      {basemap === "terrain" ? (
+        <TileLayer
+          key="terrain"
+          attribution='Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="https://viewfinderpanoramas.org">SRTM</a> | Style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a>'
+          url="https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png"
+          maxZoom={17}
+        />
+      ) : (
+        <TileLayer
+          key="streets"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+      )}
+      <MapTouchGuard />
+      <MapFlyBridge flyRef={flyRef} />
       <RecenterOnArea
         area={area}
-        userLocation={userLocation}
-        skip={hasForecastTrack && !userLocation}
+        userLocation={effectiveUser}
+        skip={hasForecastTrack && !effectiveUser}
       />
+      <FlyToFocus target={effectiveUser} nonce={focusNonce} />
       <FitTyphoonTrack
         typhoons={layerTyphoons}
         area={area}
-        enabled={hasForecastTrack && !userLocation}
+        enabled={hasForecastTrack && !effectiveUser}
       />
-      {!userLocation ? (
-        <Circle
-          center={[area.center.lat, area.center.lng]}
-          radius={450}
-          pathOptions={{
-            color: "#1f8f55",
-            weight: 1,
-            fillColor: "#1f8f55",
-            fillOpacity: 0.1,
-          }}
-        />
-      ) : null}
-      {!userLocation ? (
+      {showDemoLayers || !effectiveUser ? (
         <Marker
           position={[area.center.lat, area.center.lng]}
           icon={hallIcon}
@@ -345,9 +499,10 @@ export default function AreaMapInner({
             {area.name}
           </Popup>
         </Marker>
-      ) : (
+      ) : null}
+      {effectiveUser ? (
         <Marker
-          position={[userLocation.lat, userLocation.lng]}
+          position={[effectiveUser.lat, effectiveUser.lng]}
           icon={youIcon}
           zIndexOffset={1000}
         >
@@ -357,36 +512,13 @@ export default function AreaMapInner({
             {area.name}
           </Popup>
         </Marker>
-      )}
-      {mapped.map((h) => {
-        const priority = assistPriorities[h.id];
-        return (
-          <Marker
-            key={h.id}
-            position={[h.lat!, h.lng!]}
-            icon={priority ? priorityHouseIcon(priority) : houseIcon}
-            zIndexOffset={priority ? 800 : 0}
-          >
-            <Popup>
-              <strong>{h.ownerName}</strong>
-              {priority ? (
-                <>
-                  <br />
-                  <span className="font-mono text-xs uppercase">
-                    AI · {priority}
-                  </span>
-                </>
-              ) : null}
-              <br />
-              {h.purok}
-              <br />
-              {h.address}
-              <br />
-              <span className="font-mono text-xs">{h.phone}</span>
-            </Popup>
-          </Marker>
-        );
-      })}
+      ) : null}
+      {mapped.length > 0 ? (
+        <HouseholdPinsLayer
+          households={mapped}
+          assistPriorities={assistPriorities}
+        />
+      ) : null}
       {quakes.map((q) => (
         <Marker key={q.id} position={[q.lat, q.lng]} icon={quakeIcon(q.mag)}>
           <Popup>
@@ -574,34 +706,55 @@ export default function AreaMapInner({
           </Marker>
         );
       })}
-      {layerEscapes.map((route) => {
-        const path = route.path?.length >= 2 ? route.path : [route.from, route.to];
-        const mid = path[Math.floor(path.length * 0.55)] ?? route.to;
+      {layerEscapes.map((route, escapeIndex) => {
+        const path =
+          route.path?.length >= 2 ? route.path : [route.from, route.to];
+        const positions = path.map(
+          (p) => [p.lat, p.lng] as [number, number],
+        );
+        // Chevron near shelter end, oriented to local tangent (not crow-fly bearing).
+        const tip = pointAndBearingAlongPath(path, 0.78);
+        const showChevron = escapeIndex < 48;
         return (
           <Fragment key={`escape-${route.householdId}`}>
             <Polyline
-              positions={path.map((p) => [p.lat, p.lng] as [number, number])}
+              positions={positions}
               pathOptions={{
-                color: "#167445",
-                weight: route.routed ? 4 : 2,
-                opacity: 0.9,
-                dashArray: route.routed ? undefined : "6 8",
+                color: "#ffffff",
+                weight: route.routed ? 7 : 5,
+                opacity: 0.85,
+                lineCap: "round",
+                lineJoin: "round",
               }}
             />
-            <Marker
-              position={[mid.lat, mid.lng]}
-              icon={escapeArrowIcon(route.bearing)}
-              zIndexOffset={900}
-            >
-              <Popup>
-                <strong>
-                  Escape · {route.direction}
-                  {route.routed ? " · via roads" : ""}
-                </strong>
-                <br />
-                {route.instruction}
-              </Popup>
-            </Marker>
+            <Polyline
+              positions={positions}
+              pathOptions={{
+                color: "#1f8f55",
+                weight: route.routed ? 3.5 : 2.5,
+                opacity: 0.95,
+                lineCap: "round",
+                lineJoin: "round",
+                dashArray: "10 8",
+                className: "dro-escape-flow",
+              }}
+            />
+            {showChevron ? (
+              <Marker
+                position={[tip.point.lat, tip.point.lng]}
+                icon={escapeChevronIcon(tip.bearing)}
+                zIndexOffset={900}
+              >
+                <Popup>
+                  <strong>
+                    Escape · {route.direction}
+                    {route.routed ? " · via roads" : ""}
+                  </strong>
+                  <br />
+                  {route.instruction}
+                </Popup>
+              </Marker>
+            ) : null}
           </Fragment>
         );
       })}
@@ -617,11 +770,13 @@ export default function AreaMapInner({
             <Popup>
               <strong>Safe point · {sp.name}</strong>
               <br />
+              Elevation ~{Math.round(sp.elevM)} m (Google Elevation)
+              <br />
               {sp.notes}
             </Popup>
           </Marker>
         ))}
-      {showDemoLayers && !userLocation && !hasForecastTrack ? (
+      {showDemoLayers && !effectiveUser && !hasForecastTrack ? (
         <FitHouseholds
           area={area}
           households={mapped}
@@ -630,5 +785,39 @@ export default function AreaMapInner({
         />
       ) : null}
     </MapContainer>
+    <LocateMeButton
+      knownLocation={effectiveUser}
+      flyRef={flyRef}
+      onLocated={handleLocated}
+    />
+    <div className="absolute bottom-3 left-3 z-[1000] flex overflow-hidden border border-[var(--border)] bg-[var(--surface-raised)]/95 shadow-sm backdrop-blur-sm">
+      <button
+        type="button"
+        onClick={() => setBasemap("terrain")}
+        className={cn(
+          "px-2.5 py-1.5 font-mono text-[9px] tracking-[0.14em] uppercase transition",
+          basemap === "terrain"
+            ? "bg-[var(--accent)] text-[var(--on-accent)]"
+            : "text-[var(--muted)] hover:bg-[var(--surface-panel)] hover:text-[var(--foreground)]",
+        )}
+        aria-pressed={basemap === "terrain"}
+      >
+        Terrain
+      </button>
+      <button
+        type="button"
+        onClick={() => setBasemap("streets")}
+        className={cn(
+          "px-2.5 py-1.5 font-mono text-[9px] tracking-[0.14em] uppercase transition",
+          basemap === "streets"
+            ? "bg-[var(--accent)] text-[var(--on-accent)]"
+            : "text-[var(--muted)] hover:bg-[var(--surface-panel)] hover:text-[var(--foreground)]",
+        )}
+        aria-pressed={basemap === "streets"}
+      >
+        Streets
+      </button>
+    </div>
+    </div>
   );
 }

@@ -22,7 +22,7 @@ Gemini orchestrates needs and resources; Firebase hosts auth, data, and the live
 | **Firebase Cloud Messaging** | Push alerts to resident devices (later) |
 | **Trigger Email** (Firebase Extension) | Email alerts (later) |
 
-**Non-Google:** Twilio SMS for barangay phone numbers (demo realism).
+**Non-Google:** Twilio SMS for barangay phone numbers (`/api/alerts/sms`). Without `TWILIO_*` env vars the API runs in **demo mode** (logs only). Google FCM is push-to-app, not SMS to MSISDNs.
 
 ## Data (Firestore)
 

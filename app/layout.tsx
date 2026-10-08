@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Barlow_Condensed, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
+import { ScenarioTopBar } from "@/components/ScenarioTopBar";
 import { AuthProvider } from "@/lib/auth/AuthProvider";
+import { ScenarioProvider } from "@/lib/scenarios/ScenarioProvider";
 import { PageTransition } from "@/components/motion/PageTransition";
 import "./globals.css";
 
@@ -39,7 +41,11 @@ export default function RootLayout({
         className={`${display.variable} ${body.variable} ${mono.variable} antialiased`}
       >
         <AuthProvider>
-          <PageTransition>{children}</PageTransition>
+          {/* DO NOT REMOVE: global Odette Before/During/After — see .cursor/rules/scenario-top-bar.mdc */}
+          <ScenarioProvider>
+            <ScenarioTopBar />
+            <PageTransition>{children}</PageTransition>
+          </ScenarioProvider>
         </AuthProvider>
       </body>
     </html>

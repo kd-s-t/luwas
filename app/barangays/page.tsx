@@ -28,8 +28,8 @@ export default function BarangaysPage() {
           <>
             {total.toLocaleString()} barangays across{" "}
             {CEBU_BARANGAY_INDEX.lgus.length} cities &amp; municipalities. Search
-            or jump to an LGU; open a barangay for local tanod outposts when
-            known.
+            or jump to an LGU for PNP, BFP, and hospital contacts; open a
+            barangay for local tanod outposts when known.
           </>
         }
       />

@@ -3,6 +3,7 @@
 import Image from "next/image";
 import {
   useEffect,
+  useMemo,
   useRef,
   useState,
   type FormEvent,
@@ -18,19 +19,75 @@ import {
   X,
 } from "lucide-react";
 import type { AssistResult } from "@/lib/ai/assistTypes";
-import type { ChatMessage } from "@/lib/ai/chatTypes";
+import { enrichActionsWithContacts } from "@/lib/ai/callList";
+import type { ChatMessage, SmsLogEntry } from "@/lib/ai/chatTypes";
 import { relativeTime } from "@/lib/ai/chatHistory";
 import {
   GEMINI_ASSIST_MODELS,
   type GeminiAssistModelId,
 } from "@/lib/ai/geminiModels";
+import { phoneToTelHref } from "@/lib/geo/responderStations";
+import type { Household } from "@/lib/households/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+
+function SmsReplyBody({
+  content,
+  smsLog,
+  onOpenLog,
+}: {
+  content: string;
+  smsLog?: SmsLogEntry[];
+  onOpenLog: (log: SmsLogEntry[]) => void;
+}) {
+  if (!smsLog?.length) {
+    return <p className="whitespace-pre-wrap">{content}</p>;
+  }
+  const match = content.match(/(\d+)\s+message\(s\)/);
+  if (!match || match.index === undefined) {
+    return (
+      <p className="whitespace-pre-wrap">
+        {content}{" "}
+        <button
+          type="button"
+          onClick={() => onOpenLog(smsLog)}
+          className="font-medium text-[var(--accent)] underline underline-offset-2"
+        >
+          View sent
+        </button>
+      </p>
+    );
+  }
+  const start = match.index;
+  const end = start + match[0].length;
+  return (
+    <p className="whitespace-pre-wrap">
+      {content.slice(0, start)}
+      <button
+        type="button"
+        onClick={() => onOpenLog(smsLog)}
+        className="font-medium text-[var(--accent)] underline underline-offset-2"
+      >
+        {match[0]}
+      </button>
+      {content.slice(end)}
+    </p>
+  );
+}
 
 const SUGGESTIONS = [
   "Run triage",
   "Who should evacuate?",
+  "Text them to evacuate",
   "Any flood risk homes?",
   "Clear map highlights",
 ] as const;
@@ -50,6 +107,8 @@ type MangluluwasChatProps = {
   messages: ChatMessage[];
   running: boolean;
   result: AssistResult | null;
+  /** Current roster — used to resolve names/phones on map assist chips. */
+  households?: Household[];
   error: string | null;
   model: GeminiAssistModelId;
   onModelChange: (model: GeminiAssistModelId) => void;
@@ -67,6 +126,7 @@ export function MangluluwasChat({
   messages,
   running,
   result,
+  households = [],
   error,
   model,
   onModelChange,
@@ -81,7 +141,13 @@ export function MangluluwasChat({
 }: MangluluwasChatProps) {
   const [draft, setDraft] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [smsLogOpen, setSmsLogOpen] = useState<SmsLogEntry[] | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
+
+  const callActions = useMemo(() => {
+    if (!result?.actions.length) return [];
+    return enrichActionsWithContacts(result.actions, households);
+  }, [result, households]);
 
   useEffect(() => {
     const el = listRef.current;
@@ -314,7 +380,15 @@ export function MangluluwasChat({
                         : "border border-[var(--border)] bg-[var(--surface-raised)] text-[var(--foreground)]",
                     )}
                   >
-                    <p className="whitespace-pre-wrap">{m.content}</p>
+                    {m.role === "assistant" ? (
+                      <SmsReplyBody
+                        content={m.content}
+                        smsLog={m.smsLog}
+                        onOpenLog={setSmsLogOpen}
+                      />
+                    ) : (
+                      <p className="whitespace-pre-wrap">{m.content}</p>
+                    )}
                     {m.assistApplied ? (
                       <p className="mt-1.5 flex items-center gap-1 font-mono text-[10px] tracking-wider text-[var(--accent)] uppercase">
                         <MapPinned className="size-3" aria-hidden />
@@ -369,24 +443,63 @@ export function MangluluwasChat({
                   Clear
                 </button>
               </div>
-              {result.actions.length ? (
-                <ul className="mt-1.5 flex max-h-14 flex-wrap gap-1 overflow-y-auto">
-                  {result.actions.slice(0, 4).map((a) => (
-                    <li key={`${a.householdId}-${a.priority}`}>
-                      <Badge
-                        variant={
-                          a.priority === "evacuate"
-                            ? "danger"
-                            : a.priority === "prepare"
-                              ? "warn"
-                              : "outline"
-                        }
-                      >
-                        {a.priority}
-                      </Badge>
-                    </li>
-                  ))}
-                </ul>
+              {callActions.length ? (
+                <>
+                  <ul className="mt-1.5 flex max-h-48 flex-col gap-1 overflow-y-auto">
+                    {callActions.map((a) => {
+                      const name = a.ownerName?.trim();
+                      const phone = a.phone?.trim();
+                      return (
+                        <li
+                          key={`${a.householdId}-${a.priority}`}
+                          className="flex flex-wrap items-center gap-1.5 text-xs"
+                        >
+                          <Badge
+                            variant={
+                              a.priority === "evacuate"
+                                ? "danger"
+                                : a.priority === "prepare"
+                                  ? "warn"
+                                  : "outline"
+                            }
+                          >
+                            {a.priority}
+                          </Badge>
+                          <span className="min-w-0 truncate font-medium">
+                            {name || "Unknown owner"}
+                          </span>
+                          {a.purok ? (
+                            <span className="font-mono text-[9px] tracking-wide text-[var(--muted)] uppercase">
+                              {a.purok}
+                            </span>
+                          ) : null}
+                          {phone ? (
+                            <a
+                              href={phoneToTelHref(phone)}
+                              className="font-mono text-[10px] text-[var(--accent)] underline-offset-2 hover:underline"
+                            >
+                              {phone}
+                            </a>
+                          ) : (
+                            <span className="font-mono text-[10px] text-[var(--muted)]">
+                              no phone
+                            </span>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  {callActions.some((a) => a.priority === "evacuate") ? (
+                    <button
+                      type="button"
+                      disabled={running}
+                      onClick={() => submit("Text them to evacuate")}
+                      className="mt-2 w-full border border-[var(--danger)]/50 bg-[var(--danger)]/10 px-2 py-1.5 font-mono text-[10px] tracking-wider text-[var(--danger)] uppercase transition hover:bg-[var(--danger)]/15 disabled:opacity-50"
+                    >
+                      Text evacuate list (Twilio SMS)
+                    </button>
+                  ) : null}
+                </>
               ) : null}
             </div>
           ) : null}
@@ -433,6 +546,71 @@ export function MangluluwasChat({
           </div>
         </>
       )}
+
+      <Dialog
+        open={Boolean(smsLogOpen?.length)}
+        onOpenChange={(open) => {
+          if (!open) setSmsLogOpen(null);
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Sent messages</DialogTitle>
+            <DialogDescription>
+              {smsLogOpen?.length ?? 0} SMS{" "}
+              {(smsLogOpen?.filter((r) => r.ok).length ?? 0) ===
+              (smsLogOpen?.length ?? 0)
+                ? "logged"
+                : "attempted"}{" "}
+              for this blast.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogBody className="max-h-[min(60vh,28rem)] space-y-3">
+            {(smsLogOpen ?? []).map((entry, i) => (
+              <article
+                key={`${entry.to}-${i}`}
+                className="border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5"
+              >
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {entry.priority ? (
+                    <Badge
+                      variant={
+                        entry.priority === "evacuate"
+                          ? "danger"
+                          : entry.priority === "prepare"
+                            ? "warn"
+                            : "outline"
+                      }
+                    >
+                      {entry.priority}
+                    </Badge>
+                  ) : null}
+                  <span className="min-w-0 truncate text-sm font-medium">
+                    {entry.ownerName?.trim() || "Resident"}
+                  </span>
+                  <span className="font-mono text-[10px] text-[var(--accent)]">
+                    {entry.phoneDisplay ?? entry.to}
+                  </span>
+                  {!entry.ok ? (
+                    <span className="font-mono text-[10px] text-[var(--danger)] uppercase">
+                      failed
+                    </span>
+                  ) : null}
+                </div>
+                {entry.body ? (
+                  <p className="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-[var(--foreground)]">
+                    {entry.body}
+                  </p>
+                ) : entry.error ? (
+                  <p className="mt-2 text-xs text-[var(--danger)]">
+                    {entry.error}
+                  </p>
+                ) : null}
+              </article>
+            ))}
+          </DialogBody>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

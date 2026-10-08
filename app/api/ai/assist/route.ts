@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { enrichActionsWithContacts } from "@/lib/ai/callList";
 import { buildEscapeRoutes } from "@/lib/ai/escapeRoutes";
 import { generateWithGeminiFallback } from "@/lib/ai/geminiGenerate";
 import { resolveGeminiModel } from "@/lib/ai/geminiModels";
@@ -33,6 +34,7 @@ function withEscapes(
   );
   return {
     ...result,
+    actions: enrichActionsWithContacts(result.actions, body.households),
     escapes,
     mapHint:
       escapes.length > 0
@@ -60,6 +62,7 @@ export async function POST(req: Request) {
     const compactHouseholds = body.households.map((h) => ({
       id: h.id,
       ownerName: h.ownerName,
+      phone: h.phone,
       purok: h.purok,
       notes: h.notes,
       lat: h.lat,
@@ -74,7 +77,7 @@ Given hazards and households, return ONLY valid JSON (no markdown) matching:
   "actions": [{"householdId": string, "priority": "evacuate"|"prepare"|"monitor", "reason": string}],
   "mapHint": string
 }
-Rules: pick at most 10 actions; prioritize evacuate for flood/landslide proximity and vulnerable notes (PWD, elderly, pregnant, infant, no upper floor). Use only household ids from the list.
+Rules: leave actions empty — the server flags EVERY flood/landslide/vulnerable household (no cap). Focus on summary, focusHazard, and mapHint.
 Safe points available (server will draw escape arrows): ${JSON.stringify(
       NANGKA_SAFE_POINTS.map((s) => ({ id: s.id, name: s.name })),
     )}
@@ -91,9 +94,9 @@ Households: ${JSON.stringify(compactHouseholds)}`;
       prompt,
     );
 
+    const local = runLocalAssist(body);
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      const local = runLocalAssist(body);
       return NextResponse.json({
         ...local,
         model: usedModel,
@@ -107,10 +110,10 @@ Households: ${JSON.stringify(compactHouseholds)}`;
     >;
     const result = withEscapes(
       {
-        summary: String(parsed.summary ?? "Assist complete."),
-        focusHazard: parsed.focusHazard ?? "mixed",
-        actions: Array.isArray(parsed.actions) ? parsed.actions.slice(0, 10) : [],
-        mapHint: String(parsed.mapHint ?? "Map updated with priority homes."),
+        summary: String(parsed.summary ?? local.summary),
+        focusHazard: parsed.focusHazard ?? local.focusHazard,
+        actions: local.actions,
+        mapHint: String(parsed.mapHint ?? local.mapHint),
         source: "gemini",
         model: usedModel,
       },

@@ -4,6 +4,10 @@ export type AssistHouseholdAction = {
   householdId: string;
   priority: AssistPriority;
   reason: string;
+  /** Filled from roster so officers can call without leaving chat. */
+  ownerName?: string;
+  phone?: string;
+  purok?: string;
 };
 
 /** Suggested escape path from a priority household to a safe point. */

@@ -1,9 +1,14 @@
 import { NextResponse } from "next/server";
+import {
+  enrichActionsWithContacts,
+  formatAssistCallReply,
+} from "@/lib/ai/callList";
 import { buildEscapeRoutes } from "@/lib/ai/escapeRoutes";
 import type { AssistResult } from "@/lib/ai/assistTypes";
 import type { ChatApiResponse } from "@/lib/ai/chatTypes";
 import { generateWithGeminiFallback } from "@/lib/ai/geminiGenerate";
 import { DEFAULT_GEMINI_MODEL, resolveGeminiModel } from "@/lib/ai/geminiModels";
+import { runLocalAssist } from "@/lib/ai/localAssist";
 import { runLocalChat } from "@/lib/ai/localChat";
 import { NANGKA_SAFE_POINTS } from "@/lib/geo/safePoints";
 import type { FloodSample } from "@/lib/hazards/floodSamples";
@@ -48,8 +53,10 @@ function withEscapes(
     body.floods,
     body.landslides,
   );
+  const actions = enrichActionsWithContacts(partial.actions, body.households);
   return {
     ...partial,
+    actions,
     escapes,
     mapHint:
       escapes.length > 0
@@ -99,6 +106,7 @@ export async function POST(req: Request) {
   const compactHouseholds = situation.households.map((h) => ({
     id: h.id,
     ownerName: h.ownerName,
+    phone: h.phone,
     purok: h.purok,
     notes: h.notes,
     lat: h.lat,
@@ -114,12 +122,13 @@ Return ONLY valid JSON (no markdown) matching:
   "updateMap": boolean,
   "summary": string (required if updateMap),
   "focusHazard": "flood"|"landslide"|"typhoon"|"earthquake"|"weather"|"mixed" (if updateMap),
-  "actions": [{"householdId": string, "priority": "evacuate"|"prepare"|"monitor", "reason": string}] (if updateMap, max 10),
+  "actions": [] (leave empty — server flags ALL flood/landslide/vulnerable households),
   "mapHint": string (if updateMap)
 }
 
 Set updateMap=true when the officer asks for triage, priorities, evacuate/prepare lists, escape routes, or map highlights.
-Use only household ids from the list. Prefer evacuate for flood/landslide proximity and vulnerable notes (PWD, elderly, pregnant, infant, no upper floor).
+Do not truncate the affected list — the server computes every evacuate/prepare household from hazards.
+When updateMap=true, reply with counts and guidance; the full call list is attached server-side.
 Safe points (server draws escape arrows): ${JSON.stringify(
     NANGKA_SAFE_POINTS.map((s) => ({ id: s.id, name: s.name })),
   )}
@@ -160,16 +169,15 @@ Officer: ${message}`;
       } satisfies ChatApiResponse);
     }
 
-    const actions = Array.isArray(parsed.actions)
-      ? parsed.actions.slice(0, 10)
-      : [];
+    // Full affected roster from local rules (Gemini cannot list thousands of ids).
+    const local = runLocalAssist(situation);
     const assist = withEscapes(
       {
-        summary: String(parsed.summary ?? parsed.reply),
-        focusHazard: parsed.focusHazard ?? "mixed",
-        actions,
+        summary: String(parsed.summary ?? local.summary),
+        focusHazard: parsed.focusHazard ?? local.focusHazard,
+        actions: local.actions,
         mapHint: String(
-          parsed.mapHint ?? "Map updated with priority homes.",
+          parsed.mapHint ?? local.mapHint ?? "Map updated with priority homes.",
         ),
         source: "gemini",
         model: usedModel,
@@ -177,8 +185,16 @@ Officer: ${message}`;
       body,
     );
 
+    const geminiReply = String(parsed.reply);
+    const reply = formatAssistCallReply(
+      geminiReply,
+      assist.actions,
+      situation.households,
+      [assist.mapHint],
+    );
+
     return NextResponse.json({
-      reply: String(parsed.reply),
+      reply,
       source: "gemini",
       model: usedModel,
       assist,

@@ -34,12 +34,13 @@ import {
   type QuakeEvent,
 } from "@/lib/hazards/usgsEarthquakes";
 import { seedHouseholds, subscribeHouseholds } from "@/lib/households/api";
-import { CEBU_HOUSEHOLDS } from "@/lib/households/seed";
-import type { Household } from "@/lib/households/types";
 import {
-  CAT5_DURING,
-  remapScenarioHouseholdIds,
-} from "@/lib/scenarios";
+  CEBU_HOUSEHOLDS,
+  NANGKA_CENSUS_2020,
+  NANGKA_HOUSEHOLD_TARGET,
+} from "@/lib/households/seed";
+import type { Household } from "@/lib/households/types";
+import { useScenario } from "@/lib/scenarios";
 import {
   fetchCebuWeather,
   isHazardousWeather,
@@ -81,10 +82,7 @@ type SituationMapProps = {
 
 export function SituationMap({ officerUid }: SituationMapProps) {
   const [mapArea, setMapArea] = useState<MapArea>(DEFAULT_MAP_AREA);
-  const scenario = useMemo(
-    () => remapScenarioHouseholdIds(CAT5_DURING, (i) => `seed-${i}`),
-    [],
-  );
+  const { officerBundle: scenario } = useScenario();
   const scenarioPriorities = useMemo(() => {
     const map: Record<string, AssistPriority> = {};
     for (const a of scenario.actions) map[a.householdId] = a.priority;
@@ -236,7 +234,11 @@ export function SituationMap({ officerUid }: SituationMapProps) {
           <p className="mt-1 text-xs text-[var(--muted)] sm:text-sm">
             {nangkaOps ? (
               <>
-                {mappedCount} homes · {scenario.floods.length} floods ·{" "}
+                {mappedCount.toLocaleString()} homes
+                {mappedCount >= NANGKA_HOUSEHOLD_TARGET
+                  ? ` · ~${NANGKA_CENSUS_2020.toLocaleString()} people (PSA 2020)`
+                  : ""}{" "}
+                · {scenario.floods.length} floods ·{" "}
                 {scenario.landslides.length} slides · {scenario.typhoons.length}{" "}
                 typhoon · {scenario.fires.length} fire ·{" "}
                 {scenario.reportPins.length} reports
@@ -332,6 +334,7 @@ export function SituationMap({ officerUid }: SituationMapProps) {
             messages={messages}
             running={running}
             result={result}
+            households={mapHouseholds}
             error={assistError}
             model={model}
             onModelChange={setModel}
@@ -469,7 +472,7 @@ export function SituationMap({ officerUid }: SituationMapProps) {
 
         <HazardList
           title="Live · earthquakes"
-          hint="USGS M2.5+ last 7 days within 400 km — not tied to the situation switcher."
+          hint="USGS M2.5+ last 7 days within 400 km — not part of the Odette demo."
           borderClass=""
         >
           {quakeError ? (

@@ -4,7 +4,10 @@ import { ScenarioSwitcher } from "@/components/ScenarioSwitcher";
 import { CAT5_SCENARIOS } from "@/lib/scenarios";
 import { useScenario } from "@/lib/scenarios/ScenarioProvider";
 
-/** Global Before / During / After — always visible above every page. */
+/**
+ * Global Before / During / After — always visible above every page.
+ * DO NOT REMOVE from app/layout.tsx (user-critical; removed accidentally before).
+ */
 export function ScenarioTopBar() {
   const { phase, setPhase } = useScenario();
   const bundle = CAT5_SCENARIOS[phase];

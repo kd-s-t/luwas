@@ -39,3 +39,53 @@ export function pointAlong(from: LatLng, to: LatLng, ratio: number): LatLng {
     lng: from.lng + (to.lng - from.lng) * ratio,
   };
 }
+
+/** Point + local tangent bearing at `ratio` along a polyline (0–1). */
+export function pointAndBearingAlongPath(
+  path: LatLng[],
+  ratio: number,
+): { point: LatLng; bearing: number } {
+  if (path.length === 0) {
+    return { point: { lat: 0, lng: 0 }, bearing: 0 };
+  }
+  if (path.length === 1) {
+    return { point: path[0]!, bearing: 0 };
+  }
+
+  const segLens: number[] = [];
+  let total = 0;
+  for (let i = 0; i < path.length - 1; i++) {
+    const d = distKm(path[i]!, path[i + 1]!);
+    segLens.push(d);
+    total += d;
+  }
+
+  if (total <= 0) {
+    return {
+      point: path[path.length - 1]!,
+      bearing: bearingDegrees(path[0]!, path[path.length - 1]!),
+    };
+  }
+
+  let target = Math.max(0, Math.min(1, ratio)) * total;
+  for (let i = 0; i < segLens.length; i++) {
+    const len = segLens[i]!;
+    if (target > len && i < segLens.length - 1) {
+      target -= len;
+      continue;
+    }
+    const t = len > 0 ? target / len : 0;
+    const a = path[i]!;
+    const b = path[i + 1]!;
+    return {
+      point: pointAlong(a, b, t),
+      bearing: bearingDegrees(a, b),
+    };
+  }
+
+  const last = path.length - 1;
+  return {
+    point: path[last]!,
+    bearing: bearingDegrees(path[last - 1]!, path[last]!),
+  };
+}

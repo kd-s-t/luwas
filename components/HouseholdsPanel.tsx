@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   addHousehold,
@@ -8,12 +8,17 @@ import {
   removeHousehold,
   seedHouseholds,
   subscribeHouseholds,
+  type SeedHouseholdsProgress,
 } from "@/lib/households/api";
 import {
   HOUSEHOLD_CSV_TEMPLATE,
   parseHouseholdCsv,
 } from "@/lib/households/csv";
-import { CEBU_HOUSEHOLDS } from "@/lib/households/seed";
+import {
+  CEBU_HOUSEHOLDS,
+  NANGKA_CENSUS_2020,
+  NANGKA_HOUSEHOLD_TARGET,
+} from "@/lib/households/seed";
 import type { Household } from "@/lib/households/types";
 import { useEmulators } from "@/lib/firebase/client";
 import { Button } from "@/components/ui/button";
@@ -26,6 +31,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+
+const PAGE_SIZE_DEFAULT = 10;
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
 
 function formatUpdatedAt(iso: string): string {
   if (!iso) return "—";
@@ -59,9 +67,16 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [seeding, setSeeding] = useState(false);
+  const [seedProgress, setSeedProgress] = useState<SeedHouseholdsProgress | null>(
+    null,
+  );
   const [importing, setImporting] = useState(false);
   const [importMsg, setImportMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [purok, setPurok] = useState("all");
+  const [pageSize, setPageSize] = useState(PAGE_SIZE_DEFAULT);
+  const [page, setPage] = useState(1);
   const csvInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -88,6 +103,50 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
     }
     return latest;
   }, [rows]);
+
+  const purokOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const h of rows) {
+      const p = h.purok.trim();
+      if (p) set.add(p);
+    }
+    return [...set].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  }, [rows]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return rows.filter((h) => {
+      if (purok !== "all" && h.purok.trim() !== purok) return false;
+      if (!q) return true;
+      const hay = [
+        h.ownerName,
+        h.address,
+        h.purok,
+        h.phone,
+        h.email,
+        h.notes,
+      ]
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(q);
+    });
+  }, [rows, search, purok]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+
+  const listRows = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, safePage, pageSize]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, purok, pageSize]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   function openModal() {
     setError(null);
@@ -132,7 +191,7 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
     if (
       rows.length > 0 &&
       !window.confirm(
-        `Replace current roster with ${CEBU_HOUSEHOLDS.length} Nangka, Consolacion households?`,
+        `Replace current roster with ${NANGKA_HOUSEHOLD_TARGET.toLocaleString()} Nangka households (~${NANGKA_CENSUS_2020.toLocaleString()} people, PSA 2020)?`,
       )
     ) {
       return;
@@ -140,18 +199,37 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
     setError(null);
     setImportMsg(null);
     setSeeding(true);
+    setSeedProgress({ phase: "clearing", done: 0, total: 0 });
     try {
-      await seedHouseholds(
+      const count = await seedHouseholds(
         officerUid,
         orgName || "Brgy. Nangka MDRRMO",
         CEBU_HOUSEHOLDS,
+        setSeedProgress,
+      );
+      setImportMsg(
+        `Seeded ${count.toLocaleString()} households · ~${NANGKA_CENSUS_2020.toLocaleString()} people (PSA 2020 demo).`,
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Seed failed");
     } finally {
       setSeeding(false);
+      setSeedProgress(null);
     }
   }
+
+  const seedLabel = seedProgress
+    ? seedProgress.phase === "clearing"
+      ? `Clearing ${seedProgress.done}/${seedProgress.total || "…"}…`
+      : `Writing ${seedProgress.done}/${seedProgress.total}…`
+    : seeding
+      ? "Seeding…"
+      : `Seed Nangka (${NANGKA_HOUSEHOLD_TARGET.toLocaleString()})`;
+
+  const filtersActive = search.trim().length > 0 || purok !== "all";
+  const rangeStart =
+    filtered.length === 0 ? 0 : (safePage - 1) * pageSize + 1;
+  const rangeEnd = Math.min(safePage * pageSize, filtered.length);
 
   function downloadCsvTemplate() {
     const blob = new Blob([HOUSEHOLD_CSV_TEMPLATE], {
@@ -217,7 +295,9 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
             <p className="font-mono text-xs text-[var(--muted)]">
               {loading
                 ? "…"
-                : `${rows.length} household${rows.length === 1 ? "" : "s"}`}
+                : filtersActive
+                  ? `${filtered.length.toLocaleString()} match · ${rows.length.toLocaleString()} total`
+                  : `${rows.length.toLocaleString()} household${rows.length === 1 ? "" : "s"}`}
             </p>
             <Button type="button" size="sm" onClick={openModal}>
               <Plus className="size-4" aria-hidden />
@@ -231,9 +311,7 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
                 onClick={onSeedCebu}
                 disabled={seeding || loading}
               >
-                {seeding
-                  ? "Seeding…"
-                  : `Seed Nangka (${CEBU_HOUSEHOLDS.length})`}
+                {seedLabel}
               </Button>
             ) : null}
           </div>
@@ -250,8 +328,9 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
         ) : rows.length === 0 ? (
           <div className="border border-dashed border-[var(--border)] bg-[var(--surface-panel)]/50 px-5 py-10 text-[var(--muted)]">
             <p>
-              No households yet. Add a local house owner, or seed sample homes
-              for Brgy. Nangka, Consolacion, Cebu.
+              No households yet. Add a local house owner, or seed the census-scale
+              demo roster for Brgy. Nangka ({NANGKA_HOUSEHOLD_TARGET.toLocaleString()}{" "}
+              households · ~{NANGKA_CENSUS_2020.toLocaleString()} people, PSA 2020).
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <Button type="button" onClick={openModal}>
@@ -265,48 +344,165 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
                   onClick={onSeedCebu}
                   disabled={seeding}
                 >
-                  {seeding
-                    ? "Seeding…"
-                    : `Seed ${CEBU_HOUSEHOLDS.length} Nangka households`}
+                  {seedLabel}
                 </Button>
               ) : null}
             </div>
           </div>
         ) : (
-          <ul className="divide-y divide-[var(--border)] border border-[var(--border)] bg-[var(--surface-raised)]">
-            {rows.map((h) => (
-              <li
-                key={h.id}
-                className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-5"
-              >
-                <div className="min-w-0">
-                  <p className="font-medium">{h.ownerName}</p>
-                  <p className="mt-0.5 text-sm text-[var(--muted)]">
-                    {h.address}
-                    {h.purok ? ` · ${h.purok}` : ""}
+          <div className="space-y-3">
+            <div className="space-y-3 border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-3 sm:px-4">
+              <label className="block">
+                <span className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+                  Search
+                </span>
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Name, address, phone, notes…"
+                  className="mt-1.5 w-full border border-[var(--border)] bg-[var(--input)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+                />
+              </label>
+              <div className="flex flex-wrap items-end gap-3">
+                <label className="min-w-[8rem] flex-1 sm:flex-none">
+                  <span className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+                    Purok
+                  </span>
+                  <select
+                    value={purok}
+                    onChange={(e) => setPurok(e.target.value)}
+                    className="mt-1.5 w-full border border-[var(--border)] bg-[var(--input)] px-3 py-2 font-mono text-xs outline-none focus:border-[var(--accent)]"
+                  >
+                    <option value="all">All puroks</option>
+                    {purokOptions.map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="min-w-[7rem] flex-1 sm:flex-none">
+                  <span className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+                    Per page
+                  </span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => setPageSize(Number(e.target.value))}
+                    className="mt-1.5 w-full border border-[var(--border)] bg-[var(--input)] px-3 py-2 font-mono text-xs outline-none focus:border-[var(--accent)]"
+                  >
+                    {PAGE_SIZE_OPTIONS.map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {filtersActive ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearch("");
+                      setPurok("all");
+                    }}
+                    className="border border-[var(--border)] px-3 py-2 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase transition hover:border-[var(--accent)] hover:text-[var(--foreground)]"
+                  >
+                    Clear
+                  </button>
+                ) : null}
+              </div>
+              <p className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+                Showing {rangeStart}–{rangeEnd} of{" "}
+                {filtered.length.toLocaleString()}
+                {filtersActive
+                  ? ` · filtered from ${rows.length.toLocaleString()}`
+                  : ""}
+              </p>
+            </div>
+
+            {filtered.length === 0 ? (
+              <div className="border border-dashed border-[var(--border)] px-6 py-10 text-center">
+                <p className="font-medium text-[var(--foreground)]">
+                  No households match
+                </p>
+                <p className="mt-1 text-sm text-[var(--muted)]">
+                  Try another purok or search term.
+                </p>
+              </div>
+            ) : (
+              <>
+                <ul className="divide-y divide-[var(--border)] border border-[var(--border)] bg-[var(--surface-raised)]">
+                  {listRows.map((h) => (
+                    <li
+                      key={h.id}
+                      className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-5"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-medium">{h.ownerName}</p>
+                        <p className="mt-0.5 text-sm text-[var(--muted)]">
+                          {h.address}
+                          {h.purok ? ` · ${h.purok}` : ""}
+                        </p>
+                        <p className="mt-2 font-mono text-xs text-[var(--accent)]">
+                          {h.phone}
+                          {h.email ? ` · ${h.email}` : ""}
+                        </p>
+                        {h.notes ? (
+                          <p className="mt-1 text-xs text-[var(--muted)]">
+                            {h.notes}
+                          </p>
+                        ) : null}
+                        <p className="mt-2 font-mono text-[10px] tracking-wide text-[var(--muted)] uppercase">
+                          Updated ·{" "}
+                          {formatUpdatedAt(h.updatedAt || h.createdAt)}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onRemove(h.id, h.ownerName)}
+                      >
+                        Remove
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+
+                <div className="flex flex-wrap items-center justify-between gap-3 border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2.5 sm:px-4">
+                  <p className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+                    Page {safePage} of {totalPages.toLocaleString()}
                   </p>
-                  <p className="mt-2 font-mono text-xs text-[var(--accent)]">
-                    {h.phone}
-                    {h.email ? ` · ${h.email}` : ""}
-                  </p>
-                  {h.notes ? (
-                    <p className="mt-1 text-xs text-[var(--muted)]">{h.notes}</p>
-                  ) : null}
-                  <p className="mt-2 font-mono text-[10px] tracking-wide text-[var(--muted)] uppercase">
-                    Updated · {formatUpdatedAt(h.updatedAt || h.createdAt)}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={safePage <= 1}
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      aria-label="Previous page"
+                    >
+                      <ChevronLeft className="size-4" aria-hidden />
+                      Prev
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={safePage >= totalPages}
+                      onClick={() =>
+                        setPage((p) => Math.min(totalPages, p + 1))
+                      }
+                      aria-label="Next page"
+                    >
+                      Next
+                      <ChevronRight className="size-4" aria-hidden />
+                    </Button>
+                  </div>
                 </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onRemove(h.id, h.ownerName)}
-                >
-                  Remove
-                </Button>
-              </li>
-            ))}
-          </ul>
+              </>
+            )}
+          </div>
         )}
       </section>
 
