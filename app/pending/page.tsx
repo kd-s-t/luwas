@@ -24,7 +24,7 @@ export default function PendingValidationPage() {
       return;
     }
     if (isAccountActive(profile)) {
-      router.replace(isCitizen(profile) ? "/citizen" : "/command");
+      router.replace(isCitizen(profile) ? "/my-reports" : "/command");
     }
   }, [loading, user, profile, router]);
 

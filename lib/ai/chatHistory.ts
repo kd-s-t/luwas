@@ -8,7 +8,7 @@ export const WELCOME_MESSAGE: ChatMessage = {
   id: "welcome",
   role: "assistant",
   content:
-    "Kumusta — I’m Mangluluwas, your LUWAS DRRM colleague for the Odette simulation. Ask what to do for a storm, or say “run triage” — I’ll paint the map (red = evacuate, yellow = prepare / shelter in place, blue = AI flood footprints) and remind you to stock water and goods at homes, evacuation centers, schools, and the barangay hall.",
+    "Kumusta — I’m Mangluluwas, your LUWAS DRRM colleague for the Odette simulation. Ask what to do for a storm, or say “run triage” — I’ll paint the map (red = evacuate, yellow = prepare / shelter in place, blue = AI flood footprints). When you’re ready, say “alert them to evacuate”, or “call the fire station” / “call the police” and I’ll dial Consolacion BFP or PNP (Twilio Voice · demo logs if unset).",
   createdAt: new Date(0).toISOString(),
 };
 

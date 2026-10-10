@@ -101,7 +101,7 @@ export default function CitizenRegisterPage() {
         const message = err instanceof Error ? err.message : "";
         if (/email-already-in-use/i.test(message)) {
           await login(trimmedEmail, password);
-          router.replace("/citizen");
+          router.replace("/my-reports");
           return;
         }
         throw err;
@@ -136,7 +136,7 @@ export default function CitizenRegisterPage() {
         }
       }
 
-      router.replace(autoValidated ? "/citizen" : "/pending");
+      router.replace(autoValidated ? "/my-reports" : "/pending");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");
       setStatus(null);

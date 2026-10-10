@@ -14,7 +14,7 @@ import { useAuth } from "@/lib/auth/AuthProvider";
 import { useEmulators } from "@/lib/firebase/client";
 
 function safeNextPath(raw: string | null): string {
-  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "/citizen";
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "/my-reports";
   return raw;
 }
 

@@ -601,7 +601,7 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
               router.push(`/reports/${id}`);
               return;
             }
-            router.push(isGuest ? "/reports" : "/citizen#my-reports");
+            router.push(isGuest ? "/reports" : "/my-reports");
           }}
         />
         <SolidAction
@@ -698,7 +698,7 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
             icon={<Search className="size-[18px]" aria-hidden />}
             onClick={() => {
               if (!isGuest) {
-                router.push("/citizen#my-reports");
+                router.push("/my-reports");
                 return;
               }
               router.push(savedGuestId ? `/reports/${savedGuestId}` : "/reports");

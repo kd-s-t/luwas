@@ -105,7 +105,7 @@ export default function LoginPage() {
     }
     const snap = await getDoc(doc(getClientDb(), "users", uid));
     const profile = snap.exists() ? (snap.data() as UserProfile) : null;
-    router.replace(profile?.role === "citizen" ? "/citizen" : "/command");
+    router.replace(profile?.role === "citizen" ? "/my-reports" : "/command");
   }
 
   async function onSubmit(e: FormEvent) {

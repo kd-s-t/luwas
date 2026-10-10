@@ -159,7 +159,7 @@ export function runLocalChat(
   if (/\b(hello|hi|kumusta|who are you|what can you)\b/i.test(trimmed)) {
     return {
       reply:
-        "Kumusta — I’m Mangluluwas, your LUWAS DRRM colleague for Brgy. Nangka in the Odette simulation. Ask what to do for a storm, or say “run triage” and I’ll paint the map and explain the colors with you.",
+        "Kumusta — I’m Mangluluwas, your LUWAS DRRM colleague for Brgy. Nangka in the Odette simulation. Ask what to do for a storm, or say “run triage” and I’ll paint the map. I can also text households, or call Consolacion BFP / PNP when you say “call the fire station” or “call the police”.",
       source: "local",
       assist: null,
     };
@@ -184,7 +184,7 @@ export function runLocalChat(
   return {
     reply: `I can walk you through Nangka DRRM guidance (${mapped} mapped households, ${situation.floods.length} floods, ${situation.landslides.length} landslide samples${
       ty ? `, typhoon ${ty.name}` : ""
-    }). Ask “what do we do?” for a storm, “run triage”, or “what do the colors mean?”`,
+    }). Ask “what do we do?” for a storm, “run triage”, “call the fire station”, “call the police”, or “what do the colors mean?”`,
     source: "local",
     assist: null,
   };

@@ -38,7 +38,10 @@ export function HomeNav({ overlay = false }: HomeNavProps) {
   const onCommand =
     pathname === "/command" || pathname.startsWith("/command/");
   const onCitizen =
-    pathname === "/citizen" || pathname.startsWith("/citizen/");
+    pathname === "/my-reports" ||
+    pathname.startsWith("/my-reports/") ||
+    pathname === "/citizen" ||
+    pathname.startsWith("/citizen/");
   const onReportIncident =
     pathname === "/report-incident" ||
     pathname.startsWith("/report-incident/");
@@ -74,7 +77,7 @@ export function HomeNav({ overlay = false }: HomeNavProps) {
         </Link>
       ) : null}
       <Link
-        href="/citizen"
+        href="/my-reports"
         className={navLinkClass(onCitizen)}
         onClick={() => setMenuOpen(false)}
       >

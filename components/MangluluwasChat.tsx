@@ -89,6 +89,8 @@ const SUGGESTIONS = [
   "Run triage",
   "What do the red yellow and blue mean?",
   "Alert them to evacuate",
+  "Call the fire station",
+  "Call the police",
   "Clear map highlights",
 ] as const;
 

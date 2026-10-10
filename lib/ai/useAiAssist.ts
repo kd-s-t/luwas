@@ -33,7 +33,10 @@ import {
 import {
   callPriorityFromIntent,
   isCallDispatchIntent,
+  isResponderCallIntent,
+  responderKindsFromIntent,
 } from "@/lib/alerts/callIntent";
+import { responderKindLabel } from "@/lib/alerts/responderCall";
 import {
   isSmsDispatchIntent,
   smsPriorityFromIntent,
@@ -289,8 +292,9 @@ export function useAiAssist() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          target: "households",
           priority,
-          barangay: "Brgy. Nangka",
+          barangay: `Brgy. ${DEFAULT_MAP_AREA.barangay}`,
           recipients: enriched.map((a) => ({
             householdId: a.householdId,
             ownerName: a.ownerName,
@@ -345,6 +349,67 @@ export function useAiAssist() {
     [],
   );
 
+  const dispatchResponderCallFromAssist = useCallback(
+    async (
+      kinds: ReturnType<typeof responderKindsFromIntent>,
+      reason: string,
+    ): Promise<{ reply: string; smsLog: SmsLogEntry[] }> => {
+      const res = await fetch("/api/alerts/call", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          target: "responders",
+          lgu: DEFAULT_MAP_AREA.lgu,
+          barangay: DEFAULT_MAP_AREA.barangay,
+          kinds,
+          reason,
+        }),
+      });
+      const data = (await res.json()) as {
+        error?: string;
+        provider?: { call?: string };
+        sent?: number;
+        failed?: number;
+        results?: SmsLogEntry[];
+      };
+      if (!res.ok) {
+        throw new Error(data.error || `Responder call failed (${res.status})`);
+      }
+      const smsLog: SmsLogEntry[] = (data.results ?? []).map((r) => ({
+        to: r.to,
+        ok: r.ok,
+        channel: "call",
+        ownerName: r.ownerName,
+        phoneDisplay: r.phoneDisplay ?? r.to,
+        priority: r.priority,
+        body: r.body,
+        error: r.error,
+        provider: r.provider,
+      }));
+      const callN = smsLog.filter((r) => r.ok).length;
+      const callProv = data.provider?.call;
+      const labels = kinds.map(responderKindLabel).join(" · ");
+      const lines: string[] = [
+        `Calling ${labels} for Brgy. ${DEFAULT_MAP_AREA.barangay}, ${DEFAULT_MAP_AREA.lgu}.`,
+      ];
+      lines.push(
+        callProv === "demo"
+          ? `Odette simulation · ${callN} responder call(s) logged (no live dial).`
+          : `Twilio Voice · dialed ${callN} station(s)${data.failed ? ` · some failed` : ""}.`,
+      );
+      for (const r of smsLog) {
+        const mark = r.ok ? "·" : "· failed";
+        lines.push(
+          `${mark} ${r.ownerName ?? "Station"} · ${r.phoneDisplay ?? r.to}${
+            r.error ? ` — ${r.error}` : ""
+          }`,
+        );
+      }
+      return { reply: lines.join("\n"), smsLog };
+    },
+    [],
+  );
+
   const sendMessage = useCallback(
     async (text: string, payload: AssistPayload) => {
       const trimmed = text.trim();
@@ -380,6 +445,31 @@ export function useAiAssist() {
       setError(null);
 
       try {
+        if (isResponderCallIntent(trimmed)) {
+          const { reply, smsLog } = await dispatchResponderCallFromAssist(
+            responderKindsFromIntent(trimmed),
+            trimmed,
+          );
+          const assistantMsg: ChatMessage = {
+            id: newId(),
+            role: "assistant",
+            content: reply,
+            smsLog,
+            createdAt: new Date().toISOString(),
+          };
+          setThreads((prev) =>
+            prev.map((t) => {
+              if (t.id !== threadId) return t;
+              return {
+                ...t,
+                messages: [...t.messages, assistantMsg],
+                updatedAt: new Date().toISOString(),
+              };
+            }),
+          );
+          return;
+        }
+
         if (isCallDispatchIntent(trimmed)) {
           const { reply, smsLog } = await dispatchCallFromAssist(
             callPriorityFromIntent(trimmed),
@@ -527,7 +617,14 @@ export function useAiAssist() {
         setRunning(false);
       }
     },
-    [applyAssist, dispatchCallFromAssist, dispatchSmsFromAssist, model, running],
+    [
+      applyAssist,
+      dispatchCallFromAssist,
+      dispatchResponderCallFromAssist,
+      dispatchSmsFromAssist,
+      model,
+      running,
+    ],
   );
 
   /** Hide evacuate / prepare list only — map dots + AI floods stay. */

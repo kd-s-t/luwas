@@ -273,8 +273,22 @@ service cloud.firestore {
         && request.resource.data.summary.size() > 0
         && request.resource.data.summary.size() <= 200
         && request.resource.data.details is string
-        && request.resource.data.details.size() <= 4000;
-      allow update, delete: if false;
+        && request.resource.data.details.size() <= 4000
+        && request.resource.data.status == "open";
+      // Officers triage tickets (status / assignee / resolution).
+      allow update: if isActiveOfficer()
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.kind == resource.data.kind
+        && request.resource.data.summary == resource.data.summary
+        && request.resource.data.status in ["open", "in_progress", "resolved", "closed"]
+        && (!("assignedToUid" in request.resource.data)
+            || request.resource.data.assignedToUid == null
+            || request.resource.data.assignedToUid is string)
+        && (!("assignedToName" in request.resource.data)
+            || request.resource.data.assignedToName == null
+            || (request.resource.data.assignedToName is string
+                && request.resource.data.assignedToName.size() <= 120));
+      allow delete: if false;
     }
   }
 }

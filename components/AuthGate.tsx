@@ -20,7 +20,7 @@ type AuthGateProps = {
 };
 
 function homeForRole(role: UserRole | undefined) {
-  if (role === "citizen") return "/citizen";
+  if (role === "citizen") return "/my-reports";
   return "/command";
 }
 

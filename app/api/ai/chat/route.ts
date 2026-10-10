@@ -144,6 +144,7 @@ Reply style (required):
   · Blue squares = AI-predicted flood footprints
 - Do NOT paste long household call lists, phone numbers, or “Call · evacuate” lines in "reply" — the UI shows the call list separately.
 - Mention that they can alert flagged homes by SMS/email from the call list when ready.
+- They can also ask you to call responders: “call the fire station”, “call the police”, “call hospital”, “call barangay hall” (Twilio Voice to curated Consolacion BFP/PNP numbers — officer-triggered, never auto-dial 911).
 - Rule of thumb: low ground / flood belt → evacuate; high ground → shelter in place and stock up (not escape).
 
 Set updateMap=true when the officer asks for triage, priorities, evacuate/prepare lists, escape routes, map highlights, OR what to do about an incoming typhoon/storm/flood (e.g. “cat 5 coming”, “what do we do”).

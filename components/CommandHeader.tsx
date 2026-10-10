@@ -18,9 +18,10 @@ import {
   scopeForProfile,
 } from "@/lib/reports/barangayScope";
 import type { HazardReport } from "@/lib/reports/types";
+import { subscribeSupportTickets } from "@/lib/support/api";
 import { cn } from "@/lib/utils";
 
-type NavBadge = "pending" | "reports" | null;
+type NavBadge = "pending" | "reports" | "support" | null;
 
 const QUEUE_STATUSES = new Set([
   "queued",
@@ -51,10 +52,11 @@ const NAV: {
     badge: "reports",
   },
   {
-    href: "/citizen",
+    href: "/my-reports",
     label: "My reports",
     short: "Mine",
-    match: (p) => p.startsWith("/citizen"),
+    match: (p) =>
+      p.startsWith("/my-reports") || p.startsWith("/citizen"),
     badge: null,
   },
   {
@@ -77,6 +79,13 @@ const NAV: {
     short: "Roles",
     match: (p) => p.startsWith("/command/roles"),
     badge: null,
+  },
+  {
+    href: "/command/support",
+    label: "Support",
+    short: "Help",
+    match: (p) => p.startsWith("/command/support"),
+    badge: "support",
   },
   {
     href: "/barangays",
@@ -125,6 +134,7 @@ export function CommandHeader() {
   const router = useRouter();
   const [pendingCount, setPendingCount] = useState(0);
   const [reportQueueCount, setReportQueueCount] = useState(0);
+  const [supportOpenCount, setSupportOpenCount] = useState(0);
 
   const barangay = isOfficer(profile) ? officerScopeBarangay(profile) : "";
   const areaId = isOfficer(profile)
@@ -158,6 +168,20 @@ export function CommandHeader() {
     });
   }, [profile, reportScope]);
 
+  useEffect(() => {
+    if (!isOfficer(profile) || !isAccountActive(profile)) {
+      setSupportOpenCount(0);
+      return;
+    }
+    return subscribeSupportTickets((rows) => {
+      setSupportOpenCount(
+        rows.filter(
+          (r) => r.status === "open" || r.status === "in_progress",
+        ).length,
+      );
+    });
+  }, [profile]);
+
   async function onLogout() {
     await logout();
     router.replace("/login");
@@ -182,13 +206,17 @@ export function CommandHeader() {
                   ? pendingCount
                   : item.badge === "reports"
                     ? reportQueueCount
-                    : 0;
+                    : item.badge === "support"
+                      ? supportOpenCount
+                      : 0;
               const badgeLabel =
                 item.badge === "pending"
                   ? `${pendingCount} pending registrations`
                   : item.badge === "reports"
                     ? `${reportQueueCount} reports awaiting review`
-                    : "";
+                    : item.badge === "support"
+                      ? `${supportOpenCount} open support tickets`
+                      : "";
               return (
                 <Link
                   key={item.href}

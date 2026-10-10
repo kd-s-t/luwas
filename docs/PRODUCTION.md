@@ -22,7 +22,7 @@ Gemini orchestrates needs and resources; Firebase hosts auth, data, and the live
 | **Firebase Cloud Messaging** | Push alerts to resident devices (later) |
 | **Trigger Email** (Firebase Extension) | Email alerts (later) |
 
-**Non-Google:** Semaphore SMS for barangay phones (`/api/alerts/sms`); Twilio Voice for outbound calls (`/api/alerts/call`). Without the matching env vars each channel runs in **demo mode** (logs only). Google FCM is push-to-app, not SMS to MSISDNs.
+**Non-Google:** Semaphore SMS for barangay phones (`/api/alerts/sms`); Twilio Voice for outbound calls (`/api/alerts/call`) — household evacuate blasts **and** officer-triggered BFP/PNP/hospital/tanod dials from `responderStations`. Without the matching env vars each channel runs in **demo mode** (logs only). Never auto-dial 911. Google FCM is push-to-app, not SMS to MSISDNs.
 
 ## Data (Firestore)
 

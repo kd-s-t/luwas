@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
-import { ArrowUp, ChevronDown, History, Plus } from "lucide-react";
+import { ArrowUp, Bell, ChevronDown, History, Plus } from "lucide-react";
 import { useMemo, useState, type FormEvent } from "react";
 import {
   BootstrapEmailTemplates,
@@ -423,26 +423,63 @@ export default function BootstrapKitPage() {
             <Section
               id="header"
               title="Header"
-              hint="One-row command chrome — logo · nav · officer · logout."
+              hint="Command chrome — nav badges · notifications · area · name → profile · logout. Public pages use HomeNav + Post a report."
             >
-              <div className="flex items-center gap-3 overflow-x-auto border border-[var(--border)] bg-[var(--surface)] px-3">
+              <div className="flex items-center gap-2 overflow-x-auto border border-[var(--border)] bg-[var(--surface)] px-3">
                 <span className="shrink-0 font-[family-name:var(--font-display)] text-xl font-semibold">
                   LUWAS
                 </span>
                 <span className="shrink-0 border-b-2 border-[var(--accent)] px-2 py-3 font-mono text-[10px] tracking-wider text-[var(--accent)] uppercase">
                   Command center
                 </span>
-                <span className="shrink-0 px-2 py-3 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+                <span className="inline-flex shrink-0 items-center gap-1.5 px-2 py-3 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
                   Field reports
+                  <span className="rounded-sm bg-[var(--accent)]/15 px-1 py-px text-[9px] font-semibold text-[var(--accent)]">
+                    7
+                  </span>
                 </span>
-                <span className="ml-auto hidden text-right text-sm sm:block">
-                  <span className="block font-medium">Officer name</span>
-                  <span className="text-[11px] text-[var(--muted)]">Org · role</span>
+                <span className="shrink-0 px-2 py-3 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+                  My reports
                 </span>
-                <Button type="button" variant="outline" size="sm">
-                  Logout
-                </Button>
+                <span className="inline-flex shrink-0 items-center gap-1.5 px-2 py-3 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+                  Users
+                  <span className="rounded-sm bg-[var(--accent)]/15 px-1 py-px text-[9px] font-semibold text-[var(--accent)]">
+                    5
+                  </span>
+                </span>
+                <span className="ml-auto flex shrink-0 items-center gap-2 py-2">
+                  <span
+                    className="relative inline-flex size-8 items-center justify-center border border-[var(--border)] text-[var(--muted)]"
+                    aria-hidden
+                  >
+                    <Bell className="size-3.5" />
+                    <span className="absolute -top-1 -right-1 min-w-[1.1rem] rounded-sm bg-[var(--accent)] px-1 py-px text-center text-[9px] font-semibold text-[var(--on-accent)]">
+                      2
+                    </span>
+                  </span>
+                  <span className="hidden border border-[var(--border)] px-2 py-1 text-left text-[11px] sm:block">
+                    <span className="block font-mono text-[9px] tracking-wider text-[var(--muted)] uppercase">
+                      Area
+                    </span>
+                    <span className="block font-medium leading-tight">
+                      Brgy. Nangka
+                    </span>
+                  </span>
+                  <span className="hidden text-right text-sm lg:block">
+                    <span className="block font-medium">Officer name</span>
+                    <span className="text-[11px] text-[var(--muted)]">
+                      Brgy. Nangka · Punong Barangay
+                    </span>
+                  </span>
+                  <Button type="button" variant="outline" size="sm">
+                    Logout
+                  </Button>
+                </span>
               </div>
+              <p className="mt-3 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+                Routes · /command · /command/reports · /my-reports ·
+                /report-incident · /profile
+              </p>
             </Section>
 
             <Section
@@ -481,7 +518,7 @@ export default function BootstrapKitPage() {
                 Brgy. Nangka, Consolacion, Cebu
               </p>
               <p className="mt-2 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
-                Switch barangay map · 1,500 homes
+                Switch barangay map · 1,500 house owners
               </p>
             </Section>
 
@@ -544,12 +581,20 @@ export default function BootstrapKitPage() {
               />
             </Section>
 
-            <Section id="badges" title="Badges" hint="shadcn Badge variants.">
+            <Section
+              id="badges"
+              title="Badges"
+              hint="Priority chips + field-report status (queue / verified / rejected)."
+            >
               <div className="flex flex-wrap gap-2">
                 <Badge variant="danger">evacuate</Badge>
                 <Badge variant="warn">prepare</Badge>
                 <Badge>monitor</Badge>
                 <Badge variant="outline">Presence unknown</Badge>
+                <Badge variant="warn">queued</Badge>
+                <Badge variant="warn">needs review</Badge>
+                <Badge variant="danger">verified</Badge>
+                <Badge variant="outline">rejected</Badge>
               </div>
             </Section>
 
