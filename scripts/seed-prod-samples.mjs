@@ -24,6 +24,14 @@ function token() {
   return execSync("gcloud auth print-access-token", { encoding: "utf8" }).trim();
 }
 
+function authHeaders(tok) {
+  return {
+    Authorization: `Bearer ${tok}`,
+    "Content-Type": "application/json",
+    "x-goog-user-project": PROJECT,
+  };
+}
+
 function sv(s) {
   return { stringValue: s == null ? "" : String(s) };
 }
@@ -49,10 +57,7 @@ async function deployRules(tok) {
     `https://firebaserules.googleapis.com/v1/projects/${PROJECT}/rulesets`,
     {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${tok}`,
-        "Content-Type": "application/json",
-      },
+      headers: authHeaders(tok),
       body: JSON.stringify({
         source: {
           files: [{ name: "firestore.rules", content }],
@@ -67,41 +72,19 @@ async function deployRules(tok) {
   const name = ruleset.name;
   if (!name) throw new Error("ruleset create: missing name");
 
+  const releaseName = `projects/${PROJECT}/releases/cloud.firestore`;
   const release = await fetch(
-    `https://firebaserules.googleapis.com/v1/projects/${PROJECT}/releases/cloud.firestore?updateMask=rulesetName`,
+    `https://firebaserules.googleapis.com/v1/${releaseName}?updateMask=rulesetName`,
     {
       method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${tok}`,
-        "Content-Type": "application/json",
-      },
+      headers: authHeaders(tok),
       body: JSON.stringify({
-        name: `projects/${PROJECT}/releases/cloud.firestore`,
-        rulesetName: name,
+        release: { name: releaseName, rulesetName: name },
       }),
     },
   );
   if (!release.ok) {
-    // First-time release may need POST
-    const post = await fetch(
-      `https://firebaserules.googleapis.com/v1/projects/${PROJECT}/releases`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${tok}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: `projects/${PROJECT}/releases/cloud.firestore`,
-          rulesetName: name,
-        }),
-      },
-    );
-    if (!post.ok) {
-      throw new Error(
-        `rules release: ${release.status} ${await release.text()} / ${post.status} ${await post.text()}`,
-      );
-    }
+    throw new Error(`rules release: ${release.status} ${await release.text()}`);
   }
   console.log("rules ok", name);
 }
@@ -112,7 +95,7 @@ function docUrl(collection, id) {
 
 async function getDoc(tok, collection, id) {
   const res = await fetch(docUrl(collection, id), {
-    headers: { Authorization: `Bearer ${tok}` },
+    headers: authHeaders(tok),
   });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`get ${collection}/${id}: ${await res.text()}`);
@@ -122,10 +105,7 @@ async function getDoc(tok, collection, id) {
 async function putDoc(tok, collection, id, fields) {
   const res = await fetch(docUrl(collection, id), {
     method: "PATCH",
-    headers: {
-      Authorization: `Bearer ${tok}`,
-      "Content-Type": "application/json",
-    },
+    headers: authHeaders(tok),
     body: JSON.stringify({ fields }),
   });
   if (!res.ok) {
@@ -613,7 +593,11 @@ async function main() {
   const tok = token();
 
   console.log("\n— Firestore rules —");
-  await deployRules(tok);
+  try {
+    await deployRules(tok);
+  } catch (err) {
+    console.warn("rules deploy failed (continuing seed):", err.message || err);
+  }
 
   console.log("\n— Pending accounts —");
   for (const p of PENDING) {
