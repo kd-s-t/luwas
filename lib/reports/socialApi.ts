@@ -68,6 +68,33 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
     aiSource: (data.aiSource as HazardReport["aiSource"]) ?? null,
     aiModel: data.aiModel != null ? String(data.aiModel) : null,
     validatedAt: data.validatedAt != null ? String(data.validatedAt) : null,
+    reporterIdVerified: Boolean(data.reporterIdVerified),
+    reporterEmail:
+      data.reporterEmail != null ? String(data.reporterEmail) : null,
+    reporterPhone:
+      data.reporterPhone != null ? String(data.reporterPhone) : null,
+    reporterEmailVerified: Boolean(data.reporterEmailVerified),
+    trustScore: typeof data.trustScore === "number" ? data.trustScore : null,
+    trustBreakdown:
+      data.trustBreakdown && typeof data.trustBreakdown === "object"
+        ? {
+            identity: Number(
+              (data.trustBreakdown as { identity?: number }).identity ?? 0,
+            ),
+            contact: Number(
+              (data.trustBreakdown as { contact?: number }).contact ?? 0,
+            ),
+            capture: Number(
+              (data.trustBreakdown as { capture?: number }).capture ?? 0,
+            ),
+            ai: Number((data.trustBreakdown as { ai?: number }).ai ?? 0),
+            total: Number(
+              (data.trustBreakdown as { total?: number }).total ??
+                data.trustScore ??
+                0,
+            ),
+          }
+        : null,
     reactionCounts: {
       like: Number(counts.like ?? 0),
       helpful: Number(counts.helpful ?? 0),

@@ -22,6 +22,8 @@ export type OfficerProfile = {
   orgName: string;
   role: "officer";
   createdAt: string;
+  /** Active onboarded barangay area id (e.g. consolacion/nangka). */
+  activeBarangayId?: string | null;
 } & IdFields;
 
 export type CitizenProfile = {

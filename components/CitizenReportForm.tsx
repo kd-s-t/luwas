@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { ImagePlus, Loader2, MapPin, MonitorSmartphone, Upload } from "lucide-react";
 import { isCitizen, isOfficer, type UserProfile } from "@/lib/auth/types";
+import { getClientAuth } from "@/lib/firebase/client";
 import {
   captureReportMeta,
   isMobileClient,
@@ -39,6 +40,7 @@ const HAZARDS: { id: ReportHazardHint; label: string }[] = [
   { id: "landslide", label: "Landslide" },
   { id: "typhoon", label: "Typhoon / wind" },
   { id: "fire", label: "Fire" },
+  { id: "evac", label: "EC population / status" },
   { id: "other", label: "Other" },
 ];
 
@@ -108,6 +110,11 @@ export function CitizenReportForm({ author }: CitizenReportFormProps) {
       });
 
       setStatus("Queued for AI validation…");
+      const mediaSource = mobileCapture ? "mobile-camera" : "desktop-file";
+      const reporterPhone = isCitizen(author) ? author.phone : null;
+      const emailVerified = Boolean(
+        getClientAuth().currentUser?.emailVerified || author.idVerified,
+      );
       const id = await createHazardReport({
         id: reportId,
         citizenUid: author.uid,
@@ -123,13 +130,17 @@ export function CitizenReportForm({ author }: CitizenReportFormProps) {
         mediaPath: uploaded.mediaPath,
         mediaUrl: uploaded.mediaUrl,
         mediaMime: uploaded.mediaMime,
-        mediaSource: mobileCapture ? "mobile-camera" : "desktop-file",
+        mediaSource,
         lat: captured.lat,
         lng: captured.lng,
         locationAccuracyM: captured.locationAccuracyM,
         locationLabel: captured.locationLabel,
         device: captured.device,
         ipAddress: captured.ipAddress,
+        reporterIdVerified: Boolean(author.idVerified),
+        reporterEmail: author.email,
+        reporterPhone,
+        reporterEmailVerified: emailVerified,
       });
 
       await markReportValidating(id);
@@ -173,6 +184,17 @@ export function CitizenReportForm({ author }: CitizenReportFormProps) {
         aiSource: data.source,
         aiModel: data.model ?? null,
         validatedAt: new Date().toISOString(),
+        trustInput: {
+          registered: true,
+          idVerified: Boolean(author.idVerified),
+          email: author.email,
+          phone: reporterPhone,
+          emailVerified,
+          mediaSource,
+          lat: captured.lat,
+          lng: captured.lng,
+          locationAccuracyM: captured.locationAccuracyM,
+        },
       });
 
       setStatus(

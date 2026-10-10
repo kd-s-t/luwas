@@ -1,4 +1,4 @@
-/** Accepted PH IDs for Luwas registration (fraud check). */
+/** Accepted PH IDs for LUWAS registration (fraud check). */
 export const ACCEPTED_ID_TYPES = [
   {
     id: "dl",

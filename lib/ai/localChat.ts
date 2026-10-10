@@ -159,7 +159,7 @@ export function runLocalChat(
   if (/\b(hello|hi|kumusta|who are you|what can you)\b/i.test(trimmed)) {
     return {
       reply:
-        "Kumusta — I’m Mangluluwas, your Luwas DRRM colleague for Brgy. Nangka in the Odette simulation. Ask what to do for a storm, or say “run triage” and I’ll paint the map and explain the colors with you.",
+        "Kumusta — I’m Mangluluwas, your LUWAS DRRM colleague for Brgy. Nangka in the Odette simulation. Ask what to do for a storm, or say “run triage” and I’ll paint the map and explain the colors with you.",
       source: "local",
       assist: null,
     };

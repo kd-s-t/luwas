@@ -90,7 +90,7 @@ export async function POST(req: Request) {
   }
 
   const model = resolveGeminiModel(body.model ?? DEFAULT_GEMINI_MODEL);
-  const prompt = `You are verifying Philippine government ID for Luwas barangay registration (anti-fraud).
+  const prompt = `You are verifying Philippine government ID for LUWAS barangay registration (anti-fraud).
 
 Accepted ID types ONLY: Driver's License (dl), Passport (passport), UMID (umid).
 Reject PhilPost ID, PhilID / National ID, school IDs, company IDs, or unclear documents.

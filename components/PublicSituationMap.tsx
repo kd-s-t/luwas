@@ -21,12 +21,13 @@ import {
   isNangkaOpsArea,
   type MapArea,
 } from "@/lib/geo/mapAreas";
-import { useRoadEscapes } from "@/lib/geo/useRoadEscapes";
 import {
   fetchNearbyEarthquakes,
-  zoomEarthUrl,
   type QuakeEvent,
 } from "@/lib/hazards/usgsEarthquakes";
+import { useAuth } from "@/lib/auth/AuthProvider";
+import { isCitizen } from "@/lib/auth/types";
+import { updateHouseholdPresenceByEmail } from "@/lib/households/api";
 import {
   CEBU_HOUSEHOLDS,
   NANGKA_CENSUS_2020,
@@ -79,10 +80,16 @@ function seedAsHouseholds(): Household[] {
     orgName: "Brgy. Nangka MDRRMO",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    presence: "unknown" as const,
+    lastSeenLat: null,
+    lastSeenLng: null,
+    lastSeenArea: null,
+    lastSeenAt: null,
   }));
 }
 
 export function PublicSituationMap() {
+  const { profile } = useAuth();
   const nangkaHouseholds = useMemo(() => seedAsHouseholds(), []);
   const { bundle } = useScenario();
   const [weather, setWeather] = useState<AreaWeather | null>(null);
@@ -104,47 +111,49 @@ export function PublicSituationMap() {
   );
   const nangkaOps = isNangkaOpsArea(area);
 
-  // Odette triage only for Nangka pack — other brgys stay empty.
+  // Live local triage so homepage During/After matches command (floods + red/yellow).
   const assist = useMemo(() => {
     if (!nangkaOps) return null;
-    return runLocalAssist({
-      households: nangkaHouseholds,
-      floods: pack.floods,
-      landslides: pack.landslides,
-      typhoons: pack.typhoons,
-      floodSource: "local",
-    });
+    try {
+      return runLocalAssist({
+        households: nangkaHouseholds,
+        floods: pack.floods,
+        landslides: pack.landslides,
+        typhoons: pack.typhoons,
+        floodSource: "local",
+      });
+    } catch {
+      return null;
+    }
   }, [nangkaOps, nangkaHouseholds, pack.floods, pack.landslides, pack.typhoons]);
 
   const assistPriorities = useMemo(() => {
     const map: Record<string, AssistPriority> = {};
-    if (!assist) return map;
-    for (const a of assist.actions) {
-      map[a.householdId] = a.priority;
+    if (!nangkaOps) return map;
+    // Public roster uses public-seed-* ids — always triage against that set.
+    if (assist?.actions?.length) {
+      for (const a of assist.actions) map[a.householdId] = a.priority;
+      return map;
     }
+    for (const a of pack.scenarioActions) map[a.householdId] = a.priority;
     return map;
-  }, [assist]);
+  }, [nangkaOps, assist, pack.scenarioActions]);
 
-  const mapFloods =
-    nangkaOps && snapshot?.predictedFloods?.length
-      ? snapshot.predictedFloods
-      : nangkaOps
-        ? (assist?.predictedFloods ?? [])
-        : [];
+  // Snapshot AI floods → local AI footprints → scenario pack (During/After).
+  const mapFloods = useMemo(() => {
+    if (!nangkaOps) return [];
+    if (snapshot?.predictedFloods?.length) return snapshot.predictedFloods;
+    if (assist?.predictedFloods?.length) return assist.predictedFloods;
+    return pack.floods;
+  }, [nangkaOps, snapshot, assist, pack.floods]);
 
-  const mapEscapes: AssistEscapeRoute[] =
-    nangkaOps && snapshot?.escapes?.length
-      ? snapshot.escapes
-      : nangkaOps
-        ? (assist?.escapes ?? [])
-        : [];
-
-  const roadEscapes = useRoadEscapes(
-    nangkaOps && snapshot?.escapes?.length ? [] : mapEscapes,
-    { deferMs: 1200 },
-  );
-  const escapeRoutes =
-    nangkaOps && snapshot?.escapes?.length ? mapEscapes : roadEscapes;
+  // Escape arrows: command sync → local assist → scenario pack.
+  const escapeRoutes: AssistEscapeRoute[] = useMemo(() => {
+    if (!nangkaOps) return [];
+    if (snapshot?.escapes?.length) return snapshot.escapes;
+    if (assist?.escapes?.length) return assist.escapes;
+    return pack.scenarioEscapes;
+  }, [nangkaOps, snapshot, assist, pack.scenarioEscapes]);
 
   const mapHouseholds = nangkaOps ? nangkaHouseholds : [];
 
@@ -197,35 +206,62 @@ export function PublicSituationMap() {
     };
   }, []);
 
-  const applyCoords = useCallback(async (lat: number, lng: number) => {
-    setLocateStatus("locating");
-    setLocateError(null);
-    try {
-      const res = await fetch(
-        `/api/geo/locate?lat=${encodeURIComponent(String(lat))}&lng=${encodeURIComponent(String(lng))}`,
-      );
-      if (!res.ok) throw new Error("Could not resolve barangay");
-      const data = (await res.json()) as LocateApiResponse;
-      setArea(data.area);
-      setUserLocation(data.user);
-      setMatched(data.matched);
-      setLocateStatus("ready");
-    } catch (err) {
-      setUserLocation({ lat, lng });
-      setArea({
-        ...DEFAULT_MAP_AREA,
-        id: `gps/${lat.toFixed(4)},${lng.toFixed(4)}`,
-        name: "Your location",
-        center: { lat, lng },
-        zoom: 16,
-      });
-      setMatched(false);
-      setLocateStatus("error");
-      setLocateError(
-        err instanceof Error ? err.message : "Could not resolve barangay",
-      );
-    }
-  }, []);
+  const syncCitizenPresence = useCallback(
+    async (lat: number, lng: number, located: MapArea) => {
+      if (!isCitizen(profile)) return;
+      try {
+        await updateHouseholdPresenceByEmail(profile.email, {
+          lat,
+          lng,
+          areaLabel: `Brgy. ${located.barangay}, ${located.lgu}`,
+          // Demo citizens (incl. Ken) are registered to Brgy. Nangka.
+          homeBarangay: DEFAULT_MAP_AREA.barangay,
+          locatedBarangay: located.barangay,
+        });
+      } catch {
+        /* roster update best-effort */
+      }
+    },
+    [profile],
+  );
+
+  const applyCoords = useCallback(
+    async (lat: number, lng: number) => {
+      setLocateStatus("locating");
+      setLocateError(null);
+      try {
+        const res = await fetch(
+          `/api/geo/locate?lat=${encodeURIComponent(String(lat))}&lng=${encodeURIComponent(String(lng))}`,
+        );
+        if (!res.ok) throw new Error("Could not resolve barangay");
+        const data = (await res.json()) as LocateApiResponse;
+        setArea(data.area);
+        setUserLocation(data.user);
+        setMatched(data.matched);
+        setLocateStatus("ready");
+        void syncCitizenPresence(lat, lng, data.area);
+      } catch (err) {
+        setUserLocation({ lat, lng });
+        const fallback: MapArea = {
+          ...DEFAULT_MAP_AREA,
+          id: `gps/${lat.toFixed(4)},${lng.toFixed(4)}`,
+          name: "Your location",
+          center: { lat, lng },
+          zoom: 16,
+          barangay: "Unknown",
+          lgu: "Cebu",
+        };
+        setArea(fallback);
+        setMatched(false);
+        setLocateStatus("error");
+        setLocateError(
+          err instanceof Error ? err.message : "Could not resolve barangay",
+        );
+        void syncCitizenPresence(lat, lng, fallback);
+      }
+    },
+    [syncCitizenPresence],
+  );
 
   const requestLocation = useCallback(() => {
     if (!navigator.geolocation) {
@@ -267,8 +303,6 @@ export function PublicSituationMap() {
   const hazard =
     weather &&
     isHazardousWeather(weather.weatherCode, weather.precipitationMm);
-  const zoomUrl = zoomEarthUrl(area.center.lat, area.center.lng, 11);
-
   const locateEyebrow =
     locateStatus === "ready"
       ? matched
@@ -338,15 +372,6 @@ export function PublicSituationMap() {
                 ) : null}
               </div>
             )}
-
-            <a
-              href={zoomUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-3 inline-block font-mono text-[10px] tracking-wider text-[var(--accent)] uppercase underline-offset-2 hover:underline"
-            >
-              Open Zoom Earth rain / satellite →
-            </a>
           </div>
 
           <div
@@ -399,6 +424,7 @@ export function PublicSituationMap() {
               fires={pack.fires}
               reportPins={pack.reportPins}
               safePoints={pack.safePoints}
+              responders={pack.responders}
               assistPriorities={assistPriorities}
               escapeRoutes={escapeRoutes}
             />
@@ -426,7 +452,7 @@ export function PublicSituationMap() {
                 </span>
                 <span>
                   <span className="mr-1.5 inline-block h-2 w-2 bg-[#2563eb] align-middle" />
-                  AI floods {mapFloods.length}
+                  Floods {mapFloods.length}
                 </span>
               </>
             ) : (
@@ -469,6 +495,17 @@ export function PublicSituationMap() {
             <span>
               <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-[var(--danger)] align-middle" />
               Quakes {quakes.length}
+            </span>
+            <span className="text-[#0f5c38]">Command (hall)</span>
+            <span className="text-[#1d4ed8]">School</span>
+            <span className="text-[#15803d]">Evac center</span>
+            <span className="text-[#ea580c]">
+              Fire{" "}
+              {pack.responders.filter((r) => r.kind === "bfp").length}
+            </span>
+            <span className="text-[#be123c]">
+              Hospital{" "}
+              {pack.responders.filter((r) => r.kind === "hospital").length}
             </span>
           </div>
         </div>

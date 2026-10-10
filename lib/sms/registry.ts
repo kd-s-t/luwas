@@ -1,6 +1,6 @@
 /** SMS / text catalog for command preview. */
 
-export type TextTemplateCategory = "auth" | "alerts";
+export type TextTemplateCategory = "auth" | "alerts" | "reports";
 
 export type TextTemplateId =
   | "register"
@@ -8,7 +8,10 @@ export type TextTemplateId =
   | "welcome"
   | "eq_alert"
   | "fire_alert"
-  | "typhoon_alert";
+  | "typhoon_alert"
+  | "evacuate_alert"
+  | "prepare_alert"
+  | "report_verified";
 
 export type TextTemplateMeta = {
   id: TextTemplateId;
@@ -24,6 +27,7 @@ export const TEXT_TEMPLATE_CATEGORIES: {
 }[] = [
   { id: "auth", label: "Account" },
   { id: "alerts", label: "Alerts" },
+  { id: "reports", label: "Reports" },
 ];
 
 export const TEXT_TEMPLATES: TextTemplateMeta[] = [
@@ -69,6 +73,28 @@ export const TEXT_TEMPLATES: TextTemplateMeta[] = [
     description:
       "Advance SMS ~3 days before an incoming typhoon / landfall window.",
     event: "typhoon_alert",
+  },
+  {
+    id: "evacuate_alert",
+    category: "alerts",
+    name: "Evacuate alert",
+    description: "SMS blast telling households to evacuate now.",
+    event: "evacuate_alert",
+  },
+  {
+    id: "prepare_alert",
+    category: "alerts",
+    name: "Prepare alert",
+    description: "SMS blast for shelter-in-place / stock-up guidance.",
+    event: "prepare_alert",
+  },
+  {
+    id: "report_verified",
+    category: "reports",
+    name: "Report verified",
+    description:
+      "SMS when a citizen’s field report is accepted as verified / legit.",
+    event: "report_verified",
   },
 ];
 

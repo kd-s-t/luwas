@@ -1,5 +1,6 @@
 import type {
   AssistEscapeRoute,
+  AssistHouseholdAction,
   AssistResult,
 } from "@/lib/ai/assistTypes";
 import type { FloodSample } from "@/lib/hazards/floodSamples";
@@ -14,6 +15,8 @@ export type BarangayMapSnapshot = {
   updatedAt: string;
   predictedFloods: FloodSample[];
   escapes: AssistEscapeRoute[];
+  /** Optional — older snapshots omit this; homepage falls back to localAssist. */
+  actions?: AssistHouseholdAction[];
 };
 
 function storageKey(areaId: string) {
@@ -73,6 +76,7 @@ export function saveBarangayMapSnapshot(
     updatedAt: new Date().toISOString(),
     predictedFloods: assist.predictedFloods ?? [],
     escapes: assist.escapes ?? [],
+    actions: assist.actions ?? [],
   };
   try {
     window.localStorage.setItem(storageKey(areaId), JSON.stringify(payload));

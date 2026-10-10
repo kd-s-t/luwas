@@ -20,6 +20,8 @@ export type FloodSample = {
   footprint?: { lat: number; lng: number }[];
   /** Soft circle fallback (meters) when no footprint is set. */
   radiusM?: number;
+  /** Optional field photo for detail dialog / map popup. */
+  mediaUrl?: string;
 };
 
 /**
@@ -38,6 +40,7 @@ export const CEBU_FLOOD_SAMPLES: FloodSample[] = [
     depthCm: 85,
     reportedAt: "2026-10-07T14:20:00+08:00",
     notes: "Knee-to-waist deep · single-storey homes advised to move to hall/school",
+    mediaUrl: "/reports/road-block-access-east.jpg",
   },
   {
     id: "fl-nangka-purok-singko",
@@ -50,6 +53,7 @@ export const CEBU_FLOOD_SAMPLES: FloodSample[] = [
     depthCm: 40,
     reportedAt: "2026-10-07T13:50:00+08:00",
     notes: "Vehicles stalled · keep lane clear for responders",
+    mediaUrl: "/reports/fallen-tree-access-road.webp",
   },
   {
     id: "fl-nangka-chapel",
@@ -62,6 +66,7 @@ export const CEBU_FLOOD_SAMPLES: FloodSample[] = [
     depthCm: 35,
     reportedAt: "2026-10-07T13:10:00+08:00",
     notes: "Runoff from upstream · chapel grounds still usable as staging",
+    mediaUrl: "/reports/flood-road-chapel.png",
   },
   {
     id: "fl-nangka-hall-approach",
@@ -74,6 +79,7 @@ export const CEBU_FLOOD_SAMPLES: FloodSample[] = [
     depthCm: 15,
     reportedAt: "2026-10-07T11:30:00+08:00",
     notes: "Slow drain · keep access clear for command ops",
+    mediaUrl: "/reports/flood-road-chapel.png",
   },
 ];
 

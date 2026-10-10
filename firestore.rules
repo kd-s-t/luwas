@@ -34,17 +34,53 @@ service cloud.firestore {
             && request.resource.data.phone is string
           )
         );
-      // After ID verify — store selfie URL + document paths only
+      // After ID verify — selfie paths; officers may set active barangay / org
       allow update: if signedIn()
         && request.auth.uid == userId
-        && request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(["photoURL", "idDocumentPath", "faceDocumentPath"]);
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.uid == resource.data.uid
+        && (
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(["photoURL", "idDocumentPath", "faceDocumentPath"])
+          || (
+            resource.data.role == "officer"
+            && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly([
+                "photoURL",
+                "idDocumentPath",
+                "faceDocumentPath",
+                "activeBarangayId",
+                "orgName"
+              ])
+          )
+        );
       allow delete: if false;
     }
 
+    // Onboarded barangay ops areas (hall pin, org, checklist).
+    match /barangays/{barangayId} {
+      allow read: if isOfficer();
+      allow create, update: if isOfficer()
+        && request.resource.data.barangay is string
+        && request.resource.data.barangay.size() > 0
+        && request.resource.data.lgu is string
+        && request.resource.data.orgName is string
+        && request.resource.data.center is map
+        && request.resource.data.center.lat is number
+        && request.resource.data.center.lng is number;
+      allow delete: if isOfficer();
+    }
+
     match /households/{householdId} {
-      allow read: if signedIn()
-        && resource.data.officerUid == request.auth.uid;
+      // Officers: full roster. Citizens: own row (matched by email) for presence.
+      allow read: if signedIn() && (
+        resource.data.officerUid == request.auth.uid
+        || (
+          isCitizen()
+          && resource.data.email is string
+          && resource.data.email == userDoc().email
+        )
+      );
       allow create: if signedIn()
         && request.resource.data.officerUid == request.auth.uid
         && request.resource.data.ownerName is string
@@ -52,9 +88,27 @@ service cloud.firestore {
         && request.resource.data.address is string
         && request.resource.data.address.size() > 0
         && request.resource.data.phone is string;
-      allow update: if signedIn()
-        && resource.data.officerUid == request.auth.uid
-        && request.resource.data.officerUid == request.auth.uid;
+      allow update: if signedIn() && (
+        (
+          resource.data.officerUid == request.auth.uid
+          && request.resource.data.officerUid == request.auth.uid
+        )
+        || (
+          isCitizen()
+          && resource.data.email is string
+          && resource.data.email == userDoc().email
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly([
+              "presence",
+              "lastSeenLat",
+              "lastSeenLng",
+              "lastSeenArea",
+              "lastSeenAt",
+              "updatedAt",
+              "updatedAtServer"
+            ])
+        )
+      );
       allow delete: if signedIn()
         && resource.data.officerUid == request.auth.uid;
     }

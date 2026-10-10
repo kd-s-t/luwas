@@ -7,21 +7,13 @@ import {
   addHouseholds,
   ensureCuratedHouseholds,
   removeHousehold,
-  seedHouseholds,
   subscribeHouseholds,
-  type SeedHouseholdsProgress,
 } from "@/lib/households/api";
 import {
   HOUSEHOLD_CSV_TEMPLATE,
   parseHouseholdCsv,
 } from "@/lib/households/csv";
-import {
-  CEBU_HOUSEHOLDS,
-  NANGKA_CENSUS_2020,
-  NANGKA_HOUSEHOLD_TARGET,
-} from "@/lib/households/seed";
 import type { Household } from "@/lib/households/types";
-import { useEmulators } from "@/lib/firebase/client";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -67,10 +59,6 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [seeding, setSeeding] = useState(false);
-  const [seedProgress, setSeedProgress] = useState<SeedHouseholdsProgress | null>(
-    null,
-  );
   const [importing, setImporting] = useState(false);
   const [importMsg, setImportMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -204,45 +192,6 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
     }
   }
 
-  async function onSeedCebu() {
-    if (
-      rows.length > 0 &&
-      !window.confirm(
-        `Replace current roster with ${NANGKA_HOUSEHOLD_TARGET.toLocaleString()} Nangka households (~${NANGKA_CENSUS_2020.toLocaleString()} people, PSA 2020)?`,
-      )
-    ) {
-      return;
-    }
-    setError(null);
-    setImportMsg(null);
-    setSeeding(true);
-    setSeedProgress({ phase: "clearing", done: 0, total: 0 });
-    try {
-      const count = await seedHouseholds(
-        officerUid,
-        orgName || "Brgy. Nangka MDRRMO",
-        CEBU_HOUSEHOLDS,
-        setSeedProgress,
-      );
-      setImportMsg(
-        `Seeded ${count.toLocaleString()} households · ~${NANGKA_CENSUS_2020.toLocaleString()} people (PSA 2020 · Odette sim).`,
-      );
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Seed failed");
-    } finally {
-      setSeeding(false);
-      setSeedProgress(null);
-    }
-  }
-
-  const seedLabel = seedProgress
-    ? seedProgress.phase === "clearing"
-      ? `Clearing ${seedProgress.done}/${seedProgress.total || "…"}…`
-      : `Writing ${seedProgress.done}/${seedProgress.total}…`
-    : seeding
-      ? "Seeding…"
-      : `Seed Nangka (${NANGKA_HOUSEHOLD_TARGET.toLocaleString()})`;
-
   const filtersActive = search.trim().length > 0 || purok !== "all";
   const rangeStart =
     filtered.length === 0 ? 0 : (safePage - 1) * pageSize + 1;
@@ -320,17 +269,6 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
               <Plus className="size-4" aria-hidden />
               Add household
             </Button>
-            {useEmulators ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={onSeedCebu}
-                disabled={seeding || loading}
-              >
-                {seedLabel}
-              </Button>
-            ) : null}
           </div>
         </div>
 
@@ -344,26 +282,12 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
           <p className="font-mono text-sm text-[var(--muted)]">Loading roster…</p>
         ) : rows.length === 0 ? (
           <div className="border border-dashed border-[var(--border)] bg-[var(--surface-panel)]/50 px-5 py-10 text-[var(--muted)]">
-            <p>
-              No households yet. Add a local house owner, or seed the Nangka roster
-              for the Odette simulation ({NANGKA_HOUSEHOLD_TARGET.toLocaleString()}{" "}
-              households · ~{NANGKA_CENSUS_2020.toLocaleString()} people, PSA 2020).
-            </p>
+            <p>No households yet. Add a local house owner to start the roster.</p>
             <div className="mt-4 flex flex-wrap gap-2">
               <Button type="button" onClick={openModal}>
                 <Plus className="size-4" aria-hidden />
                 Add household
               </Button>
-              {useEmulators ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={onSeedCebu}
-                  disabled={seeding}
-                >
-                  {seedLabel}
-                </Button>
-              ) : null}
             </div>
           </div>
         ) : (
@@ -455,7 +379,22 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
                       className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-5"
                     >
                       <div className="min-w-0">
-                        <p className="font-medium">{h.ownerName}</p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-medium">{h.ownerName}</p>
+                          {h.presence === "away" ? (
+                            <span className="border border-[var(--warn)] bg-[var(--warn)]/10 px-1.5 py-0.5 font-mono text-[9px] tracking-wider text-[var(--warn)] uppercase">
+                              Away from home
+                            </span>
+                          ) : h.presence === "home" ? (
+                            <span className="border border-[var(--accent)]/40 bg-[var(--accent)]/10 px-1.5 py-0.5 font-mono text-[9px] tracking-wider text-[var(--accent)] uppercase">
+                              Present at home
+                            </span>
+                          ) : (
+                            <span className="border border-[var(--border)] px-1.5 py-0.5 font-mono text-[9px] tracking-wider text-[var(--muted)] uppercase">
+                              Presence unknown
+                            </span>
+                          )}
+                        </div>
                         <p className="mt-0.5 text-sm text-[var(--muted)]">
                           {h.address}
                           {h.purok ? ` · ${h.purok}` : ""}
@@ -469,6 +408,53 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
                             {h.notes}
                           </p>
                         ) : null}
+                        {h.lat != null && h.lng != null ? (
+                          <p className="mt-1.5 font-mono text-[10px] tracking-wide text-[var(--muted)] uppercase">
+                            Home pin ·{" "}
+                            <a
+                              href={`https://www.google.com/maps?q=${h.lat},${h.lng}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[var(--accent)] underline-offset-2 hover:underline"
+                            >
+                              {h.lat.toFixed(5)}, {h.lng.toFixed(5)}
+                            </a>
+                          </p>
+                        ) : (
+                          <p className="mt-1.5 font-mono text-[10px] tracking-wide text-[var(--muted)] uppercase">
+                            Home pin · not set
+                          </p>
+                        )}
+                        {h.lastSeenAt ? (
+                          <p
+                            className={`mt-1 font-mono text-[10px] tracking-wide uppercase ${
+                              h.presence === "away"
+                                ? "text-[var(--warn)]"
+                                : "text-[var(--muted)]"
+                            }`}
+                          >
+                            Last location · {formatUpdatedAt(h.lastSeenAt)}
+                            {h.lastSeenArea ? ` · ${h.lastSeenArea}` : ""}
+                            {h.lastSeenLat != null && h.lastSeenLng != null ? (
+                              <>
+                                {" · "}
+                                <a
+                                  href={`https://www.google.com/maps?q=${h.lastSeenLat},${h.lastSeenLng}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="underline-offset-2 hover:underline"
+                                >
+                                  {h.lastSeenLat.toFixed(5)},{" "}
+                                  {h.lastSeenLng.toFixed(5)}
+                                </a>
+                              </>
+                            ) : null}
+                          </p>
+                        ) : (
+                          <p className="mt-1 font-mono text-[10px] tracking-wide text-[var(--muted)] uppercase">
+                            Last location · no citizen location yet
+                          </p>
+                        )}
                         <p className="mt-2 font-mono text-[10px] tracking-wide text-[var(--muted)] uppercase">
                           Updated ·{" "}
                           {formatUpdatedAt(h.updatedAt || h.createdAt)}

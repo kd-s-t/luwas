@@ -15,6 +15,8 @@ import type { FloodSample } from "@/lib/hazards/floodSamples";
 import type { LandslideSample } from "@/lib/hazards/landslideSamples";
 import type { TyphoonSample } from "@/lib/hazards/typhoonSamples";
 import type { Household } from "@/lib/households/types";
+import { compactEvacStatusesForAi } from "@/lib/reports/evacStatus";
+import { CAT5_DURING } from "@/lib/scenarios";
 
 export const runtime = "nodejs";
 
@@ -116,10 +118,10 @@ export async function POST(req: Request) {
     lng: h.lng,
   }));
 
-  const prompt = `You are Mangluluwas, the Luwas DRRM chat agent for Brgy. Nangka, Consolacion, Cebu.
+  const prompt = `You are Mangluluwas, the LUWAS DRRM chat agent for Brgy. Nangka, Consolacion, Cebu.
 Reply in English by default. Only use Cebuano/Bisaya if the officer clearly writes in Cebuano/Bisaya.
 Talk like a calm barangay DRRM colleague — full sentences, warm and clear, not a telegram or robot checklist.
-Guidance for responders — not a life-safety guarantee.
+Guidance for responders.
 
 Return ONLY valid JSON (no markdown) matching:
 {
@@ -147,12 +149,13 @@ Reply style (required):
 Set updateMap=true when the officer asks for triage, priorities, evacuate/prepare lists, escape routes, map highlights, OR what to do about an incoming typhoon/storm/flood (e.g. “cat 5 coming”, “what do we do”).
 Do not truncate the affected list — the server computes every evacuate/prepare household from hazards + elevation.
 When updateMap=true the server also paints AI-predicted flood footprints (elevation + storm context).
-Evacuation centers only (escape arrows — not hall/chapel): ${JSON.stringify(
-    NANGKA_SAFE_POINTS.filter((s) => s.isEvacCenter).map((s) => ({
-      id: s.id,
-      name: s.name,
-    })),
+Evacuation centers (escape destinations + live population from EC staff field reports): ${JSON.stringify(
+    compactEvacStatusesForAi(
+      NANGKA_SAFE_POINTS,
+      CAT5_DURING.reportPins,
+    ),
   )}
+Field reports are not emergencies only — EC staff upload occupancy / capacity / open-full status for AI triage.
 
 Weather: ${situation.weatherLabel ?? "unknown"}
 Floods: ${JSON.stringify(situation.floods)}

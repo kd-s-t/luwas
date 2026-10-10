@@ -1,4 +1,5 @@
 import type { ReactionCounts } from "@/lib/reports/socialTypes";
+import type { ReportTrustBreakdown } from "@/lib/reports/trustScore";
 
 export type ReportMediaType = "photo" | "video";
 
@@ -10,6 +11,7 @@ export type ReportHazardHint =
   | "landslide"
   | "typhoon"
   | "fire"
+  | "evac"
   | "other";
 
 /**
@@ -26,6 +28,8 @@ export function hazardHintLabel(hint: ReportHazardHint): string {
       return "Landslide";
     case "fire":
       return "Fire";
+    case "evac":
+      return "Evacuation center";
     default:
       return "Other";
   }
@@ -79,6 +83,14 @@ export type HazardReport = {
   aiSource: "gemini" | "local" | null;
   aiModel: string | null;
   validatedAt: string | null;
+  /** Reporter signals used for trust scoring. */
+  reporterIdVerified: boolean;
+  reporterEmail: string | null;
+  reporterPhone: string | null;
+  reporterEmailVerified: boolean;
+  /** 0–100 composite trust (identity + contact + capture + AI). */
+  trustScore: number | null;
+  trustBreakdown: ReportTrustBreakdown | null;
   reactionCounts: ReactionCounts;
   commentCount: number;
   createdAt: string;

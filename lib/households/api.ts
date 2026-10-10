@@ -13,8 +13,13 @@ import {
   type Unsubscribe,
 } from "firebase/firestore";
 import { getClientDb } from "@/lib/firebase/client";
+import { distKm } from "@/lib/geo/bearing";
 import { CURATED_NANGKA_HOUSEHOLDS } from "@/lib/households/curatedSeed";
-import type { Household, HouseholdInput } from "@/lib/households/types";
+import type {
+  Household,
+  HouseholdInput,
+  HouseholdPresence,
+} from "@/lib/households/types";
 
 /** Firestore batch limit is 500; stay under for clear+seed headroom. */
 const BATCH_SIZE = 400;
@@ -35,6 +40,11 @@ export function subscribeHouseholds(
     (snap) => {
       const rows: Household[] = snap.docs.map((d) => {
         const data = d.data();
+        const presenceRaw = String(data.presence ?? "unknown");
+        const presence: HouseholdPresence =
+          presenceRaw === "home" || presenceRaw === "away"
+            ? presenceRaw
+            : "unknown";
         return {
           id: d.id,
           ownerName: String(data.ownerName ?? ""),
@@ -58,6 +68,15 @@ export function subscribeHouseholds(
                 (typeof data.createdAt === "string"
                   ? data.createdAt
                   : data.createdAt?.toDate?.()?.toISOString?.() ?? ""),
+          presence,
+          lastSeenLat:
+            typeof data.lastSeenLat === "number" ? data.lastSeenLat : null,
+          lastSeenLng:
+            typeof data.lastSeenLng === "number" ? data.lastSeenLng : null,
+          lastSeenArea:
+            data.lastSeenArea != null ? String(data.lastSeenArea) : null,
+          lastSeenAt:
+            typeof data.lastSeenAt === "string" ? data.lastSeenAt : null,
         };
       });
       rows.sort((a, b) =>
@@ -231,6 +250,7 @@ export async function ensureCuratedHouseholds(
       hit.email !== input.email.trim() ||
       hit.purok !== input.purok.trim() ||
       hit.address !== input.address.trim() ||
+      hit.notes !== input.notes.trim() ||
       hit.lat !== (input.lat ?? null) ||
       hit.lng !== (input.lng ?? null);
     if (!needsUpdate) continue;
@@ -251,4 +271,84 @@ export async function ensureCuratedHouseholds(
   }
 
   return { added, updated };
+}
+
+/** ~1.2 km from home pin counts as still “at home” / in-brgy. */
+const HOME_RADIUS_KM = 1.2;
+
+type PresenceLocateInput = {
+  lat: number;
+  lng: number;
+  /** e.g. "Brgy. Mabolo, Cebu City" */
+  areaLabel: string;
+  /** Registered home barangay (e.g. Nangka). */
+  homeBarangay?: string;
+  /** Barangay resolved from GPS. */
+  locatedBarangay?: string;
+};
+
+function presenceFromLocate(
+  homeLat: number | null,
+  homeLng: number | null,
+  input: PresenceLocateInput,
+): HouseholdPresence {
+  const homeBrgy = input.homeBarangay?.trim().toLowerCase();
+  const hereBrgy = input.locatedBarangay?.trim().toLowerCase();
+  if (homeBrgy && hereBrgy && homeBrgy !== hereBrgy) return "away";
+
+  if (homeLat != null && homeLng != null) {
+    const nearHome =
+      distKm(
+        { lat: homeLat, lng: homeLng },
+        { lat: input.lat, lng: input.lng },
+      ) <= HOME_RADIUS_KM;
+    return nearHome ? "home" : "away";
+  }
+
+  if (homeBrgy && hereBrgy && homeBrgy === hereBrgy) return "home";
+  return "away";
+}
+
+/**
+ * Citizen locate → update roster presence for households matching email.
+ * Home pin stays put; lastSeen* records where they are now.
+ */
+export async function updateHouseholdPresenceByEmail(
+  email: string,
+  input: PresenceLocateInput,
+): Promise<number> {
+  const normalized = email.trim().toLowerCase();
+  if (!normalized) return 0;
+
+  const snap = await getDocs(
+    query(
+      collection(getClientDb(), "households"),
+      where("email", "==", normalized),
+    ),
+  );
+  const matches = snap.docs;
+  if (matches.length === 0) return 0;
+
+  const now = new Date().toISOString();
+  let n = 0;
+  for (const d of matches) {
+    const data = d.data();
+    const homeLat = typeof data.lat === "number" ? data.lat : null;
+    const homeLng = typeof data.lng === "number" ? data.lng : null;
+    const presence = presenceFromLocate(homeLat, homeLng, input);
+    await updateDoc(d.ref, {
+      presence,
+      lastSeenLat: input.lat,
+      lastSeenLng: input.lng,
+      lastSeenArea:
+        presence === "home"
+          ? "At home barangay"
+          : input.areaLabel.trim() || "Outside home barangay",
+      lastSeenAt: now,
+      updatedAt: now,
+      updatedAtServer: serverTimestamp(),
+    });
+    n += 1;
+  }
+  return n;
 }

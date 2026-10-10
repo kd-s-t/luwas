@@ -10,7 +10,7 @@ export default function PrivacyPage() {
       <PublicPageHeader
         eyebrow="Legal"
         title="Privacy"
-        description="How Luwas handles account and field data for barangay DRRM use."
+        description="How LUWAS handles account and field data for barangay DRRM use."
       />
       <main className="mx-auto max-w-3xl space-y-6 px-4 py-8 text-sm leading-relaxed text-[var(--muted)] sm:px-6">
         <section className="space-y-2">
@@ -18,7 +18,7 @@ export default function PrivacyPage() {
             Who we are
           </h2>
           <p>
-            Luwas is operated by Ugnai Labs Incorporated for barangay and LGU
+            LUWAS is operated by UgnAI Labs Co. for barangay and LGU
             disaster risk reduction and management (DRRM) workflows.
           </p>
         </section>
@@ -38,10 +38,9 @@ export default function PrivacyPage() {
             How we use it
           </h2>
           <p>
-            Data is used to run the Luwas command and citizen tools, validate
+            Data is used to run the LUWAS command and citizen tools, validate
             reports, show public situation context, and respond to support
-            requests. Guidance in the app is for responders and is not a
-            life-safety guarantee.
+            requests. Guidance in the app is for responders.
           </p>
         </section>
         <section className="space-y-2">
@@ -66,7 +65,7 @@ export default function PrivacyPage() {
             >
               Support
             </Link>{" "}
-            page or contact Ugnai Labs Incorporated.
+            page or contact UgnAI Labs Co.
           </p>
         </section>
       </main>

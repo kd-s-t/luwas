@@ -32,9 +32,9 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: PageProps) {
   const { lgu: lguSlug, barangay: brgySlug } = await params;
   const hit = findBarangay(lguSlug, brgySlug);
-  if (!hit) return { title: "Barangay · Luwas" };
+  if (!hit) return { title: "Barangay · LUWAS" };
   return {
-    title: `${hit.barangay}, ${hit.lgu.name} · Luwas`,
+    title: `${hit.barangay}, ${hit.lgu.name} · LUWAS`,
     description: `Government employee hierarchy for Brgy. ${hit.barangay}, ${hit.lgu.name}, Cebu.`,
   };
 }
@@ -68,10 +68,19 @@ export default async function BarangayDetailPage({ params }: PageProps) {
 
       <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
         <MotionShell delay={0.06}>
-          <p className="mb-6 border border-[var(--warn)]/40 bg-[var(--warn)]/10 px-3 py-2 text-xs text-[var(--muted)]">
+          <p className="mb-4 border border-[var(--warn)]/40 bg-[var(--warn)]/10 px-3 py-2 text-xs text-[var(--muted)]">
             Officer names are <strong>fictional placeholders</strong> for Cup /
             training — not official DILG or COMELEC rolls. Responder stations
             are directory estimates for ops simulation.
+          </p>
+          <p className="mb-6 text-sm text-[var(--muted)]">
+            Officers can activate this barangay for command ops:{" "}
+            <Link
+              href={`/command/onboard?area=${encodeURIComponent(`${lguSlug}/${brgySlug}`)}`}
+              className="font-medium text-[var(--accent)] underline-offset-2 hover:underline"
+            >
+              Start onboarding →
+            </Link>
           </p>
         </MotionShell>
 

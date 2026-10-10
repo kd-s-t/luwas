@@ -31,7 +31,7 @@ export type StaffMemberInput = {
   office: string;
   phone: string;
   email: string;
-  /** Optional login email if they have a Luwas officer account. */
+  /** Optional login email if they have a LUWAS officer account. */
   accountEmail?: string;
   status: "active" | "leave" | "inactive";
   notes?: string;

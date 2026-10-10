@@ -41,7 +41,7 @@ export default function HomePage() {
 
           <FadeItem>
             <h1 className="mt-3 font-[family-name:var(--font-display)] text-5xl font-semibold leading-[0.95] tracking-wide text-[var(--foreground)] sm:text-6xl md:text-7xl lg:text-8xl">
-              Luwas
+              LUWAS
             </h1>
           </FadeItem>
 
@@ -73,7 +73,7 @@ export default function HomePage() {
           <FadeItem>
             <p className="mt-8 font-mono text-[10px] tracking-[0.18em] text-[var(--muted)] uppercase">
               <span className="dro-pulse-dot mr-2 inline-block h-1.5 w-1.5 rounded-full bg-[var(--accent)] align-middle" />
-              Guidance for responders · not a life-safety guarantee
+              Guidance for responders
             </p>
           </FadeItem>
         </Stagger>

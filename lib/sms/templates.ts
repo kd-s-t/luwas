@@ -1,3 +1,4 @@
+import { buildEvacSmsBody } from "@/lib/alerts/smsCopy";
 import {
   formatDistanceKm,
   haversineKm,
@@ -29,7 +30,7 @@ export function buildRegisterSms(
 ): TextParts {
   return parts(
     `LUWAS: Hi ${ctx.name}, thanks for registering as a citizen of ${ctx.barangay}. ` +
-      `Open the Luwas app / site to verify your account and start receiving DRRM alerts.`,
+      `Open the LUWAS app / site to verify your account and start receiving DRRM alerts.`,
   );
 }
 
@@ -80,8 +81,44 @@ export function buildTyphoonAlertSms(
 ): TextParts {
   return parts(
     `LUWAS TYPHOON WATCH · ~3 DAYS: Storm approaching ${ctx.barangay}. ` +
-      `Stock water/food/meds/power bank; secure roof & outdoor items; know escape to high ground. ` +
-      `Monitor Luwas & PAGASA — don't wait.`,
+      `Charge phone/flashlight/power bank now. Stock water/food/meds. ` +
+      `Save the LUWAS email as PDF — during landfall you may be on your own. Good luck.`,
+  );
+}
+
+export function buildEvacuateAlertSms(
+  ctx: EmailSampleContext = DEFAULT_EMAIL_SAMPLE,
+): TextParts {
+  return parts(
+    buildEvacSmsBody({
+      ownerName: ctx.name,
+      purok: ctx.purok,
+      priority: "evacuate",
+      barangay: ctx.barangay,
+    }),
+  );
+}
+
+export function buildPrepareAlertSms(
+  ctx: EmailSampleContext = DEFAULT_EMAIL_SAMPLE,
+): TextParts {
+  return parts(
+    buildEvacSmsBody({
+      ownerName: ctx.name,
+      purok: ctx.purok,
+      priority: "prepare",
+      barangay: ctx.barangay,
+    }),
+  );
+}
+
+export function buildReportVerifiedSms(
+  ctx: EmailSampleContext = DEFAULT_EMAIL_SAMPLE,
+): TextParts {
+  const report = ctx.report ?? DEFAULT_EMAIL_SAMPLE.report!;
+  return parts(
+    `LUWAS: Your report was verified — ${report.title} (${report.hazardLabel}) at ${report.place}. ` +
+      `Ref ${report.id}. Salamat — this helps ${ctx.barangay} DRRM prioritize response.`,
   );
 }
 
@@ -102,6 +139,12 @@ export function buildTextTemplate(
       return buildFireAlertSms(ctx);
     case "typhoon_alert":
       return buildTyphoonAlertSms(ctx);
+    case "evacuate_alert":
+      return buildEvacuateAlertSms(ctx);
+    case "prepare_alert":
+      return buildPrepareAlertSms(ctx);
+    case "report_verified":
+      return buildReportVerifiedSms(ctx);
     default: {
       const _exhaustive: never = id;
       return _exhaustive;

@@ -18,6 +18,11 @@ import {
   sortReportsByDistance,
 } from "@/lib/reports/barangayScope";
 import { captureReportMeta } from "@/lib/reports/captureMeta";
+import { ensureAllMapReportsInDb } from "@/lib/reports/seedMapReport";
+import {
+  formatTrustBreakdown,
+  trustLabel,
+} from "@/lib/reports/trustScore";
 import type { HazardReport } from "@/lib/reports/types";
 
 type Filter = "queue" | "all" | "legit" | "rejected";
@@ -34,7 +39,21 @@ export function ValidationQueue() {
   const anchor = useMemo(() => here ?? scopeAnchor(scope), [here, scope]);
 
   useEffect(() => {
-    return subscribeAllReports(setRows);
+    let unsub: (() => void) | undefined;
+    let cancelled = false;
+    void (async () => {
+      try {
+        await ensureAllMapReportsInDb();
+      } catch (err) {
+        console.warn("Map report seed failed", err);
+      }
+      if (cancelled) return;
+      unsub = subscribeAllReports(setRows);
+    })();
+    return () => {
+      cancelled = true;
+      unsub?.();
+    };
   }, []);
 
   useEffect(() => {
@@ -89,6 +108,17 @@ export function ValidationQueue() {
         aiSource: report.aiSource,
         aiModel: report.aiModel,
         validatedAt: new Date().toISOString(),
+        trustInput: {
+          registered: Boolean(report.citizenUid),
+          idVerified: report.reporterIdVerified,
+          email: report.reporterEmail,
+          phone: report.reporterPhone,
+          emailVerified: report.reporterEmailVerified,
+          mediaSource: report.mediaSource,
+          lat: report.lat,
+          lng: report.lng,
+          locationAccuracyM: report.locationAccuracyM,
+        },
       });
     } finally {
       setBusyId(null);
@@ -181,12 +211,29 @@ export function ValidationQueue() {
                   {r.aiSource ? (
                     <Badge variant="outline">via {r.aiSource}</Badge>
                   ) : null}
+                  {r.trustScore != null ? (
+                    <Badge
+                      variant="outline"
+                      title={
+                        r.trustBreakdown
+                          ? formatTrustBreakdown(r.trustBreakdown)
+                          : undefined
+                      }
+                    >
+                      Trust {r.trustScore}% · {trustLabel(r.trustScore)}
+                    </Badge>
+                  ) : null}
                 </div>
                 <p className="mt-0.5 text-xs text-[var(--muted)]">
                   {r.citizenName} · Brgy. {r.barangay} · {r.citizenPurok} ·{" "}
                   {r.hazardHint} · {new Date(r.createdAt).toLocaleString()}
                 </p>
                 <p className="mt-1 text-sm text-[var(--foreground)]">{r.notes}</p>
+                {r.trustBreakdown ? (
+                  <p className="mt-1 font-mono text-[10px] tracking-wide text-[var(--muted)] uppercase">
+                    {formatTrustBreakdown(r.trustBreakdown)}
+                  </p>
+                ) : null}
                 {r.aiReason ? (
                   <p className="mt-1 text-xs text-[var(--muted)]">
                     AI

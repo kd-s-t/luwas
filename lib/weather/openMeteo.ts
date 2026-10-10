@@ -81,7 +81,7 @@ export async function fetchOpenMeteoCebuWeather(): Promise<AreaWeather> {
 }
 
 /**
- * Client-side helper — hits Luwas `/api/weather` so the Google key stays server-only.
+ * Client-side helper — hits LUWAS `/api/weather` so the Google key stays server-only.
  */
 export async function fetchCebuWeather(): Promise<AreaWeather> {
   // Respect Cache-Control from /api/weather (5 min). Avoid cache: "no-store".

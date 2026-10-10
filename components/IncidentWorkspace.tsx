@@ -15,6 +15,7 @@ import {
   scopeLabel,
   sortReportsByDistance,
 } from "@/lib/reports/barangayScope";
+import { ensureAllMapReportsInDb } from "@/lib/reports/seedMapReport";
 import {
   hazardHintLabel,
   type HazardReport,
@@ -47,7 +48,21 @@ export function IncidentWorkspace() {
   const scope = useMemo(() => scopeForProfile(profile), [profile]);
 
   useEffect(() => {
-    return subscribeAllReports(setRows);
+    let unsub: (() => void) | undefined;
+    let cancelled = false;
+    void (async () => {
+      try {
+        await ensureAllMapReportsInDb();
+      } catch (err) {
+        console.warn("Map report seed failed", err);
+      }
+      if (cancelled) return;
+      unsub = subscribeAllReports(setRows);
+    })();
+    return () => {
+      cancelled = true;
+      unsub?.();
+    };
   }, []);
 
   const scoped = useMemo(
@@ -106,6 +121,17 @@ export function IncidentWorkspace() {
         aiSource: report.aiSource,
         aiModel: report.aiModel,
         validatedAt: new Date().toISOString(),
+        trustInput: {
+          registered: Boolean(report.citizenUid),
+          idVerified: report.reporterIdVerified,
+          email: report.reporterEmail,
+          phone: report.reporterPhone,
+          emailVerified: report.reporterEmailVerified,
+          mediaSource: report.mediaSource,
+          lat: report.lat,
+          lng: report.lng,
+          locationAccuracyM: report.locationAccuracyM,
+        },
       });
     } finally {
       setBusyId(null);
@@ -287,6 +313,18 @@ export function IncidentWorkspace() {
                                 : ""
                             }`
                           : "Pending"
+                      }
+                    />
+                    <Meta
+                      label="Trust"
+                      value={
+                        selected.trustScore != null
+                          ? `${selected.trustScore}%${
+                              selected.trustBreakdown
+                                ? ` · ID ${selected.trustBreakdown.identity} · contact ${selected.trustBreakdown.contact} · capture ${selected.trustBreakdown.capture} · AI ${selected.trustBreakdown.ai}`
+                                : ""
+                            }`
+                          : "Not scored"
                       }
                     />
                     <Meta

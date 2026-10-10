@@ -19,7 +19,10 @@ export type EmailSendResult = {
 export type EmailRecipient = {
   to: string;
   subject: string;
+  /** Plain-text body */
   body: string;
+  /** Branded HTML body (preferred for Resend) */
+  html?: string;
   meta?: {
     householdId?: string;
     ownerName?: string;
@@ -46,22 +49,27 @@ function isSyntheticInbox(email: string) {
 async function sendViaResend(
   to: string,
   subject: string,
-  body: string,
+  text: string,
+  html?: string,
 ): Promise<EmailSendResult> {
   const key = process.env.RESEND_API_KEY!.trim();
   const from = process.env.RESEND_FROM_EMAIL!.trim();
+  const payload: Record<string, unknown> = {
+    from,
+    to: [to],
+    subject,
+    text,
+  };
+  if (html?.trim()) {
+    payload.html = html;
+  }
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${key}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      from,
-      to: [to],
-      subject,
-      text: body,
-    }),
+    body: JSON.stringify(payload),
   });
   const data = (await res.json()) as { id?: string; message?: string };
   if (!res.ok) {
@@ -95,6 +103,7 @@ export async function sendEmailBatch(
         r.to,
         r.meta?.ownerName ?? "",
         r.subject,
+        r.html ? "(html)" : "(text-only)",
       );
       results.push({
         to: r.to,
@@ -106,7 +115,7 @@ export async function sendEmailBatch(
       continue;
     }
     try {
-      const sent = await sendViaResend(r.to, r.subject, r.body);
+      const sent = await sendViaResend(r.to, r.subject, r.body, r.html);
       results.push({ ...sent, ...detail });
     } catch (err) {
       results.push({

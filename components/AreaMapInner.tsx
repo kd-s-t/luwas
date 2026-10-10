@@ -18,10 +18,14 @@ import {
   useMap,
 } from "react-leaflet";
 import L from "leaflet";
-import { Loader2, LocateFixed } from "lucide-react";
+import { Crosshair, Loader2, LocateFixed, Tornado } from "lucide-react";
 import type { AssistEscapeRoute, AssistPriority } from "@/lib/ai/assistTypes";
 import { pointAndBearingAlongPath } from "@/lib/geo/bearing";
 import { DEFAULT_MAP_AREA, type MapArea } from "@/lib/geo/mapAreas";
+import {
+  phoneToTelHref,
+  type ResponderMapPin,
+} from "@/lib/geo/responderStations";
 import type { SafePoint } from "@/lib/geo/safePoints";
 import type { FireSample } from "@/lib/hazards/fireSamples";
 import { fireSeverityLabel } from "@/lib/hazards/fireSamples";
@@ -39,22 +43,65 @@ import type { QuakeEvent } from "@/lib/hazards/usgsEarthquakes";
 import { HouseholdPinsLayer } from "@/components/HouseholdPinsLayer";
 import type { Household } from "@/lib/households/types";
 import {
+  facilityMarkerHtml,
   lucideLandslideMarkerHtml,
   lucideTyphoonMarkerHtml,
   reportPinMarkerHtml,
+  type FacilityMarkerKind,
 } from "@/lib/map/lucideMarkerHtml";
+import {
+  evacFillLabel,
+  evacStatusForSafePoint,
+  formatEvacPopulationLine,
+} from "@/lib/reports/evacStatus";
 import type { ScenarioReportPin } from "@/lib/scenarios/types";
 import { cn } from "@/lib/utils";
 import "leaflet/dist/leaflet.css";
 
 type MapFlyFn = (lat: number, lng: number, zoom?: number) => void;
+type MapFitFn = () => void;
 
-const hallIcon = L.divIcon({
-  className: "dro-map-marker dro-map-marker-hall",
-  html: "<span class='dro-map-marker-dot dro-map-marker-dot-hall'></span>",
-  iconSize: [16, 16],
-  iconAnchor: [8, 8],
-});
+function typhoonFitPoints(
+  area: MapArea,
+  typhoons: TyphoonSample[],
+): { points: [number, number][]; eyeNear: boolean } {
+  const points: [number, number][] = [[area.center.lat, area.center.lng]];
+  const eyeNear = typhoons.some((t) => t.distanceKm < 60);
+  for (const ty of typhoons) {
+    points.push([ty.lat, ty.lng]);
+    if (!eyeNear) {
+      for (const p of ty.track ?? []) {
+        points.push([p.lat, p.lng]);
+      }
+    }
+  }
+  return { points, eyeNear };
+}
+
+function fitBrgyAndTyphoon(
+  map: L.Map,
+  area: MapArea,
+  typhoons: TyphoonSample[],
+) {
+  if (typhoons.length === 0) return;
+  const { points, eyeNear } = typhoonFitPoints(area, typhoons);
+  if (points.length < 2) return;
+  map.fitBounds(L.latLngBounds(points).pad(eyeNear ? 0.45 : 0.18), {
+    animate: true,
+    maxZoom: eyeNear ? 13 : 9,
+  });
+}
+
+function facilityIcon(kind: FacilityMarkerKind) {
+  return L.divIcon({
+    className: "dro-map-marker",
+    html: facilityMarkerHtml(kind, 28),
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+  });
+}
+
+const hallIcon = facilityIcon("hall");
 
 function quakeIcon(mag: number | null) {
   const m = mag ?? 0;
@@ -162,13 +209,6 @@ function escapeChevronIcon(bearing: number) {
   });
 }
 
-const shelterIcon = L.divIcon({
-  className: "dro-map-marker",
-  html: "<span class='dro-map-marker-dot dro-map-marker-dot-shelter'></span>",
-  iconSize: [14, 14],
-  iconAnchor: [7, 7],
-});
-
 const youIcon = L.divIcon({
   className: "dro-map-marker",
   html: "<span class='dro-map-marker-dot dro-map-marker-dot-you'></span>",
@@ -194,25 +234,44 @@ function reportIcon(kind: ScenarioReportPin["kind"]) {
   });
 }
 
-/** Keep two-finger pinch on the map (Safari otherwise zooms the page). */
+/**
+ * Keep trackpad / touch gestures on the map — otherwise Chrome/Safari
+ * pinch-zoom or two-finger-scroll the page instead of Leaflet.
+ */
 function MapTouchGuard() {
   const map = useMap();
   useEffect(() => {
     const el = map.getContainer();
     el.style.touchAction = "none";
+    el.style.setProperty("-ms-touch-action", "none");
 
-    const blockGesture = (e: Event) => {
+    const block = (e: Event) => {
       e.preventDefault();
     };
-    // iOS Safari legacy gesture events
-    el.addEventListener("gesturestart", blockGesture, { passive: false });
-    el.addEventListener("gesturechange", blockGesture, { passive: false });
-    el.addEventListener("gestureend", blockGesture, { passive: false });
+
+    // Trackpad pinch = ctrl+wheel (Chrome/Edge/Firefox); Safari uses gesture*.
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      // Leaflet scrollWheelZoom handles zoom; we only steal the event from the page.
+    };
+
+    // Multi-touch pan/pinch on tablets / phones
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length >= 2) e.preventDefault();
+    };
+
+    el.addEventListener("wheel", onWheel, { passive: false });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("gesturestart", block, { passive: false });
+    el.addEventListener("gesturechange", block, { passive: false });
+    el.addEventListener("gestureend", block, { passive: false });
 
     return () => {
-      el.removeEventListener("gesturestart", blockGesture);
-      el.removeEventListener("gesturechange", blockGesture);
-      el.removeEventListener("gestureend", blockGesture);
+      el.removeEventListener("wheel", onWheel);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("gesturestart", block);
+      el.removeEventListener("gesturechange", block);
+      el.removeEventListener("gestureend", block);
     };
   }, [map]);
   return null;
@@ -222,20 +281,25 @@ function RecenterOnArea({
   area,
   userLocation,
   skip,
+  lockToArea,
 }: {
   area: MapArea;
   userLocation?: { lat: number; lng: number } | null;
   skip?: boolean;
+  /** Officer ops: always frame the barangay, never GPS. */
+  lockToArea?: boolean;
 }) {
   const map = useMap();
   useEffect(() => {
     if (skip) return;
-    const lat = userLocation?.lat ?? area.center.lat;
-    const lng = userLocation?.lng ?? area.center.lng;
-    const zoom = userLocation ? Math.max(area.zoom, 16) : area.zoom;
+    const followUser = Boolean(userLocation) && !lockToArea;
+    const lat = followUser ? userLocation!.lat : area.center.lat;
+    const lng = followUser ? userLocation!.lng : area.center.lng;
+    const zoom = followUser ? Math.max(area.zoom, 16) : area.zoom;
     map.flyTo([lat, lng], zoom, { duration: 0.85 });
   }, [
     skip,
+    lockToArea,
     area.center.lat,
     area.center.lng,
     area.zoom,
@@ -263,27 +327,99 @@ function FlyToFocus({
   return null;
 }
 
-function MapFlyBridge({ flyRef }: { flyRef: MutableRefObject<MapFlyFn | null> }) {
+function MapFlyBridge({
+  flyRef,
+  fitTyphoonRef,
+  area,
+  typhoons,
+}: {
+  flyRef: MutableRefObject<MapFlyFn | null>;
+  fitTyphoonRef: MutableRefObject<MapFitFn | null>;
+  area: MapArea;
+  typhoons: TyphoonSample[];
+}) {
   const map = useMap();
   useEffect(() => {
     flyRef.current = (lat, lng, zoom = 16) => {
       map.flyTo([lat, lng], zoom, { duration: 0.85 });
     };
+    fitTyphoonRef.current = () => fitBrgyAndTyphoon(map, area, typhoons);
     return () => {
       flyRef.current = null;
+      fitTyphoonRef.current = null;
     };
-  }, [map, flyRef]);
+  }, [map, flyRef, fitTyphoonRef, area, typhoons]);
   return null;
+}
+
+function ZoomToBarangayButton({
+  area,
+  flyRef,
+}: {
+  area: MapArea;
+  flyRef: MutableRefObject<MapFlyFn | null>;
+}) {
+  const label = `Zoom to Brgy. ${area.barangay}`;
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        flyRef.current?.(area.center.lat, area.center.lng, area.zoom);
+      }}
+      title={label}
+      aria-label={label}
+      className="pointer-events-auto flex size-9 items-center justify-center border border-[var(--border)] bg-[var(--surface)] text-[var(--accent)] shadow-sm transition hover:border-[var(--accent)]"
+    >
+      <Crosshair className="size-4" aria-hidden />
+    </button>
+  );
+}
+
+function ShowBrgyAndTyphoonButton({
+  fitTyphoonRef,
+  hasTyphoon,
+}: {
+  fitTyphoonRef: MutableRefObject<MapFitFn | null>;
+  hasTyphoon: boolean;
+}) {
+  const label = hasTyphoon
+    ? "Show barangay and typhoon"
+    : "No typhoon on this map";
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        if (hasTyphoon) fitTyphoonRef.current?.();
+      }}
+      disabled={!hasTyphoon}
+      title={label}
+      aria-label={label}
+      className={cn(
+        "pointer-events-auto flex size-9 items-center justify-center border border-[var(--border)] bg-[var(--surface)] shadow-sm transition",
+        hasTyphoon
+          ? "text-[#1d4ed8] hover:border-[#1d4ed8]"
+          : "cursor-not-allowed text-[var(--muted)] opacity-45",
+      )}
+    >
+      <Tornado className="size-4" aria-hidden />
+    </button>
+  );
 }
 
 function LocateMeButton({
   knownLocation,
   flyRef,
   onLocated,
+  pinOnly,
+  area,
 }: {
   knownLocation: { lat: number; lng: number } | null;
   flyRef: MutableRefObject<MapFlyFn | null>;
   onLocated: (lat: number, lng: number) => void;
+  /** Drop a pin without flying the camera (command / officer ops). */
+  pinOnly?: boolean;
+  /** When set, show a “zoom to my barangay” control above locate. */
+  area?: MapArea;
 }) {
   const [status, setStatus] = useState<"idle" | "locating" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
@@ -294,7 +430,7 @@ function LocateMeButton({
       setError("Location not supported");
       return;
     }
-    if (knownLocation) {
+    if (knownLocation && !pinOnly) {
       flyRef.current?.(knownLocation.lat, knownLocation.lng);
     }
     setStatus("locating");
@@ -303,7 +439,7 @@ function LocateMeButton({
       (pos) => {
         const { latitude: lat, longitude: lng } = pos.coords;
         onLocated(lat, lng);
-        flyRef.current?.(lat, lng);
+        if (!pinOnly) flyRef.current?.(lat, lng);
         setStatus("idle");
       },
       (err) => {
@@ -322,15 +458,20 @@ function LocateMeButton({
     );
   }
 
+  const locateLabel = pinOnly
+    ? "Show my location pin"
+    : "Focus on my location";
+
   return (
-    <div className="pointer-events-none absolute top-14 right-2.5 z-[1000] flex flex-col items-end gap-1">
+    <>
+      {area ? <ZoomToBarangayButton area={area} flyRef={flyRef} /> : null}
       <button
         type="button"
         onClick={() => {
           if (status !== "locating") locate();
         }}
-        title="Focus on my location"
-        aria-label="Focus on my location"
+        title={locateLabel}
+        aria-label={locateLabel}
         disabled={status === "locating"}
         className={cn(
           "pointer-events-auto flex size-9 items-center justify-center border border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)] shadow-sm transition hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:opacity-60",
@@ -348,7 +489,7 @@ function LocateMeButton({
           {error}
         </p>
       ) : null}
-    </div>
+    </>
   );
 }
 
@@ -364,24 +505,8 @@ function FitTyphoonTrack({
   const map = useMap();
   useEffect(() => {
     if (!enabled) return;
-    const points: [number, number][] = [
-      [area.center.lat, area.center.lng],
-    ];
-    const eyeNear = typhoons.some((t) => t.distanceKm < 60);
-    for (const ty of typhoons) {
-      points.push([ty.lat, ty.lng]);
-      if (!eyeNear) {
-        for (const p of ty.track ?? []) {
-          points.push([p.lat, p.lng]);
-        }
-      }
-    }
-    if (points.length < 2) return;
-    map.fitBounds(L.latLngBounds(points).pad(eyeNear ? 0.45 : 0.18), {
-      animate: true,
-      maxZoom: eyeNear ? 13 : 9,
-    });
-  }, [typhoons, area.center.lat, area.center.lng, enabled, map]);
+    fitBrgyAndTyphoon(map, area, typhoons);
+  }, [typhoons, area, enabled, map]);
   return null;
 }
 
@@ -442,10 +567,15 @@ function FitHouseholds({
 
 type AreaMapInnerProps = {
   area?: MapArea;
-  /** Visitor GPS pin — map flies here when set */
+  /** Visitor GPS pin — map flies here when set (unless lockCameraToArea) */
   userLocation?: { lat: number; lng: number } | null;
   /** Called when the in-map locate control gets a fix */
   onUserLocationChange?: (loc: { lat: number; lng: number }) => void;
+  /**
+   * Officer command: keep the camera on the barangay ops area even if the
+   * officer’s device GPS is elsewhere (e.g. working from IT Park).
+   */
+  lockCameraToArea?: boolean;
   /**
    * @deprecated Parent should pass only this barangay’s pack layers.
    * Kept for call-site compatibility; ignored.
@@ -460,6 +590,8 @@ type AreaMapInnerProps = {
   reportPins?: ScenarioReportPin[];
   /** Safe / EC pins for this barangay pack (not global Nangka). */
   safePoints?: SafePoint[];
+  /** BFP + hospitals (own LGU + nearby) with phone numbers. */
+  responders?: ResponderMapPin[];
   /** householdId → AI priority — updates marker style + map focus */
   assistPriorities?: Record<string, AssistPriority>;
   escapeRoutes?: AssistEscapeRoute[];
@@ -469,6 +601,7 @@ export default function AreaMapInner({
   area = DEFAULT_MAP_AREA,
   userLocation = null,
   onUserLocationChange,
+  lockCameraToArea = false,
   forceLayers: _forceLayers = false,
   households,
   quakes,
@@ -478,17 +611,21 @@ export default function AreaMapInner({
   fires = [],
   reportPins = [],
   safePoints = [],
+  responders = [],
   assistPriorities = {},
   escapeRoutes = [],
 }: AreaMapInnerProps) {
   void _forceLayers;
   const flyRef = useRef<MapFlyFn | null>(null);
+  const fitTyphoonRef = useRef<MapFitFn | null>(null);
   const [localUser, setLocalUser] = useState<{
     lat: number;
     lng: number;
   } | null>(null);
   const [focusNonce, setFocusNonce] = useState(0);
   const effectiveUser = userLocation ?? localUser;
+  // Command ops: never show officer GPS — camera + pins stay on selected brgy.
+  const showUserPin = Boolean(effectiveUser) && !lockCameraToArea;
   // Parent scopes layers per barangay pack — paint whatever is passed.
   const mapped = households.filter((h) => h.lat != null && h.lng != null);
   const highlightIds = Object.keys(assistPriorities);
@@ -499,67 +636,74 @@ export default function AreaMapInner({
   const layerReports = reportPins;
   const layerEscapes = escapeRoutes;
   const layerSafePoints = safePoints;
+  const layerResponders = responders;
   const activeEvacIds = new Set(layerEscapes.map((r) => r.destinationId));
+  const hasTyphoon = layerTyphoons.length > 0;
   const hasForecastTrack = layerTyphoons.some((t) => (t.track?.length ?? 0) > 1);
-
-  const [basemap, setBasemap] = useState<"streets" | "terrain">("terrain");
+  /** GPS may drop a pin, but camera framing stays on the barangay. */
+  const cameraFollowsUser = showUserPin;
 
   function handleLocated(lat: number, lng: number) {
+    if (lockCameraToArea) return;
     setLocalUser({ lat, lng });
     setFocusNonce((n) => n + 1);
     onUserLocationChange?.({ lat, lng });
   }
 
   return (
-    <div className="relative h-full w-full">
+    <div className="relative h-full w-full touch-none overscroll-none">
     <MapContainer
       center={[area.center.lat, area.center.lng]}
       zoom={area.zoom}
       className="h-full w-full touch-none [&_.leaflet-control-attribution]:text-[9px]"
-      scrollWheelZoom={false}
+      scrollWheelZoom
       touchZoom
       bounceAtZoomLimits={false}
     >
-      {basemap === "terrain" ? (
-        <TileLayer
-          key="terrain"
-          attribution='Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="https://viewfinderpanoramas.org">SRTM</a> | Style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a>'
-          url="https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png"
-          maxZoom={17}
-        />
-      ) : (
-        <TileLayer
-          key="streets"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-      )}
+      <TileLayer
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
       <MapTouchGuard />
-      <MapFlyBridge flyRef={flyRef} />
+      <MapFlyBridge
+        flyRef={flyRef}
+        fitTyphoonRef={fitTyphoonRef}
+        area={area}
+        typhoons={layerTyphoons}
+      />
       <RecenterOnArea
         area={area}
-        userLocation={effectiveUser}
-        skip={hasForecastTrack && !effectiveUser}
+        userLocation={showUserPin ? effectiveUser : null}
+        lockToArea={lockCameraToArea}
+        skip={
+          hasForecastTrack && !cameraFollowsUser && !lockCameraToArea
+        }
       />
-      <FlyToFocus target={effectiveUser} nonce={focusNonce} />
+      <FlyToFocus
+        target={cameraFollowsUser ? effectiveUser : null}
+        nonce={focusNonce}
+      />
       <FitTyphoonTrack
         typhoons={layerTyphoons}
         area={area}
-        enabled={hasForecastTrack && !effectiveUser}
+        enabled={
+          hasForecastTrack && !cameraFollowsUser && !lockCameraToArea
+        }
       />
-      {layerSafePoints.length === 0 && !effectiveUser ? (
+      {layerSafePoints.length === 0 && !showUserPin ? (
         <Marker
           position={[area.center.lat, area.center.lng]}
           icon={hallIcon}
+          zIndexOffset={750}
         >
           <Popup>
-            <strong>Brgy. {area.barangay} hall</strong>
+            <strong>Command center · Brgy. {area.barangay} Hall</strong>
             <br />
             {area.name}
           </Popup>
         </Marker>
       ) : null}
-      {effectiveUser ? (
+      {showUserPin && effectiveUser ? (
         <Marker
           position={[effectiveUser.lat, effectiveUser.lng]}
           icon={youIcon}
@@ -877,6 +1021,16 @@ export default function AreaMapInner({
                 </span>
               )}
               <br />
+              {rp.kind === "evac_status" &&
+              typeof rp.occupancy === "number" &&
+              typeof rp.capacity === "number" ? (
+                <>
+                  <strong>
+                    {rp.occupancy} / {rp.capacity} people
+                  </strong>
+                  <br />
+                </>
+              ) : null}
               {rp.purokHint}
               <br />
               {rp.notes}
@@ -952,40 +1106,100 @@ export default function AreaMapInner({
         );
       })}
       {layerSafePoints.map((sp) => {
-        const role = sp.isEvacCenter
-          ? "Evacuation center"
-          : sp.kind === "hall"
-            ? "Command"
-            : "Landmark";
         const active = activeEvacIds.has(sp.id);
+        const pop = evacStatusForSafePoint(sp, layerReports);
+        const z =
+          sp.kind === "hall"
+            ? 760
+            : active
+              ? 740
+              : sp.kind === "evac_center"
+                ? 720
+                : sp.kind === "school"
+                  ? 710
+                  : 690;
         return (
           <Marker
             key={sp.id}
             position={[sp.lat, sp.lng]}
-            icon={
-              sp.isEvacCenter || sp.kind === "hall" ? shelterIcon : hallIcon
-            }
-            zIndexOffset={active ? 720 : sp.isEvacCenter ? 700 : 680}
+            icon={facilityIcon(sp.kind)}
+            zIndexOffset={z}
           >
             <Popup>
-              <strong>
-                {role} · {sp.name}
-              </strong>
-              <br />
-              Elevation ~{Math.round(sp.elevM)} m (Google Elevation)
-              <br />
-              {sp.notes}
-              {active ? (
+              <strong>{sp.name}</strong>
+              {pop ? (
                 <>
                   <br />
-                  Active escape destination
+                  <span style={{ fontWeight: 700 }}>
+                    {formatEvacPopulationLine(pop)}
+                  </span>
+                  <br />
+                  {pop.notes}
+                  <br />
+                  <span style={{ opacity: 0.75 }}>
+                    {pop.sourceLabel} · {evacFillLabel(pop.fill)}
+                    {pop.href ? (
+                      <>
+                        {" · "}
+                        <a href={pop.href}>Field report</a>
+                      </>
+                    ) : null}
+                  </span>
+                </>
+              ) : sp.isEvacCenter ? (
+                <>
+                  <br />
+                  <span style={{ opacity: 0.75 }}>
+                    No population report yet · EC staff can upload a field
+                    report
+                  </span>
                 </>
               ) : null}
             </Popup>
           </Marker>
         );
       })}
-      {!effectiveUser && !hasForecastTrack ? (
+      {layerResponders.map((r) => {
+        const role = r.kind === "bfp" ? "Fire station (BFP)" : "Hospital";
+        return (
+          <Marker
+            key={r.id}
+            position={[r.lat, r.lng]}
+            icon={facilityIcon(r.kind)}
+            zIndexOffset={r.kind === "bfp" ? 730 : 725}
+          >
+            <Popup>
+              <strong>
+                {role} · {r.name}
+              </strong>
+              <br />
+              {r.seat}
+              {r.covers ? (
+                <>
+                  <br />
+                  Covers: {r.covers}
+                </>
+              ) : null}
+              {r.notes ? (
+                <>
+                  <br />
+                  {r.notes}
+                </>
+              ) : null}
+              <br />
+              Call:{" "}
+              {r.phones.map((p, i) => (
+                <span key={p}>
+                  {i > 0 ? " · " : null}
+                  <a href={phoneToTelHref(p)}>{p}</a>
+                </span>
+              ))}
+            </Popup>
+          </Marker>
+        );
+      })}
+      {!cameraFollowsUser &&
+      (!hasForecastTrack || lockCameraToArea) ? (
         <FitHouseholds
           area={area}
           households={mapped}
@@ -994,39 +1208,28 @@ export default function AreaMapInner({
         />
       ) : null}
     </MapContainer>
-    <LocateMeButton
-      knownLocation={effectiveUser}
-      flyRef={flyRef}
-      onLocated={handleLocated}
-    />
-    <div className="absolute bottom-3 left-3 z-[1000] flex overflow-hidden border border-[var(--border)] bg-[var(--surface-raised)]/95 shadow-sm backdrop-blur-sm">
-      <button
-        type="button"
-        onClick={() => setBasemap("terrain")}
-        className={cn(
-          "px-2.5 py-1.5 font-mono text-[9px] tracking-[0.14em] uppercase transition",
-          basemap === "terrain"
-            ? "bg-[var(--accent)] text-[var(--on-accent)]"
-            : "text-[var(--muted)] hover:bg-[var(--surface-panel)] hover:text-[var(--foreground)]",
-        )}
-        aria-pressed={basemap === "terrain"}
-      >
-        Terrain
-      </button>
-      <button
-        type="button"
-        onClick={() => setBasemap("streets")}
-        className={cn(
-          "px-2.5 py-1.5 font-mono text-[9px] tracking-[0.14em] uppercase transition",
-          basemap === "streets"
-            ? "bg-[var(--accent)] text-[var(--on-accent)]"
-            : "text-[var(--muted)] hover:bg-[var(--surface-panel)] hover:text-[var(--foreground)]",
-        )}
-        aria-pressed={basemap === "streets"}
-      >
-        Streets
-      </button>
-    </div>
+    {lockCameraToArea ? (
+      <div className="pointer-events-none absolute top-14 right-2.5 z-[1000] flex flex-col items-end gap-1">
+        <ShowBrgyAndTyphoonButton
+          fitTyphoonRef={fitTyphoonRef}
+          hasTyphoon={hasTyphoon}
+        />
+        <ZoomToBarangayButton area={area} flyRef={flyRef} />
+      </div>
+    ) : (
+      <div className="pointer-events-none absolute top-14 right-2.5 z-[1000] flex flex-col items-end gap-1">
+        <ShowBrgyAndTyphoonButton
+          fitTyphoonRef={fitTyphoonRef}
+          hasTyphoon={hasTyphoon}
+        />
+        <LocateMeButton
+          knownLocation={effectiveUser}
+          flyRef={flyRef}
+          onLocated={handleLocated}
+          area={undefined}
+        />
+      </div>
+    )}
     </div>
   );
 }

@@ -20,6 +20,19 @@ import type { StaffMember, StaffMemberInput } from "@/lib/staff/types";
 
 const COL = "barangayStaff";
 
+function asIso(value: unknown, serverValue: unknown): string {
+  if (typeof value === "string") return value;
+  if (
+    serverValue &&
+    typeof serverValue === "object" &&
+    "toDate" in serverValue &&
+    typeof (serverValue as { toDate: () => Date }).toDate === "function"
+  ) {
+    return (serverValue as { toDate: () => Date }).toDate().toISOString();
+  }
+  return "";
+}
+
 function mapDoc(
   id: string,
   data: Record<string, unknown>,
@@ -46,14 +59,8 @@ function mapDoc(
     notes: typeof data.notes === "string" ? data.notes : undefined,
     barangayId: String(data.barangayId ?? NANGKA_BARANGAY_ID),
     orgName: String(data.orgName ?? NANGKA_ORG_NAME),
-    createdAt:
-      typeof data.createdAt === "string"
-        ? data.createdAt
-        : data.createdAtServer?.toDate?.()?.toISOString?.() ?? "",
-    updatedAt:
-      typeof data.updatedAt === "string"
-        ? data.updatedAt
-        : data.updatedAtServer?.toDate?.()?.toISOString?.() ?? "",
+    createdAt: asIso(data.createdAt, data.createdAtServer),
+    updatedAt: asIso(data.updatedAt, data.updatedAtServer),
   };
 }
 

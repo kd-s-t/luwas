@@ -29,6 +29,7 @@ const HAZARD_FILTERS: { id: "all" | ReportHazardHint; label: string }[] = [
   { id: "flood", label: "Flood" },
   { id: "landslide", label: "Landslide" },
   { id: "fire", label: "Fire" },
+  { id: "evac", label: "Evacuation center" },
   { id: "other", label: "Other" },
 ];
 

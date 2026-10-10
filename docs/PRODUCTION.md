@@ -67,19 +67,30 @@ Providers: `hashicorp/google`, `hashicorp/google-beta`.
 - Firestore database
 - Outputs for Next.js env (`project_id`, web API key / config fields when available)
 
-**Apply (when ready — not for local slice 1):**
+**Apply (fresh free Firebase / GCP account):**
 
 ```bash
+# 1) Auth (once)
+gcloud auth login
+gcloud auth application-default login
+
+# 2) Terraform
 cd infra
-cp terraform.tfvars.example terraform.tfvars   # set project_id
+cp terraform.tfvars.example terraform.tfvars   # set project_id (globally unique)
+# Optional: billing_account = "01XXXX-..." if API enable / Firestore requires Blaze
 terraform init
 terraform plan
 terraform apply
+
+# 3) Print Next.js env from outputs
+terraform output -raw next_env_hint
 ```
 
-Map outputs into App Hosting / `.env` with `NEXT_PUBLIC_USE_EMULATORS=false`.
+With `create_project = true` (default in the example), Terraform creates the GCP project, enables APIs, adds Firebase, creates Firestore, and a web app config.
 
-**Caveats:** App Hosting, Extensions, and some Auth console settings remain partial in the provider. Terraform owns project + core services; use Firebase CLI for gaps.
+Map outputs into App Hosting / `.env` with `NEXT_PUBLIC_USE_EMULATORS=false`. Enable **Email/Password** in Firebase Auth console after apply.
+
+**Caveats:** App Hosting, Extensions, and some Auth console settings remain partial in the provider. Terraform owns project + core services; use Firebase CLI for gaps. Spark (free) works for Auth + Firestore; some GCP API enable calls may ask for a billing account — set `billing_account` if apply fails.
 
 ## CI / CD (GitHub)
 

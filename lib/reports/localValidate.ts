@@ -21,7 +21,7 @@ export function runLocalValidate(input: {
   const spam =
     /\b(test|fake|joke|photoshop|ai generated|clickbait|meme)\b/i.test(text);
   const hazardWords =
-    /\b(flood|baha|landslide|guho|typhoon|bagyo|fire|sunog|evacuate|tubig|slippery|overflow)\b/i.test(
+    /\b(flood|baha|landslide|guho|typhoon|bagyo|fire|sunog|evacuate|tubig|slippery|overflow|evacuation center|evac|occupancy|sheltered|capacity)\b/i.test(
       text,
     );
   const placeWords =

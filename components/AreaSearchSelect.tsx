@@ -64,6 +64,23 @@ export function AreaSearchSelect({
     setOpen(false);
     setQuery("");
     try {
+      // Prefer hall pin from barangay onboarding when present.
+      const { getOnboardedBarangay } = await import(
+        "@/lib/onboarding/storage"
+      );
+      const onboarded = getOnboardedBarangay(option.id);
+      if (onboarded) {
+        onChange({
+          id: option.id,
+          barangay: option.barangay,
+          lgu: option.lgu,
+          name: option.name,
+          center: { ...onboarded.center },
+          zoom: onboarded.zoom,
+        });
+        return;
+      }
+
       const res = await fetch("/api/geo/resolve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

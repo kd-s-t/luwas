@@ -25,9 +25,9 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Luwas",
+  title: "LUWAS",
   description:
-    "Luwas — Logistics & Unified Workflow for Aid & Safety. Barangay DRRM command center.",
+    "LUWAS — Logistics & Unified Workflow for Aid & Safety. Barangay DRRM command center.",
 };
 
 export default function RootLayout({

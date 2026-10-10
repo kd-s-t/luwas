@@ -35,9 +35,12 @@ body {
     linear-gradient(180deg, #ffffff 0%, #f3faf6 100%);
 }
 
-input,
-button {
-  font: inherit;
+/* Keep in @layer base so Tailwind utilities (text-*, font-*) can override. */
+@layer base {
+  input,
+  button {
+    font: inherit;
+  }
 }
 
 /* Public home — full-bleed map plane */
@@ -232,9 +235,44 @@ button {
 }
 
 .dro-map-lucide-typhoon,
-.dro-map-lucide-slide {
+.dro-map-lucide-slide,
+.dro-map-lucide-facility {
   display: block;
   filter: drop-shadow(0 0 0 transparent);
+}
+
+.dro-map-lucide-wrap-facility {
+  border-width: 2px;
+}
+
+.dro-map-lucide-wrap-facility-hall {
+  color: #0f5c38;
+  background: #ecfdf5;
+}
+
+.dro-map-lucide-wrap-facility-school {
+  color: #1d4ed8;
+  background: #eff6ff;
+}
+
+.dro-map-lucide-wrap-facility-evac_center {
+  color: #15803d;
+  background: #f0fdf4;
+}
+
+.dro-map-lucide-wrap-facility-landmark {
+  color: #78716c;
+  background: #fafaf9;
+}
+
+.dro-map-lucide-wrap-facility-bfp {
+  color: #ea580c;
+  background: #fff7ed;
+}
+
+.dro-map-lucide-wrap-facility-hospital {
+  color: #be123c;
+  background: #fff1f2;
 }
 
 .dro-map-marker-dot-shelter {
@@ -323,6 +361,11 @@ button {
 .dro-map-marker-report-welfare {
   border-color: #7c3aed;
   color: #7c3aed;
+}
+
+.dro-map-marker-report-evac_status {
+  border-color: #15803d;
+  color: #15803d;
 }
 
 .dro-map-track-eta-wrap {

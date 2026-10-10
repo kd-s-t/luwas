@@ -12,6 +12,7 @@ import {
   DEFAULT_REPORT_LGU,
 } from "@/lib/reports/barangayScope";
 import { EMPTY_REACTION_COUNTS } from "@/lib/reports/socialTypes";
+import { computeReportTrust } from "@/lib/reports/trustScore";
 import type { HazardReport, ReportHazardHint } from "@/lib/reports/types";
 import type { ScenarioReportPin } from "@/lib/scenarios/types";
 import { CAT5_DURING } from "@/lib/scenarios";
@@ -24,6 +25,7 @@ function hazardForKind(kind: ScenarioReportPin["kind"]): ReportHazardHint {
   if (kind === "fire") return "fire";
   if (kind === "landslide") return "landslide";
   if (kind === "blockage") return "typhoon";
+  if (kind === "evac_status") return "evac";
   return "other";
 }
 
@@ -103,7 +105,9 @@ export async function ensureMapReportInDb(
       data.lat !== pin.lat ||
       data.lng !== pin.lng ||
       data.title !== pin.title ||
-      data.notes !== pin.notes
+      data.notes !== pin.notes ||
+      data.mediaUrl !== pin.mediaUrl ||
+      data.hazardHint !== hazardForKind(pin.kind)
     ) {
       await updateDoc(ref, {
         citizenName: citizen.displayName,
@@ -112,6 +116,10 @@ export async function ensureMapReportInDb(
         lgu: DEFAULT_REPORT_LGU,
         title: pin.title,
         notes: pin.notes,
+        hazardHint: hazardForKind(pin.kind),
+        mediaPath: pin.mediaUrl,
+        mediaUrl: pin.mediaUrl,
+        mediaMime: mimeForUrl(pin.mediaUrl ?? ""),
         lat: pin.lat,
         lng: pin.lng,
         locationLabel: `${pin.lat.toFixed(5)}, ${pin.lng.toFixed(5)}`,
@@ -159,6 +167,22 @@ export async function ensureMapReportInDb(
       aiModel: data.aiModel != null ? String(data.aiModel) : null,
       validatedAt:
         data.validatedAt != null ? String(data.validatedAt) : pin.reportedAt,
+      reporterIdVerified: Boolean(data.reporterIdVerified ?? true),
+      reporterEmail:
+        data.reporterEmail != null
+          ? String(data.reporterEmail)
+          : citizen.email,
+      reporterPhone:
+        data.reporterPhone != null
+          ? String(data.reporterPhone)
+          : citizen.phone,
+      reporterEmailVerified: Boolean(data.reporterEmailVerified ?? true),
+      trustScore:
+        typeof data.trustScore === "number" ? data.trustScore : null,
+      trustBreakdown:
+        data.trustBreakdown && typeof data.trustBreakdown === "object"
+          ? (data.trustBreakdown as HazardReport["trustBreakdown"])
+          : null,
       reactionCounts: {
         like: Number(
           (data.reactionCounts as { like?: number } | undefined)?.like ?? 0,
@@ -179,6 +203,19 @@ export async function ensureMapReportInDb(
   }
 
   const now = new Date().toISOString();
+  const trust = computeReportTrust({
+    registered: true,
+    idVerified: true,
+    email: citizen.email,
+    phone: citizen.phone,
+    emailVerified: true,
+    mediaSource: "mobile-camera",
+    lat: pin.lat,
+    lng: pin.lng,
+    locationAccuracyM: 25,
+    aiConfidence: 0.92,
+    aiVerdict: "legit",
+  });
   const row = {
     citizenUid: SEED_UID,
     citizenName: citizen.displayName,
@@ -196,7 +233,7 @@ export async function ensureMapReportInDb(
     mediaSource: "mobile-camera" as const,
     lat: pin.lat,
     lng: pin.lng,
-    locationAccuracyM: null,
+    locationAccuracyM: 25,
     locationLabel: `${pin.lat.toFixed(5)}, ${pin.lng.toFixed(5)}`,
     device: "Android · mobile",
     ipAddress: null,
@@ -207,6 +244,12 @@ export async function ensureMapReportInDb(
     aiSource: "local" as const,
     aiModel: null,
     validatedAt: pin.reportedAt,
+    reporterIdVerified: true,
+    reporterEmail: citizen.email,
+    reporterPhone: citizen.phone,
+    reporterEmailVerified: true,
+    trustScore: trust.total,
+    trustBreakdown: trust,
     reactionCounts: { ...EMPTY_REACTION_COUNTS },
     commentCount: 0,
     createdAt: pin.reportedAt,

@@ -13,7 +13,7 @@ export function buildEvacSmsBody(input: {
   if (input.priority === "evacuate") {
     return (
       `LUWAS ALERT · ${brgy}: ${name}${place}, please EVACUATE now to Consolacion Evacuation Center (or Center 2 / Nangka Elementary). ` +
-      `Follow road escape routes. Odette simulation for responders — not a life-safety guarantee. ` +
+      `Follow road escape routes. Odette simulation for responders. ` +
       `For emergencies call local PNP/BFP/barangay.`
     );
   }

@@ -115,7 +115,7 @@ export default function LoginPage() {
     <AuthGate mode="guest">
       <AuthCard
         title="Officer login"
-        subtitle="Captain, MDRRMO, or LGU — sign in to Luwas command."
+        subtitle="Captain, MDRRMO, or LGU — sign in to LUWAS command."
         footer={
           <>
             Citizen reporter?{" "}

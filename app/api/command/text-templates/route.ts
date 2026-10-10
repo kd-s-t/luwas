@@ -16,10 +16,14 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unknown template" }, { status: 400 });
     }
     const built = buildTextTemplate(template);
+    // Sender line under “LUWAS Alerts” (Smart / Messages style) — not the citizen’s phone.
+    const from =
+      process.env.TWILIO_FROM_NUMBER?.trim() || "+639175550100";
     return NextResponse.json({
       template,
       preview: {
         to: DEFAULT_EMAIL_SAMPLE.phone,
+        from,
         body: built.body,
         segments: built.segments,
         chars: built.body.length,

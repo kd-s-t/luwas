@@ -16,7 +16,7 @@ export default function SupportPage() {
       <PublicPageHeader
         eyebrow="Help"
         title="Support"
-        description="Report a website bug — broken pages, login issues, map glitches, or anything that blocks Luwas."
+        description="Report a website bug — broken pages, login issues, map glitches, or anything that blocks LUWAS."
       />
       <main className="mx-auto max-w-3xl space-y-4 px-4 py-8 sm:px-6">
         <p className="text-sm text-[var(--muted)]">

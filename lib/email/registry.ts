@@ -1,6 +1,6 @@
 /** Transactional email catalog for command preview. */
 
-export type EmailTemplateCategory = "auth" | "alerts";
+export type EmailTemplateCategory = "auth" | "alerts" | "reports";
 
 export type EmailTemplateId =
   | "register"
@@ -8,7 +8,10 @@ export type EmailTemplateId =
   | "welcome"
   | "eq_alert"
   | "fire_alert"
-  | "typhoon_alert";
+  | "typhoon_alert"
+  | "evacuate_alert"
+  | "prepare_alert"
+  | "report_verified";
 
 export type EmailTemplateMeta = {
   id: EmailTemplateId;
@@ -24,6 +27,7 @@ export const EMAIL_TEMPLATE_CATEGORIES: {
 }[] = [
   { id: "auth", label: "Account" },
   { id: "alerts", label: "Alerts" },
+  { id: "reports", label: "Reports" },
 ];
 
 export const EMAIL_TEMPLATES: EmailTemplateMeta[] = [
@@ -69,6 +73,30 @@ export const EMAIL_TEMPLATES: EmailTemplateMeta[] = [
     description:
       "Advance warning ~3 days before an incoming typhoon / landfall window.",
     event: "typhoon_alert",
+  },
+  {
+    id: "evacuate_alert",
+    category: "alerts",
+    name: "Evacuate alert",
+    description:
+      "Branded email blast when officers alert households to evacuate (not SMS text).",
+    event: "evacuate_alert",
+  },
+  {
+    id: "prepare_alert",
+    category: "alerts",
+    name: "Prepare alert",
+    description:
+      "Branded email blast for shelter-in-place / stock-up guidance.",
+    event: "prepare_alert",
+  },
+  {
+    id: "report_verified",
+    category: "reports",
+    name: "Report verified",
+    description:
+      "Sent to the citizen when their field report is accepted as verified / legit.",
+    event: "report_verified",
   },
 ];
 

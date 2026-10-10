@@ -10,11 +10,18 @@ import type { TyphoonSample } from "@/lib/hazards/typhoonSamples";
 
 export type DrrmScenarioPhase = "before" | "during" | "after";
 
-/** Field / image report pin on the map (blockage, fire, welfare). */
+/** Field / image report pin on the map (blockage, fire, welfare, EC status). */
 export type ScenarioReportPin = {
   id: string;
   title: string;
-  kind: "blockage" | "flood" | "fire" | "landslide" | "warning" | "welfare";
+  kind:
+    | "blockage"
+    | "flood"
+    | "fire"
+    | "landslide"
+    | "warning"
+    | "welfare"
+    | "evac_status";
   lat: number;
   lng: number;
   purokHint: string;
@@ -26,6 +33,12 @@ export type ScenarioReportPin = {
   mediaUrl?: string;
   /** Deep link; defaults to `/reports/{id}` when mediaUrl is set. */
   href?: string;
+  /** Linked evacuation facility (for population status reports). */
+  safePointId?: string;
+  /** People currently inside the EC (gov field staff count). */
+  occupancy?: number;
+  /** Stated shelter capacity. */
+  capacity?: number;
 };
 
 export type ScenarioHouseholdNeed = {

@@ -31,6 +31,7 @@ const POWERED_BY = [
 const FOOTER_LINKS = [
   { href: "/reports", label: "Reports" },
   { href: "/barangays", label: "Barangays" },
+  { href: "/bootstrap", label: "Bootstrap UI" },
   { href: "/privacy", label: "Privacy" },
   { href: "/terms", label: "Terms" },
   { href: "/support", label: "Support" },
@@ -44,7 +45,10 @@ export function HomeFooter() {
           Built by
         </p>
         <p className="mt-2 font-[family-name:var(--font-display)] text-xl font-semibold tracking-wide text-[var(--foreground)]">
-          Ugnai Labs Incorporated
+          UgnAI Labs Co.
+        </p>
+        <p className="mt-2 text-xs text-[var(--muted)]">
+          ©2026 UgnAI Labs Co. All rights reserved.
         </p>
 
         <nav
@@ -97,9 +101,6 @@ export function HomeFooter() {
           ))}
         </ul>
 
-        <p className="mt-8 max-w-md text-xs text-[var(--muted)]">
-          Guidance for responders · not a life-safety guarantee.
-        </p>
       </div>
     </footer>
   );

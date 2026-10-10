@@ -25,6 +25,11 @@ import type {
   OfficerProfile,
   UserProfile,
 } from "@/lib/auth/types";
+import { hydrateOnboardedBarangays } from "@/lib/onboarding/storage";
+import {
+  getPreferredAreaId,
+  setPreferredAreaId,
+} from "@/lib/onboarding/types";
 
 function mapAuthError(err: unknown): Error {
   const code =
@@ -80,6 +85,12 @@ type AuthContextValue = {
     idProof: RegisterIdProof;
   }) => Promise<void>;
   logout: () => Promise<void>;
+  /** Refresh profile from Firestore (e.g. after onboarding updates). */
+  refreshProfile: () => Promise<void>;
+  setActiveBarangay: (
+    areaId: string,
+    orgName?: string,
+  ) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -118,7 +129,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const snap = await getDoc(doc(getClientDb(), "users", nextUser.uid));
         if (snap.exists()) {
-          setProfile(snap.data() as UserProfile);
+          const nextProfile = snap.data() as UserProfile;
+          setProfile(nextProfile);
+          if (nextProfile.role === "officer") {
+            void hydrateOnboardedBarangays().then(() => {
+              const active = nextProfile.activeBarangayId;
+              if (active && !getPreferredAreaId()) {
+                setPreferredAreaId(active);
+              }
+            });
+          }
         } else {
           setProfile(null);
         }
@@ -235,6 +255,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null);
   }, []);
 
+  const refreshProfile = useCallback(async () => {
+    const auth = getClientAuth();
+    const u = auth.currentUser;
+    if (!u) {
+      setProfile(null);
+      return;
+    }
+    try {
+      const snap = await getDoc(doc(getClientDb(), "users", u.uid));
+      setProfile(snap.exists() ? (snap.data() as UserProfile) : null);
+    } catch {
+      /* keep current */
+    }
+  }, []);
+
+  const setActiveBarangay = useCallback(
+    async (areaId: string, orgName?: string) => {
+      const auth = getClientAuth();
+      const u = auth.currentUser;
+      if (!u) throw new Error("Not signed in");
+      const payload: Record<string, unknown> = {
+        activeBarangayId: areaId,
+      };
+      if (orgName?.trim()) payload.orgName = orgName.trim();
+      await setDoc(doc(getClientDb(), "users", u.uid), payload, { merge: true });
+      setProfile((prev) => {
+        if (!prev || prev.role !== "officer") return prev;
+        return {
+          ...prev,
+          activeBarangayId: areaId,
+          ...(orgName?.trim() ? { orgName: orgName.trim() } : {}),
+        };
+      });
+    },
+    [],
+  );
+
   const value = useMemo(
     () => ({
       user,
@@ -244,8 +301,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       register,
       registerCitizen,
       logout,
+      refreshProfile,
+      setActiveBarangay,
     }),
-    [user, profile, loading, login, register, registerCitizen, logout],
+    [
+      user,
+      profile,
+      loading,
+      login,
+      register,
+      registerCitizen,
+      logout,
+      refreshProfile,
+      setActiveBarangay,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

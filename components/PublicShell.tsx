@@ -8,7 +8,7 @@ type PublicShellProps = {
   hideFooter?: boolean;
 };
 
-/** Shared chrome for public pages: sticky Luwas nav + footer. */
+/** Shared chrome for public pages: sticky LUWAS nav + footer. */
 export function PublicShell({
   children,
   className,

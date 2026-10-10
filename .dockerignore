@@ -1,0 +1,13 @@
+.git
+.github
+.next
+node_modules
+.tools
+infra
+*.log
+.env.local
+.env*.local
+.cursor
+tsconfig.tsbuildinfo
+Dockerfile
+.dockerignore

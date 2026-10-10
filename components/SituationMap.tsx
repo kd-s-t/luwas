@@ -3,11 +3,16 @@
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AreaSearchSelect } from "@/components/AreaSearchSelect";
+import {
+  formatHazardWhen,
+  HazardDetailDialog,
+  type HazardDetail,
+} from "@/components/HazardDetailDialog";
 import { MangluluwasChat } from "@/components/MangluluwasChat";
-import type {
-  AssistEscapeRoute,
-  AssistPriority,
-} from "@/lib/ai/assistTypes";
+import type { AssistEscapeRoute } from "@/lib/ai/assistTypes";
+import type { FloodSample } from "@/lib/hazards/floodSamples";
+import type { LandslideSample } from "@/lib/hazards/landslideSamples";
+import type { TyphoonSample } from "@/lib/hazards/typhoonSamples";
 import { useAiAssist } from "@/lib/ai/useAiAssist";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { isOfficer } from "@/lib/auth/types";
@@ -22,7 +27,6 @@ import {
   isNangkaOpsArea,
   type MapArea,
 } from "@/lib/geo/mapAreas";
-import { useRoadEscapes } from "@/lib/geo/useRoadEscapes";
 import {
   CEBU_FLOOD_SAMPLES,
   floodSeverityLabel,
@@ -37,7 +41,6 @@ import {
 } from "@/lib/hazards/typhoonSamples";
 import {
   fetchNearbyEarthquakes,
-  zoomEarthUrl,
   type QuakeEvent,
 } from "@/lib/hazards/usgsEarthquakes";
 import {
@@ -53,6 +56,7 @@ import {
 import type { Household } from "@/lib/households/types";
 import { officerReportScope } from "@/lib/reports/barangayScope";
 import { useScenario } from "@/lib/scenarios";
+import { resolveScenarioPriorities } from "@/lib/scenarios/resolveScenarioPriorities";
 import {
   fetchCebuWeather,
   isHazardousWeather,
@@ -90,9 +94,14 @@ const AreaMapInner = dynamic(() => import("@/components/AreaMapInner"), {
 
 type SituationMapProps = {
   officerUid: string;
+  /** Fill the viewport (command /full — no site header). */
+  fullViewport?: boolean;
 };
 
-export function SituationMap({ officerUid }: SituationMapProps) {
+export function SituationMap({
+  officerUid,
+  fullViewport = false,
+}: SituationMapProps) {
   const { profile } = useAuth();
   const defaultArea = useMemo(() => {
     if (isOfficer(profile)) {
@@ -101,11 +110,48 @@ export function SituationMap({ officerUid }: SituationMapProps) {
     return DEFAULT_MAP_AREA;
   }, [profile]);
   const [mapArea, setMapArea] = useState<MapArea>(defaultArea);
+  const [hazardDetail, setHazardDetail] = useState<HazardDetail | null>(null);
   const areaBootstrapped = useRef(false);
   useEffect(() => {
     if (areaBootstrapped.current) return;
     areaBootstrapped.current = true;
-    setMapArea(defaultArea);
+
+    async function bootArea() {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const { getPreferredAreaId } = await import("@/lib/onboarding/types");
+        const wanted = params.get("area") || getPreferredAreaId();
+        if (wanted) {
+          const { listMapAreaOptions } = await import("@/lib/geo/mapAreas");
+          const option = listMapAreaOptions().find((o) => o.id === wanted);
+          if (option) {
+            const { getOnboardedBarangay } = await import(
+              "@/lib/onboarding/storage"
+            );
+            const onboarded = getOnboardedBarangay(option.id);
+            if (onboarded) {
+              setMapArea({
+                id: option.id,
+                barangay: option.barangay,
+                lgu: option.lgu,
+                name: option.name,
+                center: { ...onboarded.center },
+                zoom: onboarded.zoom,
+              });
+              return;
+            }
+            const { resolveKnownMapArea } = await import("@/lib/geo/mapAreas");
+            setMapArea(resolveKnownMapArea(option));
+            return;
+          }
+        }
+      } catch {
+        /* fall through */
+      }
+      setMapArea(defaultArea);
+    }
+
+    void bootArea();
   }, [defaultArea]);
 
   const { officerBundle: scenario } = useScenario();
@@ -113,11 +159,6 @@ export function SituationMap({ officerUid }: SituationMapProps) {
     () => getBarangayMapPack(mapArea, scenario),
     [mapArea, scenario],
   );
-  const scenarioPriorities = useMemo(() => {
-    const map: Record<string, AssistPriority> = {};
-    for (const a of pack.scenarioActions) map[a.householdId] = a.priority;
-    return map;
-  }, [pack.scenarioActions]);
   const [households, setHouseholds] = useState<Household[]>([]);
   const [rosterReady, setRosterReady] = useState(false);
   const [migrating, setMigrating] = useState(false);
@@ -148,10 +189,7 @@ export function SituationMap({ officerUid }: SituationMapProps) {
     deleteChat,
   } = useAiAssist();
   const hasAiOverlay = Object.keys(assistPriorities).length > 0;
-  const scenarioEscapes = useRoadEscapes(
-    nangkaOps && !hasAiOverlay ? pack.scenarioEscapes : EMPTY_ESCAPES,
-    { deferMs: 800 },
-  );
+  // Escape arrows only after Mangluluwas / Run triage — never from scenario default.
 
   useEffect(() => {
     setRosterReady(false);
@@ -202,6 +240,11 @@ export function SituationMap({ officerUid }: SituationMapProps) {
     return seedAsHouseholds();
   }, [households, nangkaOps, mapArea]);
 
+  const scenarioPriorities = useMemo(
+    () => resolveScenarioPriorities(pack.scenarioActions, mapHouseholds),
+    [pack.scenarioActions, mapHouseholds],
+  );
+
   useEffect(() => {
     let cancelled = false;
 
@@ -233,6 +276,7 @@ export function SituationMap({ officerUid }: SituationMapProps) {
         }
       } catch (err) {
         if (!cancelled) {
+          setQuakes([]);
           setQuakeError(
             err instanceof Error ? err.message : "Earthquake feed unavailable",
           );
@@ -257,119 +301,61 @@ export function SituationMap({ officerUid }: SituationMapProps) {
   const hazard =
     weather &&
     isHazardousWeather(weather.weatherCode, weather.precipitationMm);
-  const zoomUrl = zoomEarthUrl(
-    mapArea.center.lat,
-    mapArea.center.lng,
-    11,
-  );
   const mapPriorities = nangkaOps
     ? hasAiOverlay
       ? assistPriorities
       : scenarioPriorities
     : {};
-  const mapEscapes = nangkaOps
-    ? hasAiOverlay
-      ? escapeRoutes
-      : scenarioEscapes
-    : [];
-  // Flood footprints only after Run triage on Nangka (AI prediction).
+  const mapEscapes =
+    nangkaOps && hasAiOverlay ? escapeRoutes : EMPTY_ESCAPES;
+  // AI flood overlay wins; otherwise paint scenario pack (During/After).
   const mapFloods =
     nangkaOps && result?.predictedFloods?.length
       ? result.predictedFloods
-      : [];
+      : nangkaOps
+        ? pack.floods
+        : [];
+
+  const stageH = fullViewport
+    ? "h-full min-h-0"
+    : "h-[min(62dvh,560px)] sm:h-[min(68dvh,680px)] lg:h-[calc(100dvh-11rem)]";
+
+  const areaStats = nangkaOps ? (
+    <>
+      {mappedCount.toLocaleString()} homes
+      {mappedCount >= NANGKA_HOUSEHOLD_TARGET
+        ? ` · ~${NANGKA_CENSUS_2020.toLocaleString()} people`
+        : ""}{" "}
+      · {pack.reportPins.length} reports
+      {quakes.length ? ` · ${quakes.length} quakes` : ""}
+      {migrating ? " · updating…" : ""}
+    </>
+  ) : (
+    <>
+      {mapArea.barangay} · command hall
+      {pack.safePoints.filter((p) => p.kind !== "hall").length
+        ? ` · ${pack.safePoints.filter((p) => p.kind !== "hall").length} EC/school`
+        : ""}
+      {quakes.length ? ` · ${quakes.length} quakes` : ""}
+    </>
+  );
 
   return (
-    <section className="w-full border-b border-[var(--border)] bg-[var(--surface-raised)]">
-      <div className="relative z-30 flex flex-col gap-2.5 border-b border-[var(--border)] bg-[var(--surface-raised)] px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-        <div className="relative z-30 min-w-0">
-          <AreaSearchSelect value={mapArea} onChange={setMapArea} />
-          <p className="mt-1 text-xs text-[var(--muted)] sm:text-sm">
-            {nangkaOps ? (
-              <>
-                {mappedCount.toLocaleString()} homes
-                {mappedCount >= NANGKA_HOUSEHOLD_TARGET
-                  ? ` · ~${NANGKA_CENSUS_2020.toLocaleString()} people (PSA 2020)`
-                  : ""}{" "}
-                · {mapFloods.length} AI floods ·{" "}
-                {pack.landslides.length} slides · {pack.typhoons.length} typhoon
-                · {pack.fires.length} fire · {pack.reportPins.length} reports
-                {quakes.length ? ` · ${quakes.length} quakes` : ""}
-                {migrating ? " · updating roster…" : ""}
-              </>
-            ) : (
-              <>
-                {mapArea.barangay} map · no local hazard layers yet
-                {quakes.length ? ` · ${quakes.length} quakes` : ""}
-              </>
-            )}
-            {" · "}
-            <a
-              href={zoomUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="font-mono text-[10px] tracking-wider text-[var(--accent)] uppercase underline-offset-2 hover:underline"
-            >
-              Zoom Earth →
-            </a>
-          </p>
-        </div>
-
-        <div
-          className={`shrink-0 border px-3 py-2 sm:min-w-[16rem] ${
-            hazard
-              ? "border-[var(--warn)] bg-[var(--warn)]/10"
-              : "border-[var(--border)] bg-[var(--surface)]"
-          }`}
-        >
-          {weatherLoading && !weather ? (
-            <p className="font-mono text-xs text-[var(--muted)]">
-              Fetching weather…
-            </p>
-          ) : weatherError && !weather ? (
-            <p className="text-xs text-[var(--danger)]">{weatherError}</p>
-          ) : weather ? (
-            <div className="flex items-center gap-3">
-              <div className="min-w-0">
-                <p className="font-mono text-[9px] tracking-wider text-[var(--muted)] uppercase">
-                  {hazard ? "Watch" : "Now"}
-                </p>
-                <p className="font-[family-name:var(--font-display)] text-2xl font-semibold leading-none tabular-nums">
-                  {Math.round(weather.temperatureC)}°
-                  <span className="ml-1.5 text-sm font-normal text-[var(--muted)]">
-                    {weather.label}
-                  </span>
-                </p>
-              </div>
-              <dl className="grid grid-cols-3 gap-x-3 border-l border-[var(--border)] pl-3 font-mono text-[9px] text-[var(--muted)] uppercase">
-                <div>
-                  <dt>Feels</dt>
-                  <dd className="text-[var(--foreground)] normal-case">
-                    {Math.round(weather.feelsLikeC)}°
-                  </dd>
-                </div>
-                <div>
-                  <dt>Rain</dt>
-                  <dd className="text-[var(--foreground)] normal-case">
-                    {weather.precipitationMm.toFixed(1)}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Wind</dt>
-                  <dd className="text-[var(--foreground)] normal-case">
-                    {Math.round(weather.windKmh)}
-                  </dd>
-                </div>
-              </dl>
-            </div>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="relative z-0 grid overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(320px,28vw)]">
-        <div className="relative z-0 h-[min(62dvh,560px)] sm:h-[min(68dvh,680px)] lg:h-[calc(100dvh-11rem)]">
+    <section
+      className={`w-full bg-[var(--surface-raised)] ${fullViewport ? "flex h-full max-h-dvh flex-col overflow-hidden border-0" : "border-b border-[var(--border)]"}`}
+    >
+      <div
+        className={
+          fullViewport
+            ? "relative z-0 grid min-h-0 flex-1 overflow-hidden grid-cols-1 grid-rows-[minmax(0,1fr)_minmax(0,42%)] md:grid-rows-1 md:grid-cols-[minmax(0,1fr)_minmax(300px,30vw)]"
+            : "relative z-0 grid min-h-0 overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(320px,28vw)]"
+        }
+      >
+        <div className={`relative z-0 overflow-hidden ${stageH}`}>
           <AreaMapInner
             key={mapArea.id}
             area={mapArea}
+            lockCameraToArea
             households={mapHouseholds}
             quakes={quakes}
             landslides={pack.landslides}
@@ -378,87 +364,147 @@ export function SituationMap({ officerUid }: SituationMapProps) {
             fires={pack.fires}
             reportPins={pack.reportPins}
             safePoints={pack.safePoints}
+            responders={pack.responders}
             assistPriorities={mapPriorities}
             escapeRoutes={mapEscapes}
           />
+          {/* Compact weather — map bottom center */}
+          <div className="pointer-events-none absolute inset-x-0 bottom-3 z-[1000] flex justify-center px-3">
+            <div
+              className={`pointer-events-auto rounded-full border px-3 py-1.5 shadow-md backdrop-blur-md ${
+                hazard
+                  ? "border-[var(--warn)]/50 bg-[var(--surface-raised)]/92"
+                  : "border-[var(--border)] bg-[var(--surface-raised)]/90"
+              }`}
+            >
+              {weatherLoading && !weather ? (
+                <p className="font-mono text-[10px] text-[var(--muted)]">
+                  Weather…
+                </p>
+              ) : weatherError && !weather ? (
+                <p className="text-[10px] text-[var(--danger)]">{weatherError}</p>
+              ) : weather ? (
+                <p className="flex items-baseline gap-2 font-mono text-[11px] text-[var(--foreground)]">
+                  <span className="font-[family-name:var(--font-display)] text-base font-semibold tabular-nums leading-none">
+                    {Math.round(weather.temperatureC)}°
+                  </span>
+                  <span className="text-[var(--muted)]">{weather.label}</span>
+                  <span className="text-[var(--border)]">·</span>
+                  <span className="text-[var(--muted)]">
+                    feels {Math.round(weather.feelsLikeC)}°
+                  </span>
+                  <span className="text-[var(--muted)]">
+                    rain {weather.precipitationMm.toFixed(1)}
+                  </span>
+                  <span className="text-[var(--muted)]">
+                    wind {Math.round(weather.windKmh)}
+                  </span>
+                  {hazard ? (
+                    <span className="font-semibold tracking-wider text-[var(--warn)] uppercase">
+                      watch
+                    </span>
+                  ) : null}
+                </p>
+              ) : null}
+            </div>
+          </div>
         </div>
-        <aside className="h-[min(62dvh,560px)] border-t border-[var(--border)] sm:h-[min(68dvh,680px)] lg:h-[calc(100dvh-11rem)] lg:border-t-0 lg:border-l">
-          <MangluluwasChat
-            className="border-0"
-            messages={messages}
-            running={running}
-            result={result}
-            households={mapHouseholds}
-            error={assistError}
-            model={model}
-            onModelChange={setModel}
-            callListVisible={callListVisible}
-            onClearCallList={clearCallList}
-            chats={chats}
-            activeChatId={activeChatId}
-            onNewChat={newChat}
-            onSelectChat={selectChat}
-            onDeleteChat={deleteChat}
-            onSend={(text) =>
-              sendMessage(text, {
-                households: mapHouseholds,
-                floods: mapFloods.length
-                  ? mapFloods
-                  : nangkaOps
-                    ? CEBU_FLOOD_SAMPLES
-                    : [],
-                landslides: pack.landslides.length
-                  ? pack.landslides
-                  : nangkaOps
-                    ? CEBU_LANDSLIDE_SAMPLES
-                    : [],
-                typhoons: pack.typhoons.length
-                  ? pack.typhoons
-                  : nangkaOps
-                    ? CEBU_TYPHOON_SAMPLES
-                    : [],
-                weatherLabel: weather?.label,
-                model,
-              })
-            }
-          />
+        <aside
+          className={`flex min-h-0 flex-col overflow-hidden border-[var(--border)] ${stageH} ${
+            fullViewport
+              ? "border-t md:border-t-0 md:border-l"
+              : "border-t lg:border-t-0 lg:border-l"
+          }`}
+        >
+          <div className="relative z-30 shrink-0 space-y-1 border-b border-[var(--border)] bg-[var(--surface-panel)] px-3 py-2 pr-14 sm:pr-3">
+            <AreaSearchSelect value={mapArea} onChange={setMapArea} />
+            <p className="truncate text-[11px] text-[var(--muted)]">
+              {areaStats}
+            </p>
+          </div>
+          <div className="min-h-0 flex-1 overflow-hidden">
+            <MangluluwasChat
+              className="h-full border-0"
+              messages={messages}
+              running={running}
+              result={result}
+              households={mapHouseholds}
+              error={assistError}
+              model={model}
+              onModelChange={setModel}
+              callListVisible={callListVisible}
+              onClearCallList={clearCallList}
+              chats={chats}
+              activeChatId={activeChatId}
+              onNewChat={newChat}
+              onSelectChat={selectChat}
+              onDeleteChat={deleteChat}
+              onSend={(text) =>
+                sendMessage(text, {
+                  households: mapHouseholds,
+                  floods: mapFloods.length
+                    ? mapFloods
+                    : nangkaOps
+                      ? CEBU_FLOOD_SAMPLES
+                      : [],
+                  landslides: pack.landslides.length
+                    ? pack.landslides
+                    : nangkaOps
+                      ? CEBU_LANDSLIDE_SAMPLES
+                      : [],
+                  typhoons: pack.typhoons.length
+                    ? pack.typhoons
+                    : nangkaOps
+                      ? CEBU_TYPHOON_SAMPLES
+                      : [],
+                  weatherLabel: weather?.label,
+                  model,
+                })
+              }
+            />
+          </div>
         </aside>
       </div>
 
+      {!fullViewport ? (
       <div className="grid gap-0 border-t border-[var(--border)] sm:grid-cols-2">
         <HazardList
           title="Floods"
-          hint="Run triage sets these AI flood footprints. Clear list hides the call sheet — map stays."
+          hint="Click a row for photo + details. During/After use scenario footprints; triage can replace with AI."
           borderClass="border-b sm:border-r"
         >
           {mapFloods.length === 0 ? (
             <li className="px-3 py-4 text-sm text-[var(--muted)]">
-              No AI flood prediction yet — run triage.
+              No flood footprints on this phase — run triage or switch to During.
             </li>
           ) : (
             mapFloods.map((fl) => (
-              <li
-                key={fl.id}
-                className="flex flex-wrap items-baseline justify-between gap-2 px-3 py-2.5 text-sm"
-              >
-                <span>
-                  <span
-                    className={`font-mono text-[10px] uppercase ${
-                      fl.severity === "critical"
-                        ? "text-[var(--danger)]"
-                        : fl.severity === "warning"
-                          ? "text-[var(--warn)]"
-                          : "text-[var(--muted)]"
-                    }`}
-                  >
-                    {floodSeverityLabel(fl.severity)}
-                  </span>{" "}
-                  {fl.name}
-                  <span className="text-[var(--muted)]"> · {fl.depthCm} cm</span>
-                </span>
-                <span className="font-mono text-[10px] text-[var(--muted)]">
-                  {fl.purokHint}
-                </span>
+              <li key={fl.id}>
+                <HazardRowButton
+                  onClick={() => setHazardDetail(floodDetail(fl))}
+                >
+                  <span>
+                    <span
+                      className={`font-mono text-[10px] uppercase ${
+                        fl.severity === "critical"
+                          ? "text-[var(--danger)]"
+                          : fl.severity === "warning"
+                            ? "text-[var(--warn)]"
+                            : "text-[var(--muted)]"
+                      }`}
+                    >
+                      {floodSeverityLabel(fl.severity)}
+                    </span>{" "}
+                    {fl.name}
+                    <span className="text-[var(--muted)]">
+                      {" "}
+                      · {fl.depthCm} cm
+                    </span>
+                  </span>
+                  <span className="font-mono text-[10px] text-[var(--muted)]">
+                    {fl.purokHint}
+                  </span>
+                </HazardRowButton>
               </li>
             ))
           )}
@@ -466,7 +512,7 @@ export function SituationMap({ officerUid }: SituationMapProps) {
 
         <HazardList
           title="Typhoon"
-          hint="Eye / track from IBTrACS Odette (Rai) on this phase’s timeline."
+          hint="Click for winds, track timing, and notes. IBTrACS Odette (Rai) for this phase."
           borderClass="border-b"
         >
           {pack.typhoons.length === 0 ? (
@@ -477,20 +523,22 @@ export function SituationMap({ officerUid }: SituationMapProps) {
             </li>
           ) : (
             pack.typhoons.map((ty) => (
-              <li
-                key={ty.id}
-                className="flex flex-col gap-0.5 px-3 py-2.5 text-sm"
-              >
-                <span>
-                  <span className="font-mono text-[10px] text-[var(--accent)] uppercase">
-                    {typhoonCategoryLabel(ty.category)}
-                  </span>{" "}
-                  {ty.name}
-                </span>
-                <span className="font-mono text-[10px] text-[var(--muted)]">
-                  {ty.maxWindsKmh} km/h · {Math.round(ty.distanceKm)} km away ·{" "}
-                  {ty.etaNote}
-                </span>
+              <li key={ty.id}>
+                <HazardRowButton
+                  stacked
+                  onClick={() => setHazardDetail(typhoonDetail(ty))}
+                >
+                  <span>
+                    <span className="font-mono text-[10px] text-[var(--accent)] uppercase">
+                      {typhoonCategoryLabel(ty.category)}
+                    </span>{" "}
+                    {ty.name}
+                  </span>
+                  <span className="font-mono text-[10px] text-[var(--muted)]">
+                    {ty.maxWindsKmh} km/h · {Math.round(ty.distanceKm)} km away
+                    · {ty.etaNote}
+                  </span>
+                </HazardRowButton>
               </li>
             ))
           )}
@@ -498,7 +546,7 @@ export function SituationMap({ officerUid }: SituationMapProps) {
 
         <HazardList
           title="Landslides"
-          hint="Slope incidents for this Odette phase (not a live MGB feed)."
+          hint="Click a row for photo + details. Odette phase samples (not a live MGB feed)."
           borderClass="border-b sm:border-b-0 sm:border-r"
         >
           {pack.landslides.length === 0 ? (
@@ -509,27 +557,28 @@ export function SituationMap({ officerUid }: SituationMapProps) {
             </li>
           ) : (
             pack.landslides.map((ls) => (
-              <li
-                key={ls.id}
-                className="flex flex-wrap items-baseline justify-between gap-2 px-3 py-2.5 text-sm"
-              >
-                <span>
-                  <span
-                    className={`font-mono text-[10px] uppercase ${
-                      ls.severity === "critical"
-                        ? "text-[var(--danger)]"
-                        : ls.severity === "warning"
-                          ? "text-[var(--warn)]"
-                          : "text-[var(--muted)]"
-                    }`}
-                  >
-                    {landslideSeverityLabel(ls.severity)}
-                  </span>{" "}
-                  {ls.name}
-                </span>
-                <span className="font-mono text-[10px] text-[var(--muted)]">
-                  {ls.purokHint}
-                </span>
+              <li key={ls.id}>
+                <HazardRowButton
+                  onClick={() => setHazardDetail(landslideDetail(ls))}
+                >
+                  <span>
+                    <span
+                      className={`font-mono text-[10px] uppercase ${
+                        ls.severity === "critical"
+                          ? "text-[var(--danger)]"
+                          : ls.severity === "warning"
+                            ? "text-[var(--warn)]"
+                            : "text-[var(--muted)]"
+                      }`}
+                    >
+                      {landslideSeverityLabel(ls.severity)}
+                    </span>{" "}
+                    {ls.name}
+                  </span>
+                  <span className="font-mono text-[10px] text-[var(--muted)]">
+                    {ls.purokHint}
+                  </span>
+                </HazardRowButton>
               </li>
             ))
           )}
@@ -537,7 +586,7 @@ export function SituationMap({ officerUid }: SituationMapProps) {
 
         <HazardList
           title="Earthquakes"
-          hint="Live USGS M2.5+ last 7 days within 400 km."
+          hint="Click for depth/time; opens USGS when available. M2.5+ last 7 days · 400 km."
           borderClass=""
         >
           {quakeError ? (
@@ -550,25 +599,156 @@ export function SituationMap({ officerUid }: SituationMapProps) {
             </li>
           ) : (
             quakes.slice(0, 6).map((q) => (
-              <li
-                key={q.id}
-                className="flex flex-wrap items-baseline justify-between gap-2 px-3 py-2.5 text-sm"
-              >
-                <span>
-                  <span className="font-mono text-[var(--warn)]">
-                    M{q.mag?.toFixed(1) ?? "?"}
-                  </span>{" "}
-                  {q.place}
-                </span>
-                <span className="font-mono text-[10px] text-[var(--muted)]">
-                  {Math.round(q.distanceKm)} km
-                </span>
+              <li key={q.id}>
+                <HazardRowButton
+                  onClick={() => setHazardDetail(quakeDetail(q))}
+                >
+                  <span>
+                    <span className="font-mono text-[var(--warn)]">
+                      M{q.mag?.toFixed(1) ?? "?"}
+                    </span>{" "}
+                    {q.place}
+                  </span>
+                  <span className="font-mono text-[10px] text-[var(--muted)]">
+                    {Math.round(q.distanceKm)} km
+                  </span>
+                </HazardRowButton>
               </li>
             ))
           )}
         </HazardList>
       </div>
+      ) : null}
+
+      <HazardDetailDialog
+        detail={hazardDetail}
+        onClose={() => setHazardDetail(null)}
+      />
     </section>
+  );
+}
+
+function severityTone(
+  severity: "critical" | "warning" | "watch",
+): NonNullable<HazardDetail["severityTone"]> {
+  if (severity === "critical") return "danger";
+  if (severity === "warning") return "warn";
+  return "muted";
+}
+
+function floodDetail(fl: FloodSample): HazardDetail {
+  return {
+    title: fl.name,
+    severityLabel: floodSeverityLabel(fl.severity),
+    severityTone: severityTone(fl.severity),
+    place: fl.place,
+    purokHint: fl.purokHint,
+    notes: fl.notes,
+    mediaUrl: fl.mediaUrl,
+    meta: [
+      { label: "Depth", value: `${fl.depthCm} cm` },
+      { label: "Reported", value: formatHazardWhen(fl.reportedAt) },
+      {
+        label: "Coords",
+        value: `${fl.lat.toFixed(5)}, ${fl.lng.toFixed(5)}`,
+      },
+    ],
+  };
+}
+
+function landslideDetail(ls: LandslideSample): HazardDetail {
+  return {
+    title: ls.name,
+    severityLabel: landslideSeverityLabel(ls.severity),
+    severityTone: severityTone(ls.severity),
+    place: ls.place,
+    purokHint: ls.purokHint,
+    notes: ls.notes,
+    mediaUrl: ls.mediaUrl,
+    meta: [
+      { label: "Reported", value: formatHazardWhen(ls.reportedAt) },
+      {
+        label: "Coords",
+        value: `${ls.lat.toFixed(5)}, ${ls.lng.toFixed(5)}`,
+      },
+    ],
+  };
+}
+
+function typhoonDetail(ty: TyphoonSample): HazardDetail {
+  return {
+    title: ty.name,
+    severityLabel: typhoonCategoryLabel(ty.category),
+    severityTone: "accent",
+    place: ty.internationalName
+      ? `International · ${ty.internationalName}`
+      : undefined,
+    notes: ty.notes,
+    meta: [
+      { label: "Max winds", value: `${ty.maxWindsKmh} km/h` },
+      { label: "Movement", value: ty.movement },
+      { label: "Distance", value: `${Math.round(ty.distanceKm)} km` },
+      { label: "ETA / timing", value: ty.etaNote },
+      { label: "Reported", value: formatHazardWhen(ty.reportedAt) },
+      {
+        label: "Eye",
+        value: `${ty.lat.toFixed(3)}, ${ty.lng.toFixed(3)}`,
+      },
+    ],
+  };
+}
+
+function quakeDetail(q: QuakeEvent): HazardDetail {
+  return {
+    title: q.place,
+    severityLabel: `M${q.mag?.toFixed(1) ?? "?"}`,
+    severityTone: "warn",
+    notes: "Live USGS event · click through for instrument detail.",
+    meta: [
+      { label: "Distance", value: `${Math.round(q.distanceKm)} km` },
+      {
+        label: "Depth",
+        value: q.depthKm != null ? `${q.depthKm.toFixed(1)} km` : "—",
+      },
+      {
+        label: "Time",
+        value: new Date(q.time).toLocaleString("en-PH", {
+          timeZone: "Asia/Manila",
+          dateStyle: "medium",
+          timeStyle: "short",
+        }),
+      },
+      {
+        label: "Coords",
+        value: `${q.lat.toFixed(3)}, ${q.lng.toFixed(3)}`,
+      },
+    ],
+    externalUrl: q.url || undefined,
+    externalLabel: "Open USGS event",
+  };
+}
+
+function HazardRowButton({
+  onClick,
+  children,
+  stacked = false,
+}: {
+  onClick: () => void;
+  children: ReactNode;
+  stacked?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`w-full gap-2 px-3 py-2.5 text-left text-sm transition hover:bg-[var(--surface-panel)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent)] ${
+        stacked
+          ? "flex flex-col gap-0.5"
+          : "flex flex-wrap items-baseline justify-between"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 

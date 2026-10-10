@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "emulators": "bash scripts/emulators.sh",
     "start:local": "bash scripts/dev-local.sh",
+    "seed:local": "node scripts/seed-local.mjs",
     "rules:reload": "bash scripts/reload-firestore-rules.sh"
   },
   "dependencies": {

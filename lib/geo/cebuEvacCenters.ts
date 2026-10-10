@@ -1,7 +1,7 @@
 /**
  * Seed catalog of Cebu-area evacuation centers.
  *
- * Luwas does NOT yet ingest Google Places / a full provincial EC feed.
+ * LUWAS does NOT yet ingest Google Places / a full provincial EC feed.
  * Entries below are only places we can pin with a public coordinate source
  * (Google Places plus-code, OSM, or LGU-published site).
  *
@@ -30,7 +30,6 @@ export const CEBU_EVAC_CENTERS: CebuEvacCenter[] = [
     lng: 123.96926,
     source: "Google Places · plus code 9XC9+CPX · Nangka",
     open24h: true,
-    notes: "Municipal EC in Brgy. Nangka",
   },
   {
     id: "evac-consolacion-2",
@@ -41,7 +40,6 @@ export const CEBU_EVAC_CENTERS: CebuEvacCenter[] = [
     lng: 123.96875,
     source: "Google Places cluster next to 9XC9+CPX (paired municipal EC)",
     open24h: true,
-    notes: "Municipal EC 2 · Consolacion",
   },
   {
     id: "evac-nangka-elem",
@@ -50,7 +48,6 @@ export const CEBU_EVAC_CENTERS: CebuEvacCenter[] = [
     lat: 10.3721058,
     lng: 123.9590862,
     source: "OSM Nominatim · LGU Nangka EC list (with barangay gymnasium)",
-    notes: "Designated for Brgy. Nangka area (Consolacion LGU list)",
   },
   {
     id: "evac-cordova",

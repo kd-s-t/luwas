@@ -199,7 +199,8 @@ export function PublicReportCard({ report }: PublicReportCardProps) {
           {(report.mediaSource ||
             report.locationLabel ||
             report.device ||
-            report.ipAddress) && (
+            report.ipAddress ||
+            report.trustScore != null) && (
             <p className="mt-1 font-mono text-[10px] tracking-wide text-[var(--muted)] uppercase">
               {report.mediaSource === "mobile-camera"
                 ? "Field camera"
@@ -230,6 +231,9 @@ export function PublicReportCard({ report }: PublicReportCardProps) {
               {report.device ?? null}
               {report.device && report.ipAddress ? " · " : null}
               {report.ipAddress ? `IP ${report.ipAddress}` : null}
+              {report.trustScore != null
+                ? `${report.mediaSource || report.locationLabel || report.device || report.ipAddress ? " · " : ""}Trust ${report.trustScore}%`
+                : null}
             </p>
           )}
         </div>

@@ -129,7 +129,7 @@ ${
     ? `- LOCAL DEMO / E2E: accept flood/storm/hazard imagery even if it looks like a stock photo or has a watermark — officers are testing the flow with sample media. Prefer legit over rejected when the scene matches the hazard claim.`
     : ""
 }
-Guidance for responders — not a life-safety guarantee.
+Guidance for responders.
 
 Hazard hint: ${hazardHint}
 Title: ${title}

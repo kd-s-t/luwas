@@ -47,7 +47,17 @@ export default function CommandPage() {
               ? "Evidence, decisions, and activity for each report"
               : "Situation map · households, hazards, and AI overlays"}
           </p>
-          <CommandViewSwitch value={view} onChange={changeView} />
+          <div className="flex flex-wrap items-center gap-2">
+            <a
+              href="/command/full"
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-md border border-[var(--border)] px-3 py-1.5 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase transition hover:border-[var(--accent)]/40 hover:text-[var(--foreground)]"
+            >
+              Full view
+            </a>
+            <CommandViewSwitch value={view} onChange={changeView} />
+          </div>
         </div>
         <main className="w-full">
           {user ? (

@@ -11,7 +11,15 @@ import {
   type MapArea,
   type MapAreaOption,
 } from "@/lib/geo/mapAreas";
-import { NANGKA_SAFE_POINTS, type SafePoint } from "@/lib/geo/safePoints";
+import {
+  responderMapPinsNear,
+  type ResponderMapPin,
+} from "@/lib/geo/responderStations";
+import {
+  NANGKA_SAFE_POINTS,
+  safePointsForArea,
+  type SafePoint,
+} from "@/lib/geo/safePoints";
 import type { FireSample } from "@/lib/hazards/fireSamples";
 import type { FloodSample } from "@/lib/hazards/floodSamples";
 import type { LandslideSample } from "@/lib/hazards/landslideSamples";
@@ -28,13 +36,18 @@ export type BarangayMapPack = {
   fires: FireSample[];
   reportPins: ScenarioReportPin[];
   safePoints: SafePoint[];
+  /** BFP + hospitals (own LGU + nearby metro) with phone numbers. */
+  responders: ResponderMapPin[];
   scenarioActions: AssistHouseholdAction[];
   scenarioEscapes: AssistEscapeRoute[];
   /** True when this brgy has no curated Odette layers yet. */
   empty: boolean;
 };
 
-/** Empty ops pack — hall pin at center only (no Nangka leak). */
+/**
+ * Empty hazard pack — still shows command hall + LGU ECs/schools
+ * so every barangay has facility pins (no Nangka hazard leak).
+ */
 export function emptyPack(area: MapArea): BarangayMapPack {
   return {
     areaId: area.id,
@@ -43,25 +56,15 @@ export function emptyPack(area: MapArea): BarangayMapPack {
     typhoons: [],
     fires: [],
     reportPins: [],
-    safePoints: [
-      {
-        id: `hall-${area.id.replace(/\//g, "-")}`,
-        name: `Brgy. ${area.barangay} Hall`,
-        kind: "hall",
-        lat: area.center.lat,
-        lng: area.center.lng,
-        elevM: 0,
-        isEvacCenter: false,
-        notes: "Command desk · no local hazard layers loaded yet",
-      },
-    ],
+    safePoints: safePointsForArea(area),
+    responders: responderMapPinsNear(area),
     scenarioActions: [],
     scenarioEscapes: [],
     empty: true,
   };
 }
 
-/** Nangka = full Odette scenario pack; every other brgy = empty own pack. */
+/** Nangka = full Odette scenario pack; every other brgy = facilities + empty hazards. */
 export function getBarangayMapPack(
   area: MapArea,
   scenario: ScenarioBundle,
@@ -75,6 +78,7 @@ export function getBarangayMapPack(
     fires: scenario.fires,
     reportPins: scenario.reportPins,
     safePoints: NANGKA_SAFE_POINTS,
+    responders: responderMapPinsNear(area),
     scenarioActions: scenario.actions,
     scenarioEscapes: scenario.escapes,
     empty: false,

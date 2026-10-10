@@ -1,4 +1,6 @@
+import { distKm } from "@/lib/geo/bearing";
 import { slugify } from "@/lib/geo/cebuBarangays";
+import type { MapArea } from "@/lib/geo/mapAreas";
 
 /**
  * Nearby emergency responders for Cebu barangays.
@@ -27,8 +29,42 @@ export type ResponderStation = {
   mobiles?: string[];
   email?: string;
   address?: string;
+  /** Map pin when known (approx public listing). */
+  lat?: number;
+  lng?: number;
   /** Where the contact was taken from (for audit). */
   source?: string;
+};
+
+/** Map pin for BFP / hospital (shown on every barangay situation map). */
+export type ResponderMapPin = {
+  id: string;
+  kind: "bfp" | "hospital";
+  name: string;
+  lat: number;
+  lng: number;
+  phones: string[];
+  seat: string;
+  covers: string;
+  notes?: string;
+};
+
+/** Approximate LGU seat when a station has no explicit lat/lng. */
+const LGU_MAP_CENTER: Record<string, { lat: number; lng: number }> = {
+  consolacion: { lat: 10.3765, lng: 123.9582 },
+  "cebu-city": { lat: 10.3157, lng: 123.8854 },
+  "mandaue-city": { lat: 10.3231, lng: 123.9223 },
+  "lapu-lapu-city": { lat: 10.3103, lng: 123.9494 },
+  talisay: { lat: 10.2447, lng: 123.8494 },
+  naga: { lat: 10.2089, lng: 123.7581 },
+  carcar: { lat: 10.1061, lng: 123.6402 },
+  danao: { lat: 10.5208, lng: 124.0271 },
+  toledo: { lat: 10.3773, lng: 123.6386 },
+  bogo: { lat: 11.0487, lng: 124.0054 },
+  liloan: { lat: 10.3991, lng: 123.9992 },
+  minglanilla: { lat: 10.245, lng: 123.796 },
+  compostela: { lat: 10.455, lng: 124.012 },
+  cordova: { lat: 10.2632, lng: 123.9604 },
 };
 
 type StationInput = Omit<ResponderStation, "id" | "kind">;
@@ -74,6 +110,8 @@ const CURATED: Record<string, LguStations> = {
         covers: "All Consolacion barangays",
         phones: ["(032) 344-8299", "(032) 423-5053"],
         mobiles: ["0954 193 9101"],
+        lat: 10.3768,
+        lng: 123.9571,
         notes: "BFP · one municipal fire station for the whole LGU",
         source: "Consolacion LGU directory + Pulpogan barangay hotlines",
       },
@@ -90,7 +128,9 @@ const CURATED: Record<string, LguStations> = {
           "(032) 239-7151",
           "(032) 239-7152",
         ],
-        notes: "Private hospital · ER / admissions · verify line before ops use",
+        lat: 10.3628,
+        lng: 123.9815,
+        notes: "Private hospital · ER / admissions",
         source: "CDN / Yellow Pages PH / PhilHealth Konsulta listings",
       },
       {
@@ -99,18 +139,20 @@ const CURATED: Record<string, LguStations> = {
         covers: "Municipal primary care · not a full tertiary ER",
         address: "Central Nautical Hwy, Consolacion, Cebu 6001",
         phones: ["(032) 231-7105"],
-        notes: "LGU health center · office hours · dial 911 for life-threatening emergencies",
+        lat: 10.3775,
+        lng: 123.9598,
+        notes: "LGU health center · dial 911 for life-threatening emergencies",
         source: "Public place listings (verify with Municipal Health Office)",
       },
     ],
     tanodByBarangay: {
       nangka: [
         {
-          name: "Nangka Barangay Tanod Outpost",
-          seat: "Nangka (near barangay hall)",
-          covers: "Brgy. Nangka puroks",
+          name: "Nangka Barangay Hall",
+          seat: "Nangka",
+          covers: "Brgy. Nangka puroks · hall / tanod desk",
           notes:
-            "Local peace & order · not a full PNP station · use barangay hall / MPS for urgent cases",
+            "Barangay command desk · escalate life threats to Consolacion MPS / 911",
           phones: ["(032) 346-2847"],
           source: "Escalates to Consolacion MPS",
         },
@@ -212,6 +254,8 @@ const CURATED: Record<string, LguStations> = {
         seat: "Cebu City",
         covers: "Citywide · sub-stations by district",
         phones: ["(032) 256-0541"],
+        lat: 10.3092,
+        lng: 123.8934,
         notes: "BFP · dial 911 for fire emergencies",
         source: "Public BFP / Cebu emergency hotline lists",
       },
@@ -219,6 +263,9 @@ const CURATED: Record<string, LguStations> = {
         name: "BFP Sub-Station · Mabolo / North",
         seat: "Mabolo area",
         covers: "Northern urban barangays",
+        phones: ["(032) 256-0541"],
+        lat: 10.3275,
+        lng: 123.9158,
         notes: "Sub-station · confirm via Cebu City Fire Office if no answer",
         source: "Coverage note · city BFP network",
       },
@@ -231,6 +278,8 @@ const CURATED: Record<string, LguStations> = {
         address: "B. Rodriguez St, Sambag II, Cebu City 6000",
         phones: ["(032) 253-9891", "(032) 382-5514"],
         mobiles: ["0949 886 5964", "0920 970 7617"],
+        lat: 10.3086,
+        lng: 123.8917,
         notes: "Public tertiary · ER · also dial 911 for medical dispatch",
         source: "DOH-7 emergency directory / VSMMC public contacts",
       },
@@ -240,7 +289,9 @@ const CURATED: Record<string, LguStations> = {
         covers: "City public hospital · trauma / IM desks",
         phones: ["(032) 254-1058", "(032) 516-3934"],
         mobiles: ["0943 340 2070"],
-        notes: "Public city hospital · verify current ER desk",
+        lat: 10.2958,
+        lng: 123.8972,
+        notes: "Public city hospital · ER desk",
         source: "Sugbo.ph hospital hotline list (public, verify)",
       },
     ],
@@ -292,6 +343,8 @@ const CURATED: Record<string, LguStations> = {
         seat: "Centro",
         covers: "All Mandaue barangays",
         phones: ["(032) 344-4747", "(032) 344-3364"],
+        lat: 10.3231,
+        lng: 123.9223,
         source: "mandauecity.gov.ph emergency hotlines",
       },
     ],
@@ -301,8 +354,9 @@ const CURATED: Record<string, LguStations> = {
         seat: "Mandaue City",
         covers: "City public health · escalate trauma to tertiary hospitals",
         phones: ["911"],
-        notes:
-          "Use 911 for ambulance / trauma · confirm city hospital desk with LGU",
+        lat: 10.3255,
+        lng: 123.925,
+        notes: "Use 911 for ambulance / trauma · confirm desk with LGU",
         source: "Fallback · verify with Mandaue CHO",
       },
     ],
@@ -332,6 +386,8 @@ const CURATED: Record<string, LguStations> = {
         seat: "Poblacion",
         covers: "All Lapu-Lapu barangays",
         phones: ["(032) 340-0252"],
+        lat: 10.3103,
+        lng: 123.9494,
         source: "Public Lapu-Lapu emergency hotline lists",
       },
     ],
@@ -341,7 +397,9 @@ const CURATED: Record<string, LguStations> = {
         seat: "Poblacion / Mactan",
         covers: "Island residents · major trauma may transfer to Cebu City",
         phones: ["911", "(032) 340-0252"],
-        notes: "Dial 911 for medical emergencies · verify hospital ER desk with CHO",
+        lat: 10.312,
+        lng: 123.951,
+        notes: "Dial 911 for medical emergencies",
         source: "Public emergency lists · verify locally",
       },
     ],
@@ -588,14 +646,31 @@ export function phoneToTelHref(display: string): string {
   return `tel:+63${digits}`;
 }
 
+/** Strip province suffix / Brgy. prefix so email sample ctx matches curated keys. */
+export function resolveLguSlug(lguName: string): string {
+  const head = lguName.split(",")[0]?.trim() || lguName;
+  const slug = slugify(head);
+  if (CURATED[slug]) return slug;
+  const full = slugify(lguName);
+  if (CURATED[full]) return full;
+  return slug;
+}
+
+export function resolveBarangaySlug(barangayName: string): string {
+  return slugify(
+    barangayName.replace(/^(brgy\.?|barangay)\s+/i, "").trim(),
+  );
+}
+
 /** Stations that cover a barangay: LGU PNP/BFP + local tanod if known. */
 export function respondersForBarangay(
   lguName: string,
   barangayName: string,
 ): ResponderStation[] {
-  const lguSlug = slugify(lguName);
-  const brgySlug = slugify(barangayName);
-  const pack = CURATED[lguSlug] ?? defaultStations(lguName);
+  const lguSlug = resolveLguSlug(lguName);
+  const brgySlug = resolveBarangaySlug(barangayName);
+  const displayLgu = lguName.split(",")[0]?.trim() || lguName;
+  const pack = CURATED[lguSlug] ?? defaultStations(displayLgu);
 
   const list: ResponderStation[] = [
     ...withIds("hotline", "ph", UNIVERSAL_EMERGENCY_LINES, "-911"),
@@ -614,12 +689,110 @@ export function respondersForBarangay(
 
 /** LGU-level PNP + BFP + hospitals (for directory cards). */
 export function respondersForLgu(lguName: string): ResponderStation[] {
-  const lguSlug = slugify(lguName);
-  const pack = CURATED[lguSlug] ?? defaultStations(lguName);
+  const lguSlug = resolveLguSlug(lguName);
+  const displayLgu = lguName.split(",")[0]?.trim() || lguName;
+  const pack = CURATED[lguSlug] ?? defaultStations(displayLgu);
   return [
     ...withIds("hotline", "ph", UNIVERSAL_EMERGENCY_LINES, "-911"),
     ...withIds("pnp", lguSlug, pack.pnp),
     ...withIds("bfp", lguSlug, pack.bfp),
     ...withIds("hospital", lguSlug, pack.hospitals ?? []),
   ];
+}
+
+/** Primary BFP station covering a barangay (prefer one with a listed phone). */
+export function bfpForBarangay(
+  lguName: string,
+  barangayName: string,
+): ResponderStation | undefined {
+  const bfp = respondersForBarangay(lguName, barangayName).filter(
+    (s) => s.kind === "bfp",
+  );
+  return (
+    bfp.find((s) => (s.phones?.length ?? 0) + (s.mobiles?.length ?? 0) > 0) ??
+    bfp[0]
+  );
+}
+
+export function stationPhoneList(station: ResponderStation): string[] {
+  return [...(station.phones ?? []), ...(station.mobiles ?? [])];
+}
+
+function pinCoords(
+  lguSlug: string,
+  station: StationInput,
+  index: number,
+): { lat: number; lng: number } | null {
+  if (typeof station.lat === "number" && typeof station.lng === "number") {
+    return { lat: station.lat, lng: station.lng };
+  }
+  const center = LGU_MAP_CENTER[lguSlug];
+  if (!center) return null;
+  // Slight offset so multiple facilities at the same LGU seat don't stack.
+  const jitter = (index + 1) * 0.0022;
+  return { lat: center.lat + jitter * 0.35, lng: center.lng + jitter };
+}
+
+/**
+ * BFP + hospital pins near a barangay — includes other LGUs within range
+ * so metro stations stay visible outside “your” barangay.
+ */
+export function responderMapPinsNear(
+  area: MapArea,
+  maxKm = 28,
+): ResponderMapPin[] {
+  const ownSlug = resolveLguSlug(area.lgu);
+  const pins: ResponderMapPin[] = [];
+
+  for (const [lguSlug, pack] of Object.entries(CURATED)) {
+    const groups: { kind: "bfp" | "hospital"; rows: StationInput[] }[] = [
+      { kind: "bfp", rows: pack.bfp },
+      { kind: "hospital", rows: pack.hospitals ?? [] },
+    ];
+    for (const { kind, rows } of groups) {
+      rows.forEach((row, i) => {
+        const coords = pinCoords(lguSlug, row, i + (kind === "hospital" ? 3 : 0));
+        if (!coords) return;
+        const phones = [...(row.phones ?? []), ...(row.mobiles ?? [])];
+        if (phones.length === 0) phones.push("911");
+        const km = distKm(area.center, coords);
+        if (lguSlug !== ownSlug && km > maxKm) return;
+        pins.push({
+          id: `${lguSlug}-${kind}-${i + 1}`,
+          kind,
+          name: row.name.replace(/\s*\(BFP\)\s*$/i, "").trim(),
+          lat: coords.lat,
+          lng: coords.lng,
+          phones,
+          seat: row.seat,
+          covers: row.covers,
+          notes: row.notes,
+        });
+      });
+    }
+  }
+
+  // Always ensure own-LGU BFP exists (fallback pack when not curated).
+  if (!pins.some((p) => p.kind === "bfp" && p.id.startsWith(`${ownSlug}-`))) {
+    const display = area.lgu.split(",")[0]?.trim() || area.lgu;
+    const fallback = defaultStations(display).bfp[0];
+    const coords = pinCoords(ownSlug, fallback, 0) ?? area.center;
+    pins.push({
+      id: `${ownSlug}-bfp-fallback`,
+      kind: "bfp",
+      name: fallback.name.replace(/\s*\(BFP\)\s*$/i, "").trim(),
+      lat: coords.lat,
+      lng: coords.lng,
+      phones: fallback.phones?.length ? fallback.phones : ["911"],
+      seat: fallback.seat,
+      covers: fallback.covers,
+      notes: fallback.notes,
+    });
+  }
+
+  return pins.sort((a, b) => {
+    const da = distKm(area.center, a);
+    const db = distKm(area.center, b);
+    return da - db;
+  });
 }

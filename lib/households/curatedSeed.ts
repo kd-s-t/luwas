@@ -128,12 +128,13 @@ export const CURATED_NANGKA_HOUSEHOLDS: HouseholdInput[] = [
   },
   {
     ownerName: "Ken Dan S. Tinio",
-    address: "Purok 6 · eastern Access Road (Cansaga corridor)",
+    address: "Purok 6 · near Access Road / Governor F.B. Harrison corridor",
     purok: "Purok 6",
     phone: "09606075119",
     email: "kendantinio@gmail.com",
-    notes: "Citizen account · 3 household members · flood-fringe lot",
-    lat: 10.36845,
-    lng: 123.96605,
+    notes: "Citizen account · 2 people · 1 dog · 2-storey · cemented all",
+    // https://maps.google.com/?q=10.369166,123.962317
+    lat: 10.369166,
+    lng: 123.962317,
   },
 ];

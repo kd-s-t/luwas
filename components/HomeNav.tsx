@@ -58,7 +58,7 @@ export function HomeNav({ overlay = false }: HomeNavProps) {
         href="/"
         className="relative z-10 font-[family-name:var(--font-display)] text-xl font-semibold tracking-wide text-[var(--foreground)] transition hover:text-[var(--accent)]"
       >
-        Luwas
+        LUWAS
       </Link>
       <PostReportButton
         active={onCitizen}

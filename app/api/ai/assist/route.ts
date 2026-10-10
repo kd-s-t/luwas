@@ -10,6 +10,8 @@ import type { LandslideSample } from "@/lib/hazards/landslideSamples";
 import type { TyphoonSample } from "@/lib/hazards/typhoonSamples";
 import type { Household } from "@/lib/households/types";
 import { NANGKA_SAFE_POINTS } from "@/lib/geo/safePoints";
+import { compactEvacStatusesForAi } from "@/lib/reports/evacStatus";
+import { CAT5_DURING } from "@/lib/scenarios";
 
 export const runtime = "nodejs";
 
@@ -81,12 +83,10 @@ Given hazards and households, return ONLY valid JSON (no markdown) matching:
   "mapHint": string
 }
 Rules: leave actions empty — the server flags households using hazards + elevation (low ground evacuate; high ground prepare/stock up). Focus on summary, focusHazard, and mapHint.
-Evacuation centers only (escape arrows — not hall/chapel): ${JSON.stringify(
-      NANGKA_SAFE_POINTS.filter((s) => s.isEvacCenter).map((s) => ({
-        id: s.id,
-        name: s.name,
-      })),
+Evacuation centers (escape destinations + live population from EC staff field reports): ${JSON.stringify(
+      compactEvacStatusesForAi(NANGKA_SAFE_POINTS, CAT5_DURING.reportPins),
     )}
+Field reports are not emergencies only — EC staff upload occupancy / capacity / open-full status.
 
 Weather: ${body.weatherLabel ?? "unknown"}
 Floods: ${JSON.stringify(body.floods)}

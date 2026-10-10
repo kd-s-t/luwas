@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import type { AssistPriority } from "@/lib/ai/assistTypes";
 import {
-  buildEvacEmailBody,
-  buildEvacEmailSubject,
+  buildEvacEmailParts,
   isValidAlertEmail,
 } from "@/lib/alerts/emailCopy";
 import { emailProviderStatus, sendEmailBatch } from "@/lib/alerts/sendEmail";
@@ -99,13 +98,12 @@ export async function POST(req: Request) {
     }
 
     if (emailOk) {
+      const mail = buildEvacEmailParts({ ...copy, email });
       emailPayloads.push({
         to: email,
-        subject: buildEvacEmailSubject({
-          priority,
-          barangay: body.barangay,
-        }),
-        body: buildEvacEmailBody(copy),
+        subject: mail.subject,
+        body: mail.text,
+        html: mail.html,
         meta: {
           householdId: r.householdId,
           ownerName: r.ownerName,
