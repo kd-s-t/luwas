@@ -33,18 +33,18 @@ export function estimateElevM(lat: number, lng: number): number {
 }
 
 /**
- * Low (flood-prone) → amber/red; high → green.
+ * Low (flood-prone) → amber/red; high → teal (safe ground).
  * Range anchored to Nangka sample min/max.
  */
 export function elevFillColor(elevM: number): string {
   const { minM, maxM } = NANGKA_ELEV_RANGE;
   const t = Math.max(0, Math.min(1, (elevM - minM) / (maxM - minM || 1)));
-  // 0 = #c05621 (low), 0.5 = #ca8a04, 1 = #1f8f55 (high)
+  // 0 = #c05621 (low), 0.5 = #ca8a04, 1 = #2e8c57 (high)
   if (t < 0.5) {
     const u = t / 0.5;
     return lerpHex("#c05621", "#ca8a04", u);
   }
-  return lerpHex("#ca8a04", "#1f8f55", (t - 0.5) / 0.5);
+  return lerpHex("#ca8a04", "#2e8c57", (t - 0.5) / 0.5);
 }
 
 function lerpHex(a: string, b: string, t: number): string {

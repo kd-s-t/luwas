@@ -5,7 +5,7 @@ export type ChatRole = "user" | "assistant";
 export type SmsLogEntry = {
   to: string;
   ok: boolean;
-  channel?: "sms" | "email";
+  channel?: "sms" | "email" | "call";
   ownerName?: string;
   phoneDisplay?: string;
   emailDisplay?: string;

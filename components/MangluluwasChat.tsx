@@ -592,9 +592,15 @@ export function MangluluwasChat({
             <DialogDescription>
               {smsLogOpen?.length ?? 0} alert
               {(smsLogOpen?.length ?? 0) === 1 ? "" : "s"}{" "}
-              ({smsLogOpen?.filter((r) => r.channel === "email").length ?? 0}{" "}
+              (
+              {smsLogOpen?.filter((r) => r.channel === "email").length ?? 0}{" "}
               email ·{" "}
-              {smsLogOpen?.filter((r) => r.channel !== "email").length ?? 0} SMS)
+              {smsLogOpen?.filter((r) => r.channel === "call").length ?? 0}{" "}
+              call ·{" "}
+              {smsLogOpen?.filter(
+                (r) => r.channel !== "email" && r.channel !== "call",
+              ).length ?? 0}{" "}
+              SMS)
               {(smsLogOpen?.filter((r) => r.ok).length ?? 0) ===
               (smsLogOpen?.length ?? 0)
                 ? " logged"
@@ -610,7 +616,11 @@ export function MangluluwasChat({
               >
                 <div className="flex flex-wrap items-center gap-1.5">
                   <Badge variant="outline">
-                    {entry.channel === "email" ? "email" : "sms"}
+                    {entry.channel === "email"
+                      ? "email"
+                      : entry.channel === "call"
+                        ? "call"
+                        : "sms"}
                   </Badge>
                   {entry.priority ? (
                     <Badge

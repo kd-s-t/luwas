@@ -58,6 +58,35 @@ export const DEMO_CITIZENS = [
     password: "demo1234",
     purok: "Purok 6",
     phone: "09606075119",
+    /** Links to Ken house-owner row (same email). */
+    householdEmail: "kendantinio@gmail.com",
+  },
+  {
+    displayName: "Jeanilou Labajo",
+    email: "jenlabajo.business@gmail.com",
+    password: "demo1234",
+    purok: "Purok 6",
+    phone: "",
+    /** Same house as Ken Dan Tinio. */
+    householdEmail: "kendantinio@gmail.com",
+  },
+  {
+    displayName: "Carl John Don Sebial",
+    email: "inno.carljohndon@gmail.com",
+    password: "demo1234",
+    purok: "Purok 6",
+    phone: "",
+    /** Own house-owner row (neighbor of Ken). */
+    householdEmail: "inno.carljohndon@gmail.com",
+  },
+  {
+    displayName: "Patricia Abrenica",
+    email: "psabrenica@gmail.com",
+    password: "demo1234",
+    purok: "Purok 6",
+    phone: "",
+    /** Own house-owner row near Access Road. */
+    householdEmail: "psabrenica@gmail.com",
   },
 ] as const;
 

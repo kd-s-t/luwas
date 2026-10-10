@@ -2,19 +2,48 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { officerScopeBarangay } from "@/lib/auth/accountValidation";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { isOfficer } from "@/lib/auth/types";
+import { CEBU_AREA } from "@/lib/geo/cebu";
 import {
+  emptyChecklist,
   getPreferredAreaId,
   setPreferredAreaId,
   type OnboardedBarangay,
 } from "@/lib/onboarding/types";
-import {
-  hydrateOnboardedBarangays,
-  listOnboardedBarangays,
-} from "@/lib/onboarding/storage";
+import { hydrateOnboardedBarangays } from "@/lib/onboarding/storage";
 import { cn } from "@/lib/utils";
+
+/** Synthetic row from officer profile when onboard list is empty. */
+function profileAreaRow(
+  profile: NonNullable<ReturnType<typeof useAuth>["profile"]>,
+): OnboardedBarangay | null {
+  if (!isOfficer(profile)) return null;
+  const barangay = officerScopeBarangay(profile);
+  if (!barangay) return null;
+  const lgu = profile.lgu?.trim() || "Consolacion";
+  const id =
+    (profile.activeBarangayId ?? profile.areaId)?.trim() ||
+    `${lgu.toLowerCase().replace(/\s+/g, "-")}/${barangay.toLowerCase().replace(/\s+/g, "-")}`;
+  const now = profile.createdAt || new Date().toISOString();
+  return {
+    id,
+    barangay,
+    lgu,
+    name: `Brgy. ${barangay}, ${lgu}`,
+    orgName: profile.orgName,
+    hallAddress: `Brgy. ${barangay} Hall, ${lgu}`,
+    hotline: "",
+    email: profile.email,
+    center: { lat: CEBU_AREA.center.lat, lng: CEBU_AREA.center.lng },
+    zoom: CEBU_AREA.zoom,
+    checklist: emptyChecklist(),
+    activatedAt: now,
+    updatedAt: now,
+  };
+}
 
 export function CommandBarangaySwitcher() {
   const router = useRouter();
@@ -23,20 +52,40 @@ export function CommandBarangaySwitcher() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
 
+  const fallback = useMemo(
+    () => (profile ? profileAreaRow(profile) : null),
+    [profile],
+  );
+
   useEffect(() => {
     void hydrateOnboardedBarangays().then((list) => {
       setRows(list);
       const fromProfile =
         isOfficer(profile) && profile.activeBarangayId
           ? profile.activeBarangayId
-          : null;
-      setActiveId(fromProfile ?? getPreferredAreaId() ?? list[0]?.id ?? null);
+          : isOfficer(profile) && profile.areaId
+            ? profile.areaId
+            : null;
+      setActiveId(
+        fromProfile ??
+          getPreferredAreaId() ??
+          list[0]?.id ??
+          fallback?.id ??
+          null,
+      );
     });
-  }, [profile]);
+  }, [profile, fallback?.id]);
 
   if (!isOfficer(profile)) return null;
 
-  const active = rows.find((r) => r.id === activeId) ?? null;
+  const list =
+    rows.length > 0 ? rows : fallback ? [fallback] : [];
+  const active = list.find((r) => r.id === activeId) ?? list[0] ?? null;
+  const label = active
+    ? `Brgy. ${active.barangay}`
+    : officerScopeBarangay(profile)
+      ? `Brgy. ${officerScopeBarangay(profile)}`
+      : "Pick area";
 
   async function select(row: OnboardedBarangay) {
     setActiveId(row.id);
@@ -66,7 +115,7 @@ export function CommandBarangaySwitcher() {
           Area
         </span>
         <span className="block truncate font-medium leading-tight">
-          {active ? `Brgy. ${active.barangay}` : "No barangay"}
+          {label}
         </span>
       </button>
 
@@ -82,13 +131,13 @@ export function CommandBarangaySwitcher() {
             role="listbox"
             className="absolute top-full right-0 z-50 mt-1 w-56 border border-[var(--border)] bg-[var(--surface)] shadow-md"
           >
-            {rows.length === 0 ? (
+            {list.length === 0 ? (
               <p className="px-3 py-2 text-xs text-[var(--muted)]">
-                None onboarded yet.
+                None onboarded yet. Use + Add barangay.
               </p>
             ) : (
               <ul className="max-h-56 overflow-y-auto py-1">
-                {rows.map((row) => (
+                {list.map((row) => (
                   <li key={row.id}>
                     <button
                       type="button"

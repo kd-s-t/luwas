@@ -11,12 +11,14 @@
     "emulators": "bash scripts/emulators.sh",
     "start:local": "bash scripts/dev-local.sh",
     "seed:local": "node scripts/seed-local.mjs",
+    "seed:officers": "node scripts/seed-nangka-officers-rest.mjs",
     "rules:reload": "bash scripts/reload-firestore-rules.sh"
   },
   "dependencies": {
     "@google/genai": "^2.27.0",
     "@radix-ui/react-dialog": "^1.2.0",
     "@radix-ui/react-slot": "^1.4.0",
+    "@xyflow/react": "^12.12.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "firebase": "^12.19.0",

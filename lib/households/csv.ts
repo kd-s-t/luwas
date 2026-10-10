@@ -1,6 +1,16 @@
 import type { HouseholdInput } from "@/lib/households/types";
 
-const HEADER_ALIASES: Record<keyof HouseholdInput | "ownerName", string[]> = {
+type CsvHouseholdField =
+  | "ownerName"
+  | "address"
+  | "purok"
+  | "phone"
+  | "email"
+  | "notes"
+  | "lat"
+  | "lng";
+
+const HEADER_ALIASES: Record<CsvHouseholdField, string[]> = {
   ownerName: [
     "ownername",
     "owner_name",
@@ -32,10 +42,10 @@ function normalizeHeader(h: string): string {
     .replace(/[\s/\-]+/g, "_");
 }
 
-function mapHeader(raw: string): keyof HouseholdInput | null {
+function mapHeader(raw: string): CsvHouseholdField | null {
   const key = normalizeHeader(raw);
   for (const [field, aliases] of Object.entries(HEADER_ALIASES) as [
-    keyof HouseholdInput,
+    CsvHouseholdField,
     string[],
   ][]) {
     if (aliases.includes(key)) return field;

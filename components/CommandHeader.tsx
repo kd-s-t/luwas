@@ -1,64 +1,172 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { CommandBarangaySwitcher } from "@/components/CommandBarangaySwitcher";
+import { CommandNotifications } from "@/components/CommandNotifications";
 import { FadeIn } from "@/components/motion/primitives";
+import {
+  officerScopeBarangay,
+  subscribePendingAccounts,
+} from "@/lib/auth/accountValidation";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { isOfficer } from "@/lib/auth/types";
+import { isAccountActive, isOfficer } from "@/lib/auth/types";
+import { subscribeAllReports } from "@/lib/reports/api";
+import {
+  reportInScope,
+  scopeForProfile,
+} from "@/lib/reports/barangayScope";
+import type { HazardReport } from "@/lib/reports/types";
 import { cn } from "@/lib/utils";
 
-const NAV = [
+type NavBadge = "pending" | "reports" | null;
+
+const QUEUE_STATUSES = new Set([
+  "queued",
+  "validating",
+  "needs_review",
+  "failed",
+]);
+
+const NAV: {
+  href: string;
+  label: string;
+  short: string;
+  match: (p: string) => boolean;
+  badge: NavBadge;
+}[] = [
   {
     href: "/command",
     label: "Command center",
-    match: (p: string) => p === "/command",
+    short: "Center",
+    match: (p) => p === "/command",
+    badge: null,
   },
   {
     href: "/command/reports",
     label: "Field reports",
-    match: (p: string) => p.startsWith("/command/reports"),
+    short: "Reports",
+    match: (p) => p.startsWith("/command/reports"),
+    badge: "reports",
   },
   {
     href: "/citizen",
-    label: "My posts",
-    match: (p: string) => p.startsWith("/citizen"),
+    label: "My reports",
+    short: "Mine",
+    match: (p) => p.startsWith("/citizen"),
+    badge: null,
   },
   {
     href: "/command/households",
     label: "House owners",
-    match: (p: string) => p.startsWith("/command/households"),
+    short: "Homes",
+    match: (p) => p.startsWith("/command/households"),
+    badge: null,
   },
   {
     href: "/command/users",
     label: "Users",
-    match: (p: string) => p.startsWith("/command/users"),
+    short: "Users",
+    match: (p) => p.startsWith("/command/users"),
+    badge: "pending",
+  },
+  {
+    href: "/command/roles",
+    label: "Roles",
+    short: "Roles",
+    match: (p) => p.startsWith("/command/roles"),
+    badge: null,
   },
   {
     href: "/barangays",
     label: "Barangays",
-    match: (p: string) => p.startsWith("/barangays"),
+    short: "Brgy",
+    match: (p) => p.startsWith("/barangays"),
+    badge: null,
   },
   {
     href: "/command/onboard",
     label: "Onboard",
-    match: (p: string) => p.startsWith("/command/onboard"),
+    short: "Onboard",
+    match: (p) => p.startsWith("/command/onboard"),
+    badge: null,
   },
-  {
-    href: "/profile",
-    label: "Profile",
-    match: (p: string) => p.startsWith("/profile"),
-  },
-] as const;
+];
+
+function NavCountBadge({
+  count,
+  active,
+  label,
+}: {
+  count: number;
+  active: boolean;
+  label: string;
+}) {
+  if (count <= 0) return null;
+  return (
+    <span
+      className={cn(
+        "min-w-[1.15rem] rounded-sm px-1 py-px text-center text-[9px] font-semibold tracking-normal tabular-nums",
+        active
+          ? "bg-[var(--accent)] text-[var(--on-accent)]"
+          : "bg-[var(--accent)]/15 text-[var(--accent)]",
+      )}
+      aria-label={label}
+    >
+      {count > 99 ? "99+" : count}
+    </span>
+  );
+}
 
 export function CommandHeader() {
   const { profile, user, logout } = useAuth();
   const pathname = usePathname();
+  const router = useRouter();
+  const [pendingCount, setPendingCount] = useState(0);
+  const [reportQueueCount, setReportQueueCount] = useState(0);
+
+  const barangay = isOfficer(profile) ? officerScopeBarangay(profile) : "";
+  const areaId = isOfficer(profile)
+    ? profile.areaId ?? profile.activeBarangayId
+    : null;
+  const reportScope = useMemo(() => scopeForProfile(profile), [profile]);
+
+  useEffect(() => {
+    if (!isOfficer(profile) || !isAccountActive(profile) || !barangay) {
+      setPendingCount(0);
+      return;
+    }
+    return subscribePendingAccounts(
+      barangay,
+      (rows) => setPendingCount(rows.length),
+      undefined,
+      areaId,
+    );
+  }, [profile, barangay, areaId]);
+
+  useEffect(() => {
+    if (!isOfficer(profile) || !isAccountActive(profile)) {
+      setReportQueueCount(0);
+      return;
+    }
+    return subscribeAllReports((rows: HazardReport[]) => {
+      const n = rows.filter(
+        (r) => reportInScope(r, reportScope) && QUEUE_STATUSES.has(r.status),
+      ).length;
+      setReportQueueCount(n);
+    });
+  }, [profile, reportScope]);
+
+  async function onLogout() {
+    await logout();
+    router.replace("/login");
+  }
 
   return (
     <FadeIn y={8} className="relative z-20">
       <header className="border-b border-[var(--border)] bg-[var(--surface-raised)]/90 backdrop-blur">
-        <div className="flex min-h-12 items-center gap-3 px-3 sm:gap-4 sm:px-5">
+        <div className="flex min-h-12 items-center gap-2 px-3 sm:gap-4 sm:px-5">
           <Link
             href="/"
             className="shrink-0 font-[family-name:var(--font-display)] text-xl font-semibold tracking-wide sm:text-2xl"
@@ -66,27 +174,46 @@ export function CommandHeader() {
             LUWAS
           </Link>
 
-          <nav className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <nav className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {NAV.map((item) => {
               const active = item.match(pathname);
+              const badgeCount =
+                item.badge === "pending"
+                  ? pendingCount
+                  : item.badge === "reports"
+                    ? reportQueueCount
+                    : 0;
+              const badgeLabel =
+                item.badge === "pending"
+                  ? `${pendingCount} pending registrations`
+                  : item.badge === "reports"
+                    ? `${reportQueueCount} reports awaiting review`
+                    : "";
               return (
                 <Link
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "shrink-0 border-b-2 px-2.5 py-3 font-mono text-[10px] tracking-wider uppercase transition sm:px-3",
+                    "inline-flex shrink-0 items-center gap-1.5 border-b-2 px-2 py-3 font-mono text-[10px] tracking-wider uppercase transition sm:px-3",
                     active
                       ? "border-[var(--accent)] text-[var(--accent)]"
                       : "border-transparent text-[var(--muted)] hover:text-[var(--foreground)]",
                   )}
                 >
-                  {item.label}
+                  <span className="sm:hidden">{item.short}</span>
+                  <span className="hidden sm:inline">{item.label}</span>
+                  <NavCountBadge
+                    count={badgeCount}
+                    active={active}
+                    label={badgeLabel}
+                  />
                 </Link>
               );
             })}
           </nav>
 
-          <div className="flex shrink-0 items-center gap-3">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
+            <CommandNotifications />
             <CommandBarangaySwitcher />
             <Link
               href="/profile"
@@ -101,8 +228,8 @@ export function CommandHeader() {
             </Link>
             <button
               type="button"
-              onClick={() => logout()}
-              className="border border-[var(--border)] px-2.5 py-1 text-sm text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-[var(--foreground)]"
+              onClick={() => void onLogout()}
+              className="border border-[var(--border)] px-2 py-1 text-xs text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-[var(--foreground)] sm:px-2.5 sm:text-sm"
             >
               Logout
             </button>

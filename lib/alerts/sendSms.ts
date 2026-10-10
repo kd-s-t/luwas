@@ -1,14 +1,14 @@
 /**
  * SMS dispatch for barangay phones.
- * Primary: Twilio REST API (server-only).
- * Google FCM is push-to-app, not SMS to MSISDNs — not used here.
- * Without Twilio creds, runs in demo mode (logs, no carrier send).
+ * Primary: Semaphore (PH SMS API, server-only).
+ * Twilio is used for voice calls — see sendCall.ts.
+ * Without Semaphore creds, runs in demo mode (logs, no carrier send).
  */
 
 export type SmsSendResult = {
   to: string;
   ok: boolean;
-  provider: "twilio" | "demo";
+  provider: "semaphore" | "demo";
   sid?: string;
   error?: string;
   body?: string;
@@ -28,58 +28,90 @@ export type SmsRecipient = {
   };
 };
 
-function twilioConfigured() {
-  return Boolean(
-    process.env.TWILIO_ACCOUNT_SID?.trim() &&
-      process.env.TWILIO_AUTH_TOKEN?.trim() &&
-      process.env.TWILIO_FROM_NUMBER?.trim(),
-  );
+/** Semaphore accepts 09… or 63… (no +). */
+function toSemaphoreNumber(e164: string): string {
+  return e164.replace(/\D/g, "");
 }
 
-async function sendViaTwilio(
+function semaphoreConfigured() {
+  return Boolean(process.env.SEMAPHORE_API_KEY?.trim());
+}
+
+async function sendViaSemaphore(
   to: string,
   body: string,
 ): Promise<SmsSendResult> {
-  const sid = process.env.TWILIO_ACCOUNT_SID!.trim();
-  const token = process.env.TWILIO_AUTH_TOKEN!.trim();
-  const from = process.env.TWILIO_FROM_NUMBER!.trim();
-  const auth = Buffer.from(`${sid}:${token}`).toString("base64");
-  const params = new URLSearchParams({ To: to, From: from, Body: body });
+  const apikey = process.env.SEMAPHORE_API_KEY!.trim();
+  const sendername = process.env.SEMAPHORE_SENDER_NAME?.trim();
+  const number = toSemaphoreNumber(to);
 
-  const res = await fetch(
-    `https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Basic ${auth}`,
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: params.toString(),
-    },
-  );
+  const params = new URLSearchParams({
+    apikey,
+    number,
+    message: body,
+  });
+  if (sendername) params.set("sendername", sendername);
 
-  const data = (await res.json()) as {
-    sid?: string;
-    message?: string;
-    error_message?: string;
-  };
+  const res = await fetch("https://api.semaphore.co/api/v4/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: params.toString(),
+  });
+
+  const data = (await res.json()) as
+    | {
+        message_id?: number | string;
+        status?: string;
+        recipient?: string;
+      }[]
+    | { message?: string; error?: string };
 
   if (!res.ok) {
+    const err =
+      !Array.isArray(data) && typeof data === "object"
+        ? data.message || data.error
+        : undefined;
     return {
       to,
       ok: false,
-      provider: "twilio",
-      error: data.error_message || data.message || `Twilio ${res.status}`,
+      provider: "semaphore",
+      error: err || `Semaphore ${res.status}`,
     };
   }
 
-  return { to, ok: true, provider: "twilio", sid: data.sid };
+  if (!Array.isArray(data) || data.length === 0) {
+    return {
+      to,
+      ok: false,
+      provider: "semaphore",
+      error: "Empty Semaphore response",
+    };
+  }
+
+  const first = data[0];
+  const status = (first.status ?? "").toLowerCase();
+  if (status === "failed" || status === "refunded") {
+    return {
+      to,
+      ok: false,
+      provider: "semaphore",
+      error: `Semaphore status: ${first.status}`,
+      sid: first.message_id != null ? String(first.message_id) : undefined,
+    };
+  }
+
+  return {
+    to,
+    ok: true,
+    provider: "semaphore",
+    sid: first.message_id != null ? String(first.message_id) : undefined,
+  };
 }
 
 export async function sendSmsBatch(
   recipients: SmsRecipient[],
-): Promise<{ provider: "twilio" | "demo"; results: SmsSendResult[] }> {
-  const useTwilio = twilioConfigured();
+): Promise<{ provider: "semaphore" | "demo"; results: SmsSendResult[] }> {
+  const useSemaphore = semaphoreConfigured();
   const results: SmsSendResult[] = [];
 
   for (const r of recipients) {
@@ -89,7 +121,7 @@ export async function sendSmsBatch(
       priority: r.meta?.priority,
       phoneDisplay: r.meta?.phoneDisplay ?? r.to,
     };
-    if (!useTwilio) {
+    if (!useSemaphore) {
       console.info(
         "[sms:demo]",
         r.meta?.priority ?? "alert",
@@ -107,26 +139,26 @@ export async function sendSmsBatch(
       continue;
     }
     try {
-      const sent = await sendViaTwilio(r.to, r.body);
+      const sent = await sendViaSemaphore(r.to, r.body);
       results.push({ ...sent, ...detail });
     } catch (err) {
       results.push({
         to: r.to,
         ok: false,
-        provider: "twilio",
+        provider: "semaphore",
         error: err instanceof Error ? err.message : "Send failed",
         ...detail,
       });
     }
   }
 
-  return { provider: useTwilio ? "twilio" : "demo", results };
+  return { provider: useSemaphore ? "semaphore" : "demo", results };
 }
 
 export function smsProviderStatus(): {
-  provider: "twilio" | "demo";
+  provider: "semaphore" | "demo";
   ready: boolean;
 } {
-  const ready = twilioConfigured();
-  return { provider: ready ? "twilio" : "demo", ready };
+  const ready = semaphoreConfigured();
+  return { provider: ready ? "semaphore" : "demo", ready };
 }

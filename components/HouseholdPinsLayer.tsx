@@ -12,10 +12,13 @@ type HouseholdPinsLayerProps = {
   assistPriorities?: Record<string, AssistPriority>;
 };
 
+/** Default house pins stay green; red is evacuate only. */
+const HOUSEHOLD_DOT_GREEN = "#1f8f55";
+
 const PRIORITY_COLOR: Record<AssistPriority, string> = {
-  evacuate: "#c0392b",
+  evacuate: "#c72929",
   prepare: "#b8860b",
-  monitor: "#167445",
+  monitor: "#2563eb",
 };
 
 /**
@@ -40,7 +43,7 @@ export function HouseholdPinsLayer({
     for (const h of households) {
       if (h.lat == null || h.lng == null) continue;
       const priority = assistPriorities[h.id];
-      const color = priority ? PRIORITY_COLOR[priority] : "#167445";
+      const color = priority ? PRIORITY_COLOR[priority] : HOUSEHOLD_DOT_GREEN;
       const radius = priority ? 2.25 : 1.5;
       const elevM = estimateElevM(h.lat, h.lng);
 

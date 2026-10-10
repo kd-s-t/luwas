@@ -159,7 +159,7 @@ export function AreaSearchSelect({
       </p>
 
       {open ? (
-        <div className="absolute left-0 top-full z-[1001] mt-1 w-[min(100vw-2rem,22rem)] border border-[var(--border)] bg-[var(--surface)] shadow-[0_16px_40px_rgba(15,42,28,0.18)]">
+        <div className="absolute left-0 top-full z-[1001] mt-1 w-[min(100vw-2rem,22rem)] border border-[var(--border)] bg-[var(--surface)] shadow-[0_16px_40px_rgba(31,33,38,0.18)]">
           <div className="flex items-center gap-2 border-b border-[var(--border)] px-3 py-2">
             <Search className="size-3.5 shrink-0 text-[var(--muted)]" aria-hidden />
             <input

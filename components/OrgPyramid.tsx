@@ -38,7 +38,7 @@ export function OrgPyramid({ levels }: OrgPyramidProps) {
           >
             <div
               className={cn(
-                "border border-[var(--border)] bg-[var(--surface-raised)]/95 px-3 py-3 shadow-[0_6px_20px_rgba(15,42,28,0.06)] sm:px-4",
+                "border border-[var(--border)] bg-[var(--surface-raised)]/95 px-3 py-3 shadow-[0_6px_20px_rgba(31,33,38,0.06)] sm:px-4",
                 index === 0 &&
                   "border-[var(--accent)] bg-[var(--accent)] text-[var(--on-accent)]",
               )}

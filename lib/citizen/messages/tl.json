@@ -1,0 +1,130 @@
+{
+  "brand": "Luwas",
+  "common": {
+    "change": "Palitan",
+    "edit": "I-edit",
+    "back": "Bumalik",
+    "next": "Susunod",
+    "logIn": "Mag-login",
+    "logOut": "Mag-logout",
+    "guest": "Bisita",
+    "citizen": "Mamayan",
+    "demoNoLogin": "Demo · walang login",
+    "skipStep1": "Laktawan — pumunta sa Hakbang 1",
+    "reportWithoutLogin": "Mag-ulat nang walang login",
+    "reportWithoutLoginHint": "Hindi kailangan ng account para sa emergency report.",
+    "copied": "Nakopya"
+  },
+  "home": {
+    "tagline": "Isang mas ligtas na hakbang, magkasama.",
+    "blurb": "Mag-ulat ng panganib o humingi ng tulong. Hindi kailangan ng perpektong ulat — ipadala ang alam mo.",
+    "needHelp": "Kailangan Ko ng Tulong",
+    "reportHazard": "Mag-ulat ng Panganib",
+    "checkReport": "Tingnan ang Aking Ulat",
+    "staySafe": "Manatiling ligtas habang naghihintay",
+    "tipFlood": "Iwasan ang paglalakad sa baha",
+    "tipHigher": "Lumipat sa mas mataas na lugar kung tumataas ang tubig",
+    "tipPhone": "Panatilihing naka-charge ang telepono para sa mga update"
+  },
+  "danger": {
+    "immediate": "Nasa agarang panganib?",
+    "call911": "Tumawag sa 911"
+  },
+  "footer": {
+    "tagline": "Luwas — Ulat ng sakuna sa komunidad",
+    "accessibility": "Accessibility",
+    "privacy": "Privacy"
+  },
+  "step": {
+    "progress": "Hakbang {step} ng 3 — {title}",
+    "situation": "Sitwasyon",
+    "location": "Lokasyon",
+    "review": "Suriin"
+  },
+  "intent": {
+    "needHelp": "Kailangan Ko ng Tulong",
+    "needHelpSub": "Para sa iyo o sa taong nasa panganib sa malapit",
+    "reportHazard": "Mag-ulat ng Panganib",
+    "reportHazardSub": "Baha, pinsala, o hindi ligtas na lugar"
+  },
+  "situation": {
+    "type": "Uri ng sitwasyon",
+    "whatHappening": "Ano ang nangyayari?",
+    "example": "Halimbawa: Lumalalim na ang baha sa labas ng bahay namin sa Purok 3. Tatlong tao, kasama ang aking matandang ina, ang nangangailangan ng tulong.",
+    "recordVoice": "I-record ang boses ko",
+    "addPhoto": "Magdagdag ng larawan (kailangan)",
+    "addPhotoButton": "Magdagdag ng larawan",
+    "addAnotherPhoto": "Magdagdag pa ng larawan",
+    "photoHint": "Kinakailangan ang larawan ng eksena para sa review ng barangay.",
+    "aiNote": "Sinusuri ng AI ang tunay na wika ng panganib — hindi ito gagawa ng lokasyon o magkukumpirma ng tulong.",
+    "nextLocation": "Susunod: Magdagdag ng lokasyon"
+  },
+  "location": {
+    "title": "Saan kailangan ang tulong?",
+    "useGps": "Gamitin ang kasalukuyang lokasyon ko",
+    "gettingGps": "Kinuha ang GPS…",
+    "searchLabel": "Maghanap ng barangay o lungsod",
+    "searchPlaceholder": "Brgy. Nangka, Consolacion",
+    "mapHint": "Apple Maps — i-pan para igalaw ang pin, o i-drag ang pulang marker. Ang chips ay totoong koordinasyon ng hall sa Consolacion.",
+    "landmark": "Malapit na landmark (opsyonal)",
+    "landmarkPlaceholder": "Malapit sa barangay hall",
+    "approximate": "Tinatayang lokasyon ito",
+    "nextReview": "Susunod: Suriin ang ulat",
+    "fromGps": "Mula sa GPS ng device"
+  },
+  "review": {
+    "title": "Suriin at isumite",
+    "situation": "Sitwasyon",
+    "location": "Lokasyon",
+    "attachments": "Mga kalakip",
+    "aiCheck": "AI check (lokal na tuntunin)",
+    "verdict": "Hatol: {value}",
+    "category": "Kategorya: {value}",
+    "people": "Tao / pangangailangan: {value}",
+    "urgency": "Agarang: {value}",
+    "confidence": "Kumpiyansa: {value}%",
+    "pendingHuman": "Beripikasyon: Naghihintay ng review ng tao",
+    "photoRequired": "Kailangan ng larawan — bumalik at magdagdag",
+    "approxLocation": "Tinatayang lokasyon",
+    "mobileOptional": "Numero ng mobile (opsyonal)",
+    "mobileHint": "Mas mainam ang PH mobile (09XXXXXXXXX). Gagamitin lang kung kailangan kang maabot ng responder.",
+    "submit": "Isumite ang ulat",
+    "disclaimer": "Hindi ipapakita ng LUWAS ang hindi beripikadong rescue o tulong bilang kumpirmado."
+  },
+  "confirm": {
+    "title": "Natanggap ang iyong ulat",
+    "body": "Salamat. Maaaring suriin ito ng coordinator kapag available. Panatilihin ang iyong reference number.",
+    "reference": "Reference number",
+    "copy": "Kopyahin ang reference number",
+    "noResponder": "Wala pang naka-assign na responder. Hindi ito kumpirmadong pangako ng rescue.",
+    "track": "Subaybayan ang ulat ko",
+    "home": "Bumalik sa Home",
+    "nextTitle": "Ano ang susunod?",
+    "next1": "Papasok ang ulat mo sa review queue",
+    "next2": "Susuriin ng tao ang detalye bago payagan ang anumang plano",
+    "next3": "Gamitin ang reference number para tingnan ang status anytime"
+  },
+  "track": {
+    "title": "Subaybayan ang ulat ko",
+    "reference": "Reference number",
+    "checkUpdates": "Tingnan ang mga update",
+    "progress": "Progreso ng ulat",
+    "latest": "Pinakabagong update",
+    "yourReport": "Ang iyong ulat",
+    "updateReport": "I-update ang ulat ko",
+    "current": "Kasalukuyan",
+    "badFormat": "Dapat mukhang LUW-261010-9934 ang reference (mula sa confirmation screen).",
+    "notFound": "Walang ulat para sa {ref} sa device na ito. Magsumite muna, tapos i-track ang reference."
+  },
+  "auth": {
+    "loginTitle": "Login ng mamayan",
+    "loginSubtitle": "Para sa residente lang. Ang mga opisyal ay gumagamit ng LUWAS web command center.",
+    "email": "Email",
+    "password": "Password",
+    "signingIn": "Nagla-login…",
+    "demoCitizens": "Demo na mamayan",
+    "demoPassword": "Password sa demo: demo1234",
+    "newResident": "Bagong residente?",
+    "createAccount": "Gumawa ng citizen account"
+  }
+}

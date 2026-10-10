@@ -3,13 +3,20 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import type { UserRole } from "@/lib/auth/types";
+import {
+  isAccountActive,
+  isAccountFired,
+  isAccountPending,
+  type UserRole,
+} from "@/lib/auth/types";
 
 type AuthGateProps = {
   children: React.ReactNode;
   mode: "protected" | "guest";
   /** When protected, optionally require a role. */
   role?: UserRole;
+  /** Allow pending accounts (default false for protected). */
+  allowPending?: boolean;
 };
 
 function homeForRole(role: UserRole | undefined) {
@@ -17,7 +24,12 @@ function homeForRole(role: UserRole | undefined) {
   return "/command";
 }
 
-export function AuthGate({ children, mode, role }: AuthGateProps) {
+export function AuthGate({
+  children,
+  mode,
+  role,
+  allowPending = false,
+}: AuthGateProps) {
   const { user, profile, loading } = useAuth();
   const router = useRouter();
 
@@ -28,13 +40,31 @@ export function AuthGate({ children, mode, role }: AuthGateProps) {
       return;
     }
     if (mode === "guest" && user) {
+      if (
+        isAccountPending(profile) ||
+        isAccountFired(profile) ||
+        profile?.accountStatus === "rejected"
+      ) {
+        router.replace("/pending");
+        return;
+      }
       router.replace(homeForRole(profile?.role));
       return;
     }
     if (mode === "protected" && user && role && profile && profile.role !== role) {
       router.replace(homeForRole(profile.role));
+      return;
     }
-  }, [loading, mode, router, user, profile, role]);
+    if (
+      mode === "protected" &&
+      user &&
+      !allowPending &&
+      profile &&
+      !isAccountActive(profile)
+    ) {
+      router.replace("/pending");
+    }
+  }, [loading, mode, router, user, profile, role, allowPending]);
 
   if (loading) {
     return (
@@ -49,6 +79,14 @@ export function AuthGate({ children, mode, role }: AuthGateProps) {
   if (mode === "protected" && !user) return null;
   if (mode === "guest" && user) return null;
   if (mode === "protected" && role && profile && profile.role !== role) {
+    return null;
+  }
+  if (
+    mode === "protected" &&
+    !allowPending &&
+    profile &&
+    !isAccountActive(profile)
+  ) {
     return null;
   }
 

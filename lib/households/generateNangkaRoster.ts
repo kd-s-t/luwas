@@ -5,8 +5,14 @@ import type { HouseholdInput } from "@/lib/households/types";
 /** PSA 2020 Census of Population and Housing — Brgy. Nangka, Consolacion. */
 export const NANGKA_CENSUS_2020 = 13_013;
 
-/** Target household count for the synthetic Nangka roster (~4.5 people/HH). */
-export const NANGKA_HOUSEHOLD_TARGET = 2_900;
+/**
+ * House-owner households for the ops roster (one row per home, not per adult).
+ * ~1,500 homes ≈ couples / families under one owner — not the full 2.9k PSA HH count.
+ */
+export const NANGKA_HOUSEHOLD_TARGET = 1_500;
+
+/** Mean people per house-owner row (demo sizing; not a full census rebuild). */
+const PEOPLE_PER_HOUSE_OWNER = 4.5;
 
 const FIRST_NAMES = [
   "Jose",
@@ -153,7 +159,7 @@ function slugEmail(name: string, index: number): string {
 }
 
 function sampleMembers(rand: () => number): number {
-  // Skew around 4–5 so mean ≈ 4.5 → ~13k people across 2900 HH.
+  // Skew around 4–5 so mean ≈ PEOPLE_PER_HOUSE_OWNER.
   const roll = rand();
   if (roll < 0.06) return 1;
   if (roll < 0.14) return 2;
@@ -215,9 +221,14 @@ export function generateNangkaRoster(
   const rand = mulberry32(0x4e616e67); // "Nang"
   const curatedMembers = curated.map((h) => parseCuratedMembers(h.notes));
   const remaining = target - curated.length;
+  const curatedPeople = curatedMembers.reduce((a, b) => a + b, 0);
+  const peopleBudget = Math.max(
+    remaining,
+    Math.round(target * PEOPLE_PER_HOUSE_OWNER) - curatedPeople,
+  );
   const synthMembers = fitMembersToCensus(
     Array.from({ length: remaining }, () => sampleMembers(rand)),
-    NANGKA_CENSUS_2020 - curatedMembers.reduce((a, b) => a + b, 0),
+    peopleBudget,
   );
 
   const out: HouseholdInput[] = curated.map((h, idx) => ({

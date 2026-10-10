@@ -11,6 +11,10 @@ import {
   IdVerificationCapture,
   type IdCaptureState,
 } from "@/components/IdVerificationCapture";
+import {
+  RegisterLocationFields,
+  type RegisterLocation,
+} from "@/components/RegisterLocationFields";
 import { uploadIdentityMedia } from "@/lib/auth/idUpload";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { verifyIdWithApi } from "@/lib/auth/verifyIdClient";
@@ -24,6 +28,12 @@ export default function CitizenRegisterPage() {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [location, setLocation] = useState<RegisterLocation | null>({
+    areaId: "consolacion/nangka",
+    barangay: "Nangka",
+    lgu: "Consolacion",
+    label: "Nangka · Consolacion",
+  });
   const [idCapture, setIdCapture] = useState<IdCaptureState>({
     idType: "umid",
     idFile: null,
@@ -38,6 +48,10 @@ export default function CitizenRegisterPage() {
     setError(null);
     setStatus(null);
 
+    if (!location) {
+      setError("Choose your barangay / location.");
+      return;
+    }
     if (!idCapture.idFile || !idCapture.faceFile) {
       setError("Capture both your ID and a face selfie to continue.");
       return;
@@ -63,13 +77,17 @@ export default function CitizenRegisterPage() {
       }
 
       setStatus("Creating citizen account…");
+      let autoValidated = false;
       try {
-        await registerCitizen({
+        const result = await registerCitizen({
           email: trimmedEmail,
           password,
           displayName: name,
           purok: purok.trim(),
           phone: phone.trim(),
+          areaId: location.areaId,
+          barangay: location.barangay,
+          lgu: location.lgu,
           idProof: {
             idVerified: true,
             idType: verdict.idType ?? idCapture.idType,
@@ -78,6 +96,7 @@ export default function CitizenRegisterPage() {
             idSource: verdict.source,
           },
         });
+        autoValidated = result.autoValidated;
       } catch (err) {
         const message = err instanceof Error ? err.message : "";
         if (/email-already-in-use/i.test(message)) {
@@ -117,7 +136,7 @@ export default function CitizenRegisterPage() {
         }
       }
 
-      router.replace("/citizen");
+      router.replace(autoValidated ? "/citizen" : "/pending");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");
       setStatus(null);
@@ -130,7 +149,7 @@ export default function CitizenRegisterPage() {
     <AuthGate mode="guest">
       <AuthCard
         title="Register citizen"
-        subtitle="ID + face check required (DL, Passport, or UMID) to reduce fake accounts."
+        subtitle="Choose your barangay. Matching house-owner records auto-validate; otherwise an officer reviews."
         footer={
           <>
             Already registered?{" "}
@@ -141,9 +160,18 @@ export default function CitizenRegisterPage() {
               Citizen login
             </Link>
             {" · "}
-            Officer?{" "}
-            <Link href="/register" className="text-[var(--accent)] hover:underline">
-              Officer register
+            <Link
+              href="/register"
+              className="text-[var(--accent)] hover:underline"
+            >
+              Choose role
+            </Link>
+            {" · "}
+            <Link
+              href="/register/officer"
+              className="text-[var(--accent)] hover:underline"
+            >
+              Officer
             </Link>
           </>
         }
@@ -201,6 +229,12 @@ export default function CitizenRegisterPage() {
               className="w-full border border-[var(--border)] bg-[var(--input)] px-3 py-2.5 outline-none focus:border-[var(--accent)]"
             />
           </label>
+
+          <RegisterLocationFields
+            value={location}
+            onChange={setLocation}
+            disabled={submitting}
+          />
 
           <IdVerificationCapture
             value={idCapture}

@@ -1,6 +1,6 @@
 /**
  * Nangka household seed — census-scale synthetic roster.
- * Curated pins (0–11) live in curatedSeed; full 2,900 in generateNangkaRoster.
+ * Curated pins (0–11) live in curatedSeed; ~1,500 house owners in generateNangkaRoster.
  */
 export {
   CEBU_HOUSEHOLDS,

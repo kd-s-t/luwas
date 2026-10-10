@@ -63,6 +63,9 @@ function CitizenLoginForm() {
               displayName: demo.displayName,
               purok: demo.purok,
               phone: demo.phone,
+              areaId: "consolacion/nangka",
+              barangay: "Nangka",
+              lgu: "Consolacion",
               idProof: DEMO_ID_PROOF,
             });
           } catch (regErr) {

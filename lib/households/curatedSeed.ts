@@ -132,9 +132,43 @@ export const CURATED_NANGKA_HOUSEHOLDS: HouseholdInput[] = [
     purok: "Purok 6",
     phone: "09606075119",
     email: "kendantinio@gmail.com",
-    notes: "Citizen account · 2 people · 1 dog · 2-storey · cemented all",
+    notes:
+      "Citizen accounts · Ken + Jeanilou · Yumi (dog) · 2-storey · cemented all",
+    members: [
+      {
+        name: "Jeanilou Labajo",
+        email: "jenlabajo.business@gmail.com",
+        relation: "Partner",
+      },
+      {
+        name: "Yumi",
+        relation: "Dog",
+      },
+    ],
     // https://maps.google.com/?q=10.369166,123.962317
     lat: 10.369166,
     lng: 123.962317,
+  },
+  {
+    ownerName: "Carl John Don Sebial",
+    address: "Purok 6 · near Ken Dan Tinio",
+    purok: "Purok 6",
+    phone: "",
+    email: "inno.carljohndon@gmail.com",
+    notes: "Citizen account · neighbor of Ken Dan Tinio",
+    // https://maps.google.com/?q=10.369104,123.962382
+    lat: 10.369104,
+    lng: 123.962382,
+  },
+  {
+    ownerName: "Patricia Abrenica",
+    address: "Purok 6 · near Access Road",
+    purok: "Purok 6",
+    phone: "",
+    email: "psabrenica@gmail.com",
+    notes: "Citizen account · neighbor of Ken Dan Tinio",
+    // https://maps.google.com/?q=10.369555,123.962699
+    lat: 10.369555,
+    lng: 123.962699,
   },
 ];

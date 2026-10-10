@@ -60,16 +60,16 @@ const STACK = [
 ] as const;
 
 const COLORS = [
-  { name: "Accent", token: "--accent", hex: "#1f8f55" },
-  { name: "Accent dim", token: "--accent-dim", hex: "#167445" },
-  { name: "Foreground", token: "--foreground", hex: "#0f2a1c" },
-  { name: "Muted", token: "--muted", hex: "#4d6b5a" },
-  { name: "Border", token: "--border", hex: "#b7d9c6" },
+  { name: "Accent", token: "--accent", hex: "#c72929" },
+  { name: "Accent dim", token: "--accent-dim", hex: "#9e1a1a" },
+  { name: "Foreground", token: "--foreground", hex: "#1f2126" },
+  { name: "Muted", token: "--muted", hex: "#666e78" },
+  { name: "Border", token: "--border", hex: "#dbe0e6" },
   { name: "Surface", token: "--surface", hex: "#ffffff" },
-  { name: "Surface raised", token: "--surface-raised", hex: "#f4faf6" },
-  { name: "Surface panel", token: "--surface-panel", hex: "#e8f5ee" },
+  { name: "Surface raised", token: "--surface-raised", hex: "#f7f7fa" },
+  { name: "Surface panel", token: "--surface-panel", hex: "#eef0f3" },
   { name: "Warn", token: "--warn", hex: "#b8860b" },
-  { name: "Danger", token: "--danger", hex: "#c0392b" },
+  { name: "Danger", token: "--danger", hex: "#c72929" },
 ] as const;
 
 const SUGGESTIONS = [
@@ -481,7 +481,7 @@ export default function BootstrapKitPage() {
                 Brgy. Nangka, Consolacion, Cebu
               </p>
               <p className="mt-2 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
-                Switch barangay map · 2,900 homes
+                Switch barangay map · 1,500 homes
               </p>
             </Section>
 

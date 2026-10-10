@@ -5,11 +5,11 @@ export type BrandedEmailParts = {
 };
 
 const BRAND = "LUWAS";
-const ACCENT = "#1f8f55";
-const INK = "#0f2a1c";
-const MUTED = "#4d6b5a";
+const ACCENT = "#c72929";
+const INK = "#1f2126";
+const MUTED = "#666e78";
 const CARD_BG = "#ffffff";
-const OUTER_BG = "#e8f5ee";
+const OUTER_BG = "#eef0f3";
 
 export function escapeHtml(value: string): string {
   return value
@@ -83,13 +83,13 @@ function brandHeaderHtml(headerColor: string): string {
                 </tr>`;
 }
 
-/** Shared LUWAS transactional chrome: green header, white card, muted footer. */
+/** Shared LUWAS transactional chrome: red header, white card, muted footer. */
 export function buildBrandedEmail(params: {
   subject: string;
   eyebrow?: string;
   headline?: string;
   greetingName?: string;
-  /** Header strip color (default LUWAS green). Ignored when headerVariant is warning. */
+  /** Header strip color (default LUWAS red). Ignored when headerVariant is warning. */
   headerColor?: string;
   /** `warning` = red hazard-tape WARNING banner for DRRM alerts. */
   headerVariant?: "brand" | "warning";
@@ -108,7 +108,7 @@ export function buildBrandedEmail(params: {
   const headline = params.headline?.trim();
   const isWarning = params.headerVariant === "warning";
   const headerColor = params.headerColor?.trim() || ACCENT;
-  const cardBorder = isWarning ? "#f5a5a0" : "#b7d9c6";
+  const cardBorder = isWarning ? "#f5a5a0" : "#dbe0e6";
   const outerBg = isWarning ? "#f7ecec" : OUTER_BG;
   const eyebrowColor = isWarning ? WARNING_RED : ACCENT;
   const origin = appOrigin();
@@ -172,7 +172,7 @@ ${footerText}`;
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;min-height:100%;border-collapse:collapse;background:${outerBg};">
     <tr>
       <td align="center" style="padding:24px 12px;background:${outerBg};">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:610px;border-collapse:separate;border-spacing:0;border-radius:16px;box-shadow:0 4px 10px rgba(15,42,28,0.06),0 14px 36px rgba(15,42,28,0.12);">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:610px;border-collapse:separate;border-spacing:0;border-radius:16px;box-shadow:0 4px 10px rgba(31, 33, 38,0.06),0 14px 36px rgba(31, 33, 38,0.12);">
           <tr>
             <td style="border-radius:16px;overflow:hidden;border:1px solid ${cardBorder};background:${CARD_BG};">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;background:${CARD_BG};">
@@ -195,7 +195,7 @@ ${footerText}`;
                   </td>
                 </tr>
                 <tr>
-                  <td style="padding:20px 28px 28px;border-top:1px solid #d8ebe0;background:#f4faf6;">
+                  <td style="padding:20px 28px 28px;border-top:1px solid #e5e8ec;background:#f7f7fa;">
                     <p style="margin:0 0 4px;font-size:13px;font-weight:600;color:${INK};text-align:center;">${escapeHtml(BRAND)}</p>
                     <p style="margin:0 0 8px;font-size:12px;line-height:1.45;color:${MUTED};text-align:center;">Logistics &amp; Unified Workflow for Aid &amp; Safety</p>
                     <p style="margin:0;font-size:11px;line-height:1.45;color:${MUTED};text-align:center;">Brgy. Nangka MDRRMO · Consolacion, Cebu</p>

@@ -331,9 +331,9 @@ export function PublicSituationMap() {
               {nangkaOps ? (
                 <>
                   Nangka command-center layers:{" "}
-                  {NANGKA_HOUSEHOLD_TARGET.toLocaleString()} homes · ~
-                  {NANGKA_CENSUS_2020.toLocaleString()} people (PSA 2020), AI
-                  flood footprints, evacuate/prepare pins, and escape lines
+                  {NANGKA_HOUSEHOLD_TARGET.toLocaleString()} house owners
+                  (PSA ~{NANGKA_CENSUS_2020.toLocaleString()} people), AI flood
+                  footprints, evacuate/prepare pins, and escape lines
                   {snapshot ? " · synced from command triage" : ""}.
                 </>
               ) : (
@@ -429,37 +429,39 @@ export function PublicSituationMap() {
               escapeRoutes={escapeRoutes}
             />
           </div>
-          <div className="flex flex-wrap gap-x-5 gap-y-2 border-t border-[var(--border)] px-4 py-3 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+          <div className="-mx-px flex gap-2 overflow-x-auto overscroll-x-contain border-t border-[var(--border)] px-3 py-2.5 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase [-ms-overflow-style:none] [scrollbar-width:none] sm:flex-wrap sm:overflow-visible sm:px-4 sm:py-3 [&::-webkit-scrollbar]:hidden">
             {userLocation ? (
-              <span>
-                <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-[#0ea5e9] align-middle" />
+              <span className="inline-flex shrink-0 items-center whitespace-nowrap">
+                <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-[#0ea5e9]" />
                 You are here
               </span>
             ) : null}
             {nangkaOps ? (
               <>
-                <span>
-                  <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-[var(--danger)] align-middle" />
+                <span className="inline-flex shrink-0 items-center whitespace-nowrap">
+                  <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-[var(--danger)]" />
                   Evacuate{" "}
                   {assist?.actions.filter((a) => a.priority === "evacuate")
                     .length ?? 0}
                 </span>
-                <span>
-                  <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-[#b8860b] align-middle" />
+                <span className="inline-flex shrink-0 items-center whitespace-nowrap">
+                  <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-[#b8860b]" />
                   Prepare{" "}
                   {assist?.actions.filter((a) => a.priority === "prepare")
                     .length ?? 0}
                 </span>
-                <span>
-                  <span className="mr-1.5 inline-block h-2 w-2 bg-[#2563eb] align-middle" />
+                <span className="inline-flex shrink-0 items-center whitespace-nowrap">
+                  <span className="mr-1.5 inline-block h-2 w-2 bg-[#2563eb]" />
                   Floods {mapFloods.length}
                 </span>
               </>
             ) : (
-              <span>No local hazard layers yet</span>
+              <span className="shrink-0 whitespace-nowrap">
+                No local hazard layers yet
+              </span>
             )}
             {pack.fires.length > 0 ? (
-              <span className="inline-flex items-center gap-1.5">
+              <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap">
                 <Flame
                   className="size-3.5 shrink-0 text-[#ea580c]"
                   strokeWidth={2.5}
@@ -469,7 +471,7 @@ export function PublicSituationMap() {
               </span>
             ) : null}
             {pack.landslides.length > 0 ? (
-              <span className="inline-flex items-center gap-1.5">
+              <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap">
                 <Mountain
                   className="size-3.5 shrink-0 text-[#8b5a2b]"
                   strokeWidth={2.5}
@@ -479,7 +481,7 @@ export function PublicSituationMap() {
               </span>
             ) : null}
             {pack.typhoons.length > 0 ? (
-              <span className="inline-flex items-center gap-1.5">
+              <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap">
                 <Tornado
                   className="size-3.5 shrink-0 text-[#1d4ed8]"
                   strokeWidth={2.5}
@@ -488,22 +490,33 @@ export function PublicSituationMap() {
                 Typhoon {pack.typhoons.length}
               </span>
             ) : null}
-            <span>
-              <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-[#b45309] align-middle" />
+            <span className="inline-flex shrink-0 items-center whitespace-nowrap">
+              <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-[#b45309]" />
               Reports {pack.reportPins.length}
             </span>
-            <span>
-              <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-[var(--danger)] align-middle" />
+            <span className="inline-flex shrink-0 items-center whitespace-nowrap">
+              <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-[var(--danger)]" />
               Quakes {quakes.length}
             </span>
-            <span className="text-[#0f5c38]">Command (hall)</span>
-            <span className="text-[#1d4ed8]">School</span>
-            <span className="text-[#15803d]">Evac center</span>
-            <span className="text-[#ea580c]">
-              Fire{" "}
-              {pack.responders.filter((r) => r.kind === "bfp").length}
+            <span className="shrink-0 whitespace-nowrap text-[#9e1a1a]">
+              Hall
             </span>
-            <span className="text-[#be123c]">
+            <span className="shrink-0 whitespace-nowrap text-[#1d4ed8]">
+              School{" "}
+              {pack.safePoints.filter((p) => p.kind === "school").length}
+            </span>
+            <span className="shrink-0 whitespace-nowrap text-[#2e8c57]">
+              Evac{" "}
+              {
+                pack.safePoints.filter(
+                  (p) => p.kind === "evac_center" || p.isEvacCenter,
+                ).length
+              }
+            </span>
+            <span className="shrink-0 whitespace-nowrap text-[#ea580c]">
+              Fire {pack.responders.filter((r) => r.kind === "bfp").length}
+            </span>
+            <span className="shrink-0 whitespace-nowrap text-[#be123c]">
               Hospital{" "}
               {pack.responders.filter((r) => r.kind === "hospital").length}
             </span>

@@ -1,11 +1,13 @@
 /** Transactional email catalog for command preview. */
 
-export type EmailTemplateCategory = "auth" | "alerts" | "reports";
+export type EmailTemplateCategory = "auth" | "alerts" | "reports" | "staff";
 
 export type EmailTemplateId =
   | "register"
   | "verified"
   | "welcome"
+  | "officer_add_existing"
+  | "officer_add_new"
   | "eq_alert"
   | "fire_alert"
   | "typhoon_alert"
@@ -26,6 +28,7 @@ export const EMAIL_TEMPLATE_CATEGORIES: {
   label: string;
 }[] = [
   { id: "auth", label: "Account" },
+  { id: "staff", label: "Staff" },
   { id: "alerts", label: "Alerts" },
   { id: "reports", label: "Reports" },
 ];
@@ -51,6 +54,22 @@ export const EMAIL_TEMPLATES: EmailTemplateMeta[] = [
     name: "Welcome",
     description: "Welcome mail once the citizen account is ready for alerts.",
     event: "welcome",
+  },
+  {
+    id: "officer_add_existing",
+    category: "staff",
+    name: "Add existing officer",
+    description:
+      "Sent when the captain promotes a house owner to an officer login.",
+    event: "officer_add_existing",
+  },
+  {
+    id: "officer_add_new",
+    category: "staff",
+    name: "Add new officer",
+    description:
+      "Sent when the captain creates a brand-new officer account.",
+    event: "officer_add_new",
   },
   {
     id: "eq_alert",

@@ -37,22 +37,22 @@ function schematicSvg(input: {
 <svg xmlns="http://www.w3.org/2000/svg" width="1120" height="560" viewBox="0 0 1120 560">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#e8f5ee"/>
+      <stop offset="0%" stop-color="#eef0f3"/>
       <stop offset="100%" stop-color="#d4ebe0"/>
     </linearGradient>
   </defs>
   <rect width="1120" height="560" fill="url(#bg)"/>
-  <circle cx="280" cy="280" r="120" fill="none" stroke="#b7d9c6" stroke-width="2" stroke-dasharray="8 10"/>
+  <circle cx="280" cy="280" r="120" fill="none" stroke="#dbe0e6" stroke-width="2" stroke-dasharray="8 10"/>
   <circle cx="840" cy="280" r="120" fill="none" stroke="#f5c6c2" stroke-width="2" stroke-dasharray="8 10"/>
-  <line x1="320" y1="280" x2="800" y2="280" stroke="#c0392b" stroke-width="4" stroke-linecap="round" opacity="0.75"/>
-  <circle cx="280" cy="280" r="18" fill="#1f8f55"/>
-  <circle cx="840" cy="280" r="18" fill="#c0392b"/>
-  <text x="280" y="320" text-anchor="middle" font-family="system-ui,sans-serif" font-size="22" font-weight="700" fill="#0f2a1c">YOU</text>
-  <text x="280" y="350" text-anchor="middle" font-family="system-ui,sans-serif" font-size="16" fill="#4d6b5a">${escXml(input.homeLabel.slice(0, 42))}</text>
-  <text x="840" y="320" text-anchor="middle" font-family="system-ui,sans-serif" font-size="22" font-weight="700" fill="#0f2a1c">${escXml(haz.toUpperCase())}</text>
-  <text x="840" y="350" text-anchor="middle" font-family="system-ui,sans-serif" font-size="16" fill="#4d6b5a">${escXml(input.hazLabel.slice(0, 42))}</text>
-  <rect x="460" y="236" width="200" height="48" rx="24" fill="#ffffff" stroke="#b7d9c6"/>
-  <text x="560" y="267" text-anchor="middle" font-family="ui-monospace,Menlo,monospace" font-size="22" font-weight="700" fill="#c0392b">${escXml(dist)}</text>
+  <line x1="320" y1="280" x2="800" y2="280" stroke="#c72929" stroke-width="4" stroke-linecap="round" opacity="0.75"/>
+  <circle cx="280" cy="280" r="18" fill="#c72929"/>
+  <circle cx="840" cy="280" r="18" fill="#c72929"/>
+  <text x="280" y="320" text-anchor="middle" font-family="system-ui,sans-serif" font-size="22" font-weight="700" fill="#1f2126">YOU</text>
+  <text x="280" y="350" text-anchor="middle" font-family="system-ui,sans-serif" font-size="16" fill="#666e78">${escXml(input.homeLabel.slice(0, 42))}</text>
+  <text x="840" y="320" text-anchor="middle" font-family="system-ui,sans-serif" font-size="22" font-weight="700" fill="#1f2126">${escXml(haz.toUpperCase())}</text>
+  <text x="840" y="350" text-anchor="middle" font-family="system-ui,sans-serif" font-size="16" fill="#666e78">${escXml(input.hazLabel.slice(0, 42))}</text>
+  <rect x="460" y="236" width="200" height="48" rx="24" fill="#ffffff" stroke="#dbe0e6"/>
+  <text x="560" y="267" text-anchor="middle" font-family="ui-monospace,Menlo,monospace" font-size="22" font-weight="700" fill="#c72929">${escXml(dist)}</text>
 </svg>`;
 }
 
@@ -68,8 +68,8 @@ function shelterSchematicSvg(input: {
       return `
   <circle cx="720" cy="${y}" r="16" fill="#1d4ed8"/>
   <text x="720" y="${y + 6}" text-anchor="middle" font-family="system-ui,sans-serif" font-size="16" font-weight="700" fill="#ffffff">${i + 1}</text>
-  <text x="752" y="${y - 2}" font-family="system-ui,sans-serif" font-size="18" font-weight="600" fill="#0f2a1c">${escXml(d.label.slice(0, 36))}</text>
-  <text x="752" y="${y + 20}" font-family="ui-monospace,Menlo,monospace" font-size="16" font-weight="700" fill="#1f8f55">${escXml(dist)}</text>`;
+  <text x="752" y="${y - 2}" font-family="system-ui,sans-serif" font-size="18" font-weight="600" fill="#1f2126">${escXml(d.label.slice(0, 36))}</text>
+  <text x="752" y="${y + 20}" font-family="ui-monospace,Menlo,monospace" font-size="16" font-weight="700" fill="#c72929">${escXml(dist)}</text>`;
     })
     .join("");
 
@@ -77,16 +77,16 @@ function shelterSchematicSvg(input: {
 <svg xmlns="http://www.w3.org/2000/svg" width="1120" height="560" viewBox="0 0 1120 560">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#e8f5ee"/>
+      <stop offset="0%" stop-color="#eef0f3"/>
       <stop offset="100%" stop-color="#d4ebe0"/>
     </linearGradient>
   </defs>
   <rect width="1120" height="560" fill="url(#bg)"/>
-  <circle cx="220" cy="280" r="90" fill="none" stroke="#b7d9c6" stroke-width="2" stroke-dasharray="8 10"/>
-  <circle cx="220" cy="280" r="20" fill="#1f8f55"/>
-  <text x="220" y="330" text-anchor="middle" font-family="system-ui,sans-serif" font-size="22" font-weight="700" fill="#0f2a1c">YOU</text>
-  <text x="220" y="360" text-anchor="middle" font-family="system-ui,sans-serif" font-size="16" fill="#4d6b5a">${escXml(input.homeLabel.slice(0, 32))}</text>
-  <text x="520" y="120" font-family="system-ui,sans-serif" font-size="20" font-weight="700" fill="#0f2a1c">Evacuation options</text>
+  <circle cx="220" cy="280" r="90" fill="none" stroke="#dbe0e6" stroke-width="2" stroke-dasharray="8 10"/>
+  <circle cx="220" cy="280" r="20" fill="#c72929"/>
+  <text x="220" y="330" text-anchor="middle" font-family="system-ui,sans-serif" font-size="22" font-weight="700" fill="#1f2126">YOU</text>
+  <text x="220" y="360" text-anchor="middle" font-family="system-ui,sans-serif" font-size="16" fill="#666e78">${escXml(input.homeLabel.slice(0, 32))}</text>
+  <text x="520" y="120" font-family="system-ui,sans-serif" font-size="20" font-weight="700" fill="#1f2126">Evacuation options</text>
   ${lines}
 </svg>`;
 }

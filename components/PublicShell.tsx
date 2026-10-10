@@ -6,6 +6,8 @@ type PublicShellProps = {
   children: React.ReactNode;
   className?: string;
   hideFooter?: boolean;
+  /** Hide site nav — used for iOS-parity citizen flow. */
+  hideNav?: boolean;
 };
 
 /** Shared chrome for public pages: sticky LUWAS nav + footer. */
@@ -13,10 +15,11 @@ export function PublicShell({
   children,
   className,
   hideFooter = false,
+  hideNav = false,
 }: PublicShellProps) {
   return (
     <div className={cn("flex min-h-screen flex-col", className)}>
-      <HomeNav />
+      {hideNav ? null : <HomeNav />}
       <div className="flex-1">{children}</div>
       {hideFooter ? null : <HomeFooter />}
     </div>

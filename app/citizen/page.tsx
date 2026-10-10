@@ -1,47 +1,64 @@
 "use client";
 
+import Link from "next/link";
 import { AuthGate } from "@/components/AuthGate";
-import { CitizenReportForm } from "@/components/CitizenReportForm";
 import { CitizenReportsList } from "@/components/CitizenReportsList";
-import { FadeIn } from "@/components/motion/primitives";
-import {
-  PublicPageHeader,
-  PublicShell,
-} from "@/components/PublicShell";
+import { CommandHeader } from "@/components/CommandHeader";
+import { PublicShell } from "@/components/PublicShell";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { isCitizen, isOfficer } from "@/lib/auth/types";
 
+/** My reports — citizens and officers (field reports they filed). */
 export default function CitizenPage() {
-  const { profile, user } = useAuth();
+  const { profile } = useAuth();
 
-  const subtitle = isCitizen(profile)
-    ? `${profile.displayName} · ${profile.purok}`
-    : isOfficer(profile)
-      ? `${profile.displayName} · ${profile.orgName}`
-      : (user?.email ?? "Field reports");
+  const body = (
+    <main
+      className={
+        isOfficer(profile)
+          ? "mx-auto max-w-xl px-4 py-5 sm:px-6 sm:py-6"
+          : "mx-auto max-w-xl px-4 pt-8 pb-16 sm:px-6"
+      }
+    >
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-wide">
+            My reports
+          </h1>
+          {profile ? (
+            <p className="mt-1 text-sm text-[var(--muted)]">
+              {profile.displayName}
+              {isCitizen(profile) ? ` · ${profile.purok}` : null}
+              {isOfficer(profile) ? ` · ${profile.orgName}` : null}
+            </p>
+          ) : null}
+        </div>
+        <Link
+          href="/report-incident"
+          className="inline-flex items-center bg-[var(--accent)] px-4 py-2.5 text-sm font-medium text-[var(--on-accent)] transition hover:bg-[var(--accent-dim)]"
+        >
+          Post a report
+        </Link>
+      </div>
+
+      {profile ? (
+        <div id="my-reports" className="mt-8">
+          <CitizenReportsList citizenUid={profile.uid} />
+        </div>
+      ) : null}
+    </main>
+  );
 
   return (
     <AuthGate mode="protected">
-      <PublicShell hideFooter>
-        <PublicPageHeader
-          eyebrow="My posts"
-          title="Field reports"
-          description={subtitle}
-          wide
-        />
-        <main className="mx-auto grid max-w-5xl gap-4 px-4 py-4 sm:px-6 sm:py-5 lg:grid-cols-2">
-          {profile ? (
-            <>
-              <FadeIn delay={0.06} y={14}>
-                <CitizenReportForm author={profile} />
-              </FadeIn>
-              <FadeIn delay={0.12} y={14}>
-                <CitizenReportsList citizenUid={profile.uid} />
-              </FadeIn>
-            </>
-          ) : null}
-        </main>
-      </PublicShell>
+      {isOfficer(profile) ? (
+        <div className="min-h-screen">
+          <CommandHeader />
+          {body}
+        </div>
+      ) : (
+        <PublicShell hideFooter>{body}</PublicShell>
+      )}
     </AuthGate>
   );
 }

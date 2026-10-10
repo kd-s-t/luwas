@@ -19,7 +19,7 @@ export function AuthCard({ title, subtitle, children, footer }: AuthCardProps) {
       <HomeNav />
       <div className="flex flex-1 flex-col items-center justify-center px-4 py-10">
         <motion.div
-          className="w-full max-w-md border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[0_8px_28px_rgba(15,42,28,0.06)]"
+          className="w-full max-w-md border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[0_8px_28px_rgba(31,33,38,0.06)]"
           initial={reduce ? false : { opacity: 0, y: 16, scale: 0.985 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ duration: 0.45, delay: 0.12, ease: easeOut }}

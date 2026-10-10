@@ -32,38 +32,38 @@ export default function HomePage() {
           aria-hidden
         />
 
-        <Stagger className="relative z-10 flex min-h-0 flex-1 flex-col justify-center px-4 pt-16 pb-10 sm:px-8 sm:pt-20 sm:pb-14 lg:max-w-[58%]">
+        <Stagger className="relative z-10 flex min-h-0 flex-1 flex-col justify-center px-4 pt-20 pb-8 sm:px-8 sm:pt-20 sm:pb-14 lg:max-w-[58%]">
           <FadeItem>
-            <p className="font-mono text-xs tracking-[0.28em] text-[var(--accent)] uppercase">
+            <p className="font-mono text-[10px] tracking-[0.22em] text-[var(--accent)] uppercase sm:text-xs sm:tracking-[0.28em]">
               Barangay · LGU · DRRM
             </p>
           </FadeItem>
 
           <FadeItem>
-            <h1 className="mt-3 font-[family-name:var(--font-display)] text-5xl font-semibold leading-[0.95] tracking-wide text-[var(--foreground)] sm:text-6xl md:text-7xl lg:text-8xl">
+            <h1 className="mt-2 font-[family-name:var(--font-display)] text-[2.75rem] font-semibold leading-[0.95] tracking-wide text-[var(--foreground)] sm:mt-3 sm:text-6xl md:text-7xl lg:text-8xl">
               LUWAS
             </h1>
           </FadeItem>
 
           <FadeItem>
-            <p className="mt-4 max-w-lg font-mono text-[11px] tracking-[0.14em] text-[var(--accent)] uppercase sm:text-xs">
+            <p className="mt-3 max-w-lg font-mono text-[10px] leading-relaxed tracking-[0.12em] text-[var(--accent)] uppercase sm:mt-4 sm:text-xs sm:tracking-[0.14em]">
               Logistics &amp; Unified Workflow for Aid &amp; Safety
             </p>
           </FadeItem>
 
           <FadeItem>
-            <p className="mt-4 max-w-md text-base leading-relaxed text-[var(--muted)] sm:text-lg">
+            <p className="mt-3 max-w-md text-[15px] leading-relaxed text-[var(--muted)] sm:mt-4 sm:text-lg">
               Command-center software for Philippine barangays — turn a hazard
               into household needs, resource moves, and the right alerts.
             </p>
           </FadeItem>
 
           <FadeItem>
-            <div className="mt-8 flex flex-wrap items-center gap-4">
+            <div className="mt-6 flex flex-col items-stretch gap-3 sm:mt-8 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
               <HomeCta />
               <a
                 href="#live-map"
-                className="font-mono text-xs tracking-wider text-[var(--muted)] uppercase underline-offset-4 hover:text-[var(--accent)] hover:underline"
+                className="font-mono text-xs tracking-wider text-[var(--muted)] uppercase underline-offset-4 hover:text-[var(--accent)] hover:underline sm:text-left"
               >
                 View live map ↓
               </a>

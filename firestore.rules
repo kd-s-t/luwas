@@ -5,54 +5,64 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function userPath() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
+    }
+
+    function userExists() {
+      return signedIn() && exists(userPath());
+    }
+
     function userDoc() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      return get(userPath()).data;
     }
 
     function isOfficer() {
-      return signedIn() && userDoc().role == "officer";
+      return userExists()
+        && ("role" in userDoc())
+        && userDoc().role == "officer";
     }
 
     function isCitizen() {
-      return signedIn() && userDoc().role == "citizen";
+      return userExists()
+        && ("role" in userDoc())
+        && userDoc().role == "citizen";
+    }
+
+    // Legacy demos may omit accountStatus — treat missing as active.
+    function isActiveOfficer() {
+      return isOfficer()
+        && (
+          !("accountStatus" in userDoc())
+          || userDoc().accountStatus == "active"
+        );
+    }
+
+    /** Avoid null== comparisons when officerUid is missing on old roster rows. */
+    function householdOwnedByCaller() {
+      return ("officerUid" in resource.data)
+        && resource.data.officerUid is string
+        && resource.data.officerUid == request.auth.uid;
     }
 
     match /users/{userId} {
-      allow read: if signedIn() && request.auth.uid == userId;
+      allow read: if signedIn() && (
+        request.auth.uid == userId
+        || isOfficer()
+      );
+      // Keep create/update lean — nested hasOnly chains hit the 1000-expression cap.
       allow create: if signedIn()
-        && request.auth.uid == userId
         && request.resource.data.email is string
         && request.resource.data.displayName is string
         && (
-          (
-            request.resource.data.role == "officer"
-            && request.resource.data.orgName is string
-          )
-          || (
-            request.resource.data.role == "citizen"
-            && request.resource.data.purok is string
-            && request.resource.data.phone is string
-          )
+          request.auth.uid == userId
+          || isActiveOfficer()
         );
-      // After ID verify — selfie paths; officers may set active barangay / org
       allow update: if signedIn()
-        && request.auth.uid == userId
         && request.resource.data.role == resource.data.role
-        && request.resource.data.uid == resource.data.uid
         && (
-          request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(["photoURL", "idDocumentPath", "faceDocumentPath"])
-          || (
-            resource.data.role == "officer"
-            && request.resource.data.diff(resource.data).affectedKeys()
-              .hasOnly([
-                "photoURL",
-                "idDocumentPath",
-                "faceDocumentPath",
-                "activeBarangayId",
-                "orgName"
-              ])
-          )
+          request.auth.uid == userId
+          || isActiveOfficer()
         );
       allow delete: if false;
     }
@@ -72,16 +82,9 @@ service cloud.firestore {
     }
 
     match /households/{householdId} {
-      // Officers: full roster. Citizens: own row (matched by email) for presence.
-      allow read: if signedIn() && (
-        resource.data.officerUid == request.auth.uid
-        || (
-          isCitizen()
-          && resource.data.email is string
-          && resource.data.email == userDoc().email
-        )
-      );
-      allow create: if signedIn()
+      // Signed-in users may read roster (citizen match on register + officer ops).
+      allow read: if signedIn();
+      allow create: if isActiveOfficer()
         && request.resource.data.officerUid == request.auth.uid
         && request.resource.data.ownerName is string
         && request.resource.data.ownerName.size() > 0
@@ -90,12 +93,24 @@ service cloud.firestore {
         && request.resource.data.phone is string;
       allow update: if signedIn() && (
         (
-          resource.data.officerUid == request.auth.uid
-          && request.resource.data.officerUid == request.auth.uid
+          isActiveOfficer()
+          && (
+            householdOwnedByCaller()
+            || (
+              ("officerUid" in resource.data)
+              && ("officerUid" in request.resource.data)
+              && resource.data.officerUid is string
+              && request.resource.data.officerUid is string
+              && request.resource.data.officerUid == resource.data.officerUid
+            )
+          )
         )
         || (
           isCitizen()
+          && ("email" in resource.data)
           && resource.data.email is string
+          && ("email" in userDoc())
+          && userDoc().email is string
           && resource.data.email == userDoc().email
           && request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly([
@@ -104,13 +119,29 @@ service cloud.firestore {
               "lastSeenLng",
               "lastSeenArea",
               "lastSeenAt",
+              "linkedCitizenUids",
               "updatedAt",
               "updatedAtServer"
             ])
         )
+        || (
+          // Citizen self-link after register match (email may differ; uid must be added).
+          signedIn()
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(["linkedCitizenUids", "updatedAt", "updatedAtServer"])
+          && ("linkedCitizenUids" in request.resource.data)
+          && request.resource.data.linkedCitizenUids is list
+          && request.auth.uid in request.resource.data.linkedCitizenUids
+        )
       );
-      allow delete: if signedIn()
-        && resource.data.officerUid == request.auth.uid;
+      // Active officers may delete their roster rows; also allow cleanup of
+      // legacy rows missing / non-string officerUid (null== used to throw).
+      allow delete: if isActiveOfficer()
+        && (
+          householdOwnedByCaller()
+          || !("officerUid" in resource.data)
+          || !(resource.data.officerUid is string)
+        );
     }
 
     // Barangay / LGU staff directory (captain, MDRRMO, tanods, …).
@@ -149,6 +180,38 @@ service cloud.firestore {
           && request.resource.data.mediaUrl is string
           && request.resource.data.mediaUrl.size() > 0
         )
+        || (
+          // Guest reports from LUWAS Citizen iOS / web (reference LUW-YYMMDD-####).
+          reportId.matches('LUW-[0-9]{6}-[0-9]{4}')
+          && request.resource.data.citizenUid in ["ios-guest", "web-guest"]
+          && request.resource.data.source in ["ios", "web"]
+          && request.resource.data.status in ["queued", "needs_review", "rejected"]
+          && request.resource.data.title is string
+          && request.resource.data.title.size() > 0
+          && request.resource.data.mediaUrl is string
+          && request.resource.data.mediaUrl.size() > 0
+          && request.resource.data.barangay is string
+          && request.resource.data.lgu is string
+        )
+        || (
+          // Demo “My reports” seeds for the signed-in user.
+          reportId.matches('rpt-mine-.*')
+          && (isCitizen() || isOfficer())
+          && request.resource.data.citizenUid == request.auth.uid
+          && request.resource.data.status in ["queued", "needs_review", "legit", "rejected"]
+          && request.resource.data.title is string
+          && request.resource.data.title.size() > 0
+          && request.resource.data.mediaUrl is string
+          && request.resource.data.mediaUrl.size() > 0
+        )
+      );
+      // Allow re-sync of the same guest reference (idempotent write).
+      allow update: if (
+        reportId.matches('LUW-[0-9]{6}-[0-9]{4}')
+        && resource.data.citizenUid in ["ios-guest", "web-guest"]
+        && request.resource.data.citizenUid == resource.data.citizenUid
+        && request.resource.data.source in ["ios", "web"]
+        && request.resource.data.status in ["queued", "needs_review", "rejected"]
       );
       allow update: if (
         (

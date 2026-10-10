@@ -56,6 +56,13 @@ export type EmailSampleContext = {
     place: string;
     notes?: string;
   };
+  /** Staff onboarding (captain add existing / add new officer). */
+  officer?: {
+    title: string;
+    tempPassword: string;
+    addedByName: string;
+    orgName: string;
+  };
 };
 
 export const DEFAULT_EMAIL_SAMPLE: EmailSampleContext = {
@@ -86,21 +93,27 @@ export const DEFAULT_EMAIL_SAMPLE: EmailSampleContext = {
     place: "Purok 6 · Access Road near chapel",
     notes: "Water rising toward homes · vehicles stalled",
   },
+  officer: {
+    title: "Barangay Tanod · Purok 4–6",
+    tempPassword: "demo1234",
+    addedByName: "Hon. Ricardo Villanueva",
+    orgName: "Brgy. Nangka · Punong Barangay",
+  },
 };
 
 function p(html: string): string {
-  return `<p style="margin:0 0 16px;font-size:16px;line-height:1.55;color:#0f2a1c;">${html}</p>`;
+  return `<p style="margin:0 0 16px;font-size:16px;line-height:1.55;color:#1f2126;">${html}</p>`;
 }
 
 function muted(html: string): string {
-  return `<p style="margin:0 0 16px;font-size:14px;line-height:1.55;color:#4d6b5a;">${html}</p>`;
+  return `<p style="margin:0 0 16px;font-size:14px;line-height:1.55;color:#666e78;">${html}</p>`;
 }
 
 function bulletList(items: string[]): string {
   const lis = items
     .map(
       (item) =>
-        `<li style="margin:0 0 8px;font-size:15px;line-height:1.45;color:#0f2a1c;">${item}</li>`,
+        `<li style="margin:0 0 8px;font-size:15px;line-height:1.45;color:#1f2126;">${item}</li>`,
     )
     .join("");
   return `<ul style="margin:0 0 20px;padding:0 0 0 20px;">${lis}</ul>`;
@@ -108,12 +121,12 @@ function bulletList(items: string[]): string {
 
 function phoneLinksHtml(phones: string[]): string {
   if (phones.length === 0) {
-    return `<a href="tel:911" style="color:#1f8f55;text-decoration:underline;">911</a>`;
+    return `<a href="tel:911" style="color:#c72929;text-decoration:underline;">911</a>`;
   }
   return phones
     .map(
       (ph) =>
-        `<a href="${phoneToTelHref(ph)}" style="color:#1f8f55;text-decoration:underline;">${escapeHtml(ph)}</a>`,
+        `<a href="${phoneToTelHref(ph)}" style="color:#c72929;text-decoration:underline;">${escapeHtml(ph)}</a>`,
     )
     .join(" · ");
 }
@@ -133,11 +146,11 @@ function nearbyBfpCopy(ctx: EmailSampleContext): {
 Call: ${phoneLabel}
 Or dial 911 for life-threatening emergencies.`;
   const htmlBlock = `
-      <div style="margin:0 0 20px;padding:14px 16px;border-radius:10px;background:#f3faf6;border:1px solid #cfe8d9;">
-        <p style="margin:0 0 6px;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:#4d6b5a;font-weight:600;">Nearby fire station</p>
-        <p style="margin:0 0 8px;font-size:16px;line-height:1.45;color:#0f2a1c;font-weight:600;">${escapeHtml(name)}</p>
-        <p style="margin:0;font-size:15px;line-height:1.5;color:#0f2a1c;">Call ${phoneLinksHtml(phones)}</p>
-        <p style="margin:8px 0 0;font-size:13px;line-height:1.45;color:#4d6b5a;">Or dial 911 for life-threatening emergencies.</p>
+      <div style="margin:0 0 20px;padding:14px 16px;border-radius:10px;background:#f7f7fa;border:1px solid #dbe0e6;">
+        <p style="margin:0 0 6px;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:#666e78;font-weight:600;">Nearby fire station</p>
+        <p style="margin:0 0 8px;font-size:16px;line-height:1.45;color:#1f2126;font-weight:600;">${escapeHtml(name)}</p>
+        <p style="margin:0;font-size:15px;line-height:1.5;color:#1f2126;">Call ${phoneLinksHtml(phones)}</p>
+        <p style="margin:8px 0 0;font-size:13px;line-height:1.45;color:#666e78;">Or dial 911 for life-threatening emergencies.</p>
       </div>`;
   const callLine = `Call ${name}: ${phoneLabel} (or 911).`;
   return { textBlock, htmlBlock, callLine };
@@ -222,23 +235,23 @@ ${textLines.join("\n")}
       (r) => `
         <tr>
           <td valign="top" style="padding:10px 0;border-top:1px solid #d7ebe0;">
-            <p style="margin:0 0 2px;font-size:11px;letter-spacing:0.06em;text-transform:uppercase;font-weight:700;color:#4d6b5a;">${escapeHtml(r.role)}</p>
-            <p style="margin:0 0 4px;font-size:15px;line-height:1.35;font-weight:600;color:#0f2a1c;">${escapeHtml(r.name)}</p>
-            <p style="margin:0;font-size:15px;line-height:1.45;color:#0f2a1c;">${phoneLinksHtml(r.phones)}</p>
+            <p style="margin:0 0 2px;font-size:11px;letter-spacing:0.06em;text-transform:uppercase;font-weight:700;color:#666e78;">${escapeHtml(r.role)}</p>
+            <p style="margin:0 0 4px;font-size:15px;line-height:1.35;font-weight:600;color:#1f2126;">${escapeHtml(r.name)}</p>
+            <p style="margin:0;font-size:15px;line-height:1.45;color:#1f2126;">${phoneLinksHtml(r.phones)}</p>
           </td>
         </tr>`,
     )
     .join("");
 
   const htmlBlock = `
-      <div style="margin:0 0 20px;padding:14px 16px;border-radius:10px;background:#f3faf6;border:1px solid #cfe8d9;">
-        <p style="margin:0 0 4px;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:#4d6b5a;font-weight:600;">Who to call nearby</p>
-        <p style="margin:0 0 8px;font-size:13px;line-height:1.45;color:#4d6b5a;">Save these numbers offline before landfall.</p>
+      <div style="margin:0 0 20px;padding:14px 16px;border-radius:10px;background:#f7f7fa;border:1px solid #dbe0e6;">
+        <p style="margin:0 0 4px;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:#666e78;font-weight:600;">Who to call nearby</p>
+        <p style="margin:0 0 8px;font-size:13px;line-height:1.45;color:#666e78;">Save these numbers offline before landfall.</p>
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
           ${htmlRows}
           <tr>
             <td style="padding:10px 0 0;border-top:1px solid #d7ebe0;">
-              <p style="margin:0;font-size:14px;line-height:1.45;color:#0f2a1c;">Life-threatening: <a href="tel:911" style="color:#1f8f55;text-decoration:underline;font-weight:700;">911</a></p>
+              <p style="margin:0;font-size:14px;line-height:1.45;color:#1f2126;">Life-threatening: <a href="tel:911" style="color:#c72929;text-decoration:underline;font-weight:700;">911</a></p>
             </td>
           </tr>
         </table>
@@ -322,7 +335,7 @@ Sign in: ${loginUrl}`,
 export function buildWelcomeEmail(
   ctx: EmailSampleContext = DEFAULT_EMAIL_SAMPLE,
 ): BrandedEmailParts {
-  const citizenUrl = `${appOrigin()}/citizen`;
+  const citizenUrl = `${appOrigin()}/report-incident`;
   return buildBrandedEmail({
     subject: `Welcome to LUWAS · ${ctx.barangay}`,
     eyebrow: "Welcome",
@@ -537,11 +550,11 @@ LUWAS · Brgy. Nangka MDRRMO`,
       ${contacts.htmlBlock}
       <div style="margin:0 0 20px;padding:14px 16px;border-radius:10px;background:#fff7ed;border:1px solid #fdba74;">
         <p style="margin:0 0 6px;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:#9a3412;font-weight:700;">Power &amp; light — do this today</p>
-        <p style="margin:0;font-size:15px;line-height:1.5;color:#0f2a1c;">Charge your <strong>phone</strong>, <strong>flashlights</strong>, <strong>power banks</strong>, and <strong>rechargeable batteries</strong> while electricity is still up. Keep spare cells dry in a sealed bag.</p>
+        <p style="margin:0;font-size:15px;line-height:1.5;color:#1f2126;">Charge your <strong>phone</strong>, <strong>flashlights</strong>, <strong>power banks</strong>, and <strong>rechargeable batteries</strong> while electricity is still up. Keep spare cells dry in a sealed bag.</p>
       </div>
       <div style="margin:0 0 20px;padding:14px 16px;border-radius:10px;background:#fef2f2;border:1px solid #fecaca;">
         <p style="margin:0 0 6px;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:#991b1b;font-weight:700;">Save this offline</p>
-        <p style="margin:0;font-size:15px;line-height:1.5;color:#0f2a1c;"><strong>Download a PDF of this email now</strong> (tap the button below → Print → Save as PDF). During landfall you may be on your own — no signal, no LUWAS, no live map. Paper or offline PDF is what you will have.</p>
+        <p style="margin:0;font-size:15px;line-height:1.5;color:#1f2126;"><strong>Download a PDF of this email now</strong> (tap the button below → Print → Save as PDF). During landfall you may be on your own — no signal, no LUWAS, no live map. Paper or offline PDF is what you will have.</p>
       </div>
       ${bulletList([
         "Stock drinking water, ready-to-eat food (3 days), medicines, cooking fuel, and some cash.",
@@ -673,6 +686,86 @@ Open map: ${mapUrl}`,
   });
 }
 
+export function buildOfficerAddExistingEmail(
+  ctx: EmailSampleContext = DEFAULT_EMAIL_SAMPLE,
+): BrandedEmailParts {
+  const loginUrl = `${appOrigin()}/login`;
+  const officer = ctx.officer ?? DEFAULT_EMAIL_SAMPLE.officer!;
+  return buildBrandedEmail({
+    subject: `You're now a LUWAS officer · ${ctx.barangay}`,
+    eyebrow: "Staff access",
+    headline: "Officer access granted",
+    greetingName: ctx.name,
+    textBody: `${officer.addedByName} added you as a barangay officer in LUWAS for ${ctx.barangay}, ${ctx.lgu}.
+
+Your house-owner record is now linked to a command login.
+
+Role: ${officer.title}
+Login email: ${ctx.email}
+Temporary password: ${officer.tempPassword}
+
+Sign in at: ${loginUrl}
+
+Change your password after first login. If you did not expect this, contact ${officer.addedByName} at the barangay hall.`,
+    htmlBody: `
+      ${p(
+        `<strong>${escapeHtml(officer.addedByName)}</strong> added you as a barangay officer in LUWAS for <strong>${escapeHtml(ctx.barangay)}</strong>, ${escapeHtml(ctx.lgu)}.`,
+      )}
+      ${p(
+        "Your <strong>house-owner</strong> record is now linked to a command login so you can use officer tools.",
+      )}
+      ${bulletList([
+        `<strong>Role:</strong> ${escapeHtml(officer.title)}`,
+        `<strong>Login email:</strong> ${escapeHtml(ctx.email)}`,
+        `<strong>Temporary password:</strong> ${escapeHtml(officer.tempPassword)}`,
+        `<strong>Org:</strong> ${escapeHtml(officer.orgName)}`,
+      ])}
+      ${muted(
+        "Change your password after first login. If you did not expect this, contact the barangay hall.",
+      )}
+    `,
+    cta: { label: "Sign in to command", url: loginUrl },
+  });
+}
+
+export function buildOfficerAddNewEmail(
+  ctx: EmailSampleContext = DEFAULT_EMAIL_SAMPLE,
+): BrandedEmailParts {
+  const loginUrl = `${appOrigin()}/login`;
+  const officer = ctx.officer ?? DEFAULT_EMAIL_SAMPLE.officer!;
+  return buildBrandedEmail({
+    subject: `Your LUWAS officer account · ${ctx.barangay}`,
+    eyebrow: "New staff account",
+    headline: "Welcome to the command team",
+    greetingName: ctx.name,
+    textBody: `${officer.addedByName} created a new LUWAS officer account for you in ${ctx.barangay}, ${ctx.lgu}.
+
+Role: ${officer.title}
+Login email: ${ctx.email}
+Temporary password: ${officer.tempPassword}
+
+Sign in at: ${loginUrl}
+
+Use command to view the situation map, validate reports, and support DRRM operations. Change your password after first login.`,
+    htmlBody: `
+      ${p(
+        `<strong>${escapeHtml(officer.addedByName)}</strong> created a new LUWAS officer account for you in <strong>${escapeHtml(ctx.barangay)}</strong>, ${escapeHtml(ctx.lgu)}.`,
+      )}
+      ${bulletList([
+        `<strong>Role:</strong> ${escapeHtml(officer.title)}`,
+        `<strong>Login email:</strong> ${escapeHtml(ctx.email)}`,
+        `<strong>Temporary password:</strong> ${escapeHtml(officer.tempPassword)}`,
+        `<strong>Org:</strong> ${escapeHtml(officer.orgName)}`,
+      ])}
+      ${p(
+        "Use command to view the situation map, validate field reports, and support DRRM operations.",
+      )}
+      ${muted("Change your password after first login.")}
+    `,
+    cta: { label: "Open officer login", url: loginUrl },
+  });
+}
+
 export function buildEmailTemplate(
   id: EmailTemplateId,
   ctx: EmailSampleContext = DEFAULT_EMAIL_SAMPLE,
@@ -684,6 +777,10 @@ export function buildEmailTemplate(
       return buildVerifiedEmail(ctx);
     case "welcome":
       return buildWelcomeEmail(ctx);
+    case "officer_add_existing":
+      return buildOfficerAddExistingEmail(ctx);
+    case "officer_add_new":
+      return buildOfficerAddNewEmail(ctx);
     case "eq_alert":
       return buildEqAlertEmail(ctx);
     case "fire_alert":

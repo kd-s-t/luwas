@@ -1,0 +1,130 @@
+{
+  "brand": "Luwas",
+  "common": {
+    "change": "Usba",
+    "edit": "I-edit",
+    "back": "Balik",
+    "next": "Sunod",
+    "logIn": "Log in",
+    "logOut": "Log out",
+    "guest": "Bisita",
+    "citizen": "Lungsoranon",
+    "demoNoLogin": "Demo · walay login",
+    "skipStep1": "Laktawi — adto sa Lakang 1",
+    "reportWithoutLogin": "Ireport nga walay login",
+    "reportWithoutLoginHint": "Dili kinahanglan og account para sa emergency report.",
+    "copied": "Nakopya"
+  },
+  "home": {
+    "tagline": "Usa ka luwas nga sunod nga lakang, magkauban.",
+    "blurb": "Ireport ang peligro o mangayo og tabang. Dili kinahanglan og perpekto nga report — ipadala ang imong nahibaloan.",
+    "needHelp": "Nagkinahanglan Ko og Tabang",
+    "reportHazard": "Ireport ang Peligro",
+    "checkReport": "Tan-awa ang Akong Report",
+    "staySafe": "Pagpabilin nga luwas samtang maghulat",
+    "tipFlood": "Likayi ang paglakaw sa baha",
+    "tipHigher": "Balhin sa mas taas nga dapit kung mosaka ang tubig",
+    "tipPhone": "Ipadayon nga naka-charge ang telepono para sa mga update"
+  },
+  "danger": {
+    "immediate": "Naay dihadiha nga peligro?",
+    "call911": "Tawag og 911"
+  },
+  "footer": {
+    "tagline": "Luwas — Pagreport sa katalagman sa komunidad",
+    "accessibility": "Accessibility",
+    "privacy": "Privacy"
+  },
+  "step": {
+    "progress": "Lakang {step} sa 3 — {title}",
+    "situation": "Sitwasyon",
+    "location": "Lokasyon",
+    "review": "Ribyuha"
+  },
+  "intent": {
+    "needHelp": "Nagkinahanglan Ko og Tabang",
+    "needHelpSub": "Para nimo o sa tawo nga duol nga anaa sa peligro",
+    "reportHazard": "Ireport ang Peligro",
+    "reportHazardSub": "Baha, kadaot, o dili luwas nga dapit"
+  },
+  "situation": {
+    "type": "Matang sa sitwasyon",
+    "whatHappening": "Unsa ang nahitabo?",
+    "example": "Pananglitan: Lawom na ang baha sa gawas sa among balay sa Purok 3. Tulo ka tawo, lakip ang akong tigulang nga inahan, ang nanginahanglan og tabang.",
+    "recordVoice": "Irekord ang akong tingog",
+    "addPhoto": "Pagdugang og litrato (gikinahanglan)",
+    "addPhotoButton": "Pagdugang og litrato",
+    "addAnotherPhoto": "Pagdugang pa og litrato",
+    "photoHint": "Gikinahanglan ang litrato sa eksena para sa review sa barangay.",
+    "aiNote": "Susihon sa AI ang tinuod nga pinulongan sa peligro — dili kini maghimo og lokasyon o magkumpirma og tabang.",
+    "nextLocation": "Sunod: Pagdugang og lokasyon"
+  },
+  "location": {
+    "title": "Asa kinahanglan ang tabang?",
+    "useGps": "Gamita ang akong kasamtangang lokasyon",
+    "gettingGps": "Nakuha ang GPS…",
+    "searchLabel": "Pangita og barangay o lungsod",
+    "searchPlaceholder": "Brgy. Nangka, Consolacion",
+    "mapHint": "Apple Maps — i-pan aron ibalhin ang pin, o i-drag ang pula nga marker. Ang chips kay tinuod nga hall coordinates sa Consolacion.",
+    "landmark": "Duol nga landmark (opsyonal)",
+    "landmarkPlaceholder": "Duol sa barangay hall",
+    "approximate": "Kini usa ka gibana-bana nga lokasyon",
+    "nextReview": "Sunod: Ribyuha ang report",
+    "fromGps": "Gikan sa GPS sa device"
+  },
+  "review": {
+    "title": "Ribyuha ug isumite",
+    "situation": "Sitwasyon",
+    "location": "Lokasyon",
+    "attachments": "Mga attachment",
+    "aiCheck": "AI check (lokal nga lagda)",
+    "verdict": "Desisyon: {value}",
+    "category": "Kategorya: {value}",
+    "people": "Tawo / kinahanglan: {value}",
+    "urgency": "Dinalian: {value}",
+    "confidence": "Kompiyansa: {value}%",
+    "pendingHuman": "Beripikasyon: Naghulat sa review sa tawo",
+    "photoRequired": "Gikinahanglan ang litrato — balik ug dugangi",
+    "approxLocation": "Gibana-bana nga lokasyon",
+    "mobileOptional": "Numero sa mobile (opsyonal)",
+    "mobileHint": "Mas maayo ang PH mobile (09XXXXXXXXX). Gigamit lang kung kinahanglan ka maabot sa responder.",
+    "submit": "Isumite ang report",
+    "disclaimer": "Dili ipakita sa LUWAS ang wala pa beripika nga rescue o tabang isip kumpirmado."
+  },
+  "confirm": {
+    "title": "Nadawat ang imong report",
+    "body": "Salamat. Mahimong ribyuhon kini sa coordinator kung available. Tipigi ang imong reference number.",
+    "reference": "Reference number",
+    "copy": "Kopyaha ang reference number",
+    "noResponder": "Wala pay naka-assign nga responder. Dili kini kumpirmadong saad sa rescue.",
+    "track": "Sunda ang akong report",
+    "home": "Balik sa Home",
+    "nextTitle": "Unsa ang sunod?",
+    "next1": "Mosulod ang imong report sa review queue",
+    "next2": "Susihon sa tawo ang detalye sa dili pa tugotan ang bisan unsang plano",
+    "next3": "Gamita ang reference number aron tan-awon ang status bisan kanus-a"
+  },
+  "track": {
+    "title": "Sunda ang akong report",
+    "reference": "Reference number",
+    "checkUpdates": "Tan-awa ang mga update",
+    "progress": "Progreso sa report",
+    "latest": "Pinakabag-ong update",
+    "yourReport": "Ang imong report",
+    "updateReport": "I-update ang akong report",
+    "current": "Karon",
+    "badFormat": "Ang reference kinahanglan sama sa LUW-261010-9934 (gikan sa confirmation screen).",
+    "notFound": "Walay report para sa {ref} niini nga device. Magsumite una, dayon i-track ang reference."
+  },
+  "auth": {
+    "loginTitle": "Login sa lungsoranon",
+    "loginSubtitle": "Para sa residente ra. Ang mga opisyal mogamit sa LUWAS web command center.",
+    "email": "Email",
+    "password": "Password",
+    "signingIn": "Nag-login…",
+    "demoCitizens": "Demo nga lungsoranon",
+    "demoPassword": "Password sa demo: demo1234",
+    "newResident": "Bag-ong residente?",
+    "createAccount": "Paghimo og citizen account"
+  }
+}

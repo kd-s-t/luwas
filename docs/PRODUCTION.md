@@ -22,7 +22,7 @@ Gemini orchestrates needs and resources; Firebase hosts auth, data, and the live
 | **Firebase Cloud Messaging** | Push alerts to resident devices (later) |
 | **Trigger Email** (Firebase Extension) | Email alerts (later) |
 
-**Non-Google:** Twilio SMS for barangay phone numbers (`/api/alerts/sms`). Without `TWILIO_*` env vars the API runs in **demo mode** (logs only). Google FCM is push-to-app, not SMS to MSISDNs.
+**Non-Google:** Semaphore SMS for barangay phones (`/api/alerts/sms`); Twilio Voice for outbound calls (`/api/alerts/call`). Without the matching env vars each channel runs in **demo mode** (logs only). Google FCM is push-to-app, not SMS to MSISDNs.
 
 ## Data (Firestore)
 
@@ -53,7 +53,8 @@ Next.js (App Hosting)
                             ├── Gemini 2.5 Flash
                             ├── FCM
                             ├── Trigger Email
-                            └── Twilio SMS
+                            ├── Semaphore SMS
+                            └── Twilio Voice
 ```
 
 ## Terraform (`infra/`)
@@ -112,6 +113,6 @@ Repo: [kd-s-t/luwas](https://github.com/kd-s-t/luwas)
 
 ## Security notes
 
-- Never ship Gemini or Twilio secrets to the browser
+- Never ship Gemini, Semaphore, or Twilio secrets to the browser
 - Tighten Firestore rules as collections grow (org-scoped officers)
 - Rate-limit alert dispatch in production Functions

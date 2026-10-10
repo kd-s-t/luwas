@@ -2,7 +2,6 @@
 
 import { useRef, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/lib/auth/AuthProvider";
 import { isMobileClient } from "@/lib/reports/captureMeta";
 import { setPendingReportMedia } from "@/lib/reports/pendingMedia";
 import { cn } from "@/lib/utils";
@@ -13,24 +12,23 @@ type PostReportButtonProps = {
 };
 
 /**
- * Mobile + signed-in: open rear camera in this tap, then land on the form with media.
- * Desktop / unsigned: go to upload page (or citizen login).
+ * Opens the report wizard (no login required, same as iOS).
+ * Mobile: open rear camera in this tap, then land on the form with media.
  */
 export function PostReportButton({
   className,
   active = false,
 }: PostReportButtonProps) {
-  const { user } = useAuth();
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
 
   function goUpload() {
-    router.push(user ? "/citizen" : "/login/citizen?next=/citizen");
+    router.push("/report-incident");
   }
 
   function onClick() {
     if (typeof window === "undefined") return;
-    if (!isMobileClient() || !user) {
+    if (!isMobileClient()) {
       goUpload();
       return;
     }
@@ -42,7 +40,7 @@ export function PostReportButton({
     e.target.value = "";
     if (!file) return;
     setPendingReportMedia(file);
-    router.push("/citizen");
+    router.push("/report-incident");
   }
 
   return (

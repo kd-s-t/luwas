@@ -1,0 +1,130 @@
+{
+  "brand": "Luwas",
+  "common": {
+    "change": "Change",
+    "edit": "Edit",
+    "back": "Back",
+    "next": "Next",
+    "logIn": "Log in",
+    "logOut": "Log out",
+    "guest": "Guest",
+    "citizen": "Citizen",
+    "demoNoLogin": "Demo · no login",
+    "skipStep1": "Skip — go to Step 1",
+    "reportWithoutLogin": "Report without login",
+    "reportWithoutLoginHint": "No account needed for an emergency report.",
+    "copied": "Copied"
+  },
+  "home": {
+    "tagline": "A safer next step, together.",
+    "blurb": "Report danger or ask for help. No perfect report needed — send what you know.",
+    "needHelp": "I Need Help",
+    "reportHazard": "Report a Hazard",
+    "checkReport": "Check My Report",
+    "staySafe": "Stay safe while you wait",
+    "tipFlood": "Avoid walking through floodwater",
+    "tipHigher": "Move to higher ground if water is rising",
+    "tipPhone": "Keep your phone charged for updates"
+  },
+  "danger": {
+    "immediate": "In immediate danger?",
+    "call911": "Call 911"
+  },
+  "footer": {
+    "tagline": "Luwas — Community disaster reporting",
+    "accessibility": "Accessibility",
+    "privacy": "Privacy"
+  },
+  "step": {
+    "progress": "Step {step} of 3 — {title}",
+    "situation": "Situation",
+    "location": "Location",
+    "review": "Review"
+  },
+  "intent": {
+    "needHelp": "I Need Help",
+    "needHelpSub": "For you or someone nearby in danger",
+    "reportHazard": "Report a Hazard",
+    "reportHazardSub": "Flooding, damage, or an unsafe area"
+  },
+  "situation": {
+    "type": "Situation type",
+    "whatHappening": "What is happening?",
+    "example": "Example: Floodwater is knee-deep outside our home in Purok 3. Three people, including my elderly mother, need help.",
+    "recordVoice": "Record my voice",
+    "addPhoto": "Add a photo (required)",
+    "addPhotoButton": "Add a photo",
+    "addAnotherPhoto": "Add another photo",
+    "photoHint": "A photo of the scene is required for barangay review.",
+    "aiNote": "AI checks for real hazard language — it will not invent a location or mark help as confirmed.",
+    "nextLocation": "Next: Add location"
+  },
+  "location": {
+    "title": "Where is help needed?",
+    "useGps": "Use my current location",
+    "gettingGps": "Getting GPS…",
+    "searchLabel": "Search barangay or city",
+    "searchPlaceholder": "Brgy. Nangka, Consolacion",
+    "mapHint": "Apple Maps — pan to move the pin, or long-press and drag the red marker. Hall chips use real Consolacion coordinates.",
+    "landmark": "Nearby landmark (optional)",
+    "landmarkPlaceholder": "Near barangay hall",
+    "approximate": "This is an approximate location",
+    "nextReview": "Next: Review report",
+    "fromGps": "From device GPS"
+  },
+  "review": {
+    "title": "Review & submit",
+    "situation": "Situation",
+    "location": "Location",
+    "attachments": "Attachments",
+    "aiCheck": "AI check (local rules)",
+    "verdict": "Verdict: {value}",
+    "category": "Category: {value}",
+    "people": "People / needs: {value}",
+    "urgency": "Urgency: {value}",
+    "confidence": "Confidence: {value}%",
+    "pendingHuman": "Verification: Pending human review",
+    "photoRequired": "Photo required — go back and add one",
+    "approxLocation": "Approximate location",
+    "mobileOptional": "Mobile number (optional)",
+    "mobileHint": "PH mobile preferred (09XXXXXXXXX). Used only if a responder needs to reach you.",
+    "submit": "Submit report",
+    "disclaimer": "LUWAS will not present unverified rescue or aid as confirmed."
+  },
+  "confirm": {
+    "title": "Your report was received",
+    "body": "Thank you. A coordinator can review this when available. Keep your reference number.",
+    "reference": "Reference number",
+    "copy": "Copy reference number",
+    "noResponder": "No responder assigned yet. This is not a confirmed rescue commitment.",
+    "track": "Track my report",
+    "home": "Back to Home",
+    "nextTitle": "What happens next?",
+    "next1": "Your report enters the review queue",
+    "next2": "A human verifies details before any plan is authorized",
+    "next3": "Use your reference number to check status anytime"
+  },
+  "track": {
+    "title": "Track my report",
+    "reference": "Reference number",
+    "checkUpdates": "Check for updates",
+    "progress": "Report progress",
+    "latest": "Latest updates",
+    "yourReport": "Your report",
+    "updateReport": "Update my report",
+    "current": "Current",
+    "badFormat": "Reference must look like LUW-261010-9934 (from your confirmation screen).",
+    "notFound": "No report found for {ref} on this device. Submit a report first, then track that reference."
+  },
+  "auth": {
+    "loginTitle": "Citizen login",
+    "loginSubtitle": "For residents only. Officers use the LUWAS web command center.",
+    "email": "Email",
+    "password": "Password",
+    "signingIn": "Signing in…",
+    "demoCitizens": "Demo citizens",
+    "demoPassword": "Password for demos: demo1234",
+    "newResident": "New resident?",
+    "createAccount": "Create citizen account"
+  }
+}

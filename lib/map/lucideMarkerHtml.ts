@@ -130,11 +130,11 @@ export function facilityMarkerHtml(
 ): string {
   const stroke =
     kind === "hall"
-      ? "#0f5c38"
+      ? "#9e1a1a"
       : kind === "school"
         ? "#1d4ed8"
         : kind === "evac_center"
-          ? "#15803d"
+          ? "#2e8c57"
           : kind === "bfp"
             ? "#ea580c"
             : kind === "hospital"

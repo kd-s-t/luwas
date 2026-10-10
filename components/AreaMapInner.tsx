@@ -776,7 +776,7 @@ export default function AreaMapInner({
                     width: "100%",
                     height: "auto",
                     display: "block",
-                    border: "1px solid #b7d9c6",
+                    border: "1px solid #dbe0e6",
                   }}
                 />
               </>
@@ -1047,7 +1047,7 @@ export default function AreaMapInner({
                       width: "100%",
                       height: "auto",
                       display: "block",
-                      border: "1px solid #b7d9c6",
+                      border: "1px solid #dbe0e6",
                     }}
                   />
                 </>
@@ -1079,7 +1079,7 @@ export default function AreaMapInner({
             <Polyline
               positions={positions}
               pathOptions={{
-                color: "#1f8f55",
+                color: "#c72929",
                 weight: 4.5,
                 opacity: 0.95,
                 lineCap: "round",

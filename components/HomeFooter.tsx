@@ -9,6 +9,12 @@ const POWERED_BY = [
     src: "/brands/gemini.png",
   },
   {
+    name: "Twilio",
+    href: "https://www.twilio.com/",
+    role: "Text & call",
+    src: "/brands/twilio.png",
+  },
+  {
     name: "Google Weather",
     href: "https://developers.google.com/maps/documentation/weather",
     role: "Live conditions",
@@ -39,12 +45,12 @@ const FOOTER_LINKS = [
 
 export function HomeFooter() {
   return (
-    <footer className="relative z-10 mt-auto border-t border-[var(--border)] bg-[var(--surface)] px-4 py-10 pb-14 sm:px-8">
+    <footer className="relative z-10 mt-auto border-t border-[var(--border)] bg-[var(--surface)] px-4 py-8 pb-12 sm:px-8 sm:py-10 sm:pb-14">
       <div className="mx-auto flex w-full max-w-3xl flex-col items-center text-center">
         <p className="font-mono text-[10px] tracking-[0.28em] text-[var(--muted)] uppercase">
           Built by
         </p>
-        <p className="mt-2 font-[family-name:var(--font-display)] text-xl font-semibold tracking-wide text-[var(--foreground)]">
+        <p className="mt-2 font-[family-name:var(--font-display)] text-lg font-semibold tracking-wide text-[var(--foreground)] sm:text-xl">
           UgnAI Labs Co.
         </p>
         <p className="mt-2 text-xs text-[var(--muted)]">
@@ -53,7 +59,7 @@ export function HomeFooter() {
 
         <nav
           aria-label="Footer"
-          className="mt-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase"
+          className="mt-6 grid w-full max-w-xs grid-cols-2 gap-x-4 gap-y-2.5 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase sm:flex sm:max-w-none sm:flex-wrap sm:items-center sm:justify-center sm:gap-x-4 sm:gap-y-2"
         >
           {FOOTER_LINKS.map((item) => (
             <Link
@@ -70,26 +76,37 @@ export function HomeFooter() {
           Powered by
         </p>
 
-        <ul className="mt-5 flex flex-wrap items-start justify-center gap-8 sm:gap-10">
+        <ul className="mt-5 grid w-full max-w-sm grid-cols-2 gap-x-4 gap-y-6 sm:flex sm:max-w-none sm:flex-wrap sm:items-start sm:justify-center sm:gap-10">
           {POWERED_BY.map(({ name, href, role, src }) => (
-            <li key={name}>
+            <li key={name} className="min-w-0">
               <a
                 href={href}
                 target="_blank"
                 rel="noreferrer"
-                className="group inline-flex flex-col items-center gap-2"
+                className="group inline-flex w-full flex-col items-center gap-2"
               >
-                <span className="relative flex size-12 items-center justify-center">
-                  <Image
-                    src={src}
-                    alt=""
-                    width={36}
-                    height={36}
-                    className="size-9 object-contain transition group-hover:scale-105"
-                  />
+                <span className="relative flex size-11 items-center justify-center sm:size-12">
+                  {src.endsWith(".svg") ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={src}
+                      alt=""
+                      width={36}
+                      height={36}
+                      className="size-8 object-contain transition group-hover:scale-105 sm:size-9"
+                    />
+                  ) : (
+                    <Image
+                      src={src}
+                      alt=""
+                      width={36}
+                      height={36}
+                      className="size-8 object-contain transition group-hover:scale-105 sm:size-9"
+                    />
+                  )}
                 </span>
-                <span className="flex flex-col items-center gap-0.5">
-                  <span className="text-sm font-medium text-[var(--foreground)] underline-offset-4 transition group-hover:text-[var(--accent)] group-hover:underline">
+                <span className="flex min-w-0 flex-col items-center gap-0.5 px-1">
+                  <span className="text-center text-xs font-medium leading-snug text-[var(--foreground)] underline-offset-4 transition group-hover:text-[var(--accent)] group-hover:underline sm:text-sm">
                     {name}
                   </span>
                   <span className="font-mono text-[9px] tracking-wider text-[var(--muted)] uppercase">
@@ -100,7 +117,6 @@ export function HomeFooter() {
             </li>
           ))}
         </ul>
-
       </div>
     </footer>
   );

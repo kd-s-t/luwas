@@ -66,7 +66,7 @@ export function googleStaticMapUrl(input: {
   const zoom = span > 0.3 ? 9 : span > 0.08 ? 11 : span > 0.02 ? 13 : 15;
 
   const markers = [
-    `markers=color:0x1f8f55%7Clabel:Y%7C${home}`,
+    `markers=color:0xc72929%7Clabel:Y%7C${home}`,
     `markers=color:0xc0392b%7Clabel:${input.kind === "eq" ? "E" : "F"}%7C${haz}`,
   ].join("&");
   const path = `path=color:0xc0392b99%7Cweight:3%7C${home}%7C${haz}`;
@@ -91,12 +91,12 @@ export function alertDistanceMapHtml(input: {
   const youTitle = "Your location";
 
   return `
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px;border-collapse:collapse;border:1px solid #b7d9c6;border-radius:12px;overflow:hidden;background:#f4faf6;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px;border-collapse:collapse;border:1px solid #dbe0e6;border-radius:12px;overflow:hidden;background:#f7f7fa;">
         <tr>
           <td style="padding:14px 16px 10px;">
-            <p style="margin:0 0 4px;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;font-weight:700;color:#1f8f55;">Distance from you</p>
-            <p style="margin:0;font-size:28px;line-height:1.15;font-weight:800;letter-spacing:-0.02em;color:#0f2a1c;">${escapeHtml(dist)}</p>
-            <p style="margin:6px 0 0;font-size:13px;line-height:1.45;color:#4d6b5a;">${escapeHtml(youTitle)} → ${escapeHtml(hazTitle)}</p>
+            <p style="margin:0 0 4px;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;font-weight:700;color:#c72929;">Distance from you</p>
+            <p style="margin:0;font-size:28px;line-height:1.15;font-weight:800;letter-spacing:-0.02em;color:#1f2126;">${escapeHtml(dist)}</p>
+            <p style="margin:6px 0 0;font-size:13px;line-height:1.45;color:#666e78;">${escapeHtml(youTitle)} → ${escapeHtml(hazTitle)}</p>
           </td>
         </tr>
         <tr>
@@ -111,12 +111,12 @@ export function alertDistanceMapHtml(input: {
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
               <tr>
                 <td width="50%" valign="top" style="padding:0 8px 0 0;">
-                  <p style="margin:0 0 2px;font-size:11px;font-weight:700;color:#1f8f55;">● YOU</p>
-                  <p style="margin:0;font-size:13px;line-height:1.4;color:#0f2a1c;">${escapeHtml(input.home.label)}</p>
+                  <p style="margin:0 0 2px;font-size:11px;font-weight:700;color:#c72929;">● YOU</p>
+                  <p style="margin:0;font-size:13px;line-height:1.4;color:#1f2126;">${escapeHtml(input.home.label)}</p>
                 </td>
                 <td width="50%" valign="top" style="padding:0 0 0 8px;">
-                  <p style="margin:0 0 2px;font-size:11px;font-weight:700;color:#c0392b;">● ${escapeHtml(hazTitle.toUpperCase())}</p>
-                  <p style="margin:0;font-size:13px;line-height:1.4;color:#0f2a1c;">${escapeHtml(input.hazard.label)}</p>
+                  <p style="margin:0 0 2px;font-size:11px;font-weight:700;color:#c72929;">● ${escapeHtml(hazTitle.toUpperCase())}</p>
+                  <p style="margin:0;font-size:13px;line-height:1.4;color:#1f2126;">${escapeHtml(input.hazard.label)}</p>
                 </td>
               </tr>
             </table>
@@ -157,7 +157,7 @@ export function googleShelterStaticMapUrl(input: {
   const home = `${input.home.lat},${input.home.lng}`;
   const dests = input.destinations.slice(0, 5);
   const markers = [
-    `markers=color:0x1f8f55%7Clabel:Y%7C${home}`,
+    `markers=color:0xc72929%7Clabel:Y%7C${home}`,
     ...dests.map(
       (d, i) =>
         `markers=color:0x1d4ed8%7Clabel:${i + 1}%7C${d.lat},${d.lng}`,
@@ -187,22 +187,22 @@ export function shelterOptionsMapHtml(input: {
       const dist = formatDistanceKm(d.distanceKm);
       return `<tr>
                 <td valign="top" style="padding:8px 0;border-top:1px solid #d7ebe0;">
-                  <p style="margin:0;font-size:15px;line-height:1.4;color:#0f2a1c;"><strong>${i + 1}.</strong> ${escapeHtml(d.label)}</p>
+                  <p style="margin:0;font-size:15px;line-height:1.4;color:#1f2126;"><strong>${i + 1}.</strong> ${escapeHtml(d.label)}</p>
                 </td>
                 <td valign="top" align="right" style="padding:8px 0 8px 12px;border-top:1px solid #d7ebe0;white-space:nowrap;">
-                  <p style="margin:0;font-size:15px;font-weight:700;color:#1f8f55;">${escapeHtml(dist)}</p>
+                  <p style="margin:0;font-size:15px;font-weight:700;color:#c72929;">${escapeHtml(dist)}</p>
                 </td>
               </tr>`;
     })
     .join("");
 
   return `
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px;border-collapse:collapse;border:1px solid #b7d9c6;border-radius:12px;overflow:hidden;background:#f4faf6;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px;border-collapse:collapse;border:1px solid #dbe0e6;border-radius:12px;overflow:hidden;background:#f7f7fa;">
         <tr>
           <td style="padding:14px 16px 10px;">
-            <p style="margin:0 0 4px;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;font-weight:700;color:#1f8f55;">Where to evacuate</p>
-            <p style="margin:0;font-size:22px;line-height:1.2;font-weight:800;letter-spacing:-0.02em;color:#0f2a1c;">Nearest shelter ${escapeHtml(nearest)}</p>
-            <p style="margin:6px 0 0;font-size:13px;line-height:1.45;color:#4d6b5a;">From ${escapeHtml(input.home.label)} · save these options before landfall</p>
+            <p style="margin:0 0 4px;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;font-weight:700;color:#c72929;">Where to evacuate</p>
+            <p style="margin:0;font-size:22px;line-height:1.2;font-weight:800;letter-spacing:-0.02em;color:#1f2126;">Nearest shelter ${escapeHtml(nearest)}</p>
+            <p style="margin:6px 0 0;font-size:13px;line-height:1.45;color:#666e78;">From ${escapeHtml(input.home.label)} · save these options before landfall</p>
           </td>
         </tr>
         <tr>
@@ -217,7 +217,7 @@ export function shelterOptionsMapHtml(input: {
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
               ${rows}
             </table>
-            <p style="margin:10px 0 0;font-size:12px;line-height:1.4;color:#4d6b5a;">Y = your home · numbered pins = shelters</p>
+            <p style="margin:10px 0 0;font-size:12px;line-height:1.4;color:#666e78;">Y = your home · numbered pins = shelters</p>
           </td>
         </tr>
       </table>`;

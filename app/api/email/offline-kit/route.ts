@@ -32,7 +32,7 @@ export async function GET(request: Request) {
       margin: 0;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       background: #f7ecec;
-      color: #0f2a1c;
+      color: #1f2126;
     }
     .bar {
       position: sticky;

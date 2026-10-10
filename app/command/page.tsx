@@ -41,18 +41,18 @@ export default function CommandPage() {
     <AuthGate mode="protected" role="officer">
       <div className="min-h-dvh">
         <CommandHeader />
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] bg-[var(--surface-raised)]/80 px-4 py-2 sm:px-6">
-          <p className="text-xs text-[var(--muted)]">
+        <div className="flex flex-col gap-2 border-b border-[var(--border)] bg-[var(--surface-raised)]/80 px-3 py-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-6">
+          <p className="min-w-0 truncate text-xs text-[var(--muted)]">
             {view === "workspace"
               ? "Evidence, decisions, and activity for each report"
-              : "Situation map · households, hazards, and AI overlays"}
+              : "Situation map · households, hazards, AI"}
           </p>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2">
             <a
               href="/command/full"
               target="_blank"
               rel="noreferrer"
-              className="rounded-md border border-[var(--border)] px-3 py-1.5 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase transition hover:border-[var(--accent)]/40 hover:text-[var(--foreground)]"
+              className="shrink-0 rounded-md border border-[var(--border)] px-2.5 py-1.5 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase transition hover:border-[var(--accent)]/40 hover:text-[var(--foreground)] sm:px-3"
             >
               Full view
             </a>

@@ -6,16 +6,19 @@ import { CAT5_SCENARIOS } from "@/lib/scenarios";
 import { useScenario } from "@/lib/scenarios/ScenarioProvider";
 
 /**
- * Global Before / During / After — always visible above every page
- * except the UI bootstrap kit (/bootstrap).
- * DO NOT REMOVE from app/layout.tsx (user-critical; removed accidentally before).
+ * Odette Before / During / After — homepage + command center only.
+ * Stay mounted from app/layout.tsx; visibility is pathname-gated here.
  */
 export function ScenarioTopBar() {
   const pathname = usePathname();
   const { phase, setPhase } = useScenario();
   const bundle = CAT5_SCENARIOS[phase];
 
-  if (pathname === "/bootstrap" || pathname.startsWith("/bootstrap/")) {
+  const showOdette =
+    pathname === "/" ||
+    pathname === "/command" ||
+    pathname === "/command/full";
+  if (!showOdette) {
     return null;
   }
 

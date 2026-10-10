@@ -8,7 +8,7 @@ type TextPreview = {
 export function TextMessagePreview({ preview }: { preview: TextPreview }) {
   return (
     <div className="mx-auto w-full max-w-[248px]">
-      <div className="relative rounded-[2rem] bg-[#1c1c1e] p-[10px] shadow-[0_18px_40px_rgba(15,42,28,0.22),0_2px_0_rgba(255,255,255,0.06)_inset]">
+      <div className="relative rounded-[2rem] bg-[#1c1c1e] p-[10px] shadow-[0_18px_40px_rgba(31, 33, 38,0.22),0_2px_0_rgba(255,255,255,0.06)_inset]">
         <span
           aria-hidden
           className="absolute top-[88px] -left-[2px] h-8 w-[3px] rounded-l-sm bg-[#2c2c2e]"
@@ -62,7 +62,7 @@ export function TextMessagePreview({ preview }: { preview: TextPreview }) {
                 <span className="flex-1 text-[11px] text-white/30">
                   Text Message
                 </span>
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#1f8f55] text-[11px] font-bold text-white">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#c72929] text-[11px] font-bold text-white">
                   ↑
                 </span>
               </div>

@@ -1,18 +1,20 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Aligned with iOS LuwasTheme (danger red accent · neutral surfaces). */
 :root {
   --surface: #ffffff;
-  --surface-raised: #f4faf6;
-  --surface-panel: #e8f5ee;
-  --border: #b7d9c6;
-  --foreground: #0f2a1c;
-  --muted: #4d6b5a;
-  --accent: #1f8f55;
-  --accent-dim: #167445;
+  --surface-raised: #f7f7fa;
+  --surface-panel: #eef0f3;
+  --border: #dbe0e6;
+  --foreground: #1f2126;
+  --muted: #666e78;
+  --accent: #c72929;
+  --accent-dim: #9e1a1a;
   --on-accent: #ffffff;
-  --warn: #b8860b;
-  --danger: #c0392b;
+  --warn: #d9a626;
+  --danger: #c72929;
+  --success: #2e8c57;
   --input: #ffffff;
 }
 
@@ -30,9 +32,9 @@ body {
   font-family: var(--font-body), system-ui, sans-serif;
   min-height: 100vh;
   background-image:
-    radial-gradient(ellipse 80% 50% at 10% -10%, rgba(31, 143, 85, 0.12), transparent),
-    radial-gradient(ellipse 55% 40% at 95% 0%, rgba(31, 143, 85, 0.08), transparent),
-    linear-gradient(180deg, #ffffff 0%, #f3faf6 100%);
+    radial-gradient(ellipse 80% 50% at 10% -10%, rgba(199, 41, 41, 0.1), transparent),
+    radial-gradient(ellipse 55% 40% at 95% 0%, rgba(199, 41, 41, 0.06), transparent),
+    linear-gradient(180deg, #ffffff 0%, #f7f7fa 100%);
 }
 
 /* Keep in @layer base so Tailwind utilities (text-*, font-*) can override. */
@@ -45,13 +47,13 @@ body {
 
 /* Public home — full-bleed map plane */
 .dro-hero-map {
-  background-color: #f7fcf9;
+  background-color: #f7f7fa;
   background-image:
-    linear-gradient(rgba(31, 143, 85, 0.08) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(31, 143, 85, 0.08) 1px, transparent 1px),
-    radial-gradient(ellipse 70% 55% at 72% 42%, rgba(31, 143, 85, 0.16), transparent 55%),
-    radial-gradient(ellipse 40% 35% at 85% 70%, rgba(31, 143, 85, 0.1), transparent 50%),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 600' fill='none'%3E%3Cpath d='M480 90c40 20 70 55 95 100 30 55 45 110 35 160-12 55-48 95-95 120-40 22-85 28-130 18-50-12-90-45-115-90-28-50-32-110-12-162 18-48 58-88 108-108 42-16 78-12 114-8z' stroke='%231f8f55' stroke-opacity='0.4' stroke-width='1.2'/%3E%3Cpath d='M520 140c28 18 48 48 62 85 18 48 22 95 8 135-12 38-42 68-80 82' stroke='%231f8f55' stroke-opacity='0.28' stroke-width='1'/%3E%3Cpath d='M200 320c25-35 70-50 115-42 40 8 72 38 85 75' stroke='%23167845' stroke-opacity='0.3' stroke-width='1'/%3E%3Ccircle cx='560' cy='280' r='4' fill='%231f8f55' fill-opacity='0.75'/%3E%3Ccircle cx='480' cy='340' r='3' fill='%23167845' fill-opacity='0.65'/%3E%3Ccircle cx='620' cy='220' r='2.5' fill='%231f8f55' fill-opacity='0.55'/%3E%3C/svg%3E");
+    linear-gradient(rgba(199, 41, 41, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(199, 41, 41, 0.08) 1px, transparent 1px),
+    radial-gradient(ellipse 70% 55% at 72% 42%, rgba(199, 41, 41, 0.16), transparent 55%),
+    radial-gradient(ellipse 40% 35% at 85% 70%, rgba(199, 41, 41, 0.1), transparent 50%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 600' fill='none'%3E%3Cpath d='M480 90c40 20 70 55 95 100 30 55 45 110 35 160-12 55-48 95-95 120-40 22-85 28-130 18-50-12-90-45-115-90-28-50-32-110-12-162 18-48 58-88 108-108 42-16 78-12 114-8z' stroke='%23c72929' stroke-opacity='0.4' stroke-width='1.2'/%3E%3Cpath d='M520 140c28 18 48 48 62 85 18 48 22 95 8 135-12 38-42 68-80 82' stroke='%23c72929' stroke-opacity='0.28' stroke-width='1'/%3E%3Cpath d='M200 320c25-35 70-50 115-42 40 8 72 38 85 75' stroke='%239e1a1a' stroke-opacity='0.3' stroke-width='1'/%3E%3Ccircle cx='560' cy='280' r='4' fill='%23c72929' fill-opacity='0.75'/%3E%3Ccircle cx='480' cy='340' r='3' fill='%239e1a1a' fill-opacity='0.65'/%3E%3Ccircle cx='620' cy='220' r='2.5' fill='%23c72929' fill-opacity='0.55'/%3E%3C/svg%3E");
   background-size:
     48px 48px,
     48px 48px,
@@ -121,11 +123,11 @@ body {
   0%,
   100% {
     opacity: 1;
-    box-shadow: 0 0 0 0 rgba(31, 143, 85, 0.45);
+    box-shadow: 0 0 0 0 rgba(199, 41, 41, 0.45);
   }
   50% {
     opacity: 0.7;
-    box-shadow: 0 0 0 6px rgba(31, 143, 85, 0);
+    box-shadow: 0 0 0 6px rgba(199, 41, 41, 0);
   }
 }
 
@@ -152,6 +154,7 @@ body {
   width: 12px;
   height: 12px;
   border-radius: 9999px;
+  /* House pins — green (red is evacuate only). */
   background: #1f8f55;
   border: 2px solid #ffffff;
   box-shadow: 0 0 0 1px rgba(31, 143, 85, 0.45);
@@ -160,12 +163,12 @@ body {
 .dro-map-marker-dot-hall {
   width: 14px;
   height: 14px;
-  background: #167445;
-  box-shadow: 0 0 0 1px rgba(22, 116, 69, 0.45);
+  background: #9e1a1a;
+  box-shadow: 0 0 0 1px rgba(158, 26, 26, 0.45);
 }
 
 .dro-map-marker-dot-quake {
-  background: #c0392b;
+  background: #c72929;
   box-shadow: 0 0 0 1px rgba(192, 57, 43, 0.45);
 }
 
@@ -176,7 +179,7 @@ body {
 }
 
 .dro-map-marker-dot-ai-evacuate {
-  background: #c0392b;
+  background: #c72929;
   box-shadow: 0 0 0 3px rgba(192, 57, 43, 0.35);
 }
 
@@ -219,7 +222,7 @@ body {
   background: #ffffff;
   border: 1.5px solid currentColor;
   border-radius: 9999px;
-  box-shadow: 0 1px 4px rgba(15, 42, 28, 0.2);
+  box-shadow: 0 1px 4px rgba(31, 33, 38, 0.2);
 }
 
 .dro-map-lucide-wrap-typhoon {
@@ -246,8 +249,8 @@ body {
 }
 
 .dro-map-lucide-wrap-facility-hall {
-  color: #0f5c38;
-  background: #ecfdf5;
+  color: #9e1a1a;
+  background: #fdf2f2;
 }
 
 .dro-map-lucide-wrap-facility-school {
@@ -256,8 +259,8 @@ body {
 }
 
 .dro-map-lucide-wrap-facility-evac_center {
-  color: #15803d;
-  background: #f0fdf4;
+  color: #2e8c57;
+  background: #eef8f2;
 }
 
 .dro-map-lucide-wrap-facility-landmark {
@@ -278,9 +281,9 @@ body {
 .dro-map-marker-dot-shelter {
   width: 13px;
   height: 13px;
-  background: #0f5c38;
+  background: #2e8c57;
   border: 2px solid #ffffff;
-  box-shadow: 0 0 0 2px rgba(31, 143, 85, 0.45);
+  box-shadow: 0 0 0 2px rgba(46, 140, 87, 0.45);
 }
 
 .dro-map-marker-dot-you {
@@ -330,7 +333,7 @@ body {
   font-size: 11px;
   font-weight: 700;
   line-height: 1;
-  box-shadow: 0 1px 4px rgba(15, 42, 28, 0.2);
+  box-shadow: 0 1px 4px rgba(31, 33, 38, 0.2);
 }
 
 .dro-map-marker-report-blockage {
@@ -364,8 +367,8 @@ body {
 }
 
 .dro-map-marker-report-evac_status {
-  border-color: #15803d;
-  color: #15803d;
+  border-color: #2e8c57;
+  color: #2e8c57;
 }
 
 .dro-map-track-eta-wrap {
@@ -383,7 +386,7 @@ body {
   font-size: 9px;
   letter-spacing: 0.04em;
   color: #1d4ed8;
-  box-shadow: 0 1px 2px rgba(15, 42, 28, 0.12);
+  box-shadow: 0 1px 2px rgba(31, 33, 38, 0.12);
 }
 
 .dro-map-track-eta-strong {
@@ -403,7 +406,7 @@ body {
   width: 28px;
   height: 28px;
   transform-origin: 50% 50%;
-  filter: drop-shadow(0 1px 2px rgba(15, 42, 28, 0.35));
+  filter: drop-shadow(0 1px 2px rgba(31, 33, 38, 0.35));
 }
 
 .dro-map-escape-chevron-halo {
@@ -411,7 +414,7 @@ body {
 }
 
 .dro-map-escape-chevron-body {
-  fill: #1f8f55;
+  fill: #c72929;
 }
 
 /* Dashed stroke marches toward the shelter so direction reads without the old triangle. */
@@ -439,10 +442,10 @@ body {
 
 .leaflet-popup-content-wrapper {
   background: #ffffff;
-  color: #0f2a1c;
+  color: #1f2126;
   border-radius: 0;
-  border: 1px solid #b7d9c6;
-  box-shadow: 0 8px 24px rgba(15, 42, 28, 0.08);
+  border: 1px solid #dbe0e6;
+  box-shadow: 0 8px 24px rgba(31, 33, 38, 0.08);
 }
 
 .leaflet-popup-tip {
@@ -453,5 +456,35 @@ body {
   margin: 10px 12px;
   font-size: 13px;
   line-height: 1.4;
+}
+
+/* Officer hierarchy flow — chrome-free canvas */
+.officer-hierarchy-flow .react-flow__node {
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.officer-hierarchy-flow .react-flow__handle {
+  opacity: 0;
+  pointer-events: none;
+  width: 1px;
+  height: 1px;
+  min-width: 0;
+  min-height: 0;
+  border: none;
+}
+
+.officer-hierarchy-flow .react-flow__attribution {
+  display: none;
+}
+
+.officer-hierarchy-flow .react-flow__edge-path {
+  stroke: #c72929;
+}
+
+.officer-hierarchy-flow .react-flow__pane {
+  cursor: default !important;
 }
 

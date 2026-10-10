@@ -20,11 +20,16 @@ import {
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import type { AcceptedIdType } from "@/lib/auth/idTypes";
 import { getClientAuth, getClientDb, useEmulators } from "@/lib/firebase/client";
+import { isFirstActiveOfficerInBarangay } from "@/lib/auth/accountValidation";
 import type {
   CitizenProfile,
   OfficerProfile,
   UserProfile,
 } from "@/lib/auth/types";
+import {
+  findMatchingHousehold,
+  linkCitizenToHousehold,
+} from "@/lib/households/match";
 import { hydrateOnboardedBarangays } from "@/lib/onboarding/storage";
 import {
   getPreferredAreaId,
@@ -75,7 +80,10 @@ type AuthContextValue = {
     displayName: string;
     orgName: string;
     idProof: RegisterIdProof;
-  }) => Promise<void>;
+    areaId: string;
+    barangay: string;
+    lgu: string;
+  }) => Promise<{ accountStatus: "pending" | "active" }>;
   registerCitizen: (input: {
     email: string;
     password: string;
@@ -83,7 +91,10 @@ type AuthContextValue = {
     purok: string;
     phone: string;
     idProof: RegisterIdProof;
-  }) => Promise<void>;
+    areaId: string;
+    barangay: string;
+    lgu: string;
+  }) => Promise<{ autoValidated: boolean; householdId: string | null }>;
   logout: () => Promise<void>;
   /** Refresh profile from Firestore (e.g. after onboarding updates). */
   refreshProfile: () => Promise<void>;
@@ -117,39 +128,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const auth = getClientAuth();
-    const unsub = onAuthStateChanged(auth, async (nextUser) => {
-      setUser(nextUser);
-      if (!nextUser) {
-        setProfile(null);
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const snap = await getDoc(doc(getClientDb(), "users", nextUser.uid));
-        if (snap.exists()) {
-          const nextProfile = snap.data() as UserProfile;
-          setProfile(nextProfile);
-          if (nextProfile.role === "officer") {
-            void hydrateOnboardedBarangays().then(() => {
-              const active = nextProfile.activeBarangayId;
-              if (active && !getPreferredAreaId()) {
-                setPreferredAreaId(active);
-              }
-            });
-          }
-        } else {
+    let unsub: (() => void) | undefined;
+    try {
+      const auth = getClientAuth();
+      unsub = onAuthStateChanged(auth, async (nextUser) => {
+        setUser(nextUser);
+        if (!nextUser) {
           setProfile(null);
+          setLoading(false);
+          return;
         }
-      } catch {
-        setProfile(null);
-      } finally {
-        setLoading(false);
-      }
-    });
 
-    return () => unsub();
+        try {
+          const snap = await getDoc(doc(getClientDb(), "users", nextUser.uid));
+          if (snap.exists()) {
+            const nextProfile = snap.data() as UserProfile;
+            setProfile(nextProfile);
+            if (nextProfile.role === "officer") {
+              void hydrateOnboardedBarangays().then(() => {
+                const active = nextProfile.activeBarangayId;
+                if (active && !getPreferredAreaId()) {
+                  setPreferredAreaId(active);
+                }
+              });
+            }
+          } else {
+            setProfile(null);
+          }
+        } catch {
+          setProfile(null);
+        } finally {
+          setLoading(false);
+        }
+      });
+    } catch (err) {
+      console.error("[luwas] Firebase Auth failed to initialize", err);
+      setUser(null);
+      setProfile(null);
+      setLoading(false);
+    }
+
+    return () => unsub?.();
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
@@ -167,9 +186,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       displayName: string;
       orgName: string;
       idProof: RegisterIdProof;
+      areaId: string;
+      barangay: string;
+      lgu: string;
     }) => {
       if (!input.idProof.idVerified) {
         throw new Error("ID verification required before registration.");
+      }
+      if (!input.areaId.trim() || !input.barangay.trim()) {
+        throw new Error("Choose your barangay / location to continue.");
       }
       try {
         const cred = await createUserWithEmailAndPassword(
@@ -182,21 +207,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           photoURL: input.idProof.photoURL ?? undefined,
         });
 
-        const profileDoc: OfficerProfile = {
+        const emailNorm = input.email.trim().toLowerCase();
+        const orgLower = input.orgName.toLowerCase();
+        const looksCaptain =
+          emailNorm.startsWith("captain@") ||
+          orgLower.includes("punong") ||
+          /\bcaptain\b/.test(orgLower);
+
+        // Write pending first so we are signed-in for the peer check.
+        const base: OfficerProfile = {
           uid: cred.user.uid,
-          email: input.email,
+          email: emailNorm,
           displayName: input.displayName,
           orgName: input.orgName,
           role: "officer",
           createdAt: new Date().toISOString(),
+          accountStatus: "pending",
+          barangay: input.barangay.trim(),
+          lgu: input.lgu.trim(),
+          areaId: input.areaId.trim(),
+          activeBarangayId: null,
+          officerRank: looksCaptain ? "captain" : "officer",
+          officerTitle: looksCaptain ? "Punong Barangay" : null,
           ...idProofFields(input.idProof),
         };
-
         await setDoc(doc(getClientDb(), "users", cred.user.uid), {
-          ...profileDoc,
+          ...base,
           createdAtServer: serverTimestamp(),
         });
+
+        const first = await isFirstActiveOfficerInBarangay(
+          input.areaId,
+          input.barangay,
+        );
+        const profileDoc: OfficerProfile = first
+          ? {
+              ...base,
+              accountStatus: "active",
+              activeBarangayId: input.areaId.trim(),
+            }
+          : base;
+        if (first) {
+          const { updateDoc } = await import("firebase/firestore");
+          await updateDoc(doc(getClientDb(), "users", cred.user.uid), {
+            accountStatus: "active",
+            activeBarangayId: input.areaId.trim(),
+            updatedAt: new Date().toISOString(),
+            updatedAtServer: serverTimestamp(),
+          });
+          setPreferredAreaId(input.areaId.trim());
+        }
         setProfile(profileDoc);
+        const status: "pending" | "active" =
+          profileDoc.accountStatus === "pending" ? "pending" : "active";
+        return { accountStatus: status };
       } catch (err) {
         throw mapAuthError(err);
       }
@@ -212,9 +276,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       purok: string;
       phone: string;
       idProof: RegisterIdProof;
+      areaId: string;
+      barangay: string;
+      lgu: string;
     }) => {
       if (!input.idProof.idVerified) {
         throw new Error("ID verification required before registration.");
+      }
+      if (!input.areaId.trim() || !input.barangay.trim()) {
+        throw new Error("Choose your barangay / location to continue.");
       }
       try {
         const cred = await createUserWithEmailAndPassword(
@@ -227,22 +297,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           photoURL: input.idProof.photoURL ?? undefined,
         });
 
-        const profileDoc: CitizenProfile = {
+        const pending: CitizenProfile = {
           uid: cred.user.uid,
-          email: input.email,
+          email: input.email.trim().toLowerCase(),
           displayName: input.displayName,
           purok: input.purok,
           phone: input.phone,
           role: "citizen",
           createdAt: new Date().toISOString(),
+          accountStatus: "pending",
+          barangay: input.barangay.trim(),
+          lgu: input.lgu.trim(),
+          areaId: input.areaId.trim(),
+          householdId: null,
           ...idProofFields(input.idProof),
         };
-
         await setDoc(doc(getClientDb(), "users", cred.user.uid), {
-          ...profileDoc,
+          ...pending,
           createdAtServer: serverTimestamp(),
         });
+
+        // Match after auth so Firestore household reads are allowed.
+        const match = await findMatchingHousehold({
+          email: input.email,
+          phone: input.phone,
+          displayName: input.displayName,
+          purok: input.purok,
+          barangay: input.barangay,
+        });
+        const autoValidated = Boolean(match);
+        let profileDoc = pending;
+        if (match) {
+          const { updateDoc } = await import("firebase/firestore");
+          profileDoc = {
+            ...pending,
+            accountStatus: "active",
+            householdId: match.id,
+          };
+          await updateDoc(doc(getClientDb(), "users", cred.user.uid), {
+            accountStatus: "active",
+            householdId: match.id,
+            updatedAt: new Date().toISOString(),
+            updatedAtServer: serverTimestamp(),
+          });
+          await linkCitizenToHousehold(match.id, cred.user.uid);
+        }
         setProfile(profileDoc);
+        return {
+          autoValidated,
+          householdId: match?.id ?? null,
+        };
       } catch (err) {
         throw mapAuthError(err);
       }

@@ -201,11 +201,13 @@ export function SituationMap({
     });
   }, [officerUid]);
 
-  // Old Mabolo (or empty) Firestore roster keeps the map on the wrong area —
-  // replace with Nangka seed once per session when pins are outside ops.
+  // Old Mabolo / empty / oversized roster → replace with Nangka house-owner seed.
   useEffect(() => {
     if (!rosterReady || migrateAttempted.current || migrating) return;
-    if (households.length > 0 && rosterMatchesOpsArea(households)) return;
+    const inOps =
+      households.length > 0 && rosterMatchesOpsArea(households);
+    const oversized = households.length > NANGKA_HOUSEHOLD_TARGET + 50;
+    if (inOps && !oversized) return;
 
     migrateAttempted.current = true;
     setMigrating(true);
@@ -322,9 +324,9 @@ export function SituationMap({
 
   const areaStats = nangkaOps ? (
     <>
-      {mappedCount.toLocaleString()} homes
+      {mappedCount.toLocaleString()} house owners
       {mappedCount >= NANGKA_HOUSEHOLD_TARGET
-        ? ` · ~${NANGKA_CENSUS_2020.toLocaleString()} people`
+        ? ` · PSA ~${NANGKA_CENSUS_2020.toLocaleString()} people`
         : ""}{" "}
       · {pack.reportPins.length} reports
       {quakes.length ? ` · ${quakes.length} quakes` : ""}
@@ -369,9 +371,9 @@ export function SituationMap({
             escapeRoutes={mapEscapes}
           />
           {/* Compact weather — map bottom center */}
-          <div className="pointer-events-none absolute inset-x-0 bottom-3 z-[1000] flex justify-center px-3">
+          <div className="pointer-events-none absolute inset-x-0 bottom-2 z-[1000] flex justify-center px-2 sm:bottom-3 sm:px-3">
             <div
-              className={`pointer-events-auto rounded-full border px-3 py-1.5 shadow-md backdrop-blur-md ${
+              className={`pointer-events-auto max-w-[min(100%,22rem)] rounded-2xl border px-2.5 py-1.5 shadow-md backdrop-blur-md sm:max-w-none sm:rounded-full sm:px-3 ${
                 hazard
                   ? "border-[var(--warn)]/50 bg-[var(--surface-raised)]/92"
                   : "border-[var(--border)] bg-[var(--surface-raised)]/90"
@@ -384,19 +386,19 @@ export function SituationMap({
               ) : weatherError && !weather ? (
                 <p className="text-[10px] text-[var(--danger)]">{weatherError}</p>
               ) : weather ? (
-                <p className="flex items-baseline gap-2 font-mono text-[11px] text-[var(--foreground)]">
-                  <span className="font-[family-name:var(--font-display)] text-base font-semibold tabular-nums leading-none">
+                <p className="flex flex-wrap items-baseline justify-center gap-x-2 gap-y-0.5 font-mono text-[10px] text-[var(--foreground)] sm:text-[11px]">
+                  <span className="font-[family-name:var(--font-display)] text-sm font-semibold tabular-nums leading-none sm:text-base">
                     {Math.round(weather.temperatureC)}°
                   </span>
                   <span className="text-[var(--muted)]">{weather.label}</span>
-                  <span className="text-[var(--border)]">·</span>
+                  <span className="hidden text-[var(--border)] sm:inline">·</span>
                   <span className="text-[var(--muted)]">
                     feels {Math.round(weather.feelsLikeC)}°
                   </span>
                   <span className="text-[var(--muted)]">
                     rain {weather.precipitationMm.toFixed(1)}
                   </span>
-                  <span className="text-[var(--muted)]">
+                  <span className="hidden text-[var(--muted)] sm:inline">
                     wind {Math.round(weather.windKmh)}
                   </span>
                   {hazard ? (
@@ -416,9 +418,9 @@ export function SituationMap({
               : "border-t lg:border-t-0 lg:border-l"
           }`}
         >
-          <div className="relative z-30 shrink-0 space-y-1 border-b border-[var(--border)] bg-[var(--surface-panel)] px-3 py-2 pr-14 sm:pr-3">
+          <div className="relative z-30 shrink-0 space-y-1 border-b border-[var(--border)] bg-[var(--surface-panel)] px-3 py-2 pr-12 sm:pr-3">
             <AreaSearchSelect value={mapArea} onChange={setMapArea} />
-            <p className="truncate text-[11px] text-[var(--muted)]">
+            <p className="text-[11px] leading-snug text-[var(--muted)] sm:truncate">
               {areaStats}
             </p>
           </div>

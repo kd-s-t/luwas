@@ -14,7 +14,7 @@ import {
 } from "@/lib/auth/demoOfficers";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { useEmulators } from "@/lib/firebase/client";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { getClientAuth, getClientDb } from "@/lib/firebase/client";
 import type { UserProfile } from "@/lib/auth/types";
 
@@ -46,6 +46,9 @@ export default function LoginPage() {
           password: officer.password,
           displayName: officer.displayName,
           orgName: officer.orgName,
+          areaId: "consolacion/nangka",
+          barangay: "Nangka",
+          lgu: "Consolacion",
           idProof: DEMO_ID_PROOF,
         });
       } catch (regErr) {
@@ -55,6 +58,25 @@ export default function LoginPage() {
           await login(officer.email, officer.password);
         } else {
           throw regErr;
+        }
+      }
+    }
+    // Stamp captain rank on demo Punong so hire/fire rules work.
+    if (officer.id === "captain") {
+      const uid = getClientAuth().currentUser?.uid;
+      if (uid) {
+        try {
+          await updateDoc(doc(getClientDb(), "users", uid), {
+            officerRank: "captain",
+            officerTitle: "Punong Barangay",
+            barangay: "Nangka",
+            lgu: "Consolacion",
+            areaId: "consolacion/nangka",
+            updatedAt: new Date().toISOString(),
+            updatedAtServer: serverTimestamp(),
+          });
+        } catch {
+          /* rules may block partial fields on older docs — org/email still match */
         }
       }
     }

@@ -10,7 +10,7 @@ export default function CommandReportsPage() {
     <AuthGate mode="protected" role="officer">
       <div className="min-h-screen">
         <CommandHeader />
-        <main className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-6">
+        <main className="mx-auto max-w-6xl px-3 py-3 sm:px-6 sm:py-6">
           <FadeIn delay={0.06} y={12}>
             <ValidationQueue />
           </FadeIn>

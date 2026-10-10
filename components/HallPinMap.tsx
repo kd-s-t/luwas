@@ -22,7 +22,7 @@ type Props = {
 
 const hallIcon = L.divIcon({
   className: "dro-map-marker",
-  html: `<span class="dro-map-marker-dot" style="width:16px;height:16px;background:var(--accent,#1f8f55);border:2px solid #fff;border-radius:999px;display:block;box-shadow:0 1px 4px rgba(15,42,28,.35)"></span>`,
+  html: `<span class="dro-map-marker-dot" style="width:16px;height:16px;background:var(--accent,#c72929);border:2px solid #fff;border-radius:999px;display:block;box-shadow:0 1px 4px rgba(31, 33, 38,.35)"></span>`,
   iconSize: [16, 16],
   iconAnchor: [8, 8],
 });
