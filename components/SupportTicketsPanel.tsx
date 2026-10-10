@@ -20,6 +20,7 @@ import {
   type SupportTicket,
   type SupportTicketStatus,
 } from "@/lib/support/api";
+import { ensureSampleSupportTickets } from "@/lib/support/ensureSampleSupportTickets";
 import { cn } from "@/lib/utils";
 
 type Filter = "open" | "all" | "done";
@@ -52,7 +53,21 @@ export function SupportTicketsPanel() {
 
   useEffect(() => {
     if (!isOfficer(profile) || !isAccountActive(profile)) return;
-    return subscribeSupportTickets(setRows, (err) => setError(err.message));
+    let unsub: (() => void) | undefined;
+    let cancelled = false;
+    void (async () => {
+      try {
+        await ensureSampleSupportTickets();
+      } catch (err) {
+        console.warn("Support sample seed failed", err);
+      }
+      if (cancelled) return;
+      unsub = subscribeSupportTickets(setRows, (err) => setError(err.message));
+    })();
+    return () => {
+      cancelled = true;
+      unsub?.();
+    };
   }, [profile]);
 
   useEffect(() => {

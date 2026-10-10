@@ -12,6 +12,7 @@
     "start:local": "bash scripts/dev-local.sh",
     "seed:local": "node scripts/seed-local.mjs",
     "seed:officers": "node scripts/seed-nangka-officers-rest.mjs",
+    "seed:prod-samples": "node scripts/seed-prod-samples.mjs",
     "rules:reload": "bash scripts/reload-firestore-rules.sh"
   },
   "dependencies": {
