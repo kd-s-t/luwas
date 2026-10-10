@@ -1,4 +1,7 @@
 # Firebase App Hosting — https://firebase.google.com/docs/app-hosting/configure
+# Do not commit Google / Firebase API keys as plain values (secret scanning).
+# Firebase web API keys are still client-visible at runtime; load from Secret Manager at build.
+# Server keys: firebase apphosting:secrets:set NAME  (or gcloud secrets create …)
 runConfig:
   minInstances: 0
   maxInstances: 2
@@ -12,8 +15,9 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  # Set once: firebase apphosting:secrets:set NEXT_PUBLIC_FIREBASE_API_KEY
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
-    value: "AIzaSyADTqEm_rCvHiwbvlZ2dj2iPkAGxuA_RZQ"
+    secret: NEXT_PUBLIC_FIREBASE_API_KEY
     availability:
       - BUILD
       - RUNTIME
@@ -41,4 +45,27 @@ env:
     value: "1:192332066427:web:8c4ac5185db80a7d4b3cde"
     availability:
       - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_APP_URL
+    value: "https://luwas-192332066427.asia-southeast1.run.app"
+    availability:
+      - BUILD
+      - RUNTIME
+
+  # Create with: printf '%s' "$VALUE" | gcloud secrets create NAME --data-file=- --project=nice-pen-181017
+  - variable: GEMINI_API_KEY
+    secret: GEMINI_API_KEY
+    availability:
+      - RUNTIME
+  - variable: GOOGLE_WEATHER_API_KEY
+    secret: GOOGLE_WEATHER_API_KEY
+    availability:
+      - RUNTIME
+  - variable: RESEND_API_KEY
+    secret: RESEND_API_KEY
+    availability:
+      - RUNTIME
+  - variable: RESEND_FROM_EMAIL
+    secret: RESEND_FROM_EMAIL
+    availability:
       - RUNTIME
