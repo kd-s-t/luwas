@@ -117,6 +117,18 @@ export async function ensureSampleSupportTickets(): Promise<{
       createdAtServer: serverTimestamp(),
       assignedToUid: sample.assignedToUid,
       assignedToName: sample.assignedToName,
+      messages:
+        sample.id === "sup-sample-004"
+          ? [
+              {
+                id: "msg-sample-004-1",
+                body: "Reproduced on Safari — badges refresh only after hard reload. Checking CommandHeader subscriptions.",
+                authorUid: "sample-assignee-mdrrmo",
+                authorName: "Demo · MDRRMO Focal",
+                createdAt: now,
+              },
+            ]
+          : [],
       resolvedAt: null,
       resolvedByUid: null,
       resolvedByName: null,

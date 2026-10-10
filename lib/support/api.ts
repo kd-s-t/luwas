@@ -1,5 +1,6 @@
 import {
   addDoc,
+  arrayUnion,
   collection,
   onSnapshot,
   orderBy,
@@ -12,6 +13,14 @@ import {
 import { getClientDb } from "@/lib/firebase/client";
 
 export type SupportTicketStatus = "open" | "in_progress" | "resolved" | "closed";
+
+export type SupportMessage = {
+  id: string;
+  body: string;
+  authorUid: string;
+  authorName: string;
+  createdAt: string;
+};
 
 export type SupportTicket = {
   id: string;
@@ -26,6 +35,7 @@ export type SupportTicket = {
   createdAt: string;
   assignedToUid: string | null;
   assignedToName: string | null;
+  messages: SupportMessage[];
   resolvedAt: string | null;
   resolvedByUid: string | null;
   resolvedByName: string | null;
@@ -66,6 +76,7 @@ function mapTicket(
       data.assignedToUid != null ? String(data.assignedToUid) : null,
     assignedToName:
       data.assignedToName != null ? String(data.assignedToName) : null,
+    messages: mapMessages(data.messages),
     resolvedAt: data.resolvedAt != null ? String(data.resolvedAt) : null,
     resolvedByUid:
       data.resolvedByUid != null ? String(data.resolvedByUid) : null,
@@ -74,6 +85,26 @@ function mapTicket(
     resolutionNote:
       data.resolutionNote != null ? String(data.resolutionNote) : null,
   };
+}
+
+function mapMessages(raw: unknown): SupportMessage[] {
+  if (!Array.isArray(raw)) return [];
+  const rows: SupportMessage[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const m = item as Record<string, unknown>;
+    const body = String(m.body ?? "").trim();
+    if (!body) continue;
+    rows.push({
+      id: String(m.id ?? `${m.createdAt ?? ""}-${rows.length}`),
+      body: body.slice(0, 2000),
+      authorUid: String(m.authorUid ?? ""),
+      authorName: String(m.authorName ?? "Officer"),
+      createdAt: String(m.createdAt ?? ""),
+    });
+  }
+  rows.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  return rows;
 }
 
 export async function submitSupportTicket(input: SupportTicketInput) {
@@ -98,6 +129,7 @@ export async function submitSupportTicket(input: SupportTicketInput) {
     createdAtServer: serverTimestamp(),
     assignedToUid: null,
     assignedToName: null,
+    messages: [],
     resolvedAt: null,
     resolvedByUid: null,
     resolvedByName: null,
@@ -160,4 +192,28 @@ export async function assignSupportTicket(input: {
     patch.status = "in_progress" satisfies SupportTicketStatus;
   }
   await updateDoc(doc(getClientDb(), "supportTickets", input.ticketId), patch);
+}
+
+export async function addSupportTicketMessage(input: {
+  ticketId: string;
+  body: string;
+  authorUid: string;
+  authorName: string;
+}): Promise<void> {
+  const body = input.body.trim();
+  if (!body) throw new Error("Write a message first.");
+  if (body.length > 2000) throw new Error("Message is too long.");
+  const now = new Date().toISOString();
+  const message: SupportMessage = {
+    id: `msg-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+    body,
+    authorUid: input.authorUid,
+    authorName: input.authorName.trim().slice(0, 120) || "Officer",
+    createdAt: now,
+  };
+  await updateDoc(doc(getClientDb(), "supportTickets", input.ticketId), {
+    messages: arrayUnion(message),
+    updatedAt: now,
+    updatedAtServer: serverTimestamp(),
+  });
 }

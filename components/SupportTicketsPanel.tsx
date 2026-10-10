@@ -14,6 +14,7 @@ import {
   type OfficerProfile,
 } from "@/lib/auth/types";
 import {
+  addSupportTicketMessage,
   assignSupportTicket,
   subscribeSupportTickets,
   updateSupportTicketStatus,
@@ -24,6 +25,89 @@ import { ensureSampleSupportTickets } from "@/lib/support/ensureSampleSupportTic
 import { cn } from "@/lib/utils";
 
 type Filter = "open" | "all" | "done";
+
+function TicketMessageBox({
+  ticket,
+  busy,
+  onSend,
+}: {
+  ticket: SupportTicket;
+  busy: boolean;
+  onSend: (body: string) => Promise<void>;
+}) {
+  const [draft, setDraft] = useState("");
+  const [sending, setSending] = useState(false);
+
+  async function submit() {
+    const body = draft.trim();
+    if (!body || sending || busy) return;
+    setSending(true);
+    try {
+      await onSend(body);
+      setDraft("");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div className="mt-3 border border-[var(--border)] bg-[var(--surface)]">
+      <p className="border-b border-[var(--border)] px-3 py-1.5 font-mono text-[9px] tracking-[0.18em] text-[var(--muted)] uppercase">
+        Messages
+      </p>
+      {ticket.messages.length > 0 ? (
+        <ul className="max-h-40 space-y-2 overflow-y-auto px-3 py-2">
+          {ticket.messages.map((m) => (
+            <li key={m.id} className="text-sm">
+              <p className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+                {m.authorName}
+                {m.createdAt
+                  ? ` · ${new Date(m.createdAt).toLocaleString()}`
+                  : ""}
+              </p>
+              <p className="mt-0.5 whitespace-pre-wrap text-[var(--foreground)]">
+                {m.body}
+              </p>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="px-3 py-2 text-xs text-[var(--muted)]">
+          No messages yet — leave a triage note below.
+        </p>
+      )}
+      <div className="flex flex-col gap-2 border-t border-[var(--border)] p-3 sm:flex-row sm:items-end">
+        <label className="min-w-0 flex-1">
+          <span className="sr-only">Message</span>
+          <textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            disabled={busy || sending}
+            rows={2}
+            maxLength={2000}
+            placeholder="Officer note / reply…"
+            className="w-full resize-y border border-[var(--border)] bg-[var(--input)] px-2.5 py-1.5 text-sm outline-none focus:border-[var(--accent)] disabled:opacity-50"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                void submit();
+              }
+            }}
+          />
+        </label>
+        <Button
+          type="button"
+          size="sm"
+          className="shrink-0 sm:w-24"
+          disabled={busy || sending || !draft.trim()}
+          onClick={() => void submit()}
+        >
+          {sending ? "…" : "Send"}
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 function statusVariant(
   status: SupportTicketStatus,
@@ -167,6 +251,25 @@ export function SupportTicketsPanel() {
     }
   }
 
+  async function sendMessage(ticket: SupportTicket, body: string) {
+    if (!isOfficer(profile)) return;
+    setBusyId(ticket.id);
+    setError(null);
+    try {
+      await addSupportTicketMessage({
+        ticketId: ticket.id,
+        body,
+        authorUid: profile.uid,
+        authorName: profile.displayName || profile.email,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Message failed");
+      throw err;
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   if (!isOfficer(profile) || !isAccountActive(profile)) {
     return (
       <p className="text-sm text-[var(--muted)]">
@@ -271,6 +374,16 @@ export function SupportTicketsPanel() {
                       : ""}
                   </p>
                 ) : null}
+                {t.resolutionNote ? (
+                  <p className="mt-1 text-xs text-[var(--muted)]">
+                    Resolution note · {t.resolutionNote}
+                  </p>
+                ) : null}
+                <TicketMessageBox
+                  ticket={t}
+                  busy={busyId === t.id}
+                  onSend={(body) => sendMessage(t, body)}
+                />
               </div>
               <div className="flex w-full flex-col gap-2 sm:w-48 sm:shrink-0">
                 {(t.status === "open" || t.status === "in_progress") && (
