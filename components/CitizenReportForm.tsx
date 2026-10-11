@@ -242,7 +242,7 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
     setError(null);
   }
 
-  async function useGps() {
+  async function captureGps() {
     setGpsLoading(true);
     setError(null);
     try {
@@ -908,7 +908,7 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
           <button
             type="button"
             disabled={gpsLoading}
-            onClick={() => void useGps()}
+            onClick={() => void captureGps()}
             className={cn(
               "flex w-full items-center justify-center gap-2 rounded-xl border-[1.5px] bg-[var(--surface)] px-3 py-3.5 text-sm font-semibold disabled:opacity-60",
               fromGps ? "border-[var(--success)]" : "border-[var(--border)]",
