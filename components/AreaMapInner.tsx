@@ -20,7 +20,8 @@ import {
 import L from "leaflet";
 import { Crosshair, Loader2, LocateFixed, Tornado } from "lucide-react";
 import type { AssistEscapeRoute, AssistPriority } from "@/lib/ai/assistTypes";
-import { pointAndBearingAlongPath } from "@/lib/geo/bearing";
+import { distKm, pointAndBearingAlongPath } from "@/lib/geo/bearing";
+import { pointInFloodFootprints } from "@/lib/geo/elevFloodFootprint";
 import { DEFAULT_MAP_AREA, type MapArea } from "@/lib/geo/mapAreas";
 import {
   phoneToTelHref,
@@ -54,9 +55,28 @@ import {
   evacStatusForSafePoint,
   formatEvacPopulationLine,
 } from "@/lib/reports/evacStatus";
-import type { ScenarioReportPin } from "@/lib/scenarios/types";
+import type {
+  DrrmScenarioPhase,
+  ScenarioReportPin,
+} from "@/lib/scenarios/types";
 import { cn } from "@/lib/utils";
 import "leaflet/dist/leaflet.css";
+
+/** True when a facility sits inside AI/scenario flood footprints or near a flood pin. */
+function facilityInFlood(
+  lat: number,
+  lng: number,
+  floods: FloodSample[],
+): boolean {
+  const pt = { lat, lng };
+  for (const fl of floods) {
+    if (pointInFloodFootprints(pt, fl.footprints)) return true;
+    if (fl.footprint && pointInFloodFootprints(pt, [fl.footprint])) return true;
+    const radiusM = fl.radiusM && fl.radiusM > 0 ? fl.radiusM : 120;
+    if (distKm(pt, { lat: fl.lat, lng: fl.lng }) * 1000 <= radiusM) return true;
+  }
+  return false;
+}
 
 type MapFlyFn = (lat: number, lng: number, zoom?: number) => void;
 type MapFitFn = () => void;
@@ -595,6 +615,8 @@ type AreaMapInnerProps = {
   /** householdId → AI priority — updates marker style + map focus */
   assistPriorities?: Record<string, AssistPriority>;
   escapeRoutes?: AssistEscapeRoute[];
+  /** Odette phase — During shows flood warning on inundated ECs. */
+  scenarioPhase?: DrrmScenarioPhase;
 };
 
 export default function AreaMapInner({
@@ -614,6 +636,7 @@ export default function AreaMapInner({
   responders = [],
   assistPriorities = {},
   escapeRoutes = [],
+  scenarioPhase,
 }: AreaMapInnerProps) {
   void _forceLayers;
   const flyRef = useRef<MapFlyFn | null>(null);
@@ -1108,6 +1131,12 @@ export default function AreaMapInner({
       {layerSafePoints.map((sp) => {
         const active = activeEvacIds.has(sp.id);
         const pop = evacStatusForSafePoint(sp, layerReports);
+        // During + active flood layer: warn on low ECs (~flood belt) or footprint hit.
+        const floodedDuring =
+          scenarioPhase === "during" &&
+          layerFloods.length > 0 &&
+          (sp.isEvacCenter || sp.kind === "evac_center") &&
+          (sp.elevM <= 12 || facilityInFlood(sp.lat, sp.lng, layerFloods));
         const z =
           sp.kind === "hall"
             ? 760
@@ -1127,7 +1156,19 @@ export default function AreaMapInner({
           >
             <Popup>
               <strong>{sp.name}</strong>
-              {pop ? (
+              {floodedDuring ? (
+                <>
+                  <br />
+                  <span style={{ fontWeight: 700, color: "#1d4ed8" }}>
+                    Warning · this area is flooded
+                  </span>
+                  <br />
+                  <span style={{ opacity: 0.8 }}>
+                    During Odette · approaches may be impassable · redirect to
+                    dry high ground / alternate EC
+                  </span>
+                </>
+              ) : pop ? (
                 <>
                   <br />
                   <span style={{ fontWeight: 700 }}>

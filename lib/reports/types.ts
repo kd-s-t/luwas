@@ -89,6 +89,9 @@ export type HazardReport = {
   aiReason: string | null;
   aiSource: "gemini" | "local" | null;
   aiModel: string | null;
+  /** Vertex AutoML top class (e.g. flood, accident, unrelated). */
+  vertexClass: string | null;
+  vertexConfidence: number | null;
   validatedAt: string | null;
   /** Reporter signals used for trust scoring. */
   reporterIdVerified: boolean;

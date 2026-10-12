@@ -27,6 +27,8 @@ type Body = {
   aiVerdict?: string;
   aiConfidence?: number;
   aiReason?: string;
+  vertexClass?: string;
+  vertexConfidence?: number;
   citizenName?: string;
   citizenPurok?: string;
   /** `ios` (default) or `web` guest — no login. */
@@ -272,6 +274,14 @@ export async function POST(req: Request) {
   let aiVerdict: "legit" | "rejected" | "needs_review" = local.verdict;
   let aiConfidence = local.confidence;
   const aiReason = body.aiReason?.trim() || local.reason;
+  const vertexClass =
+    typeof body.vertexClass === "string" && body.vertexClass.trim()
+      ? body.vertexClass.trim()
+      : null;
+  const vertexConfidence =
+    typeof body.vertexConfidence === "number"
+      ? Math.max(0, Math.min(1, body.vertexConfidence))
+      : null;
 
   const rawVerdict = body.aiVerdict;
   if (
@@ -409,6 +419,8 @@ export async function POST(req: Request) {
     aiReason: `[${source}] ${aiReason}`,
     aiSource: "local",
     aiModel: `${source}-local-rules`,
+    vertexClass,
+    vertexConfidence,
     validatedAt: now,
     reactionCounts: { ...EMPTY_REACTION_COUNTS },
     commentCount: 0,

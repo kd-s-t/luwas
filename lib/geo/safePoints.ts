@@ -6,6 +6,7 @@ import {
   type CebuEvacCenter,
 } from "@/lib/geo/cebuEvacCenters";
 import type { MapArea } from "@/lib/geo/mapAreas";
+import { estimateElevM } from "@/lib/geo/nangkaElevation";
 
 export type SafePointKind = "hall" | "school" | "evac_center" | "landmark";
 
@@ -37,7 +38,8 @@ export function evacCenterToSafePoint(e: CebuEvacCenter): SafePoint {
     kind,
     lat: e.lat,
     lng: e.lng,
-    elevM: kind === "school" ? 26 : 12,
+    // Real grid elev — Consolacion ECs sit ~4 m (flood belt); schools ~27 m.
+    elevM: Math.round(estimateElevM(e.lat, e.lng)),
     isEvacCenter: true,
     notes: [e.notes, e.open24h ? "Open 24 hours" : null]
       .filter(Boolean)

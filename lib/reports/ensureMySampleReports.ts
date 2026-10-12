@@ -187,6 +187,8 @@ export async function ensureMySampleReports(input: {
       aiReason: sample.aiReason,
       aiSource: sample.status === "queued" ? null : "local",
       aiModel: sample.status === "queued" ? null : "sample-seed",
+      vertexClass: null,
+      vertexConfidence: null,
       validatedAt: sample.status === "queued" ? null : now,
       reporterIdVerified: Boolean(input.idVerified),
       reporterEmail: input.email?.trim() || null,

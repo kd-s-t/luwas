@@ -282,6 +282,8 @@ export async function ensureQueueSampleReports(): Promise<{
       aiReason: sample.aiReason,
       aiSource: "local",
       aiModel: "sample-seed",
+      vertexClass: null,
+      vertexConfidence: null,
       validatedAt: now,
       reporterIdVerified: false,
       reporterEmail: sample.email,

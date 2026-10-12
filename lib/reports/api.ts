@@ -141,6 +141,13 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
     aiReason: data.aiReason != null ? String(data.aiReason) : null,
     aiSource: (data.aiSource as HazardReport["aiSource"]) ?? null,
     aiModel: data.aiModel != null ? String(data.aiModel) : null,
+    vertexClass: data.vertexClass != null ? String(data.vertexClass) : null,
+    vertexConfidence:
+      typeof data.vertexConfidence === "number"
+        ? data.vertexConfidence
+        : data.vertexConfidence != null
+          ? Number(data.vertexConfidence)
+          : null,
     validatedAt: data.validatedAt != null ? String(data.validatedAt) : null,
     reporterIdVerified,
     reporterEmail,
@@ -235,6 +242,8 @@ export async function createHazardReport(input: {
     aiReason: null,
     aiSource: null,
     aiModel: null,
+    vertexClass: null,
+    vertexConfidence: null,
     validatedAt: null,
     reactionCounts: { ...EMPTY_REACTION_COUNTS },
     commentCount: 0,
@@ -255,6 +264,8 @@ export async function updateReportValidation(
     aiReason: string | null;
     aiSource: HazardReport["aiSource"];
     aiModel: string | null;
+    vertexClass?: string | null;
+    vertexConfidence?: number | null;
     validatedAt: string | null;
     /** When set, recomputes trust with AI slice. */
     trustInput?: {

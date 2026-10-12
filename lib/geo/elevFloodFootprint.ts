@@ -6,6 +6,42 @@ const D_LAT = 0.00043;
 const D_LNG = 0.00052;
 
 /**
+ * Ray-cast point-in-polygon for a closed lat/lng ring.
+ * Rings from elevFloodCellPolygons are axis-aligned quads.
+ */
+export function pointInLatLngRing(
+  pt: LatLng,
+  ring: LatLng[],
+): boolean {
+  if (ring.length < 3) return false;
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const yi = ring[i]!.lat;
+    const xi = ring[i]!.lng;
+    const yj = ring[j]!.lat;
+    const xj = ring[j]!.lng;
+    const intersect =
+      yi > pt.lat !== yj > pt.lat &&
+      pt.lng <
+        ((xj - xi) * (pt.lat - yi)) / (yj - yi + Number.EPSILON) + xi;
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+/** True when the point sits inside any inundation footprint ring. */
+export function pointInFloodFootprints(
+  pt: LatLng,
+  footprints: LatLng[][] | undefined | null,
+): boolean {
+  if (!footprints?.length) return false;
+  for (const ring of footprints) {
+    if (pointInLatLngRing(pt, ring)) return true;
+  }
+  return false;
+}
+
+/**
  * Flood-prone cells at or below `maxElevM` as individual quads.
  * Avoids a convex hull that would paint high ground between valleys.
  */

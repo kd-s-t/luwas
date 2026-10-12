@@ -74,6 +74,11 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
     aiReason: data.aiReason != null ? String(data.aiReason) : null,
     aiSource: (data.aiSource as HazardReport["aiSource"]) ?? null,
     aiModel: data.aiModel != null ? String(data.aiModel) : null,
+    vertexClass: data.vertexClass != null ? String(data.vertexClass) : null,
+    vertexConfidence:
+      typeof data.vertexConfidence === "number"
+        ? data.vertexConfidence
+        : null,
     validatedAt: data.validatedAt != null ? String(data.validatedAt) : null,
     reporterIdVerified: Boolean(data.reporterIdVerified),
     reporterEmail:

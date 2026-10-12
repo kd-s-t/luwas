@@ -5,7 +5,6 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { AuthCard } from "@/components/AuthCard";
 import { AuthGate } from "@/components/AuthGate";
-import { DEMO_OFFICER } from "@/lib/auth/demoAccount";
 import {
   DEMO_ID_PROOF,
   DEMO_OFFICERS,
@@ -18,15 +17,15 @@ import { doc, getDoc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { getClientAuth, getClientDb } from "@/lib/firebase/client";
 import type { UserProfile } from "@/lib/auth/types";
 
+const CAPTAIN = DEMO_OFFICERS.find((o) => o.id === "captain") ?? DEMO_OFFICERS[0]!;
+
 export default function LoginPage() {
   const { login, register } = useAuth();
   const router = useRouter();
-  const [email, setEmail] = useState(
-    useEmulators ? DEMO_OFFICER.email : "",
-  );
-  const [password, setPassword] = useState(
-    useEmulators ? DEMO_OFFICER.password : "",
-  );
+  /** Hackathon / demo: always show role picks (captain first). */
+  const [email, setEmail] = useState<string>(CAPTAIN.email);
+  const [password, setPassword] = useState<string>(CAPTAIN.password);
+  const [selectedDemoId, setSelectedDemoId] = useState<string>(CAPTAIN.id);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -39,7 +38,7 @@ export default function LoginPage() {
         /user-not-found|invalid-credential|INVALID_LOGIN_CREDENTIALS/i.test(
           message,
         );
-      if (!useEmulators || !missing) throw err;
+      if (!missing) throw err;
       try {
         await register({
           email: officer.email,
@@ -72,6 +71,7 @@ export default function LoginPage() {
             barangay: "Nangka",
             lgu: "Consolacion",
             areaId: "consolacion/nangka",
+            accountStatus: "active",
             updatedAt: new Date().toISOString(),
             updatedAtServer: serverTimestamp(),
           });
@@ -83,6 +83,7 @@ export default function LoginPage() {
   }
 
   async function loginAs(officer: DemoOfficer) {
+    setSelectedDemoId(officer.id);
     setEmail(officer.email);
     setPassword(officer.password);
     setError(null);
@@ -95,6 +96,13 @@ export default function LoginPage() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  function selectDemo(officer: DemoOfficer) {
+    setSelectedDemoId(officer.id);
+    setEmail(officer.email);
+    setPassword(officer.password);
+    setError(null);
   }
 
   async function redirectForCurrentUser() {
@@ -115,7 +123,7 @@ export default function LoginPage() {
     const trimmedEmail = email.trim();
     try {
       const demo = findDemoOfficer(trimmedEmail, password);
-      if (useEmulators && demo) {
+      if (demo) {
         await ensureDemoOfficer(demo);
       } else {
         await login(trimmedEmail, password);
@@ -156,31 +164,59 @@ export default function LoginPage() {
         }
       >
         <form onSubmit={onSubmit} className="space-y-4">
-          {useEmulators ? (
-            <div className="space-y-2">
-              <p className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
-                Demo roles
-              </p>
-              <div className="grid gap-2">
-                {DEMO_OFFICERS.map((o) => (
-                  <button
+          <div className="space-y-2">
+            <p className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+              Demo roles · password demo1234
+            </p>
+            <div className="grid gap-2">
+              {DEMO_OFFICERS.map((o) => {
+                const selected = selectedDemoId === o.id;
+                return (
+                  <div
                     key={o.id}
-                    type="button"
-                    onClick={() => void loginAs(o)}
-                    disabled={submitting}
-                    className="w-full border border-[var(--border)] px-3 py-2 text-left transition hover:border-[var(--accent)] disabled:opacity-60"
+                    className={`flex gap-2 border px-2 py-2 ${
+                      selected
+                        ? "border-[var(--accent)] bg-[var(--accent)]/5"
+                        : "border-[var(--border)]"
+                    }`}
                   >
-                    <span className="block text-sm font-medium text-[var(--foreground)]">
-                      {o.label}
-                    </span>
-                    <span className="block font-mono text-[10px] text-[var(--muted)]">
-                      {o.email}
-                    </span>
-                  </button>
-                ))}
-              </div>
+                    <button
+                      type="button"
+                      onClick={() => selectDemo(o)}
+                      disabled={submitting}
+                      className="min-w-0 flex-1 text-left disabled:opacity-60"
+                    >
+                      <span className="block text-sm font-medium text-[var(--foreground)]">
+                        {o.label}
+                        {o.id === "captain" ? " · recommended" : ""}
+                      </span>
+                      <span className="block truncate font-mono text-[10px] text-[var(--muted)]">
+                        {o.displayName} · {o.email}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void loginAs(o)}
+                      disabled={submitting}
+                      className="shrink-0 self-center border border-[var(--border)] px-2.5 py-1.5 font-mono text-[10px] tracking-wider uppercase transition hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:opacity-60"
+                    >
+                      {submitting && selected ? "…" : "Enter"}
+                    </button>
+                  </div>
+                );
+              })}
             </div>
-          ) : null}
+            {useEmulators ? (
+              <p className="text-[11px] text-[var(--muted)]">
+                Local emulators · accounts auto-create on first Enter.
+              </p>
+            ) : (
+              <p className="text-[11px] text-[var(--muted)]">
+                Prod demo · tap Enter on Captain to open command as Punong
+                Barangay.
+              </p>
+            )}
+          </div>
           <label className="block text-sm">
             <span className="mb-1.5 block text-[var(--muted)]">Email</span>
             <input

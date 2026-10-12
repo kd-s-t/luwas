@@ -9,7 +9,11 @@ import {
   type HazardDetail,
 } from "@/components/HazardDetailDialog";
 import { MangluluwasChat } from "@/components/MangluluwasChat";
-import type { AssistEscapeRoute } from "@/lib/ai/assistTypes";
+import type {
+  AssistEscapeRoute,
+  AssistPriority,
+} from "@/lib/ai/assistTypes";
+import { runLocalAssist } from "@/lib/ai/localAssist";
 import type { FloodSample } from "@/lib/hazards/floodSamples";
 import type { LandslideSample } from "@/lib/hazards/landslideSamples";
 import type { TyphoonSample } from "@/lib/hazards/typhoonSamples";
@@ -54,14 +58,48 @@ import {
   NANGKA_HOUSEHOLD_TARGET,
 } from "@/lib/households/seed";
 import type { Household } from "@/lib/households/types";
+import { subscribeAllReports } from "@/lib/reports/api";
 import { officerReportScope } from "@/lib/reports/barangayScope";
+import { ensureAllMapReportsInDb } from "@/lib/reports/seedMapReport";
+import type { HazardReport } from "@/lib/reports/types";
 import { useScenario } from "@/lib/scenarios";
 import { resolveScenarioPriorities } from "@/lib/scenarios/resolveScenarioPriorities";
+import type { ScenarioReportPin } from "@/lib/scenarios/types";
 import {
   fetchCebuWeather,
   isHazardousWeather,
   type AreaWeather,
 } from "@/lib/weather/openMeteo";
+
+function reportToMapPin(r: HazardReport): ScenarioReportPin | null {
+  if (r.lat == null || r.lng == null) return null;
+  if (r.status === "rejected") return null;
+  const kind: ScenarioReportPin["kind"] =
+    r.hazardHint === "flood"
+      ? "flood"
+      : r.hazardHint === "fire"
+        ? "fire"
+        : r.hazardHint === "landslide"
+          ? "landslide"
+          : r.hazardHint === "evac"
+            ? "evac_status"
+            : r.hazardHint === "typhoon"
+              ? "blockage"
+              : "warning";
+  return {
+    id: r.id,
+    title: r.title,
+    kind,
+    lat: r.lat,
+    lng: r.lng,
+    purokHint: r.citizenPurok || "Field",
+    sourceLabel: "Firestore · live",
+    notes: r.notes,
+    reportedAt: r.createdAt,
+    mediaUrl: r.mediaUrl || undefined,
+    href: `/reports/${r.id}`,
+  };
+}
 
 const EMPTY_ESCAPES: AssistEscapeRoute[] = [];
 
@@ -154,7 +192,7 @@ export function SituationMap({
     void bootArea();
   }, [defaultArea]);
 
-  const { officerBundle: scenario } = useScenario();
+  const { phase, officerBundle: scenario } = useScenario();
   const pack = useMemo(
     () => getBarangayMapPack(mapArea, scenario),
     [mapArea, scenario],
@@ -162,6 +200,7 @@ export function SituationMap({
   const [households, setHouseholds] = useState<Household[]>([]);
   const [rosterReady, setRosterReady] = useState(false);
   const [migrating, setMigrating] = useState(false);
+  const [dbReports, setDbReports] = useState<HazardReport[]>([]);
   const [weather, setWeather] = useState<AreaWeather | null>(null);
   const [weatherError, setWeatherError] = useState<string | null>(null);
   const [weatherLoading, setWeatherLoading] = useState(true);
@@ -189,7 +228,6 @@ export function SituationMap({
     deleteChat,
   } = useAiAssist();
   const hasAiOverlay = Object.keys(assistPriorities).length > 0;
-  // Escape arrows only after Mangluluwas / Run triage — never from scenario default.
 
   useEffect(() => {
     setRosterReady(false);
@@ -200,6 +238,29 @@ export function SituationMap({
       setRosterReady(true);
     });
   }, [officerUid]);
+
+  // During/After: seed curated map reports into Firestore, then live-subscribe.
+  useEffect(() => {
+    if (!nangkaOps || (phase !== "during" && phase !== "after")) {
+      setDbReports([]);
+      return;
+    }
+    let unsub: (() => void) | undefined;
+    let cancelled = false;
+    void (async () => {
+      try {
+        await ensureAllMapReportsInDb();
+      } catch (err) {
+        console.warn("Map report seed failed", err);
+      }
+      if (cancelled) return;
+      unsub = subscribeAllReports(setDbReports);
+    })();
+    return () => {
+      cancelled = true;
+      unsub?.();
+    };
+  }, [nangkaOps, phase]);
 
   // Old Mabolo / empty / oversized roster → replace with Nangka house-owner seed.
   useEffect(() => {
@@ -246,6 +307,64 @@ export function SituationMap({
     () => resolveScenarioPriorities(pack.scenarioActions, mapHouseholds),
     [pack.scenarioActions, mapHouseholds],
   );
+
+  // During/After: auto local triage on the live DB roster (same as homepage).
+  // Gemini "run triage" still wins when hasAiOverlay.
+  const phaseAssist = useMemo(() => {
+    if (!nangkaOps || hasAiOverlay) return null;
+    if (phase !== "during" && phase !== "after") return null;
+    if (mapHouseholds.length === 0) return null;
+    try {
+      return runLocalAssist({
+        households: mapHouseholds,
+        floods: pack.floods,
+        landslides: pack.landslides,
+        typhoons: pack.typhoons,
+        floodSource: "local",
+      });
+    } catch {
+      return null;
+    }
+  }, [
+    nangkaOps,
+    hasAiOverlay,
+    phase,
+    mapHouseholds,
+    pack.floods,
+    pack.landslides,
+    pack.typhoons,
+  ]);
+
+  const phasePriorities = useMemo(() => {
+    const map: Record<string, AssistPriority> = {};
+    if (!phaseAssist?.actions?.length) return map;
+    for (const a of phaseAssist.actions) map[a.householdId] = a.priority;
+    return map;
+  }, [phaseAssist]);
+
+  const mapReportPins = useMemo(() => {
+    const fromDb = dbReports
+      .map(reportToMapPin)
+      .filter((p): p is ScenarioReportPin => p != null);
+    const merged =
+      fromDb.length === 0
+        ? pack.reportPins
+        : (() => {
+            const seen = new Set(fromDb.map((p) => p.id));
+            const extras = pack.reportPins.filter((p) => !seen.has(p.id));
+            return [...fromDb, ...extras];
+          })();
+    // During/After: drop EC occupancy popups — flood/recovery layers are the story.
+    if (phase === "during" || phase === "after") {
+      return merged.filter(
+        (p) =>
+          p.kind !== "evac_status" &&
+          !p.id.includes("-ec-") &&
+          !p.id.startsWith("rpt-ec-"),
+      );
+    }
+    return merged;
+  }, [dbReports, pack.reportPins, phase]);
 
   useEffect(() => {
     let cancelled = false;
@@ -306,17 +425,28 @@ export function SituationMap({
   const mapPriorities = nangkaOps
     ? hasAiOverlay
       ? assistPriorities
-      : scenarioPriorities
+      : Object.keys(phasePriorities).length > 0
+        ? phasePriorities
+        : scenarioPriorities
     : {};
-  const mapEscapes =
-    nangkaOps && hasAiOverlay ? escapeRoutes : EMPTY_ESCAPES;
-  // AI flood overlay wins; otherwise paint scenario pack (During/After).
+  const mapEscapes = nangkaOps
+    ? hasAiOverlay
+      ? escapeRoutes
+      : phaseAssist?.escapes?.length
+        ? phaseAssist.escapes
+        : pack.scenarioEscapes.length
+          ? pack.scenarioEscapes
+          : EMPTY_ESCAPES
+    : EMPTY_ESCAPES;
+  // Gemini triage → phase local assist → scenario pack floods.
   const mapFloods =
     nangkaOps && result?.predictedFloods?.length
       ? result.predictedFloods
-      : nangkaOps
-        ? pack.floods
-        : [];
+      : nangkaOps && phaseAssist?.predictedFloods?.length
+        ? phaseAssist.predictedFloods
+        : nangkaOps
+          ? pack.floods
+          : [];
 
   const stageH = fullViewport
     ? "h-full min-h-0"
@@ -328,7 +458,7 @@ export function SituationMap({
       {mappedCount >= NANGKA_HOUSEHOLD_TARGET
         ? ` · PSA ~${NANGKA_CENSUS_2020.toLocaleString()} people`
         : ""}{" "}
-      · {pack.reportPins.length} reports
+      · {mapReportPins.length} reports
       {quakes.length ? ` · ${quakes.length} quakes` : ""}
       {migrating ? " · updating…" : ""}
     </>
@@ -364,11 +494,12 @@ export function SituationMap({
             floods={mapFloods}
             typhoons={pack.typhoons}
             fires={pack.fires}
-            reportPins={pack.reportPins}
+            reportPins={mapReportPins}
             safePoints={pack.safePoints}
             responders={pack.responders}
             assistPriorities={mapPriorities}
             escapeRoutes={mapEscapes}
+            scenarioPhase={phase}
           />
           {/* Compact weather — map bottom center */}
           <div className="pointer-events-none absolute inset-x-0 bottom-2 z-[1000] flex justify-center px-2 sm:bottom-3 sm:px-3">

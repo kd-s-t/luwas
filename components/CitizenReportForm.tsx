@@ -665,6 +665,8 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
     let aiVerdict: "legit" | "rejected" | "needs_review" | undefined;
     let aiConfidence: number | undefined;
     let aiReason: string | undefined;
+    let vertexClass: string | undefined;
+    let vertexConfidence: number | undefined;
     if (mediaBase64) {
       const res = await fetch("/api/ai/validate-report", {
         method: "POST",
@@ -684,10 +686,16 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
           verdict: "legit" | "rejected" | "needs_review";
           confidence: number;
           reason: string;
+          vertexClass?: string | null;
+          vertexConfidence?: number | null;
         };
         aiVerdict = data.verdict;
         aiConfidence = data.confidence;
         aiReason = data.reason;
+        if (data.vertexClass) vertexClass = data.vertexClass;
+        if (typeof data.vertexConfidence === "number") {
+          vertexConfidence = data.vertexConfidence;
+        }
       }
     }
 
@@ -716,6 +724,8 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
         aiVerdict,
         aiConfidence,
         aiReason,
+        vertexClass,
+        vertexConfidence,
       }),
     });
     if (!ingest.ok) {
@@ -855,6 +865,8 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
         reason: string;
         source: "gemini" | "local";
         model?: string;
+        vertexClass?: string | null;
+        vertexConfidence?: number | null;
       };
 
       await updateReportValidation(id, {
@@ -864,6 +876,11 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
         aiReason: data.reason,
         aiSource: data.source,
         aiModel: data.model ?? null,
+        vertexClass: data.vertexClass ?? null,
+        vertexConfidence:
+          typeof data.vertexConfidence === "number"
+            ? data.vertexConfidence
+            : null,
         validatedAt: new Date().toISOString(),
         trustInput: {
           registered: true,

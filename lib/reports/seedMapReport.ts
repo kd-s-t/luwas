@@ -172,6 +172,12 @@ export async function ensureMapReportInDb(
       aiReason: data.aiReason != null ? String(data.aiReason) : pin.sourceLabel,
       aiSource: (data.aiSource as HazardReport["aiSource"]) ?? "local",
       aiModel: data.aiModel != null ? String(data.aiModel) : null,
+      vertexClass:
+        data.vertexClass != null ? String(data.vertexClass) : null,
+      vertexConfidence:
+        typeof data.vertexConfidence === "number"
+          ? data.vertexConfidence
+          : null,
       validatedAt:
         data.validatedAt != null ? String(data.validatedAt) : pin.reportedAt,
       reporterIdVerified: Boolean(data.reporterIdVerified ?? true),
@@ -255,6 +261,8 @@ export async function ensureMapReportInDb(
     aiReason: "Seeded from map image report",
     aiSource: "local" as const,
     aiModel: null,
+    vertexClass: null,
+    vertexConfidence: null,
     validatedAt: pin.reportedAt,
     reporterIdVerified: true,
     reporterEmail: citizen.email,

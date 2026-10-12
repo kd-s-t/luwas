@@ -439,6 +439,14 @@ export function ValidationQueue() {
                     {formatTrustBreakdown(r.trustBreakdown)}
                   </p>
                 ) : null}
+                {r.vertexClass ? (
+                  <p className="mt-1 font-mono text-[10px] tracking-wide text-[var(--muted)] uppercase">
+                    Vertex · {r.vertexClass}
+                    {r.vertexConfidence != null
+                      ? ` · ${Math.round(r.vertexConfidence * 100)}%`
+                      : ""}
+                  </p>
+                ) : null}
                 {r.aiReason ? (
                   <p className="mt-1 text-xs leading-relaxed text-[var(--muted)] break-words">
                     AI

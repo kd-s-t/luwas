@@ -4,6 +4,11 @@ import {
   DEFAULT_GEMINI_MODEL,
   resolveGeminiModel,
 } from "@/lib/ai/geminiModels";
+import {
+  classifyImageWithVertex,
+  formatVertexSignal,
+  type VertexClassifyResult,
+} from "@/lib/ai/vertexClassify";
 import { runLocalValidate } from "@/lib/reports/localValidate";
 import type { ReportHazardHint, ReportMediaType } from "@/lib/reports/types";
 
@@ -28,9 +33,17 @@ type ValidateResponse = {
   source: "gemini" | "local";
   model?: string;
   status: "legit" | "rejected" | "needs_review";
+  vertexClass: string | null;
+  vertexConfidence: number | null;
+  vertexSource: VertexClassifyResult["source"];
 };
 
-function parseVerdict(text: string): Omit<ValidateResponse, "source" | "model" | "status"> | null {
+function parseVerdict(
+  text: string,
+): Omit<
+  ValidateResponse,
+  "source" | "model" | "status" | "vertexClass" | "vertexConfidence" | "vertexSource"
+> | null {
   const match = text.match(/\{[\s\S]*\}/);
   if (!match) return null;
   try {
@@ -60,6 +73,21 @@ function parseVerdict(text: string): Omit<ValidateResponse, "source" | "model" |
   }
 }
 
+function withVertex(
+  payload: Omit<
+    ValidateResponse,
+    "vertexClass" | "vertexConfidence" | "vertexSource"
+  >,
+  vertex: VertexClassifyResult,
+): ValidateResponse {
+  return {
+    ...payload,
+    vertexClass: vertex.className,
+    vertexConfidence: vertex.confidence,
+    vertexSource: vertex.source,
+  };
+}
+
 export async function POST(req: Request) {
   let body: Body;
   try {
@@ -84,6 +112,20 @@ export async function POST(req: Request) {
     process.env.NEXT_PUBLIC_USE_EMULATORS === "true" ||
     process.env.LUWAS_E2E_ACCEPT_REPORTS === "true";
 
+  const vertex =
+    mediaType === "photo" && body.mediaBase64
+      ? await classifyImageWithVertex({ imageBase64: body.mediaBase64 })
+      : ({
+          className: null,
+          confidence: null,
+          displayNames: [],
+          confidences: [],
+          source: "skipped" as const,
+          reason: "Vertex runs on photo bytes only.",
+        } satisfies VertexClassifyResult);
+
+  const vertexLine = formatVertexSignal(vertex);
+
   const key = process.env.GEMINI_API_KEY;
   if (!key || !body.mediaBase64) {
     const local = runLocalValidate({
@@ -96,22 +138,29 @@ export async function POST(req: Request) {
     });
     const verdict =
       localE2e && local.verdict === "rejected" ? "legit" : local.verdict;
-    const payload: ValidateResponse = {
-      ...local,
-      verdict,
-      status: verdict,
-      reason: body.mediaBase64
-        ? localE2e && local.verdict === "rejected"
-          ? `Local e2e · accepted for demo. ${local.reason}`
-          : local.reason
-        : `${local.reason} (no media bytes — text heuristics only)`,
-    };
-    return NextResponse.json(payload);
+    return NextResponse.json(
+      withVertex(
+        {
+          ...local,
+          verdict,
+          status: verdict,
+          reason: body.mediaBase64
+            ? localE2e && local.verdict === "rejected"
+              ? `Local e2e · accepted for demo. ${local.reason} ${vertexLine}`
+              : `${local.reason} ${vertexLine}`
+            : `${local.reason} (no media bytes — text heuristics only) ${vertexLine}`,
+        },
+        vertex,
+      ),
+    );
   }
 
   const model = resolveGeminiModel(body.model ?? DEFAULT_GEMINI_MODEL);
   const prompt = `You are Mangluluwas, validating a citizen hazard field report for Brgy. Nangka, Consolacion, Cebu.
 Decide if the media + text look like a genuine on-the-ground hazard report (not spam, meme, unrelated content, or obvious fake).
+
+A separate Vertex AI image classifier already scored the photo. Use that as a signal, not the only rule:
+${vertexLine}
 
 Return ONLY JSON:
 {
@@ -124,6 +173,9 @@ Rules:
 - legit: clear evidence of flood/landslide/storm/fire/damage matching the claim
 - rejected: spam, joke, unrelated, stock meme, or clearly fabricated
 - needs_review: unclear, low quality, or mismatch between text and media
+- If Vertex class is "unrelated" (or equivalent) with high confidence, prefer rejected or needs_review
+- If Vertex class mismatches the hazard claim (e.g. beach vs flood), prefer needs_review
+- If Vertex and claim agree with high confidence, lean legit
 ${
   localE2e
     ? `- LOCAL DEMO / E2E: accept flood/storm/hazard imagery even if it looks like a stock photo or has a watermark — officers are testing the flow with sample media. Prefer legit over rejected when the scene matches the hazard claim.`
@@ -168,12 +220,17 @@ Media type: ${mediaType}`;
       });
       const verdict =
         localE2e && local.verdict === "rejected" ? "legit" : local.verdict;
-      return NextResponse.json({
-        ...local,
-        verdict,
-        status: verdict,
-        reason: `${local.reason} (Gemini parse fallback)`,
-      } satisfies ValidateResponse);
+      return NextResponse.json(
+        withVertex(
+          {
+            ...local,
+            verdict,
+            status: verdict,
+            reason: `${local.reason} (Gemini parse fallback) ${vertexLine}`,
+          },
+          vertex,
+        ),
+      );
     }
 
     const stocky =
@@ -185,17 +242,22 @@ Media type: ${mediaType}`;
         ? "legit"
         : parsed.verdict;
 
-    return NextResponse.json({
-      ...parsed,
-      verdict,
-      source: "gemini",
-      model,
-      status: verdict,
-      reason:
-        verdict !== parsed.verdict
-          ? `Local e2e · accepted for demo. ${parsed.reason}`
-          : parsed.reason,
-    } satisfies ValidateResponse);
+    return NextResponse.json(
+      withVertex(
+        {
+          ...parsed,
+          verdict,
+          source: "gemini",
+          model,
+          status: verdict,
+          reason:
+            verdict !== parsed.verdict
+              ? `Local e2e · accepted for demo. ${parsed.reason}`
+              : parsed.reason,
+        },
+        vertex,
+      ),
+    );
   } catch {
     const local = runLocalValidate({
       title,
@@ -207,11 +269,16 @@ Media type: ${mediaType}`;
     });
     const verdict =
       localE2e && local.verdict === "rejected" ? "legit" : local.verdict;
-    return NextResponse.json({
-      ...local,
-      verdict,
-      status: verdict,
-      reason: `${local.reason} (Gemini unavailable — local queue rules used.)`,
-    } satisfies ValidateResponse);
+    return NextResponse.json(
+      withVertex(
+        {
+          ...local,
+          verdict,
+          status: verdict,
+          reason: `${local.reason} (Gemini unavailable — local queue rules used.) ${vertexLine}`,
+        },
+        vertex,
+      ),
+    );
   }
 }
