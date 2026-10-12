@@ -10,14 +10,26 @@
     "guest": "Bisita",
     "citizen": "Lungsoranon",
     "demoNoLogin": "Demo · walay login",
-    "skipStep1": "Laktawi — adto sa Lakang 1",
+    "skipStep1": "Laktawi - adto sa Lakang 1",
     "reportWithoutLogin": "Ireport nga walay login",
     "reportWithoutLoginHint": "Dili kinahanglan og account para sa emergency report.",
-    "copied": "Nakopya"
+    "copied": "Nakopya",
+    "removePhoto": "Kuhaa ang litrato",
+    "pending": "Nagpaabot",
+    "saving": "Gina-save sa LUWAS…"
+  },
+  "errors": {
+    "situationShort": "Ihulagway ang nahitabo (labing menos 20 ka karakter).",
+    "photoRequired": "Pagdugang og labing menos usa ka litrato.",
+    "placeRequired": "Pagpili o pangita og lugar.",
+    "gpsFailed": "Dili makuha ang GPS. Pagpili og lugar sa ubos.",
+    "gpsDenied": "Gidili o wala available ang permiso sa lokasyon.",
+    "samplePhoto": "Dili ma-load ang sample nga litrato. Sulayi pag-upload sa imoha.",
+    "submitFailed": "Dili maisumite ang report"
   },
   "home": {
     "tagline": "Usa ka luwas nga sunod nga lakang, magkauban.",
-    "blurb": "Ireport ang peligro o mangayo og tabang. Dili kinahanglan og perpekto nga report — ipadala ang imong nahibaloan.",
+    "blurb": "Ireport ang peligro o mangayo og tabang. Dili kinahanglan og perpekto nga report - ipadala ang imong nahibaloan.",
     "needHelp": "Nagkinahanglan Ko og Tabang",
     "reportHazard": "Ireport ang Peligro",
     "checkReport": "Tan-awa ang Akong Report",
@@ -31,12 +43,12 @@
     "call911": "Tawag og 911"
   },
   "footer": {
-    "tagline": "Luwas — Pagreport sa katalagman sa komunidad",
+    "tagline": "Luwas - Pagreport sa katalagman sa komunidad",
     "accessibility": "Accessibility",
     "privacy": "Privacy"
   },
   "step": {
-    "progress": "Lakang {step} sa 3 — {title}",
+    "progress": "Lakang {step} sa 3 - {title}",
     "situation": "Sitwasyon",
     "location": "Lokasyon",
     "review": "Ribyuha"
@@ -52,11 +64,17 @@
     "whatHappening": "Unsa ang nahitabo?",
     "example": "Pananglitan: Lawom na ang baha sa gawas sa among balay sa Purok 3. Tulo ka tawo, lakip ang akong tigulang nga inahan, ang nanginahanglan og tabang.",
     "recordVoice": "Irekord ang akong tingog",
+    "recording": "Nagrekord… i-tap aron mohunong",
+    "stopVoice": "Hunonga ang recording",
+    "voiceReady": "Andam ang voice note · i-tap aron i-rekord pag-usab",
+    "voiceDenied": "Gidili ang permiso sa mikropono.",
+    "voiceUnsupported": "Dili makarekord ang browser. Pagtugot sa mic o sulayi ang Chrome/Safari.",
     "addPhoto": "Pagdugang og litrato (gikinahanglan)",
     "addPhotoButton": "Pagdugang og litrato",
     "addAnotherPhoto": "Pagdugang pa og litrato",
+    "useSamplePhoto": "Gamita ang sample nga litrato",
     "photoHint": "Gikinahanglan ang litrato sa eksena para sa review sa barangay.",
-    "aiNote": "Susihon sa AI ang tinuod nga pinulongan sa peligro — dili kini maghimo og lokasyon o magkumpirma og tabang.",
+    "aiNote": "Susihon sa AI ang tinuod nga pinulongan sa peligro - dili kini maghimo og lokasyon o magkumpirma og tabang.",
     "nextLocation": "Sunod: Pagdugang og lokasyon"
   },
   "location": {
@@ -65,7 +83,7 @@
     "gettingGps": "Nakuha ang GPS…",
     "searchLabel": "Pangita og barangay o lungsod",
     "searchPlaceholder": "Brgy. Nangka, Consolacion",
-    "mapHint": "Apple Maps — i-pan aron ibalhin ang pin, o i-drag ang pula nga marker. Ang chips kay tinuod nga hall coordinates sa Consolacion.",
+    "mapHint": "I-drag ang pin o i-tap ang mapa aron itakda ang lugar. Ang chips kay tinuod nga hall coordinates sa Consolacion.",
     "landmark": "Duol nga landmark (opsyonal)",
     "landmarkPlaceholder": "Duol sa barangay hall",
     "approximate": "Kini usa ka gibana-bana nga lokasyon",
@@ -84,7 +102,7 @@
     "urgency": "Dinalian: {value}",
     "confidence": "Kompiyansa: {value}%",
     "pendingHuman": "Beripikasyon: Naghulat sa review sa tawo",
-    "photoRequired": "Gikinahanglan ang litrato — balik ug dugangi",
+    "photoRequired": "Gikinahanglan ang litrato - balik ug dugangi",
     "approxLocation": "Gibana-bana nga lokasyon",
     "mobileOptional": "Numero sa mobile (opsyonal)",
     "mobileHint": "Mas maayo ang PH mobile (09XXXXXXXXX). Gigamit lang kung kinahanglan ka maabot sa responder.",

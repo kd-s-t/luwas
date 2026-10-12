@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import { Check, ChevronLeft, Phone } from "lucide-react";
+import { useMotionSafe } from "@/components/motion/primitives";
 import { t, type CitizenLang } from "@/lib/citizen/i18n";
 import { cn } from "@/lib/utils";
 
@@ -143,6 +145,7 @@ export function StepProgress({
   title: string;
   language: CitizenLang;
 }) {
+  const motionSafe = useMotionSafe();
   return (
     <div>
       <p className="text-[11px] font-semibold tracking-[0.08em] text-[var(--muted)] uppercase">
@@ -152,9 +155,15 @@ export function StepProgress({
         })}
       </p>
       <div className="mt-2 h-1 overflow-hidden rounded-full bg-[var(--border)]">
-        <div
-          className="h-full rounded-full bg-[var(--foreground)] transition-[width] duration-300 ease-out"
-          style={{ width: `${(step / 3) * 100}%` }}
+        <motion.div
+          className="h-full rounded-full bg-[var(--foreground)]"
+          initial={false}
+          animate={{ width: `${(step / 3) * 100}%` }}
+          transition={
+            motionSafe
+              ? { type: "spring", stiffness: 280, damping: 28 }
+              : { duration: 0 }
+          }
         />
       </div>
     </div>

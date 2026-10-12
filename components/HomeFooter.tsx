@@ -9,10 +9,10 @@ const POWERED_BY = [
     src: "/brands/gemini.png",
   },
   {
-    name: "Twilio",
-    href: "https://www.twilio.com/",
-    role: "Text & call",
-    src: "/brands/twilio.png",
+    name: "Vertex AI",
+    href: "https://cloud.google.com/vertex-ai",
+    role: "Vision learning",
+    src: "/brands/vertex-ai.svg",
   },
   {
     name: "Google Weather",
@@ -31,6 +31,12 @@ const POWERED_BY = [
     href: "https://firebase.google.com/",
     role: "Auth & data",
     src: "/brands/firebase.png",
+  },
+  {
+    name: "Twilio",
+    href: "https://www.twilio.com/",
+    role: "Text & call",
+    src: "/brands/twilio.png",
   },
 ] as const;
 

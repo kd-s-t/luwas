@@ -1,7 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   Activity,
   AlertTriangle,
@@ -12,6 +20,7 @@ import {
   Plus,
   Search,
   Sparkles,
+  Square,
   Upload,
 } from "lucide-react";
 import {
@@ -22,6 +31,13 @@ import {
   StepProgress,
 } from "@/components/citizen/CitizenChrome";
 import { CitizenReportsList } from "@/components/CitizenReportsList";
+import {
+  easeOut,
+  FadeIn,
+  FadeItem,
+  Stagger,
+  useMotionSafe,
+} from "@/components/motion/primitives";
 import { DEMO_CITIZENS } from "@/lib/auth/demoAccount";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { isCitizen, isOfficer, type UserProfile } from "@/lib/auth/types";
@@ -49,12 +65,29 @@ import {
 import { takePendingReportMedia } from "@/lib/reports/pendingMedia";
 import { fileToBase64, uploadReportMedia } from "@/lib/reports/upload";
 import {
+  distanceKm,
   filterPlaces,
   NANGKA_HALL,
+  nearestPlace,
   placeLabel,
   type ServiceAreaPlace,
 } from "@/lib/reports/serviceAreaPlaces";
 import { cn } from "@/lib/utils";
+
+const stepMotion = {
+  initial: { opacity: 0, y: 16 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -10 },
+};
+
+const HallPinMap = dynamic(() => import("@/components/HallPinMap"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-[260px] items-center justify-center rounded-[14px] border border-[var(--border)] bg-[var(--surface)] font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+      Loading map…
+    </div>
+  ),
+});
 
 type Step = "intent" | "situation" | "location" | "review" | "confirm";
 type Intent = "needHelp" | "reportHazard";
@@ -65,6 +98,16 @@ type CitizenReportFormProps = {
 };
 
 type PhotoItem = { id: string; file: File; preview: string };
+
+/** Some pickers (iOS/desktop) omit MIME; accept by extension too. */
+function isReportMediaFile(file: File): boolean {
+  const mime = (file.type || "").toLowerCase();
+  if (mime.startsWith("image/") || mime.startsWith("video/")) return true;
+  if (mime) return false;
+  return /\.(jpe?g|png|gif|webp|heic|heif|avif|bmp|mp4|mov|webm|m4v)$/i.test(
+    file.name,
+  );
+}
 
 function authorPlace(profile: UserProfile | null | undefined): string {
   if (!profile) return "Demo · no login";
@@ -102,13 +145,16 @@ function SolidAction({
   onClick: () => void;
   disabled?: boolean;
 }) {
+  const motionSafe = useMotionSafe();
   return (
-    <button
+    <motion.button
       type="button"
       disabled={disabled}
       onClick={onClick}
+      whileTap={motionSafe && !disabled ? { scale: 0.98 } : undefined}
+      transition={{ type: "spring", stiffness: 420, damping: 28 }}
       className={cn(
-        "flex w-full items-center justify-center gap-2 rounded-[14px] px-4 py-[16px] text-[17px] font-semibold transition active:scale-[0.98] disabled:opacity-60",
+        "flex w-full items-center justify-center gap-2 rounded-[14px] px-4 py-[16px] text-[17px] font-semibold disabled:opacity-60",
         style === "danger" &&
           "bg-[var(--danger)] text-white shadow-[0_3px_8px_rgba(199,41,41,0.18)] hover:bg-[var(--danger)]/92",
         style === "dark" &&
@@ -119,23 +165,28 @@ function SolidAction({
     >
       {icon}
       <span>{title}</span>
-    </button>
+    </motion.button>
   );
 }
 
 export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
   const router = useRouter();
   const { logout } = useAuth();
+  const motionSafe = useMotionSafe();
   const isGuest = !author;
   const [language, setLanguage] = useState<CitizenLang>("en");
   const [step, setStep] = useState<Step>("intent");
   const [intent, setIntent] = useState<Intent>("needHelp");
   const [situation, setSituation] = useState("");
   const [voiceNoteLabel, setVoiceNoteLabel] = useState<string | null>(null);
+  const [voiceFile, setVoiceFile] = useState<File | null>(null);
+  const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
+  const [voiceTranscribing, setVoiceTranscribing] = useState(false);
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [placeQuery, setPlaceQuery] = useState("Brgy. Nangka, Consolacion");
   const [lat, setLat] = useState<number>(NANGKA_HALL.lat);
   const [lng, setLng] = useState<number>(NANGKA_HALL.lng);
+  const [mapZoom, setMapZoom] = useState(15);
   const [landmark, setLandmark] = useState("");
   const [approximate, setApproximate] = useState(true);
   const [fromGps, setFromGps] = useState(false);
@@ -155,6 +206,97 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
   const [meta, setMeta] = useState<ReportCaptureMeta | null>(null);
   const [mobileCapture, setMobileCapture] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [sampleLoading, setSampleLoading] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [voiceBusy, setVoiceBusy] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const voiceChunksRef = useRef<Blob[]>([]);
+  const voiceStreamRef = useRef<MediaStream | null>(null);
+  const voiceKeepRef = useRef(true);
+  const coordsRef = useRef({ lat: NANGKA_HALL.lat, lng: NANGKA_HALL.lng });
+  coordsRef.current = { lat, lng };
+
+  function voiceNoteStamp(): string {
+    return `Voice note · ${new Date().toLocaleTimeString("en-PH", {
+      hour: "2-digit",
+      minute: "2-digit",
+    })}`;
+  }
+
+  function pickAudioMime(): string | undefined {
+    if (typeof MediaRecorder === "undefined") return undefined;
+    const candidates = [
+      "audio/webm;codecs=opus",
+      "audio/webm",
+      "audio/mp4",
+      "audio/aac",
+      "audio/ogg;codecs=opus",
+    ];
+    return candidates.find((m) => MediaRecorder.isTypeSupported(m));
+  }
+
+  function voiceExtForMime(mime: string): string {
+    if (mime.includes("mp4") || mime.includes("aac") || mime.includes("m4a"))
+      return "m4a";
+    if (mime.includes("ogg")) return "ogg";
+    return "webm";
+  }
+
+  function buildReportNotes(transcript = voiceTranscript): string {
+    return [
+      situation.trim(),
+      landmark.trim() ? `Landmark: ${landmark.trim()}` : "",
+      voiceNoteLabel ? `Voice: ${voiceNoteLabel}` : "",
+      transcript ? `Transcript: ${transcript}` : "",
+      approximate ? "Approximate location" : "",
+      intent === "needHelp" ? "Intent: I need help" : "Intent: Report a hazard",
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  async function transcribeVoiceFile(file: File): Promise<string> {
+    setVoiceTranscribing(true);
+    try {
+      if (file.size > 3.5 * 1024 * 1024) {
+        return "";
+      }
+      const voiceBase64 = await fileToBase64(file);
+      const res = await fetch("/api/ai/transcribe-voice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          voiceBase64,
+          voiceMime: file.type || "audio/webm",
+          languageHint:
+            language === "fil"
+              ? "Filipino or English"
+              : language === "ceb"
+                ? "Cebuano or English"
+                : "English, Filipino, or Cebuano",
+        }),
+      });
+      if (!res.ok) return "";
+      const data = (await res.json()) as { transcript?: string };
+      return typeof data.transcript === "string" ? data.transcript.trim() : "";
+    } catch {
+      return "";
+    } finally {
+      setVoiceTranscribing(false);
+    }
+  }
+
+  function releaseVoiceStream() {
+    voiceStreamRef.current?.getTracks().forEach((track) => {
+      try {
+        track.stop();
+      } catch {
+        /* already stopped */
+      }
+    });
+    voiceStreamRef.current = null;
+  }
 
   const placeHits = useMemo(() => filterPlaces(placeQuery), [placeQuery]);
 
@@ -184,13 +326,42 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
   useEffect(() => {
     return () => {
       for (const p of photos) URL.revokeObjectURL(p.preview);
+      stopVoiceCapture(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- cleanup on unmount only
   }, []);
 
+  function stopVoiceCapture(saveLabel: boolean) {
+    voiceKeepRef.current = saveLabel;
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== "inactive") {
+      try {
+        // Flush the current buffer before stop (Chrome/Safari).
+        if (typeof recorder.requestData === "function" && recorder.state === "recording") {
+          recorder.requestData();
+        }
+        recorder.stop();
+      } catch {
+        releaseVoiceStream();
+        mediaRecorderRef.current = null;
+        setRecording(false);
+        if (saveLabel) setVoiceNoteLabel(voiceNoteStamp());
+      }
+      return;
+    }
+    releaseVoiceStream();
+    mediaRecorderRef.current = null;
+    setRecording(false);
+    if (saveLabel) setVoiceNoteLabel(voiceNoteStamp());
+  }
+
   function resetDraft() {
+    stopVoiceCapture(false);
     setSituation("");
     setVoiceNoteLabel(null);
+    setVoiceFile(null);
+    setVoiceTranscript(null);
+    setVoiceTranscribing(false);
     setPhotos((prev) => {
       for (const p of prev) URL.revokeObjectURL(p.preview);
       return [];
@@ -198,6 +369,7 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
     setPlaceQuery("Brgy. Nangka, Consolacion");
     setLat(NANGKA_HALL.lat);
     setLng(NANGKA_HALL.lng);
+    setMapZoom(15);
     setLandmark("");
     setApproximate(true);
     setFromGps(false);
@@ -206,15 +378,33 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
     setCopied(false);
   }
 
+  function applyMapPoint(nextLat: number, nextLng: number, zoom?: number) {
+    const moved =
+      Math.abs(nextLat - coordsRef.current.lat) > 1e-5 ||
+      Math.abs(nextLng - coordsRef.current.lng) > 1e-5;
+    setLat(nextLat);
+    setLng(nextLng);
+    if (typeof zoom === "number") setMapZoom(zoom);
+    if (!moved) return;
+    setFromGps(false);
+    setError(null);
+    const nearest = nearestPlace(nextLat, nextLng);
+    if (distanceKm({ lat: nextLat, lng: nextLng }, nearest) < 1.2) {
+      setPlaceQuery(placeLabel(nearest));
+    }
+  }
+
   function addFiles(list: FileList | null) {
     if (!list?.length) return;
+    const picked = Array.from(list).filter(isReportMediaFile);
+    if (picked.length === 0) {
+      setError(t(language, "errors.photoRequired"));
+      return;
+    }
     setError(null);
     setPhotos((prev) => {
       const next = [...prev];
-      for (const file of Array.from(list)) {
-        if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
-          continue;
-        }
+      for (const file of picked) {
         if (next.length >= 3) break;
         next.push({
           id: crypto.randomUUID(),
@@ -224,6 +414,151 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
       }
       return next;
     });
+  }
+
+  function addPhotoFile(file: File) {
+    setError(null);
+    setPhotos((prev) => {
+      if (prev.length >= 3) return prev;
+      return [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          file,
+          preview: URL.createObjectURL(file),
+        },
+      ];
+    });
+  }
+
+  async function addSamplePhoto() {
+    if (photos.length >= 3 || sampleLoading) return;
+    setSampleLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/reports/flood-road-chapel.png");
+      if (!res.ok) throw new Error("Could not load sample photo");
+      const blob = await res.blob();
+      const type =
+        blob.type && blob.type.startsWith("image/") ? blob.type : "image/png";
+      addPhotoFile(new File([blob], "flood-road-chapel.png", { type }));
+    } catch {
+      setError(t(language, "errors.samplePhoto"));
+    } finally {
+      setSampleLoading(false);
+    }
+  }
+
+  async function toggleVoiceRecording() {
+    if (voiceBusy) return;
+    if (recording) {
+      stopVoiceCapture(true);
+      return;
+    }
+    setError(null);
+    setVoiceBusy(true);
+    try {
+      if (typeof window !== "undefined" && !window.isSecureContext) {
+        setError(t(language, "situation.voiceUnsupported"));
+        return;
+      }
+      if (
+        typeof navigator === "undefined" ||
+        !navigator.mediaDevices?.getUserMedia
+      ) {
+        setError(t(language, "situation.voiceUnsupported"));
+        return;
+      }
+
+      // Always request mic - never fake a voice note without permission.
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      voiceStreamRef.current = stream;
+      voiceChunksRef.current = [];
+      voiceKeepRef.current = true;
+
+      if (typeof MediaRecorder === "undefined") {
+        releaseVoiceStream();
+        setError(t(language, "situation.voiceUnsupported"));
+        return;
+      }
+
+      const mime = pickAudioMime();
+      let recorder: MediaRecorder;
+      try {
+        recorder = mime
+          ? new MediaRecorder(stream, { mimeType: mime })
+          : new MediaRecorder(stream);
+      } catch {
+        releaseVoiceStream();
+        setError(t(language, "situation.voiceUnsupported"));
+        return;
+      }
+
+      mediaRecorderRef.current = recorder;
+      recorder.ondataavailable = (ev) => {
+        if (ev.data && ev.data.size > 0) {
+          voiceChunksRef.current.push(ev.data);
+        }
+      };
+      recorder.onerror = () => {
+        releaseVoiceStream();
+        mediaRecorderRef.current = null;
+        setRecording(false);
+        setError(t(language, "situation.voiceDenied"));
+      };
+      recorder.onstop = () => {
+        const chunks = voiceChunksRef.current.slice();
+        const mimeType =
+          recorder.mimeType || mime || "audio/webm";
+        releaseVoiceStream();
+        mediaRecorderRef.current = null;
+        setRecording(false);
+        voiceChunksRef.current = [];
+        if (!voiceKeepRef.current) return;
+        const label = voiceNoteStamp();
+        setVoiceNoteLabel(label);
+        if (chunks.length > 0) {
+          const blob = new Blob(chunks, { type: mimeType });
+          const ext = voiceExtForMime(mimeType);
+          const file = new File([blob], `voice-note.${ext}`, {
+            type: mimeType.split(";")[0] || "audio/webm",
+          });
+          setVoiceFile(file);
+          setVoiceTranscript(null);
+          void transcribeVoiceFile(file).then((text) => {
+            if (text) setVoiceTranscript(text);
+          });
+        } else {
+          setVoiceFile(null);
+          setVoiceTranscript(null);
+        }
+      };
+
+      try {
+        recorder.start(250);
+      } catch {
+        recorder.start();
+      }
+      setRecording(true);
+      setVoiceNoteLabel(null);
+      setVoiceFile(null);
+      setVoiceTranscript(null);
+    } catch (err) {
+      releaseVoiceStream();
+      mediaRecorderRef.current = null;
+      setRecording(false);
+      const name =
+        err && typeof err === "object" && "name" in err
+          ? String((err as { name: string }).name)
+          : "";
+      setError(
+        name === "NotAllowedError" || name === "PermissionDeniedError"
+          ? t(language, "situation.voiceDenied")
+          : t(language, "situation.voiceUnsupported"),
+      );
+    } finally {
+      setVoiceBusy(false);
+    }
   }
 
   function removePhoto(id: string) {
@@ -238,6 +573,7 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
     setPlaceQuery(placeLabel(p));
     setLat(p.lat);
     setLng(p.lng);
+    setMapZoom(15);
     setFromGps(false);
     setError(null);
   }
@@ -251,13 +587,27 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
       if (captured.lat != null && captured.lng != null) {
         setLat(captured.lat);
         setLng(captured.lng);
+        setMapZoom(16);
         setFromGps(true);
-        if (captured.locationLabel) setPlaceQuery(captured.locationLabel);
+        if (captured.locationLabel) {
+          setPlaceQuery(captured.locationLabel);
+        } else {
+          const nearest = nearestPlace(captured.lat, captured.lng);
+          setPlaceQuery(placeLabel(nearest));
+        }
+        if (
+          typeof captured.locationAccuracyM === "number" &&
+          captured.locationAccuracyM > 80
+        ) {
+          setApproximate(true);
+        } else {
+          setApproximate(false);
+        }
       } else {
-        setError("Could not get GPS. Pick a place below.");
+        setError(t(language, "errors.gpsFailed"));
       }
     } catch {
-      setError("Location permission denied or unavailable.");
+      setError(t(language, "errors.gpsDenied"));
     } finally {
       setGpsLoading(false);
     }
@@ -266,11 +616,11 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
   function validateSituation(): boolean {
     const text = situation.trim();
     if (text.length < 20) {
-      setError("Describe what’s happening (at least 20 characters).");
+      setError(t(language, "errors.situationShort"));
       return false;
     }
     if (photos.length < 1) {
-      setError("Add at least one photo.");
+      setError(t(language, "errors.photoRequired"));
       return false;
     }
     setError(null);
@@ -279,7 +629,7 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
 
   function validateLocation(): boolean {
     if (!placeQuery.trim()) {
-      setError("Choose or search a place.");
+      setError(t(language, "errors.placeRequired"));
       return false;
     }
     setError(null);
@@ -287,22 +637,27 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
   }
 
   async function submitGuestReport(file: File) {
-    setStatus("Saving to LUWAS…");
+    setStatus(t(language, "common.saving"));
     const hazardHint = inferHazard(situation);
     const title = titleFromSituation(situation, intent);
-    const notes = [
-      situation.trim(),
-      landmark.trim() ? `Landmark: ${landmark.trim()}` : "",
-      voiceNoteLabel ? `Voice: ${voiceNoteLabel}` : "",
-      approximate ? "Approximate location" : "",
-      intent === "needHelp" ? "Intent: I need help" : "Intent: Report a hazard",
-    ]
-      .filter(Boolean)
-      .join("\n");
 
     const canInline =
       !file.type.startsWith("video/") && file.size <= 3.5 * 1024 * 1024;
     const mediaBase64 = canInline ? await fileToBase64(file) : undefined;
+
+    let voiceBase64: string | undefined;
+    let voiceMime: string | undefined;
+    let transcript = voiceTranscript?.trim() || "";
+    if (voiceFile && voiceFile.size <= 3.5 * 1024 * 1024) {
+      voiceBase64 = await fileToBase64(voiceFile);
+      voiceMime = voiceFile.type || "audio/webm";
+      if (!transcript) {
+        transcript = await transcribeVoiceFile(voiceFile);
+        if (transcript) setVoiceTranscript(transcript);
+      }
+    }
+
+    const notes = buildReportNotes(transcript || null);
 
     let aiVerdict: "legit" | "rejected" | "needs_review" | undefined;
     let aiConfidence: number | undefined;
@@ -351,6 +706,10 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
         citizenPurok: "Demo · no login",
         mediaBase64,
         mediaMime: file.type || "image/jpeg",
+        voiceNoteLabel: voiceNoteLabel ?? undefined,
+        voiceBase64,
+        voiceMime,
+        voiceTranscript: transcript || undefined,
         aiVerdict,
         aiConfidence,
         aiReason,
@@ -378,7 +737,7 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
     if (submitting || photos.length === 0) return;
     setError(null);
     setSubmitting(true);
-    setStatus("Saving to LUWAS…");
+    setStatus(t(language, "common.saving"));
 
     const file = photos[0]!.file;
 
@@ -392,15 +751,13 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
       const mediaType = file.type.startsWith("video/") ? "video" : "photo";
       const hazardHint = inferHazard(situation);
       const title = titleFromSituation(situation, intent);
-      const notes = [
-        situation.trim(),
-        landmark.trim() ? `Landmark: ${landmark.trim()}` : "",
-        voiceNoteLabel ? `Voice: ${voiceNoteLabel}` : "",
-        approximate ? "Approximate location" : "",
-        intent === "needHelp" ? "Intent: I need help" : "Intent: Report a hazard",
-      ]
-        .filter(Boolean)
-        .join("\n");
+
+      let transcript = voiceTranscript?.trim() || "";
+      if (voiceFile && !transcript) {
+        transcript = await transcribeVoiceFile(voiceFile);
+        if (transcript) setVoiceTranscript(transcript);
+      }
+      const notes = buildReportNotes(transcript || null);
 
       const captured = meta ?? (await captureReportMeta().catch(() => null));
       if (captured) setMeta(captured);
@@ -410,6 +767,20 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
         reportId,
         file,
       });
+
+      let voicePath: string | null = null;
+      let voiceUrl: string | null = null;
+      let voiceMime: string | null = null;
+      if (voiceFile) {
+        const voiceUploaded = await uploadReportMedia({
+          citizenUid: author.uid,
+          reportId,
+          file: voiceFile,
+        });
+        voicePath = voiceUploaded.mediaPath;
+        voiceUrl = voiceUploaded.mediaUrl;
+        voiceMime = voiceUploaded.mediaMime;
+      }
 
       const mediaSource = mobileCapture ? "mobile-camera" : "desktop-file";
       const reporterPhone =
@@ -434,6 +805,11 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
         mediaUrl: uploaded.mediaUrl,
         mediaMime: uploaded.mediaMime,
         mediaSource,
+        voiceNoteLabel: voiceNoteLabel ?? null,
+        voicePath,
+        voiceUrl,
+        voiceMime,
+        voiceTranscript: transcript || null,
         lat,
         lng,
         locationAccuracyM: fromGps
@@ -506,23 +882,23 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
       setStep("confirm");
       setStatus(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not submit report");
+      setError(
+        err instanceof Error ? err.message : t(language, "errors.submitFailed"),
+      );
       setStatus(null);
     } finally {
       setSubmitting(false);
     }
   }
 
-  const osmEmbed = `https://www.openstreetmap.org/export/embed.html?bbox=${lng - 0.01}%2C${lat - 0.008}%2C${lng + 0.01}%2C${lat + 0.008}&layer=mapnik&marker=${lat}%2C${lng}`;
-
   const wizardHeader = (
     <CitizenHeader
       language={language}
       onLanguageChange={setLanguage}
-      showHomeLink
       showBack
       onBack={() => {
         setError(null);
+        if (recording) stopVoiceCapture(false);
         if (step === "situation") setStep("intent");
         else if (step === "location") setStep("situation");
         else if (step === "review") setStep("location");
@@ -533,196 +909,240 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
 
   if (step === "confirm" && referenceId) {
     return (
-      <div className="space-y-[18px]">
+      <motion.div
+        className="space-y-[18px]"
+        initial={motionSafe ? { opacity: 0, y: 18 } : false}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: easeOut }}
+      >
         <CitizenHeader
           language={language}
           onLanguageChange={setLanguage}
           showHomeLink
         />
         <div className="space-y-2">
-          <CheckCircle2
-            className="size-11 text-[var(--success)]"
-            aria-hidden
-          />
-          <h2 className="text-2xl font-bold text-[var(--foreground)]">
-            {t(language, "confirm.title")}
-          </h2>
-          <p className="text-sm text-[var(--muted)]">
-            {t(language, "confirm.body")}
-          </p>
-          {confirmVerdict ? (
-            <p className="text-xs text-[var(--muted)]">
-              AI · {confirmVerdict.replace("_", " ")}
-            </p>
-          ) : null}
-        </div>
-
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
-          <p className="text-[11px] font-semibold tracking-wide text-[var(--muted)] uppercase">
-            {t(language, "confirm.reference")}
-          </p>
-          <p className="mt-2 font-mono text-[28px] font-bold tracking-tight text-[var(--foreground)]">
-            {referenceId}
-          </p>
-          <button
-            type="button"
-            className="mt-3 w-full rounded-[10px] bg-[var(--surface-raised)] py-3 text-sm font-semibold"
-            onClick={() => {
-              void navigator.clipboard?.writeText(referenceId);
-              setCopied(true);
+          <motion.div
+            initial={motionSafe ? { scale: 0.6, opacity: 0 } : false}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{
+              type: "spring",
+              stiffness: 320,
+              damping: 18,
+              delay: 0.05,
             }}
           >
-            {copied
-              ? t(language, "common.copied")
-              : t(language, "confirm.copy")}
-          </button>
+            <CheckCircle2
+              className="size-11 text-[var(--success)]"
+              aria-hidden
+            />
+          </motion.div>
+          <FadeIn delay={0.1} y={10}>
+            <h2 className="text-2xl font-bold text-[var(--foreground)]">
+              {t(language, "confirm.title")}
+            </h2>
+            <p className="mt-2 text-sm text-[var(--muted)]">
+              {t(language, "confirm.body")}
+            </p>
+            {confirmVerdict ? (
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                AI · {confirmVerdict.replace("_", " ")}
+              </p>
+            ) : null}
+          </FadeIn>
         </div>
 
-        <div className="flex items-start gap-2.5 rounded-xl border border-[var(--warn)]/40 bg-[var(--warn)]/15 p-3.5">
-          <AlertTriangle
-            className="mt-0.5 size-4 shrink-0 text-[var(--warn)]"
-            aria-hidden
+        <FadeIn delay={0.18} y={12}>
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
+            <p className="text-[11px] font-semibold tracking-wide text-[var(--muted)] uppercase">
+              {t(language, "confirm.reference")}
+            </p>
+            <p className="mt-2 font-mono text-[28px] font-bold tracking-tight text-[var(--foreground)]">
+              {referenceId}
+            </p>
+            <button
+              type="button"
+              className="mt-3 w-full rounded-[10px] bg-[var(--surface-raised)] py-3 text-sm font-semibold"
+              onClick={() => {
+                void navigator.clipboard?.writeText(referenceId);
+                setCopied(true);
+              }}
+            >
+              {copied
+                ? t(language, "common.copied")
+                : t(language, "confirm.copy")}
+            </button>
+          </div>
+        </FadeIn>
+
+        <FadeIn delay={0.26} y={10}>
+          <div className="flex items-start gap-2.5 rounded-xl border border-[var(--warn)]/40 bg-[var(--warn)]/15 p-3.5">
+            <AlertTriangle
+              className="mt-0.5 size-4 shrink-0 text-[var(--warn)]"
+              aria-hidden
+            />
+            <p className="text-sm text-[var(--foreground)]">
+              {t(language, "confirm.noResponder")}
+            </p>
+          </div>
+        </FadeIn>
+
+        <FadeIn delay={0.32} y={10} className="space-y-3">
+          <SolidAction
+            title={t(language, "confirm.track")}
+            style="dark"
+            onClick={() => {
+              const id = referenceId;
+              resetDraft();
+              setReferenceId(null);
+              setConfirmVerdict(null);
+              setStep("intent");
+              if (isGuest && id) {
+                router.push(`/reports/${id}`);
+                return;
+              }
+              router.push(isGuest ? "/reports" : "/my-reports");
+            }}
           />
-          <p className="text-sm text-[var(--foreground)]">
-            {t(language, "confirm.noResponder")}
-          </p>
-        </div>
-
-        <SolidAction
-          title={t(language, "confirm.track")}
-          style="dark"
-          onClick={() => {
-            const id = referenceId;
-            resetDraft();
-            setReferenceId(null);
-            setConfirmVerdict(null);
-            setStep("intent");
-            if (isGuest && id) {
-              router.push(`/reports/${id}`);
-              return;
-            }
-            router.push(isGuest ? "/reports" : "/my-reports");
-          }}
-        />
-        <SolidAction
-          title={t(language, "confirm.home")}
-          style="outline"
-          onClick={() => {
-            resetDraft();
-            setReferenceId(null);
-            setConfirmVerdict(null);
-            setStep("intent");
-          }}
-        />
+          <SolidAction
+            title={t(language, "confirm.home")}
+            style="outline"
+            onClick={() => {
+              resetDraft();
+              setReferenceId(null);
+              setConfirmVerdict(null);
+              setStep("intent");
+            }}
+          />
+        </FadeIn>
         <CitizenFooter language={language} />
-      </div>
+      </motion.div>
     );
   }
 
   if (step === "intent") {
     const savedGuestId = isGuest ? latestGuestReportId() : null;
     return (
-      <div className="space-y-5">
-        <CitizenHeader
-          language={language}
-          onLanguageChange={setLanguage}
-          showHomeLink
-        />
+      <Stagger className="space-y-5">
+        <FadeItem>
+          <CitizenHeader
+            language={language}
+            onLanguageChange={setLanguage}
+            showHomeLink
+          />
+        </FadeItem>
 
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-[var(--foreground)]">
-              {citizenName}
-            </p>
-            <p className="text-xs text-[var(--muted)]">{citizenPurok}</p>
+        <FadeItem>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-[var(--foreground)]">
+                {citizenName}
+              </p>
+              <p className="text-xs text-[var(--muted)]">{citizenPurok}</p>
+            </div>
+            {isGuest ? (
+              <button
+                type="button"
+                className="shrink-0 text-xs font-semibold text-[var(--foreground)]"
+                onClick={() =>
+                  router.push("/login/citizen?next=/report-incident")
+                }
+              >
+                {t(language, "common.logIn")}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="shrink-0 text-xs font-semibold text-[var(--danger)]"
+                onClick={() => void logout()}
+              >
+                {t(language, "common.logOut")}
+              </button>
+            )}
           </div>
-          {isGuest ? (
-            <button
-              type="button"
-              className="shrink-0 text-xs font-semibold text-[var(--foreground)]"
-              onClick={() =>
-                router.push("/login/citizen?next=/report-incident")
-              }
-            >
-              {t(language, "common.logIn")}
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="shrink-0 text-xs font-semibold text-[var(--danger)]"
-              onClick={() => void logout()}
-            >
-              {t(language, "common.logOut")}
-            </button>
-          )}
-        </div>
+        </FadeItem>
 
-        <div className="space-y-2.5">
-          <h1 className="text-[30px] leading-[1.15] font-bold tracking-tight text-[var(--foreground)]">
-            {t(language, "home.tagline")}
-          </h1>
-          <p className="text-[15px] leading-relaxed text-[var(--muted)]">
-            {t(language, "home.blurb")}
-          </p>
-        </div>
+        <FadeItem>
+          <div className="space-y-2.5">
+            <h1 className="text-[30px] leading-[1.15] font-bold tracking-tight text-[var(--foreground)]">
+              {t(language, "home.tagline")}
+            </h1>
+            <p className="text-[15px] leading-relaxed text-[var(--muted)]">
+              {t(language, "home.blurb")}
+            </p>
+          </div>
+        </FadeItem>
 
-        <div className="space-y-3">
-          <SolidAction
-            title={t(language, "home.needHelp")}
-            style="danger"
-            icon={
-              <AlertTriangle
-                className="size-[18px] fill-white text-white"
-                aria-hidden
-              />
-            }
-            onClick={() => {
-              setIntent("needHelp");
-              setStep("situation");
-              setError(null);
-            }}
-          />
-          <SolidAction
-            title={t(language, "home.reportHazard")}
-            style="outline"
-            icon={<Activity className="size-[18px]" aria-hidden />}
-            onClick={() => {
-              setIntent("reportHazard");
-              setStep("situation");
-              setError(null);
-            }}
-          />
-          <SolidAction
-            title={t(language, "home.checkReport")}
-            style="outline"
-            icon={<Search className="size-[18px]" aria-hidden />}
-            onClick={() => {
-              if (!isGuest) {
-                router.push("/my-reports");
-                return;
+        <FadeItem>
+          <div className="space-y-3">
+            <SolidAction
+              title={t(language, "home.needHelp")}
+              style="danger"
+              icon={
+                <AlertTriangle
+                  className="size-[18px] fill-white text-white"
+                  aria-hidden
+                />
               }
-              router.push(savedGuestId ? `/reports/${savedGuestId}` : "/reports");
-            }}
-          />
-        </div>
+              onClick={() => {
+                setIntent("needHelp");
+                setStep("situation");
+                setError(null);
+              }}
+            />
+            <SolidAction
+              title={t(language, "home.reportHazard")}
+              style="outline"
+              icon={<Activity className="size-[18px]" aria-hidden />}
+              onClick={() => {
+                setIntent("reportHazard");
+                setStep("situation");
+                setError(null);
+              }}
+            />
+            <SolidAction
+              title={t(language, "home.checkReport")}
+              style="outline"
+              icon={<Search className="size-[18px]" aria-hidden />}
+              onClick={() => {
+                if (!isGuest) {
+                  router.push("/my-reports");
+                  return;
+                }
+                router.push(
+                  savedGuestId ? `/reports/${savedGuestId}` : "/reports",
+                );
+              }}
+            />
+          </div>
+        </FadeItem>
 
         {savedGuestId ? (
-          <p className="text-center font-mono text-[11px] text-[var(--muted)]">
-            Last report · {savedGuestId}
-          </p>
+          <FadeItem>
+            <p className="text-center font-mono text-[11px] text-[var(--muted)]">
+              Last report · {savedGuestId}
+            </p>
+          </FadeItem>
         ) : null}
 
-        <StaySafeCard language={language} />
-        <Danger911Banner language={language} />
+        <FadeItem>
+          <StaySafeCard language={language} />
+        </FadeItem>
+        <FadeItem>
+          <Danger911Banner language={language} />
+        </FadeItem>
 
         {isCitizen(author) ? (
-          <div id="my-reports" className="pt-2">
-            <CitizenReportsList citizenUid={author.uid} />
-          </div>
+          <FadeItem>
+            <div id="my-reports" className="pt-2">
+              <CitizenReportsList citizenUid={author.uid} />
+            </div>
+          </FadeItem>
         ) : null}
 
-        <CitizenFooter language={language} />
-      </div>
+        <FadeItem>
+          <CitizenFooter language={language} />
+        </FadeItem>
+      </Stagger>
     );
   }
 
@@ -730,8 +1150,17 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
     <div className="space-y-[18px]">
       {wizardHeader}
 
+      <AnimatePresence mode="wait" initial={false}>
       {step === "situation" ? (
-        <>
+        <motion.div
+          key="situation"
+          className="space-y-[18px]"
+          variants={stepMotion}
+          initial={motionSafe ? "initial" : false}
+          animate="animate"
+          exit={motionSafe ? "exit" : undefined}
+          transition={{ duration: 0.32, ease: easeOut }}
+        >
           <StepProgress
             step={1}
             title={t(language, "step.situation")}
@@ -787,77 +1216,129 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
 
           <button
             type="button"
-            className="flex w-full items-center justify-center gap-2 rounded-xl border-[1.5px] border-[var(--border)] bg-[var(--surface)] px-3 py-3.5 text-sm font-semibold"
-            onClick={() =>
-              setVoiceNoteLabel(
-                `Voice note · ${new Date().toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" })}`,
-              )
-            }
+            disabled={voiceBusy}
+            className={cn(
+              "flex w-full items-center justify-center gap-2 rounded-xl border-[1.5px] bg-[var(--surface)] px-3 py-3.5 text-sm font-semibold disabled:opacity-60",
+              recording
+                ? "border-[var(--danger)] text-[var(--danger)]"
+                : "border-[var(--border)]",
+            )}
+            onClick={() => void toggleVoiceRecording()}
           >
-            <Mic className="size-4" aria-hidden />
-            {voiceNoteLabel ?? t(language, "situation.recordVoice")}
+            {voiceBusy && !recording ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+            ) : recording ? (
+              <Square className="size-3.5 fill-current" aria-hidden />
+            ) : (
+              <Mic className="size-4" aria-hidden />
+            )}
+            {recording
+              ? t(language, "situation.recording")
+              : voiceTranscribing
+                ? "Transcribing…"
+                : voiceNoteLabel
+                  ? t(language, "situation.voiceReady")
+                  : t(language, "situation.recordVoice")}
           </button>
+          {voiceTranscript ? (
+            <p className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm leading-relaxed">
+              <span className="block font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+                Transcript
+              </span>
+              {voiceTranscript}
+            </p>
+          ) : null}
 
           <div className="space-y-2.5">
             <p className="text-sm font-semibold">
               {t(language, "situation.addPhoto")}
             </p>
-            {photos.map((p) => (
-              <div
-                key={p.id}
-                className="flex items-center gap-2 rounded-[10px] bg-[var(--surface-raised)] px-3 py-3 text-sm"
-              >
-                {p.file.type.startsWith("image/") ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={p.preview}
-                    alt=""
-                    className="size-10 rounded object-cover"
-                  />
-                ) : (
-                  <video
-                    src={p.preview}
-                    className="size-10 rounded object-cover"
-                  />
-                )}
-                <span className="min-w-0 flex-1 truncate">{p.file.name}</span>
-                <button
-                  type="button"
-                  className="text-[var(--muted)]"
-                  aria-label="Remove photo"
-                  onClick={() => removePhoto(p.id)}
+            <AnimatePresence initial={false}>
+              {photos.map((p) => (
+                <motion.div
+                  key={p.id}
+                  layout={motionSafe}
+                  initial={motionSafe ? { opacity: 0, y: 8, scale: 0.98 } : false}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={
+                    motionSafe
+                      ? { opacity: 0, height: 0, marginTop: 0 }
+                      : undefined
+                  }
+                  transition={{ duration: 0.25, ease: easeOut }}
+                  className="flex items-center gap-2 overflow-hidden rounded-[10px] bg-[var(--surface-raised)] px-3 py-3 text-sm"
                 >
-                  ×
-                </button>
-              </div>
-            ))}
+                  {p.file.type.startsWith("image/") ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={p.preview}
+                      alt=""
+                      className="size-10 rounded object-cover"
+                    />
+                  ) : (
+                    <video
+                      src={p.preview}
+                      className="size-10 rounded object-cover"
+                    />
+                  )}
+                  <span className="min-w-0 flex-1 truncate">{p.file.name}</span>
+                  <button
+                    type="button"
+                    className="text-[var(--muted)]"
+                    aria-label={t(language, "common.removePhoto")}
+                    onClick={() => removePhoto(p.id)}
+                  >
+                    ×
+                  </button>
+                </motion.div>
+              ))}
+            </AnimatePresence>
             {photos.length < 3 ? (
-              <label
-                className={cn(
-                  "flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-[1.5px] bg-[var(--surface)] px-3 py-3.5 text-sm font-semibold",
-                  photos.length === 0 && error
-                    ? "border-[var(--danger)]"
-                    : "border-[var(--border)]",
-                )}
-              >
+              <>
                 <input
+                  ref={fileInputRef}
                   type="file"
-                  accept="image/*,video/*"
+                  accept="image/*,video/*,.heic,.heif,.jpg,.jpeg,.png,.webp,.gif"
                   multiple
                   {...(mobileCapture
                     ? { capture: "environment" as const }
                     : {})}
                   className="sr-only"
+                  tabIndex={-1}
                   onChange={(e) => {
                     addFiles(e.target.files);
                     e.target.value = "";
                   }}
                 />
-                <Plus className="size-4" aria-hidden />
-                {photos.length === 0
-                  ? t(language, "situation.addPhotoButton")
-                  : t(language, "situation.addAnotherPhoto")}
-              </label>
+                <button
+                  type="button"
+                  className={cn(
+                    "flex w-full items-center justify-center gap-2 rounded-xl border-[1.5px] bg-[var(--surface)] px-3 py-3.5 text-sm font-semibold",
+                    photos.length === 0 && error
+                      ? "border-[var(--danger)]"
+                      : "border-[var(--border)]",
+                  )}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Plus className="size-4" aria-hidden />
+                  {photos.length === 0
+                    ? t(language, "situation.addPhotoButton")
+                    : t(language, "situation.addAnotherPhoto")}
+                </button>
+                {photos.length === 0 ? (
+                  <button
+                    type="button"
+                    disabled={sampleLoading}
+                    onClick={() => void addSamplePhoto()}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--border)] bg-transparent px-3 py-3 text-sm font-semibold text-[var(--muted)] transition hover:border-[var(--foreground)]/30 hover:text-[var(--foreground)] disabled:opacity-60"
+                  >
+                    {sampleLoading ? (
+                      <Loader2 className="size-4 animate-spin" aria-hidden />
+                    ) : null}
+                    {t(language, "situation.useSamplePhoto")}
+                  </button>
+                ) : null}
+              </>
             ) : null}
             {photos.length === 0 ? (
               <p className="text-xs text-[var(--muted)]">
@@ -891,18 +1372,26 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
           />
           <Danger911Banner language={language} />
           <CitizenFooter language={language} />
-        </>
+        </motion.div>
       ) : null}
 
       {step === "location" ? (
-        <>
+        <motion.div
+          key="location"
+          className="space-y-[18px]"
+          variants={stepMotion}
+          initial={motionSafe ? "initial" : false}
+          animate="animate"
+          exit={motionSafe ? "exit" : undefined}
+          transition={{ duration: 0.32, ease: easeOut }}
+        >
           <StepProgress
             step={2}
             title={t(language, "step.location")}
             language={language}
           />
           <h2 className="text-2xl font-bold tracking-tight">
-            Where is help needed?
+            {t(language, "location.title")}
           </h2>
 
           <button
@@ -919,13 +1408,15 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
             ) : (
               <LocateFixed className="size-4" aria-hidden />
             )}
-            {gpsLoading ? "Getting GPS…" : "Use my current location"}
+            {gpsLoading
+              ? t(language, "location.gettingGps")
+              : t(language, "location.useGps")}
           </button>
 
           <div className="space-y-2">
             <label className="block space-y-2">
               <span className="text-xs text-[var(--muted)]">
-                Search barangay or city
+                {t(language, "location.searchLabel")}
               </span>
               <input
                 value={placeQuery}
@@ -941,9 +1432,10 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
                   if (hit) {
                     setLat(hit.lat);
                     setLng(hit.lng);
+                    setMapZoom(15);
                   }
                 }}
-                placeholder="Brgy. Nangka, Consolacion"
+                placeholder={t(language, "location.searchPlaceholder")}
                 className={cn(
                   "w-full rounded-xl border bg-[var(--surface)] px-3 py-3 text-sm outline-none",
                   error
@@ -974,22 +1466,23 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
             </div>
           </div>
 
-          <div className="relative overflow-hidden rounded-[14px] border border-[var(--border)]">
-            <iframe
-              title="Report location map"
-              src={osmEmbed}
-              className="h-[260px] w-full border-0"
-              loading="lazy"
+          <div className="relative">
+            <HallPinMap
+              center={{ lat, lng }}
+              zoom={mapZoom}
+              className="relative h-[260px] w-full overflow-hidden rounded-[14px] border border-[var(--border)]"
+              onChange={({ center, zoom }) =>
+                applyMapPoint(center.lat, center.lng, zoom)
+              }
             />
             {fromGps ? (
-              <span className="absolute top-2.5 right-2.5 rounded-full bg-[var(--success)] px-2 py-1 text-[10px] font-bold text-white uppercase">
+              <span className="absolute top-2.5 right-2.5 z-[1000] rounded-full bg-[var(--success)] px-2 py-1 text-[10px] font-bold text-white uppercase">
                 GPS
               </span>
             ) : null}
           </div>
           <p className="text-xs leading-relaxed text-[var(--muted)]">
-            Map — pan to move the pin, or pick a hall chip. Hall chips use real
-            Consolacion coordinates.
+            {t(language, "location.mapHint")}
           </p>
           <p className="font-mono text-xs text-[var(--muted)]">
             {lat.toFixed(5)}, {lng.toFixed(5)}
@@ -997,18 +1490,18 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
 
           <label className="block space-y-2">
             <span className="text-sm font-semibold">
-              Nearby landmark (optional)
+              {t(language, "location.landmark")}
             </span>
             <input
               value={landmark}
               onChange={(e) => setLandmark(e.target.value)}
-              placeholder="Near barangay hall"
+              placeholder={t(language, "location.landmarkPlaceholder")}
               className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-sm outline-none focus:border-[var(--foreground)]/40"
             />
           </label>
 
           <label className="flex items-center justify-between gap-3 text-sm">
-            <span>This is an approximate location</span>
+            <span>{t(language, "location.approximate")}</span>
             <input
               type="checkbox"
               checked={approximate}
@@ -1024,7 +1517,7 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
           ) : null}
 
           <SolidAction
-            title="Next: Review report"
+            title={t(language, "location.nextReview")}
             style="dark"
             onClick={() => {
               if (validateLocation()) setStep("review");
@@ -1032,56 +1525,80 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
           />
           <Danger911Banner language={language} />
           <CitizenFooter language={language} />
-        </>
+        </motion.div>
       ) : null}
 
       {step === "review" ? (
-        <>
+        <motion.div
+          key="review"
+          className="space-y-[18px]"
+          variants={stepMotion}
+          initial={motionSafe ? "initial" : false}
+          animate="animate"
+          exit={motionSafe ? "exit" : undefined}
+          transition={{ duration: 0.32, ease: easeOut }}
+        >
           <StepProgress
             step={3}
             title={t(language, "step.review")}
             language={language}
           />
-          <h2 className="text-2xl font-bold tracking-tight">Review & submit</h2>
+          <h2 className="text-2xl font-bold tracking-tight">
+            {t(language, "review.title")}
+          </h2>
 
           <div className="space-y-3">
             <div className="rounded-[14px] border border-[var(--border)] bg-[var(--surface)] p-3.5">
               <div className="flex items-center justify-between">
-                <p className="font-semibold">Situation</p>
+                <p className="font-semibold">
+                  {t(language, "review.situation")}
+                </p>
                 <button
                   type="button"
                   className="text-sm font-semibold"
                   onClick={() => setStep("situation")}
                 >
-                  Edit
+                  {t(language, "common.edit")}
                 </button>
               </div>
               <p className="mt-1 text-xs font-semibold text-[var(--muted)]">
-                {intent === "needHelp" ? "I Need Help" : "Report a Hazard"}
+                {intent === "needHelp"
+                  ? t(language, "intent.needHelp")
+                  : t(language, "intent.reportHazard")}
               </p>
               <p className="mt-1 whitespace-pre-wrap text-sm">{situation}</p>
               <div className="mt-2.5 space-y-1 rounded-[10px] bg-[#1a73d1]/[0.08] p-2.5 text-xs text-[#1a73d1]">
                 <p className="flex items-center gap-1.5 font-semibold">
                   <Sparkles className="size-3.5" aria-hidden />
-                  AI check (local rules)
+                  {t(language, "review.aiCheck")}
                 </p>
                 <p className="font-semibold">
-                  Verdict: {confirmVerdict?.replace("_", " ") ?? "Pending"}
+                  {t(language, "review.verdict", {
+                    value:
+                      confirmVerdict?.replace("_", " ") ??
+                      t(language, "common.pending"),
+                  })}
                 </p>
-                <p>Category: {inferHazard(situation)}</p>
-                <p>Verification: Pending human review</p>
+                <p>
+                  {t(language, "review.category", {
+                    value: inferHazard(situation),
+                  })}
+                </p>
+                <p>{t(language, "review.pendingHuman")}</p>
               </div>
             </div>
 
             <div className="rounded-[14px] border border-[var(--border)] bg-[var(--surface)] p-3.5">
               <div className="flex items-center justify-between">
-                <p className="font-semibold">Location</p>
+                <p className="font-semibold">
+                  {t(language, "review.location")}
+                </p>
                 <button
                   type="button"
                   className="text-sm font-semibold"
                   onClick={() => setStep("location")}
                 >
-                  Edit
+                  {t(language, "common.edit")}
                 </button>
               </div>
               <p className="mt-1 text-sm font-semibold">{placeQuery}</p>
@@ -1089,25 +1606,31 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
                 {lat.toFixed(5)}, {lng.toFixed(5)}
               </p>
               {fromGps ? (
-                <p className="text-xs text-[var(--success)]">From device GPS</p>
+                <p className="text-xs text-[var(--success)]">
+                  {t(language, "location.fromGps")}
+                </p>
               ) : null}
               {landmark ? (
                 <p className="text-sm text-[var(--muted)]">{landmark}</p>
               ) : null}
               {approximate ? (
-                <p className="text-xs text-[var(--warn)]">Approximate location</p>
+                <p className="text-xs text-[var(--warn)]">
+                  {t(language, "review.approxLocation")}
+                </p>
               ) : null}
             </div>
 
             <div className="rounded-[14px] border border-[var(--border)] bg-[var(--surface)] p-3.5">
               <div className="flex items-center justify-between">
-                <p className="font-semibold">Attachments</p>
+                <p className="font-semibold">
+                  {t(language, "review.attachments")}
+                </p>
                 <button
                   type="button"
                   className="text-sm font-semibold"
                   onClick={() => setStep("situation")}
                 >
-                  Edit
+                  {t(language, "common.edit")}
                 </button>
               </div>
               {photos.map((p) => (
@@ -1118,12 +1641,23 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
               {voiceNoteLabel ? (
                 <p className="mt-1 text-sm">{voiceNoteLabel}</p>
               ) : null}
+              {voiceTranscribing ? (
+                <p className="mt-1 text-sm text-[var(--muted)]">
+                  Transcribing voice…
+                </p>
+              ) : null}
+              {voiceTranscript ? (
+                <p className="mt-1.5 text-sm leading-relaxed">
+                  <span className="text-[var(--muted)]">Transcript: </span>
+                  {voiceTranscript}
+                </p>
+              ) : null}
             </div>
           </div>
 
           <label className="block space-y-2">
             <span className="text-sm font-semibold">
-              Mobile number (optional)
+              {t(language, "review.mobileOptional")}
             </span>
             <input
               type="tel"
@@ -1136,8 +1670,7 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
               className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-sm outline-none focus:border-[var(--foreground)]/40"
             />
             <span className="block text-xs text-[var(--muted)]">
-              PH mobile preferred (09XXXXXXXXX). Used only if a responder needs
-              to reach you.
+              {t(language, "review.mobileHint")}
             </span>
           </label>
 
@@ -1153,7 +1686,11 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
           ) : null}
 
           <SolidAction
-            title={submitting ? "Saving to LUWAS…" : "Submit report"}
+            title={
+              submitting
+                ? t(language, "common.saving")
+                : t(language, "review.submit")
+            }
             style="danger"
             disabled={submitting}
             icon={
@@ -1166,11 +1703,12 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
             onClick={() => void submitReport()}
           />
           <p className="text-xs text-[var(--muted)]">
-            LUWAS will not present unverified rescue or aid as confirmed.
+            {t(language, "review.disclaimer")}
           </p>
           <CitizenFooter language={language} />
-        </>
+        </motion.div>
       ) : null}
+      </AnimatePresence>
     </div>
   );
 }

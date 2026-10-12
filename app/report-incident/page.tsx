@@ -16,7 +16,7 @@ export default function ReportIncidentPage() {
       <div className="min-h-screen bg-[var(--surface-raised)]">
         <main className="mx-auto max-w-md px-4 pt-3 pb-10 sm:px-5">
           <CitizenReportForm
-            key={author?.uid ?? (loading ? "boot" : "guest")}
+            key={author?.uid ?? "guest"}
             author={loading ? null : author}
           />
         </main>

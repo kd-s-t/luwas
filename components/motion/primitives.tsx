@@ -6,12 +6,22 @@ import {
   type HTMLMotionProps,
   type Variants,
 } from "framer-motion";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 export const easeOut = [0.22, 1, 0.36, 1] as const;
 
+/**
+ * True only after mount when motion is allowed.
+ * SSR + first client paint stay static so hydration matches
+ * (useReducedMotion is null on the server and can differ on the client).
+ */
 export function useMotionSafe() {
   const reduce = useReducedMotion();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  if (!mounted) return false;
   return !reduce;
 }
 

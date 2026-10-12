@@ -66,6 +66,13 @@ export type HazardReport = {
   mediaMime: string;
   /** mobile-camera = live field capture; desktop-file = ops / relay upload. */
   mediaSource: ReportMediaSource | null;
+  /** Optional citizen voice note attached to the report. */
+  voiceNoteLabel: string | null;
+  voicePath: string | null;
+  voiceUrl: string | null;
+  voiceMime: string | null;
+  /** Speech-to-text of the voice note (Gemini or local fallback). */
+  voiceTranscript: string | null;
   lat: number | null;
   lng: number | null;
   /** Auto-captured GPS accuracy in meters, when available. */

@@ -411,6 +411,29 @@ export function ValidationQueue() {
                 <p className="mt-1.5 text-sm leading-relaxed text-[var(--foreground)] break-words">
                   {r.notes}
                 </p>
+                {r.voiceUrl || r.voiceTranscript ? (
+                  <div className="mt-2 space-y-1.5 rounded border border-[var(--border)] bg-[var(--surface-panel)] px-2.5 py-2">
+                    <p className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+                      Voice note
+                      {r.voiceNoteLabel ? ` · ${r.voiceNoteLabel}` : ""}
+                    </p>
+                    {r.voiceUrl ? (
+                      <audio
+                        controls
+                        preload="metadata"
+                        src={r.voiceUrl}
+                        className="h-8 w-full max-w-md"
+                      >
+                        <track kind="captions" />
+                      </audio>
+                    ) : null}
+                    {r.voiceTranscript ? (
+                      <p className="text-sm leading-relaxed break-words">
+                        {r.voiceTranscript}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
                 {r.trustBreakdown ? (
                   <p className="mt-1.5 hidden font-mono text-[10px] tracking-wide text-[var(--muted)] uppercase sm:block">
                     {formatTrustBreakdown(r.trustBreakdown)}

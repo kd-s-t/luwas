@@ -121,6 +121,13 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
     mediaUrl: String(data.mediaUrl ?? ""),
     mediaMime: String(data.mediaMime ?? ""),
     mediaSource,
+    voiceNoteLabel:
+      data.voiceNoteLabel != null ? String(data.voiceNoteLabel) : null,
+    voicePath: data.voicePath != null ? String(data.voicePath) : null,
+    voiceUrl: data.voiceUrl != null ? String(data.voiceUrl) : null,
+    voiceMime: data.voiceMime != null ? String(data.voiceMime) : null,
+    voiceTranscript:
+      data.voiceTranscript != null ? String(data.voiceTranscript) : null,
     lat,
     lng,
     locationAccuracyM,
@@ -168,6 +175,11 @@ export async function createHazardReport(input: {
   mediaUrl: string;
   mediaMime: string;
   mediaSource?: ReportMediaSource | null;
+  voiceNoteLabel?: string | null;
+  voicePath?: string | null;
+  voiceUrl?: string | null;
+  voiceMime?: string | null;
+  voiceTranscript?: string | null;
   lat: number | null;
   lng: number | null;
   locationAccuracyM?: number | null;
@@ -202,6 +214,11 @@ export async function createHazardReport(input: {
     lgu: input.lgu?.trim() || DEFAULT_REPORT_LGU,
     citizenPhotoURL: input.citizenPhotoURL ?? null,
     mediaSource: input.mediaSource ?? null,
+    voiceNoteLabel: input.voiceNoteLabel?.trim() || null,
+    voicePath: input.voicePath ?? null,
+    voiceUrl: input.voiceUrl ?? null,
+    voiceMime: input.voiceMime ?? null,
+    voiceTranscript: input.voiceTranscript?.trim() || null,
     locationAccuracyM: input.locationAccuracyM ?? null,
     locationLabel: input.locationLabel ?? null,
     device: input.device ?? null,

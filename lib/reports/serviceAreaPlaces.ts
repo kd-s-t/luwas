@@ -94,3 +94,32 @@ export function filterPlaces(query: string): ServiceAreaPlace[] {
   );
   return (hits.length ? hits : SERVICE_AREA_PLACES).slice(0, 8);
 }
+
+/** Haversine distance in kilometers. */
+export function distanceKm(
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number },
+): number {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 6371 * 2 * Math.asin(Math.sqrt(h));
+}
+
+export function nearestPlace(lat: number, lng: number): ServiceAreaPlace {
+  let best = SERVICE_AREA_PLACES[0]!;
+  let bestKm = Infinity;
+  for (const p of SERVICE_AREA_PLACES) {
+    const km = distanceKm({ lat, lng }, p);
+    if (km < bestKm) {
+      bestKm = km;
+      best = p;
+    }
+  }
+  return best;
+}

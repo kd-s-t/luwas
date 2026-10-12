@@ -10,14 +10,26 @@
     "guest": "Guest",
     "citizen": "Citizen",
     "demoNoLogin": "Demo · no login",
-    "skipStep1": "Skip — go to Step 1",
+    "skipStep1": "Skip - go to Step 1",
     "reportWithoutLogin": "Report without login",
     "reportWithoutLoginHint": "No account needed for an emergency report.",
-    "copied": "Copied"
+    "copied": "Copied",
+    "removePhoto": "Remove photo",
+    "pending": "Pending",
+    "saving": "Saving to LUWAS…"
+  },
+  "errors": {
+    "situationShort": "Describe what’s happening (at least 20 characters).",
+    "photoRequired": "Add at least one photo.",
+    "placeRequired": "Choose or search a place.",
+    "gpsFailed": "Could not get GPS. Pick a place below.",
+    "gpsDenied": "Location permission denied or unavailable.",
+    "samplePhoto": "Could not load sample photo. Try uploading your own.",
+    "submitFailed": "Could not submit report"
   },
   "home": {
     "tagline": "A safer next step, together.",
-    "blurb": "Report danger or ask for help. No perfect report needed — send what you know.",
+    "blurb": "Report danger or ask for help. No perfect report needed - send what you know.",
     "needHelp": "I Need Help",
     "reportHazard": "Report a Hazard",
     "checkReport": "Check My Report",
@@ -31,12 +43,12 @@
     "call911": "Call 911"
   },
   "footer": {
-    "tagline": "Luwas — Community disaster reporting",
+    "tagline": "Luwas - Community disaster reporting",
     "accessibility": "Accessibility",
     "privacy": "Privacy"
   },
   "step": {
-    "progress": "Step {step} of 3 — {title}",
+    "progress": "Step {step} of 3 - {title}",
     "situation": "Situation",
     "location": "Location",
     "review": "Review"
@@ -52,11 +64,17 @@
     "whatHappening": "What is happening?",
     "example": "Example: Floodwater is knee-deep outside our home in Purok 3. Three people, including my elderly mother, need help.",
     "recordVoice": "Record my voice",
+    "recording": "Recording… tap to stop",
+    "stopVoice": "Stop recording",
+    "voiceReady": "Voice note ready · tap to re-record",
+    "voiceDenied": "Microphone permission denied.",
+    "voiceUnsupported": "This browser cannot record audio. Allow mic access or try Chrome/Safari.",
     "addPhoto": "Add a photo (required)",
     "addPhotoButton": "Add a photo",
     "addAnotherPhoto": "Add another photo",
+    "useSamplePhoto": "Use sample scene photo",
     "photoHint": "A photo of the scene is required for barangay review.",
-    "aiNote": "AI checks for real hazard language — it will not invent a location or mark help as confirmed.",
+    "aiNote": "AI checks for real hazard language - it will not invent a location or mark help as confirmed.",
     "nextLocation": "Next: Add location"
   },
   "location": {
@@ -65,7 +83,7 @@
     "gettingGps": "Getting GPS…",
     "searchLabel": "Search barangay or city",
     "searchPlaceholder": "Brgy. Nangka, Consolacion",
-    "mapHint": "Apple Maps — pan to move the pin, or long-press and drag the red marker. Hall chips use real Consolacion coordinates.",
+    "mapHint": "Drag the pin or tap the map to set the spot. Hall chips use real Consolacion coordinates.",
     "landmark": "Nearby landmark (optional)",
     "landmarkPlaceholder": "Near barangay hall",
     "approximate": "This is an approximate location",
@@ -84,7 +102,7 @@
     "urgency": "Urgency: {value}",
     "confidence": "Confidence: {value}%",
     "pendingHuman": "Verification: Pending human review",
-    "photoRequired": "Photo required — go back and add one",
+    "photoRequired": "Photo required - go back and add one",
     "approxLocation": "Approximate location",
     "mobileOptional": "Mobile number (optional)",
     "mobileHint": "PH mobile preferred (09XXXXXXXXX). Used only if a responder needs to reach you.",

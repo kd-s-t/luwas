@@ -22,7 +22,7 @@ function dig(obj: unknown, path: string): string | undefined {
   return typeof cur === "string" ? cur : undefined;
 }
 
-/** iOS L10n.t parity — keys like `home.tagline`. */
+/** iOS L10n.t parity - keys like `home.tagline`. */
 export function t(
   lang: CitizenLang,
   key: string,

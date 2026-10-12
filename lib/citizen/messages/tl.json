@@ -10,14 +10,26 @@
     "guest": "Bisita",
     "citizen": "Mamayan",
     "demoNoLogin": "Demo · walang login",
-    "skipStep1": "Laktawan — pumunta sa Hakbang 1",
+    "skipStep1": "Laktawan - pumunta sa Hakbang 1",
     "reportWithoutLogin": "Mag-ulat nang walang login",
     "reportWithoutLoginHint": "Hindi kailangan ng account para sa emergency report.",
-    "copied": "Nakopya"
+    "copied": "Nakopya",
+    "removePhoto": "Alisin ang larawan",
+    "pending": "Nakabinbin",
+    "saving": "Sine-save sa LUWAS…"
+  },
+  "errors": {
+    "situationShort": "Ilarawan ang nangyayari (hindi bababa sa 20 karakter).",
+    "photoRequired": "Magdagdag ng kahit isang larawan.",
+    "placeRequired": "Pumili o maghanap ng lugar.",
+    "gpsFailed": "Hindi makuha ang GPS. Pumili ng lugar sa ibaba.",
+    "gpsDenied": "Tinanggihan o hindi available ang permiso sa lokasyon.",
+    "samplePhoto": "Hindi ma-load ang sample na larawan. Subukang mag-upload ng sarili.",
+    "submitFailed": "Hindi maipadala ang ulat"
   },
   "home": {
     "tagline": "Isang mas ligtas na hakbang, magkasama.",
-    "blurb": "Mag-ulat ng panganib o humingi ng tulong. Hindi kailangan ng perpektong ulat — ipadala ang alam mo.",
+    "blurb": "Mag-ulat ng panganib o humingi ng tulong. Hindi kailangan ng perpektong ulat - ipadala ang alam mo.",
     "needHelp": "Kailangan Ko ng Tulong",
     "reportHazard": "Mag-ulat ng Panganib",
     "checkReport": "Tingnan ang Aking Ulat",
@@ -31,12 +43,12 @@
     "call911": "Tumawag sa 911"
   },
   "footer": {
-    "tagline": "Luwas — Ulat ng sakuna sa komunidad",
+    "tagline": "Luwas - Ulat ng sakuna sa komunidad",
     "accessibility": "Accessibility",
     "privacy": "Privacy"
   },
   "step": {
-    "progress": "Hakbang {step} ng 3 — {title}",
+    "progress": "Hakbang {step} ng 3 - {title}",
     "situation": "Sitwasyon",
     "location": "Lokasyon",
     "review": "Suriin"
@@ -52,11 +64,17 @@
     "whatHappening": "Ano ang nangyayari?",
     "example": "Halimbawa: Lumalalim na ang baha sa labas ng bahay namin sa Purok 3. Tatlong tao, kasama ang aking matandang ina, ang nangangailangan ng tulong.",
     "recordVoice": "I-record ang boses ko",
+    "recording": "Nagre-record… i-tap para huminto",
+    "stopVoice": "Ihinto ang recording",
+    "voiceReady": "Handa ang voice note · i-tap para i-record muli",
+    "voiceDenied": "Tinanggihan ang permiso sa mikropono.",
+    "voiceUnsupported": "Hindi makapag-record ang browser na ito. Payagan ang mic o subukan ang Chrome/Safari.",
     "addPhoto": "Magdagdag ng larawan (kailangan)",
     "addPhotoButton": "Magdagdag ng larawan",
     "addAnotherPhoto": "Magdagdag pa ng larawan",
+    "useSamplePhoto": "Gamitin ang sample na larawan",
     "photoHint": "Kinakailangan ang larawan ng eksena para sa review ng barangay.",
-    "aiNote": "Sinusuri ng AI ang tunay na wika ng panganib — hindi ito gagawa ng lokasyon o magkukumpirma ng tulong.",
+    "aiNote": "Sinusuri ng AI ang tunay na wika ng panganib - hindi ito gagawa ng lokasyon o magkukumpirma ng tulong.",
     "nextLocation": "Susunod: Magdagdag ng lokasyon"
   },
   "location": {
@@ -65,7 +83,7 @@
     "gettingGps": "Kinuha ang GPS…",
     "searchLabel": "Maghanap ng barangay o lungsod",
     "searchPlaceholder": "Brgy. Nangka, Consolacion",
-    "mapHint": "Apple Maps — i-pan para igalaw ang pin, o i-drag ang pulang marker. Ang chips ay totoong koordinasyon ng hall sa Consolacion.",
+    "mapHint": "I-drag ang pin o i-tap ang mapa para itakda ang lugar. Ang chips ay totoong koordinasyon ng hall sa Consolacion.",
     "landmark": "Malapit na landmark (opsyonal)",
     "landmarkPlaceholder": "Malapit sa barangay hall",
     "approximate": "Tinatayang lokasyon ito",
@@ -84,7 +102,7 @@
     "urgency": "Agarang: {value}",
     "confidence": "Kumpiyansa: {value}%",
     "pendingHuman": "Beripikasyon: Naghihintay ng review ng tao",
-    "photoRequired": "Kailangan ng larawan — bumalik at magdagdag",
+    "photoRequired": "Kailangan ng larawan - bumalik at magdagdag",
     "approxLocation": "Tinatayang lokasyon",
     "mobileOptional": "Numero ng mobile (opsyonal)",
     "mobileHint": "Mas mainam ang PH mobile (09XXXXXXXXX). Gagamitin lang kung kailangan kang maabot ng responder.",

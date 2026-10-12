@@ -32,10 +32,6 @@ export function ScenarioTopBar() {
           <span className="text-[var(--accent)]">Odette</span>
           <span className="mx-1.5 text-[var(--border)]">·</span>
           <span className="text-[var(--foreground)]">{bundle.shortLabel}</span>
-          <span className="mx-1.5 hidden text-[var(--border)] sm:inline">·</span>
-          <span className="hidden normal-case tracking-normal text-[var(--muted)] sm:inline">
-            {bundle.label}
-          </span>
         </p>
         <ScenarioSwitcher phase={phase} onChange={setPhase} />
       </div>

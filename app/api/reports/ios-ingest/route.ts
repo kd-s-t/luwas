@@ -34,6 +34,11 @@ type Body = {
   /** Optional photo from web guest (base64, no data: prefix). */
   mediaBase64?: string;
   mediaMime?: string;
+  /** Optional voice note label + audio from web guest. */
+  voiceNoteLabel?: string;
+  voiceBase64?: string;
+  voiceMime?: string;
+  voiceTranscript?: string;
 };
 
 function hazardFromText(text: string, category?: string): ReportHazardHint {
@@ -231,7 +236,23 @@ export async function POST(req: Request) {
     body.intent === "needHelp"
       ? `Help needed · ${placeLabel}`
       : `Hazard · ${placeLabel}`;
-  const notes = [situation, landmark ? `Landmark: ${landmark}` : ""]
+  const voiceNoteLabel =
+    typeof body.voiceNoteLabel === "string" ? body.voiceNoteLabel.trim() : "";
+  const voiceTranscript =
+    typeof body.voiceTranscript === "string"
+      ? body.voiceTranscript.trim()
+      : "";
+  const notes = [
+    situation,
+    landmark ? `Landmark: ${landmark}` : "",
+    voiceNoteLabel ? `Voice: ${voiceNoteLabel}` : "",
+    voiceTranscript ? `Transcript: ${voiceTranscript}` : "",
+    body.intent === "needHelp"
+      ? "Intent: I need help"
+      : body.intent === "reportHazard"
+        ? "Intent: Report a hazard"
+        : "",
+  ]
     .filter(Boolean)
     .join("\n\n");
 
@@ -318,6 +339,32 @@ export async function POST(req: Request) {
     mediaPath = mediaUrl;
   }
 
+  let voiceUrl: string | null = null;
+  let voicePath: string | null = null;
+  let voiceMimeOut: string | null = null;
+  const voiceB64 =
+    typeof body.voiceBase64 === "string" ? body.voiceBase64.trim() : "";
+  const voiceMimeRaw =
+    typeof body.voiceMime === "string" && body.voiceMime.trim()
+      ? body.voiceMime.trim()
+      : "audio/webm";
+  if (voiceB64 && source === "web") {
+    const ext =
+      voiceMimeRaw.includes("mp4") || voiceMimeRaw.includes("aac")
+        ? "m4a"
+        : voiceMimeRaw.includes("ogg")
+          ? "ogg"
+          : "webm";
+    const relDir = path.join("reports", "guest");
+    const fileName = `${reference}-voice.${ext}`;
+    const absDir = path.join(process.cwd(), "public", relDir);
+    await mkdir(absDir, { recursive: true });
+    await writeFile(path.join(absDir, fileName), Buffer.from(voiceB64, "base64"));
+    voiceUrl = `/${relDir}/${fileName}`;
+    voicePath = voiceUrl;
+    voiceMimeOut = voiceMimeRaw;
+  }
+
   const payload: Record<string, unknown> = {
     citizenUid,
     citizenName,
@@ -333,6 +380,11 @@ export async function POST(req: Request) {
     mediaUrl,
     mediaMime,
     mediaSource: source === "web" ? "desktop-file" : "mobile-camera",
+    voiceNoteLabel: voiceNoteLabel || null,
+    voicePath,
+    voiceUrl,
+    voiceMime: voiceMimeOut,
+    voiceTranscript: voiceTranscript || null,
     lat,
     lng,
     locationAccuracyM: body.approximateLocation ? 120 : 35,

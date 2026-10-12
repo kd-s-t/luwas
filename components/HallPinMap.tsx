@@ -18,6 +18,7 @@ type Props = {
     center: { lat: number; lng: number };
     zoom: number;
   }) => void;
+  className?: string;
 };
 
 const hallIcon = L.divIcon({
@@ -95,10 +96,20 @@ function PinInteractions({
   );
 }
 
-/** Click or drag the pin to set the barangay hall location. */
-export default function HallPinMap({ center, zoom, onChange }: Props) {
+/** Click or drag the pin to set a location on the map. */
+export default function HallPinMap({
+  center,
+  zoom,
+  onChange,
+  className,
+}: Props) {
   return (
-    <div className="relative h-[280px] w-full overflow-hidden border border-[var(--border)] sm:h-[340px]">
+    <div
+      className={
+        className ??
+        "relative h-[280px] w-full overflow-hidden border border-[var(--border)] sm:h-[340px]"
+      }
+    >
       <MapContainer
         center={[center.lat, center.lng]}
         zoom={zoom}
