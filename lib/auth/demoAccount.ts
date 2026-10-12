@@ -1,9 +1,9 @@
-/** Emulator-only bootstrap proof (skips camera on first demo login). */
+/** Demo bootstrap proof (skips camera on first demo login · local + prod hackathon). */
 export const DEMO_ID_PROOF = {
   idVerified: true,
   idType: "umid" as const,
   idConfidence: 1,
-  idReason: "Demo emulator bootstrap — not a production ID check.",
+  idReason: "Demo bootstrap — not a real production ID check.",
   idSource: "local" as const,
 };
 
@@ -15,7 +15,7 @@ export const DEMO_OFFICER = {
   password: "demo1234",
 } as const;
 
-/** Five demo citizens for hazard field reports (emulators). */
+/** Demo citizens for hazard field reports (emulators + prod hackathon login). */
 export const DEMO_CITIZENS = [
   {
     displayName: "Juan Dela Cruz",

@@ -3,15 +3,19 @@
 import Link from "next/link";
 import { Suspense, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { doc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { AuthCard } from "@/components/AuthCard";
 import { AuthGate } from "@/components/AuthGate";
 import {
   DEMO_CITIZENS,
   DEMO_ID_PROOF,
   findDemoCitizen,
+  type DemoCitizen,
 } from "@/lib/auth/demoAccount";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { useEmulators } from "@/lib/firebase/client";
+import { getClientAuth, getClientDb, useEmulators } from "@/lib/firebase/client";
+
+const FIRST = DEMO_CITIZENS[0]!;
 
 function safeNextPath(raw: string | null): string {
   if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "/my-reports";
@@ -19,25 +23,89 @@ function safeNextPath(raw: string | null): string {
 }
 
 function CitizenLoginForm() {
-  const { login, registerCitizen } = useAuth();
+  const { login, registerCitizen, refreshProfile } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextPath = safeNextPath(searchParams.get("next"));
-  const [email, setEmail] = useState(
-    useEmulators ? DEMO_CITIZENS[0].email : "",
-  );
-  const [password, setPassword] = useState(
-    useEmulators ? DEMO_CITIZENS[0].password : "",
-  );
+  const [email, setEmail] = useState<string>(FIRST.email);
+  const [password, setPassword] = useState<string>(FIRST.password);
+  const [selectedEmail, setSelectedEmail] = useState<string>(FIRST.email);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  function fillCitizen(index: number) {
-    const c = DEMO_CITIZENS[index];
-    if (!c) return;
-    setEmail(c.email);
-    setPassword(c.password);
+  /** Hackathon / demo: create missing citizen Auth+profile, then mark active. */
+  async function ensureDemoCitizen(citizen: DemoCitizen) {
+    try {
+      await login(citizen.email, citizen.password);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "";
+      const missing =
+        /user-not-found|invalid-credential|INVALID_LOGIN_CREDENTIALS/i.test(
+          message,
+        );
+      if (!missing) throw err;
+      try {
+        await registerCitizen({
+          email: citizen.email,
+          password: citizen.password,
+          displayName: citizen.displayName,
+          purok: citizen.purok,
+          phone: citizen.phone,
+          areaId: "consolacion/nangka",
+          barangay: "Nangka",
+          lgu: "Consolacion",
+          idProof: DEMO_ID_PROOF,
+        });
+      } catch (regErr) {
+        const regMsg =
+          regErr instanceof Error ? regErr.message : String(regErr);
+        if (/email-already-in-use/i.test(regMsg)) {
+          await login(citizen.email, citizen.password);
+        } else {
+          throw regErr;
+        }
+      }
+    }
+
+    const uid = getClientAuth().currentUser?.uid;
+    if (!uid) return;
+    try {
+      await updateDoc(doc(getClientDb(), "users", uid), {
+        role: "citizen",
+        accountStatus: "active",
+        barangay: "Nangka",
+        lgu: "Consolacion",
+        areaId: "consolacion/nangka",
+        purok: citizen.purok,
+        phone: citizen.phone,
+        displayName: citizen.displayName,
+        updatedAt: new Date().toISOString(),
+        updatedAtServer: serverTimestamp(),
+      });
+      await refreshProfile();
+    } catch {
+      /* rules may block partial fields on older docs */
+    }
+  }
+
+  function selectDemo(citizen: DemoCitizen) {
+    setSelectedEmail(citizen.email);
+    setEmail(citizen.email);
+    setPassword(citizen.password);
     setError(null);
+  }
+
+  async function loginAs(citizen: DemoCitizen) {
+    selectDemo(citizen);
+    setSubmitting(true);
+    try {
+      await ensureDemoCitizen(citizen);
+      router.replace(nextPath);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Login failed");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   async function onSubmit(e: FormEvent) {
@@ -46,44 +114,20 @@ function CitizenLoginForm() {
     setSubmitting(true);
     const trimmedEmail = email.trim();
     try {
-      try {
+      const demo = findDemoCitizen(trimmedEmail, password);
+      if (demo) {
+        await ensureDemoCitizen(demo);
+      } else {
         await login(trimmedEmail, password);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "";
-        const missing =
-          /user-not-found|invalid-credential|INVALID_LOGIN_CREDENTIALS/i.test(
-            message,
-          );
-        const demo = findDemoCitizen(trimmedEmail, password);
-        if (useEmulators && missing && demo) {
-          try {
-            await registerCitizen({
-              email: demo.email,
-              password: demo.password,
-              displayName: demo.displayName,
-              purok: demo.purok,
-              phone: demo.phone,
-              areaId: "consolacion/nangka",
-              barangay: "Nangka",
-              lgu: "Consolacion",
-              idProof: DEMO_ID_PROOF,
-            });
-          } catch (regErr) {
-            const regMsg =
-              regErr instanceof Error ? regErr.message : String(regErr);
-            if (/email-already-in-use/i.test(regMsg)) {
-              await login(trimmedEmail, password);
-            } else {
-              throw regErr;
-            }
-          }
-        } else {
-          throw err;
-        }
       }
       router.replace(nextPath);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      const message = err instanceof Error ? err.message : "Login failed";
+      setError(
+        /user-not-found|invalid-credential/i.test(message)
+          ? `${message} — open Register with ID to create this citizen.`
+          : message,
+      );
     } finally {
       setSubmitting(false);
     }
@@ -112,25 +156,43 @@ function CitizenLoginForm() {
         }
       >
         <form onSubmit={onSubmit} className="space-y-4">
-          {useEmulators ? (
-            <div className="space-y-2">
-              <p className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
-                Demo citizens (password demo1234)
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {DEMO_CITIZENS.map((c, i) => (
+          <div className="space-y-2">
+            <p className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+              Demo citizens · password demo1234
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {DEMO_CITIZENS.map((c) => {
+                const selected = selectedEmail === c.email;
+                return (
                   <button
                     key={c.email}
                     type="button"
-                    onClick={() => fillCitizen(i)}
-                    className="border border-[var(--border)] px-2 py-1 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase transition hover:border-[var(--accent)] hover:text-[var(--foreground)]"
+                    onClick={() => void loginAs(c)}
+                    disabled={submitting}
+                    className={`border px-2 py-1 font-mono text-[10px] tracking-wider uppercase transition disabled:opacity-60 ${
+                      selected
+                        ? "border-[var(--accent)] text-[var(--foreground)]"
+                        : "border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--foreground)]"
+                    }`}
                   >
-                    {c.displayName.split(" ")[0]} · {c.purok}
+                    {submitting && selected
+                      ? "…"
+                      : `${c.displayName.split(" ")[0]} · ${c.purok}`}
                   </button>
-                ))}
-              </div>
+                );
+              })}
             </div>
-          ) : null}
+            {useEmulators ? (
+              <p className="text-[11px] text-[var(--muted)]">
+                Local emulators · accounts auto-create on first tap.
+              </p>
+            ) : (
+              <p className="text-[11px] text-[var(--muted)]">
+                Prod demo · tap a name to open citizen reports (auto-creates
+                if missing).
+              </p>
+            )}
+          </div>
           <label className="block text-sm">
             <span className="mb-1.5 block text-[var(--muted)]">Email</span>
             <input

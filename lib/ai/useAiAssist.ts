@@ -54,6 +54,8 @@ export type AssistPayload = {
   typhoons: TyphoonSample[];
   weatherLabel?: string;
   model?: GeminiAssistModelId;
+  /** Odette scenario phase — AI triage overlays only apply in "during". */
+  phase?: "before" | "during" | "after";
 };
 
 function bootstrap() {
@@ -540,6 +542,7 @@ export function useAiAssist() {
             landslides: payload.landslides,
             typhoons: payload.typhoons,
             weatherLabel: payload.weatherLabel,
+            phase: payload.phase,
           }),
         });
         if (!res.ok) {
@@ -550,13 +553,16 @@ export function useAiAssist() {
         let assistApplied = false;
         let nextResult: AssistResult | null | undefined;
 
-        if (data.assist) {
+        if (data.assist && payload.phase === "during") {
           await applyAssist(
             data.assist,
             payload.households,
             payload.typhoons,
           );
           assistApplied = true;
+        } else if (data.assist && payload.phase !== "during") {
+          // Ignore map paint outside During (API should already withhold assist).
+          assistApplied = false;
         } else if (
           /\b(clear|reset|remove)\b.*\b(highlight|map|pin|assist|flood)\b/i.test(
             trimmed,

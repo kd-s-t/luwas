@@ -1159,11 +1159,11 @@ export default function AreaMapInner({
               {floodedDuring ? (
                 <>
                   <br />
-                  <span style={{ fontWeight: 700, color: "#1d4ed8" }}>
+                  <span style={{ fontWeight: 700, color: "#b45309" }}>
                     Warning · this area is flooded
                   </span>
                   <br />
-                  <span style={{ opacity: 0.8 }}>
+                  <span style={{ color: "#9a3412", opacity: 0.95 }}>
                     During Odette · approaches may be impassable · redirect to
                     dry high ground / alternate EC
                   </span>

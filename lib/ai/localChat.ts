@@ -13,7 +13,16 @@ type Situation = {
   landslides: LandslideSample[];
   typhoons: TyphoonSample[];
   weatherLabel?: string;
+  /** Odette scenario phase — AI triage only paints in "during". */
+  phase?: "before" | "during" | "after";
 };
+
+const TRIAGE_DURING_ONLY =
+  "AI triage (flood footprints, evacuate/prepare, escape lines) only runs in the During Odette phase. Switch the scenario bar to During, then ask me again.";
+
+function triageAllowed(situation: Situation): boolean {
+  return !situation.phase || situation.phase === "during";
+}
 
 function wantsTriage(message: string): boolean {
   return /\b(triage|evacuat|priorit|highlight|assist|who should|run (the )?map|update (the )?map|escape|safe point|go-bag|prepare)\b/i.test(
@@ -116,6 +125,13 @@ export function runLocalChat(
   }
 
   if (!trimmed || wantsTriage(trimmed) || wantsAdvice(trimmed)) {
+    if (!triageAllowed(situation)) {
+      return {
+        reply: TRIAGE_DURING_ONLY,
+        source: "local",
+        assist: null,
+      };
+    }
     const assist = runLocalAssist(situation);
     const reply = !trimmed
       ? humanTriageReply("run triage", assist, situation)
@@ -152,6 +168,13 @@ export function runLocalChat(
   }
 
   if (/\b(typhoon|bagyo|cyclone)\b/i.test(trimmed)) {
+    if (!triageAllowed(situation)) {
+      return {
+        reply: TRIAGE_DURING_ONLY,
+        source: "local",
+        assist: null,
+      };
+    }
     const assist = runLocalAssist(situation);
     return withMapReply(humanTriageReply(trimmed, assist, situation), assist);
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { Info } from "lucide-react";
+import { Download, Info } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { ReportStatusBadge } from "@/components/ReportStatusBadge";
@@ -36,6 +36,10 @@ import {
   trustLabel,
 } from "@/lib/reports/trustScore";
 import type { HazardReport } from "@/lib/reports/types";
+import {
+  downloadVertexMonthZip,
+  reportsForVertexMonthBatch,
+} from "@/lib/reports/vertexExport";
 
 function pct(part: number, total: number): number {
   if (total <= 0) return 0;
@@ -49,6 +53,8 @@ export function ValidationQueue() {
   const [rows, setRows] = useState<HazardReport[]>([]);
   const [filter, setFilter] = useState<Filter>("queue");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportNote, setExportNote] = useState<string | null>(null);
   const [here, setHere] = useState<LatLng | null>(null);
   const [hereLabel, setHereLabel] = useState("Brgy. hall");
 
@@ -166,6 +172,25 @@ export function ValidationQueue() {
   }
 
   const orgHint = isOfficer(profile) ? profile.orgName : null;
+  const monthBatchCount = useMemo(
+    () => reportsForVertexMonthBatch(scoped).length,
+    [scoped],
+  );
+
+  async function exportVertexMonth() {
+    setExporting(true);
+    setExportNote(null);
+    try {
+      const { count, fileName } = await downloadVertexMonthZip(scoped);
+      setExportNote(`Downloaded ${fileName} · ${count} images`);
+    } catch (err) {
+      setExportNote(
+        err instanceof Error ? err.message : "Vertex export failed",
+      );
+    } finally {
+      setExporting(false);
+    }
+  }
 
   return (
     <section className="overflow-hidden border border-[var(--border)] bg-[var(--surface-raised)]">
@@ -174,10 +199,23 @@ export function ValidationQueue() {
           <p className="font-mono text-[9px] tracking-[0.2em] text-[var(--accent)] uppercase">
             AI validation queue
           </p>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-wide sm:text-xl">
               Citizen field reports
             </h2>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={exporting || monthBatchCount === 0}
+              onClick={() => void exportVertexMonth()}
+              title="Zip + CSV for Vertex dataset luwas-vision-v1 (this month)"
+            >
+              <Download className="size-3.5" strokeWidth={2} />
+              {exporting
+                ? "Packing…"
+                : `Vertex batch · ${monthBatchCount}`}
+            </Button>
             <Dialog>
               <DialogTrigger asChild>
                 <button
@@ -302,6 +340,14 @@ export function ValidationQueue() {
               {orgHint ? ` · ${orgHint}` : ""}
             </span>
           </p>
+          {exportNote ? (
+            <p className="mt-1 text-[11px] text-[var(--muted)]">{exportNote}</p>
+          ) : (
+            <p className="mt-1 hidden text-[11px] text-[var(--muted)] sm:block">
+              Vertex batch = this month&apos;s photos as zip + labels.csv for
+              luwas-vision-v1
+            </p>
+          )}
           <p className="mt-0.5 text-[11px] leading-snug text-[var(--muted)] sm:hidden">
             {scopeLabel(scope)} · nearest first
           </p>

@@ -227,7 +227,10 @@ export function SituationMap({
     selectChat,
     deleteChat,
   } = useAiAssist();
-  const hasAiOverlay = Object.keys(assistPriorities).length > 0;
+  /** AI triage overlays (floods / red-yellow / escapes) only paint in During. */
+  const triageLive = phase === "during";
+  const hasAiOverlay =
+    triageLive && Object.keys(assistPriorities).length > 0;
 
   useEffect(() => {
     setRosterReady(false);
@@ -308,11 +311,10 @@ export function SituationMap({
     [pack.scenarioActions, mapHouseholds],
   );
 
-  // During/After: auto local triage on the live DB roster (same as homepage).
-  // Gemini "run triage" still wins when hasAiOverlay.
+  // During only: auto local triage on the live DB roster (same as homepage).
+  // Chat "run triage" still wins when hasAiOverlay.
   const phaseAssist = useMemo(() => {
-    if (!nangkaOps || hasAiOverlay) return null;
-    if (phase !== "during" && phase !== "after") return null;
+    if (!nangkaOps || hasAiOverlay || !triageLive) return null;
     if (mapHouseholds.length === 0) return null;
     try {
       return runLocalAssist({
@@ -328,7 +330,7 @@ export function SituationMap({
   }, [
     nangkaOps,
     hasAiOverlay,
-    phase,
+    triageLive,
     mapHouseholds,
     pack.floods,
     pack.landslides,
@@ -438,11 +440,11 @@ export function SituationMap({
           ? pack.scenarioEscapes
           : EMPTY_ESCAPES
     : EMPTY_ESCAPES;
-  // Gemini triage → phase local assist → scenario pack floods.
+  // During triage → phase local assist → scenario pack floods.
   const mapFloods =
-    nangkaOps && result?.predictedFloods?.length
+    triageLive && nangkaOps && result?.predictedFloods?.length
       ? result.predictedFloods
-      : nangkaOps && phaseAssist?.predictedFloods?.length
+      : triageLive && nangkaOps && phaseAssist?.predictedFloods?.length
         ? phaseAssist.predictedFloods
         : nangkaOps
           ? pack.floods
@@ -592,6 +594,7 @@ export function SituationMap({
                       : [],
                   weatherLabel: weather?.label,
                   model,
+                  phase,
                 })
               }
             />
@@ -603,12 +606,12 @@ export function SituationMap({
       <div className="grid gap-0 border-t border-[var(--border)] sm:grid-cols-2">
         <HazardList
           title="Floods"
-          hint="Click a row for photo + details. During/After use scenario footprints; triage can replace with AI."
+          hint="Click a row for photo + details. AI triage flood footprints only run in During."
           borderClass="border-b sm:border-r"
         >
           {mapFloods.length === 0 ? (
             <li className="px-3 py-4 text-sm text-[var(--muted)]">
-              No flood footprints on this phase — run triage or switch to During.
+              No flood footprints on this phase — switch to During and run triage.
             </li>
           ) : (
             mapFloods.map((fl) => (

@@ -91,7 +91,9 @@ function seedAsHouseholds(): Household[] {
 export function PublicSituationMap() {
   const { profile } = useAuth();
   const nangkaHouseholds = useMemo(() => seedAsHouseholds(), []);
-  const { bundle } = useScenario();
+  const { bundle, phase } = useScenario();
+  /** AI triage overlays only paint in During. */
+  const triageLive = phase === "during";
   const [weather, setWeather] = useState<AreaWeather | null>(null);
   const [weatherError, setWeatherError] = useState<string | null>(null);
   const [quakes, setQuakes] = useState<QuakeEvent[]>([]);
@@ -111,9 +113,9 @@ export function PublicSituationMap() {
   );
   const nangkaOps = isNangkaOpsArea(area);
 
-  // Live local triage so homepage During/After matches command (floods + red/yellow).
+  // During only: live local triage so homepage matches command (floods + red/yellow).
   const assist = useMemo(() => {
-    if (!nangkaOps) return null;
+    if (!nangkaOps || !triageLive) return null;
     try {
       return runLocalAssist({
         households: nangkaHouseholds,
@@ -125,35 +127,46 @@ export function PublicSituationMap() {
     } catch {
       return null;
     }
-  }, [nangkaOps, nangkaHouseholds, pack.floods, pack.landslides, pack.typhoons]);
+  }, [
+    nangkaOps,
+    triageLive,
+    nangkaHouseholds,
+    pack.floods,
+    pack.landslides,
+    pack.typhoons,
+  ]);
 
   const assistPriorities = useMemo(() => {
     const map: Record<string, AssistPriority> = {};
     if (!nangkaOps) return map;
-    // Public roster uses public-seed-* ids — always triage against that set.
-    if (assist?.actions?.length) {
+    // Public roster uses public-seed-* ids — triage only in During.
+    if (triageLive && assist?.actions?.length) {
       for (const a of assist.actions) map[a.householdId] = a.priority;
       return map;
     }
     for (const a of pack.scenarioActions) map[a.householdId] = a.priority;
     return map;
-  }, [nangkaOps, assist, pack.scenarioActions]);
+  }, [nangkaOps, triageLive, assist, pack.scenarioActions]);
 
-  // Snapshot AI floods → local AI footprints → scenario pack (During/After).
+  // During: snapshot AI floods → local AI footprints → scenario pack.
   const mapFloods = useMemo(() => {
     if (!nangkaOps) return [];
-    if (snapshot?.predictedFloods?.length) return snapshot.predictedFloods;
-    if (assist?.predictedFloods?.length) return assist.predictedFloods;
+    if (triageLive && snapshot?.predictedFloods?.length) {
+      return snapshot.predictedFloods;
+    }
+    if (triageLive && assist?.predictedFloods?.length) {
+      return assist.predictedFloods;
+    }
     return pack.floods;
-  }, [nangkaOps, snapshot, assist, pack.floods]);
+  }, [nangkaOps, triageLive, snapshot, assist, pack.floods]);
 
-  // Escape arrows: command sync → local assist → scenario pack.
+  // Escape arrows: During triage → scenario pack.
   const escapeRoutes: AssistEscapeRoute[] = useMemo(() => {
     if (!nangkaOps) return [];
-    if (snapshot?.escapes?.length) return snapshot.escapes;
-    if (assist?.escapes?.length) return assist.escapes;
+    if (triageLive && snapshot?.escapes?.length) return snapshot.escapes;
+    if (triageLive && assist?.escapes?.length) return assist.escapes;
     return pack.scenarioEscapes;
-  }, [nangkaOps, snapshot, assist, pack.scenarioEscapes]);
+  }, [nangkaOps, triageLive, snapshot, assist, pack.scenarioEscapes]);
 
   const mapHouseholds = nangkaOps ? nangkaHouseholds : [];
 

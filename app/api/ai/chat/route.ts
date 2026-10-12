@@ -31,7 +31,12 @@ type Body = {
   typhoons: TyphoonSample[];
   weatherLabel?: string;
   model?: string;
+  /** Odette scenario phase — AI triage overlays only apply in "during". */
+  phase?: "before" | "during" | "after";
 };
+
+const TRIAGE_DURING_ONLY =
+  "AI triage (flood footprints, evacuate/prepare, escape lines) only runs in the During Odette phase. Switch the scenario bar to During, then ask me again.";
 
 type GeminiChatPayload = {
   reply: string;
@@ -99,7 +104,9 @@ export async function POST(req: Request) {
     landslides: body.landslides ?? [],
     typhoons: body.typhoons ?? [],
     weatherLabel: body.weatherLabel,
+    phase: body.phase,
   };
+  const triageLive = !body.phase || body.phase === "during";
 
   const key = process.env.GEMINI_API_KEY;
   if (!key) {
@@ -147,7 +154,8 @@ Reply style (required):
 - They can also ask you to call responders: “call the fire station”, “call the police”, “call hospital”, “call barangay hall” (Twilio Voice to curated Consolacion BFP/PNP numbers — officer-triggered, never auto-dial 911).
 - Rule of thumb: low ground / flood belt → evacuate; high ground → shelter in place and stock up (not escape).
 
-Set updateMap=true when the officer asks for triage, priorities, evacuate/prepare lists, escape routes, map highlights, OR what to do about an incoming typhoon/storm/flood (e.g. “cat 5 coming”, “what do we do”).
+Scenario phase: ${body.phase ?? "during"} — AI triage map paint (updateMap) is ONLY allowed when phase is "during". If phase is before or after, set updateMap=false and tell the officer to switch to During for flood footprints / evacuate lines.
+Set updateMap=true only in During when the officer asks for triage, priorities, evacuate/prepare lists, escape routes, map highlights, OR what to do about an incoming typhoon/storm/flood (e.g. “cat 5 coming”, “what do we do”).
 Do not truncate the affected list — the server computes every evacuate/prepare household from hazards + elevation.
 When updateMap=true the server also paints AI-predicted flood footprints (elevation + storm context).
 Evacuation centers (escape destinations + live population from EC staff field reports): ${JSON.stringify(
@@ -188,6 +196,15 @@ Officer: ${message}`;
     if (!parsed.updateMap) {
       return NextResponse.json({
         reply: String(parsed.reply),
+        source: "gemini",
+        model: usedModel,
+        assist: null,
+      } satisfies ChatApiResponse);
+    }
+
+    if (!triageLive) {
+      return NextResponse.json({
+        reply: `${String(parsed.reply)}\n\n${TRIAGE_DURING_ONLY}`,
         source: "gemini",
         model: usedModel,
         assist: null,
