@@ -20,7 +20,15 @@ export default function SupportPage() {
       />
       <main className="mx-auto max-w-3xl space-y-4 px-4 py-8 sm:px-6">
         <p className="text-sm text-[var(--muted)]">
-          Signed-in users only. Active officers review open tickets at{" "}
+          Email us at{" "}
+          <a
+            href="mailto:support@luwasph.com"
+            className="font-medium text-[var(--accent)] underline-offset-2 hover:underline"
+          >
+            support@luwasph.com
+          </a>
+          , or use the form below when signed in. Active officers review open
+          tickets at{" "}
           <Link
             href="/command/support"
             className="text-[var(--accent)] underline-offset-2 hover:underline"

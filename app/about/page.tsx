@@ -229,7 +229,14 @@ export default function AboutPage() {
             Get in touch
           </h2>
           <p>
-            Bug, idea, or barangay onboarding question: send it through{" "}
+            Bug, idea, or barangay onboarding question: email{" "}
+            <a
+              href="mailto:support@luwasph.com"
+              className="text-[var(--accent)] underline-offset-2 hover:underline"
+            >
+              support@luwasph.com
+            </a>{" "}
+            or use{" "}
             <Link
               href="/support"
               className="text-[var(--accent)] underline-offset-2 hover:underline"

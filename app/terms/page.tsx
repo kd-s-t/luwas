@@ -164,7 +164,14 @@ export default function TermsPage() {
           <p>
             We may update these terms as the product evolves. Continued use
             after changes means you accept the revised terms. For product
-            issues, see{" "}
+            issues, email{" "}
+            <a
+              href="mailto:support@luwasph.com"
+              className="text-[var(--accent)] underline-offset-2 hover:underline"
+            >
+              support@luwasph.com
+            </a>{" "}
+            or see{" "}
             <Link
               href="/support"
               className="text-[var(--accent)] underline-offset-2 hover:underline"

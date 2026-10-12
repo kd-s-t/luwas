@@ -183,13 +183,20 @@ export default function PrivacyPage() {
           </h2>
           <p>
             Privacy questions:{" "}
+            <a
+              href="mailto:support@luwasph.com"
+              className="text-[var(--accent)] underline-offset-2 hover:underline"
+            >
+              support@luwasph.com
+            </a>
+            ,{" "}
             <Link
               href="/support"
               className="text-[var(--accent)] underline-offset-2 hover:underline"
             >
               Support
-            </Link>{" "}
-            or UgnAI Labs Co. (see{" "}
+            </Link>
+            , or UgnAI Labs Co. (see{" "}
             <Link
               href="/about"
               className="text-[var(--accent)] underline-offset-2 hover:underline"
