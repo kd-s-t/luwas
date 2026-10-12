@@ -41,6 +41,7 @@ const POWERED_BY = [
 ] as const;
 
 const FOOTER_LINKS = [
+  { href: "/about", label: "About us" },
   { href: "/reports", label: "Reports" },
   { href: "/barangays", label: "Barangays" },
   { href: "/bootstrap", label: "Bootstrap UI" },
@@ -56,11 +57,28 @@ export function HomeFooter() {
         <p className="font-mono text-[10px] tracking-[0.28em] text-[var(--muted)] uppercase">
           Built by
         </p>
-        <p className="mt-2 font-[family-name:var(--font-display)] text-lg font-semibold tracking-wide text-[var(--foreground)] sm:text-xl">
-          UgnAI Labs Co.
-        </p>
-        <p className="mt-2 text-xs text-[var(--muted)]">
-          ©2026 UgnAI Labs Co. All rights reserved.
+        <Link
+          href="/about"
+          className="mt-3 inline-block transition hover:opacity-90"
+          aria-label="About us · UgnAI Labs"
+        >
+          <Image
+            src="/brands/ugnai-labs.png"
+            alt="UgnAI Labs"
+            width={202}
+            height={100}
+            className="h-16 w-auto object-contain sm:h-20"
+          />
+        </Link>
+        <p className="mt-3 text-xs text-[var(--muted)]">
+          ©2026{" "}
+          <Link
+            href="/about"
+            className="underline-offset-2 transition hover:text-[var(--accent)] hover:underline"
+          >
+            UgnAI Labs Co.
+          </Link>{" "}
+          All rights reserved.
         </p>
 
         <nav

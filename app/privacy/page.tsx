@@ -10,17 +10,31 @@ export default function PrivacyPage() {
       <PublicPageHeader
         eyebrow="Legal"
         title="Privacy"
-        description="How LUWAS handles account, guest reports, and field data for barangay DRRM."
+        description="How LUWAS handles accounts, guest reports, voice notes, AI triage, and field data for barangay DRRM."
       />
       <main className="mx-auto max-w-3xl space-y-6 px-4 py-8 text-sm leading-relaxed text-[var(--muted)] sm:px-6">
+        <p className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+          Last updated · 13 Oct 2026
+        </p>
+
         <section className="space-y-2">
           <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold text-[var(--foreground)]">
             Who we are
           </h2>
           <p>
-            LUWAS is operated by UgnAI Labs Co. for barangay and LGU disaster
-            risk reduction and management (DRRM) workflows—including the Odette
-            simulation used for training and demo.
+            LUWAS (Logistics &amp; Unified Workflow for Aid &amp; Safety) is
+            operated by{" "}
+            <Link
+              href="/about"
+              className="text-[var(--accent)] underline-offset-2 hover:underline"
+            >
+              UgnAI Labs Co.
+            </Link>{" "}
+            for barangay and LGU disaster risk reduction and management (DRRM).
+            The product includes a public situation map, citizen / guest
+            reporting (web and Citizen iOS), officer command tools, and the
+            Odette Before / During / After simulation used for training and
+            demos (including Google AI Builder Cup and related pilots).
           </p>
         </section>
 
@@ -30,20 +44,48 @@ export default function PrivacyPage() {
           </h2>
           <ul className="list-disc space-y-1.5 pl-5">
             <li>
-              Account details (name, email, role, purok or organization) and
-              optional ID / face verification materials
+              <strong className="font-medium text-[var(--foreground)]">
+                Accounts:
+              </strong>{" "}
+              name, email, role (citizen or officer), purok or organization,
+              phone when provided, barangay / LGU / area, optional household
+              link, and ID / face verification materials when you register
             </li>
             <li>
-              Field reports — notes, media, hazard type, GPS / place labels, and
-              device metadata when you post from web or the LUWAS Citizen iOS
-              app
+              <strong className="font-medium text-[var(--foreground)]">
+                Field reports:
+              </strong>{" "}
+              situation text, intent (e.g. need help / report hazard), photos
+              or video, optional voice notes and speech transcripts, hazard
+              hint, GPS / place / landmark, mobile number when provided, and
+              device / IP metadata from web or the LUWAS Citizen iOS app
             </li>
             <li>
-              Guest report reference IDs stored on your device (browser
-              localStorage or iOS UserDefaults) so you can check status without
-              an account
+              <strong className="font-medium text-[var(--foreground)]">
+                AI signals:
+              </strong>{" "}
+              Gemini validation verdicts and reasons; Vertex AI vision class
+              and confidence when an endpoint is configured; local-rule
+              fallbacks when keys are unset; officer overrides (legit /
+              rejected / needs review)
             </li>
-            <li>Support messages and bug reports you send us</li>
+            <li>
+              <strong className="font-medium text-[var(--foreground)]">
+                Map triage (During phase):
+              </strong>{" "}
+              AI flood footprints from elevation and storm context, evacuate /
+              prepare household priorities, and escape lines toward dry
+              designated shelters (not flooded ECs when a dry option exists)
+            </li>
+            <li>
+              Guest report reference IDs and preferred language stored on your
+              device (browser localStorage or iOS UserDefaults)
+            </li>
+            <li>
+              Officer roster and map context (house owners, safe points, EC
+              occupancy reports) when you use command tools
+            </li>
+            <li>Support tickets and bug reports you send us</li>
           </ul>
         </section>
 
@@ -52,31 +94,47 @@ export default function PrivacyPage() {
             How we use it
           </h2>
           <p>
-            Data runs the command center (field report queue, house-owner
-            roster, pending registrations), citizen{" "}
+            Data powers the command center (validation queue, house-owner
+            roster, pending registrations, support triage), citizen{" "}
             <Link
               href="/my-reports"
               className="text-[var(--accent)] underline-offset-2 hover:underline"
             >
               My reports
             </Link>
-            , AI-assisted validation, public situation context, and officer
-            notifications. Alert channels may use SMS and voice for household or
-            responder outreach during drills.
+            , public{" "}
+            <Link
+              href="/reports"
+              className="text-[var(--accent)] underline-offset-2 hover:underline"
+            >
+              community reports
+            </Link>
+            , AI-assisted validation, and Odette map assist (Mangluluwas). Voice
+            notes may be transcribed so officers can read what was said. Photos
+            may be scored by a custom Vertex vision model and reasoned over by
+            Gemini. Officers may export a monthly photo batch (zip + CSV) to
+            train or update that vision dataset. Alert channels may send SMS,
+            email, or voice outreach to households or curated responders during
+            drills when those services are configured.
           </p>
         </section>
 
         <section className="space-y-2">
           <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold text-[var(--foreground)]">
-            Sharing & processors
+            Sharing &amp; processors
           </h2>
           <p>
             Field reports may be visible to officers in your barangay scope and,
-            when published, to the community feed. We use processors such as
-            Firebase (auth & data), Google Gemini (AI assist / validation), and
-            Twilio (text & call) when those services are configured. Without
-            live API keys, SMS/voice run in demo mode (logged, not sent). We do
-            not sell personal data.
+            when published, on the public feed. We use Google processors such as
+            Firebase (auth &amp; data), Gemini (assist, ID/face check, report
+            validation, voice transcription), Vertex AI (image classification
+            when an endpoint is configured), and Maps / Weather / Elevation APIs
+            when keyed. Non-Google processors may include Semaphore (SMS),
+            Resend (email), and Twilio (voice calls). Without live API keys,
+            SMS / email / voice run in demo mode (logged, not delivered). Demo
+            citizen and officer logins on the login pages may create or reuse
+            sample accounts for training; they are not a substitute for real LGU
+            credentials. We do not sell personal data.
           </p>
         </section>
 
@@ -85,9 +143,37 @@ export default function PrivacyPage() {
             Retention on device
           </h2>
           <p>
-            Guest report IDs and preferred language stay on your device until
-            you clear site data or reinstall the app. Signing in links reports
-            to your account where applicable.
+            Guest report IDs, preferred language, and local map triage snapshots
+            stay on your device until you clear site data or reinstall the app.
+            Signing in links reports to your account where applicable. Server
+            copies of reports, media, transcripts, and AI metadata remain until
+            officers or operators remove them under LGU policy.
+          </p>
+        </section>
+
+        <section className="space-y-2">
+          <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold text-[var(--foreground)]">
+            Your choices
+          </h2>
+          <p>
+            You may use guest reporting without an account, register as a
+            citizen or officer, or ask an officer to close a pending
+            registration. Clear browser storage / app data to remove local guest
+            IDs. For account or data questions, use{" "}
+            <Link
+              href="/support"
+              className="text-[var(--accent)] underline-offset-2 hover:underline"
+            >
+              Support
+            </Link>{" "}
+            or contact UgnAI Labs Co. See also{" "}
+            <Link
+              href="/terms"
+              className="text-[var(--accent)] underline-offset-2 hover:underline"
+            >
+              Terms
+            </Link>
+            .
           </p>
         </section>
 
@@ -96,14 +182,21 @@ export default function PrivacyPage() {
             Contact
           </h2>
           <p>
-            Questions about privacy: use the{" "}
+            Privacy questions:{" "}
             <Link
               href="/support"
               className="text-[var(--accent)] underline-offset-2 hover:underline"
             >
               Support
             </Link>{" "}
-            page or contact UgnAI Labs Co.
+            or UgnAI Labs Co. (see{" "}
+            <Link
+              href="/about"
+              className="text-[var(--accent)] underline-offset-2 hover:underline"
+            >
+              About us
+            </Link>
+            ).
           </p>
         </section>
       </main>

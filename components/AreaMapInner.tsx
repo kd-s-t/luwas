@@ -3,6 +3,7 @@
 import {
   Fragment,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type MutableRefObject,
@@ -255,24 +256,41 @@ function reportIcon(kind: ScenarioReportPin["kind"]) {
 }
 
 /**
- * Keep trackpad / touch gestures on the map — otherwise Chrome/Safari
+ * Keep trackpad / touch gestures on the map, otherwise Chrome/Safari
  * pinch-zoom or two-finger-scroll the page instead of Leaflet.
+ * When scrollWheelZoom is off (homepage), page scroll passes through and
+ * Leaflet wheel zoom is force-disabled (prop alone can miss after remount).
  */
-function MapTouchGuard() {
+function MapTouchGuard({ scrollWheelZoom }: { scrollWheelZoom: boolean }) {
   const map = useMap();
   useEffect(() => {
+    if (scrollWheelZoom) {
+      map.scrollWheelZoom.enable();
+    } else {
+      map.scrollWheelZoom.disable();
+    }
+
     const el = map.getContainer();
-    el.style.touchAction = "none";
-    el.style.setProperty("-ms-touch-action", "none");
+    el.style.touchAction = scrollWheelZoom ? "none" : "pan-y";
+    el.style.setProperty(
+      "-ms-touch-action",
+      scrollWheelZoom ? "none" : "pan-y",
+    );
 
     const block = (e: Event) => {
       e.preventDefault();
     };
 
-    // Trackpad pinch = ctrl+wheel (Chrome/Edge/Firefox); Safari uses gesture*.
     const onWheel = (e: WheelEvent) => {
+      if (!scrollWheelZoom) {
+        // Block trackpad pinch (ctrl+wheel) so the map never zooms while scrolling.
+        if (e.ctrlKey || e.metaKey) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        return;
+      }
       e.preventDefault();
-      // Leaflet scrollWheelZoom handles zoom; we only steal the event from the page.
     };
 
     // Multi-touch pan/pinch on tablets / phones
@@ -280,20 +298,22 @@ function MapTouchGuard() {
       if (e.touches.length >= 2) e.preventDefault();
     };
 
-    el.addEventListener("wheel", onWheel, { passive: false });
+    el.addEventListener("wheel", onWheel, { passive: false, capture: true });
     el.addEventListener("touchmove", onTouchMove, { passive: false });
-    el.addEventListener("gesturestart", block, { passive: false });
-    el.addEventListener("gesturechange", block, { passive: false });
-    el.addEventListener("gestureend", block, { passive: false });
+    if (scrollWheelZoom) {
+      el.addEventListener("gesturestart", block, { passive: false });
+      el.addEventListener("gesturechange", block, { passive: false });
+      el.addEventListener("gestureend", block, { passive: false });
+    }
 
     return () => {
-      el.removeEventListener("wheel", onWheel);
+      el.removeEventListener("wheel", onWheel, true);
       el.removeEventListener("touchmove", onTouchMove);
       el.removeEventListener("gesturestart", block);
       el.removeEventListener("gesturechange", block);
       el.removeEventListener("gestureend", block);
     };
-  }, [map]);
+  }, [map, scrollWheelZoom]);
   return null;
 }
 
@@ -533,54 +553,78 @@ function FitTyphoonTrack({
 function FitHouseholds({
   area,
   households,
-  highlightIds,
+  highlightKey,
+  escapeKey,
   escapeRoutes,
 }: {
   area: MapArea;
   households: Household[];
-  highlightIds: string[];
+  /** Stable string of priority ids (not a fresh array each render). */
+  highlightKey: string;
+  /** Stable string of escape destination ids / path lengths. */
+  escapeKey: string;
   escapeRoutes: AssistEscapeRoute[];
 }) {
   const map = useMap();
+  const didFitEmptyRef = useRef(false);
+  const lastAreaIdRef = useRef(area.id);
+  const householdsRef = useRef(households);
+  const escapeRoutesRef = useRef(escapeRoutes);
+  householdsRef.current = households;
+  escapeRoutesRef.current = escapeRoutes;
 
   useEffect(() => {
-    const focus =
-      highlightIds.length > 0
-        ? households.filter(
-            (h) =>
-              highlightIds.includes(h.id) && h.lat != null && h.lng != null,
-          )
-        : households.filter((h) => h.lat != null && h.lng != null);
+    if (lastAreaIdRef.current !== area.id) {
+      lastAreaIdRef.current = area.id;
+      didFitEmptyRef.current = false;
+    }
 
-    // Empty brgy packs: just center the map, don't fit empty bounds.
-    if (focus.length === 0 && escapeRoutes.length === 0) {
-      map.setView([area.center.lat, area.center.lng], area.zoom);
+    const rows = householdsRef.current;
+    const routes = escapeRoutesRef.current;
+    const highlightIds = highlightKey ? highlightKey.split("|") : [];
+    const hasTriage = highlightIds.length > 0 || routes.length > 0;
+
+    // Idle roster: fit once per area, not on every parent re-render.
+    if (!hasTriage) {
+      if (didFitEmptyRef.current) return;
+      didFitEmptyRef.current = true;
+      const mapped = rows.filter((h) => h.lat != null && h.lng != null);
+      if (mapped.length === 0) {
+        map.setView([area.center.lat, area.center.lng], area.zoom);
+        return;
+      }
+      const points: [number, number][] = [
+        [area.center.lat, area.center.lng],
+        ...mapped.map((h) => [h.lat!, h.lng!] as [number, number]),
+      ];
+      map.fitBounds(L.latLngBounds(points).pad(0.35));
       return;
     }
 
-    const points: [number, number][] = [
-      [area.center.lat, area.center.lng],
-    ];
-    for (const h of focus) {
+    didFitEmptyRef.current = false;
+    const idSet = new Set(highlightIds);
+    const focus = rows.filter(
+      (h) => idSet.has(h.id) && h.lat != null && h.lng != null,
+    );
+
+    const points: [number, number][] = [[area.center.lat, area.center.lng]];
+    // Cap focus points - fitting thousands of evacuate pins is expensive.
+    const focusCap = focus.slice(0, 200);
+    for (const h of focusCap) {
       points.push([h.lat!, h.lng!]);
     }
-    for (const r of escapeRoutes) {
-      const path = r.path?.length ? r.path : [r.from, r.to];
-      for (const p of path) {
-        points.push([p.lat, p.lng]);
-      }
+    for (const r of routes) {
+      // Prefer endpoints over full OSRM path for camera framing.
+      points.push([r.from.lat, r.from.lng], [r.to.lat, r.to.lng]);
     }
 
-    if (points.length <= 1 && focus.length === 0) {
+    if (points.length <= 1) {
       map.setView([area.center.lat, area.center.lng], area.zoom);
       return;
     }
 
-    const bounds = L.latLngBounds(points);
-    map.fitBounds(
-      bounds.pad(highlightIds.length || escapeRoutes.length ? 0.55 : 0.35),
-    );
-  }, [area, households, highlightIds, escapeRoutes, map]);
+    map.fitBounds(L.latLngBounds(points).pad(0.55));
+  }, [area, highlightKey, escapeKey, map]);
 
   return null;
 }
@@ -617,6 +661,11 @@ type AreaMapInnerProps = {
   escapeRoutes?: AssistEscapeRoute[];
   /** Odette phase — During shows flood warning on inundated ECs. */
   scenarioPhase?: DrrmScenarioPhase;
+  /**
+   * Wheel / trackpad zoom. Off on the homepage so page scroll is not stolen.
+   * Command map keeps this on (default).
+   */
+  scrollWheelZoom?: boolean;
 };
 
 export default function AreaMapInner({
@@ -637,6 +686,7 @@ export default function AreaMapInner({
   assistPriorities = {},
   escapeRoutes = [],
   scenarioPhase,
+  scrollWheelZoom = true,
 }: AreaMapInnerProps) {
   void _forceLayers;
   const flyRef = useRef<MapFlyFn | null>(null);
@@ -650,8 +700,25 @@ export default function AreaMapInner({
   // Command ops: never show officer GPS — camera + pins stay on selected brgy.
   const showUserPin = Boolean(effectiveUser) && !lockCameraToArea;
   // Parent scopes layers per barangay pack — paint whatever is passed.
-  const mapped = households.filter((h) => h.lat != null && h.lng != null);
-  const highlightIds = Object.keys(assistPriorities);
+  const mapped = useMemo(
+    () => households.filter((h) => h.lat != null && h.lng != null),
+    [households],
+  );
+  const highlightKey = useMemo(() => {
+    const ids = Object.keys(assistPriorities);
+    if (ids.length === 0) return "";
+    return ids.slice().sort().join("|");
+  }, [assistPriorities]);
+  const escapeKey = useMemo(
+    () =>
+      escapeRoutes
+        .map(
+          (r) =>
+            `${r.destinationId}:${r.path?.length ?? 0}:${r.from.lat.toFixed(4)},${r.from.lng.toFixed(4)}`,
+        )
+        .join("|"),
+    [escapeRoutes],
+  );
   const layerLandslides = landslides;
   const layerFloods = floods;
   const layerTyphoons = typhoons;
@@ -674,12 +741,19 @@ export default function AreaMapInner({
   }
 
   return (
-    <div className="relative h-full w-full touch-none overscroll-none">
+    <div
+      className={`relative h-full w-full overscroll-none ${
+        scrollWheelZoom ? "touch-none" : ""
+      }`}
+    >
     <MapContainer
+      key={scrollWheelZoom ? "swz-on" : "swz-off"}
       center={[area.center.lat, area.center.lng]}
       zoom={area.zoom}
-      className="h-full w-full touch-none [&_.leaflet-control-attribution]:text-[9px]"
-      scrollWheelZoom
+      className={`h-full w-full [&_.leaflet-control-attribution]:text-[9px] ${
+        scrollWheelZoom ? "touch-none" : ""
+      }`}
+      scrollWheelZoom={scrollWheelZoom}
       touchZoom
       bounceAtZoomLimits={false}
     >
@@ -687,7 +761,7 @@ export default function AreaMapInner({
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-      <MapTouchGuard />
+      <MapTouchGuard scrollWheelZoom={scrollWheelZoom} />
       <MapFlyBridge
         flyRef={flyRef}
         fitTyphoonRef={fitTyphoonRef}
@@ -1244,7 +1318,8 @@ export default function AreaMapInner({
         <FitHouseholds
           area={area}
           households={mapped}
-          highlightIds={highlightIds}
+          highlightKey={highlightKey}
+          escapeKey={escapeKey}
           escapeRoutes={layerEscapes}
         />
       ) : null}

@@ -371,8 +371,9 @@ export function SituationMap({
   useEffect(() => {
     let cancelled = false;
 
-    async function loadWeather() {
-      setWeatherLoading(true);
+    async function loadWeather(isInitial = false) {
+      // Avoid a full loading flash (and remount churn) on background refresh.
+      if (isInitial) setWeatherLoading(true);
       try {
         const w = await fetchCebuWeather();
         if (!cancelled) {
@@ -386,7 +387,7 @@ export function SituationMap({
           );
         }
       } finally {
-        if (!cancelled) setWeatherLoading(false);
+        if (!cancelled && isInitial) setWeatherLoading(false);
       }
     }
 
@@ -407,10 +408,14 @@ export function SituationMap({
       }
     }
 
-    loadWeather();
-    loadQuakes();
-    const weatherId = window.setInterval(loadWeather, 30 * 60 * 1000);
-    const quakeId = window.setInterval(loadQuakes, 5 * 60 * 1000);
+    void loadWeather(true);
+    void loadQuakes();
+    const weatherId = window.setInterval(() => {
+      void loadWeather(false);
+    }, 30 * 60 * 1000);
+    const quakeId = window.setInterval(() => {
+      void loadQuakes();
+    }, 5 * 60 * 1000);
     return () => {
       cancelled = true;
       window.clearInterval(weatherId);

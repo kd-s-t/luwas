@@ -1,0 +1,260 @@
+import Link from "next/link";
+import Image from "next/image";
+import {
+  PublicPageHeader,
+  PublicShell,
+} from "@/components/PublicShell";
+
+const TEAM = [
+  {
+    slug: "ken-dan-tinio",
+    name: "Ken Dan Tinio",
+    short: "Ken",
+    role: "Fullstack Engineer",
+    focus: "Product and platform",
+    bio: "Owns the LUWAS web stack end to end: Next.js command center and citizen flows, Firebase auth and Firestore, Cloud Run / Hosting deploy, AI triage and validation wiring (Gemini + Vertex), alerts (SMS, email, voice), and the APIs that keep field reports moving from guest ingest to officer queue.",
+  },
+  {
+    slug: "don-sebial",
+    name: "Don Sebial",
+    short: "Don",
+    role: "UI/UX and Graphic Design",
+    focus: "Visual system and experience",
+    bio: "Shapes how LUWAS looks and feels: brand direction, map and command layout, citizen report UX, motion, and graphic assets so officers and residents can read urgency at a glance without clutter.",
+  },
+  {
+    slug: "jeanilou-labajo",
+    name: "Jeanilou Labajo",
+    short: "Jean",
+    role: "Quality Assurance",
+    focus: "Quality and field checks",
+    bio: "Runs quality passes across citizen and officer paths: registration and login, guest and signed-in reporting, triage and map layers, and regression checks before a release so demo and ops scenarios stay trustworthy.",
+  },
+  {
+    slug: "patricia-abrenica",
+    name: "Patricia Abrenica",
+    short: "Pat",
+    role: "Quality Assurance",
+    focus: "Quality and acceptance",
+    bio: "Validates edge cases and acceptance flows: household linking, pending accounts, report status, support tickets, and cross-device checks so what ships on luwasph.com matches what the team promised in the walkthrough.",
+  },
+] as const;
+
+const PILLARS = [
+  {
+    title: "Citizen field reports",
+    body: "Photo, video, and voice notes from the street, with place pins, guest references, and a clear path into the officer validation queue.",
+    image: "/reports/flood-road-chapel.png",
+    alt: "Flooded road near Holy Family Chapel, Nangka",
+  },
+  {
+    title: "AI-assisted triage",
+    body: "Flood footprints, evacuate vs prepare priorities, and escape lines toward dry shelters, especially in the Odette During phase used for drills.",
+    image: "/reports/landslide-bank-failure.png",
+    alt: "Landslide bank failure used in field report demos",
+  },
+  {
+    title: "Barangay command",
+    body: "Household roster, live situation map, Mangluluwas chat, SMS / email / voice outreach, and EC occupancy so MDRRMO stays oriented under pressure.",
+    image: "/reports/ec-nangka-elem-after.jpg",
+    alt: "Nangka Elementary School evacuation center",
+  },
+] as const;
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
+  return `${parts[0]![0] ?? ""}${parts[1]![0] ?? ""}`.toUpperCase();
+}
+
+export default function AboutPage() {
+  return (
+    <PublicShell>
+      <PublicPageHeader
+        eyebrow="UgnAI Labs"
+        title="About us"
+        description="We build LUWAS so barangays can see hazards early, brief households clearly, and move aid with less guesswork."
+      />
+      <main className="mx-auto max-w-3xl space-y-14 px-4 py-10 text-sm leading-relaxed text-[var(--muted)] sm:px-6 sm:py-14">
+        <section className="space-y-5">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold text-[var(--foreground)]">
+              Who we are
+            </h2>
+            <Image
+              src="/brands/ugnai-labs.png"
+              alt="UgnAI Labs"
+              width={202}
+              height={100}
+              className="h-14 w-auto object-contain sm:h-16"
+            />
+          </div>
+          <div className="space-y-3">
+            <p>
+              <span className="text-[var(--foreground)]">UgnAI Labs Co.</span>{" "}
+              is a small product team building practical AI tools for Philippine
+              local government. Our first major surface is{" "}
+              <span className="text-[var(--foreground)]">LUWAS</span>{" "}
+              (Logistics and Unified Workflow for Aid and Safety), focused on
+              Brgy. Nangka, Consolacion, Cebu, and designed so other barangays
+              can onboard the same playbook.
+            </p>
+            <p>
+              We care about clarity under stress: red means evacuate, yellow
+              means prepare, blue means flood belt. Officers get a command map
+              and an AI colleague (Mangluluwas). Citizens get a fast way to
+              report what they see, including guests who only need a reference
+              ID.
+            </p>
+          </div>
+        </section>
+
+        <section className="space-y-6">
+          <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold text-[var(--foreground)]">
+            What we build
+          </h2>
+          <ul className="space-y-8">
+            {PILLARS.map((item) => (
+              <li key={item.title} className="space-y-3">
+                <div className="relative aspect-[16/9] w-full overflow-hidden border border-[var(--border)] bg-[var(--surface-raised)]">
+                  <Image
+                    src={item.image}
+                    alt={item.alt}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 100vw, 720px"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <p className="font-medium text-[var(--foreground)]">
+                    {item.title}
+                  </p>
+                  <p>{item.body}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <p>
+            Explore the{" "}
+            <Link
+              href="/reports"
+              className="text-[var(--accent)] underline-offset-2 hover:underline"
+            >
+              public reports
+            </Link>
+            ,{" "}
+            <Link
+              href="/barangays"
+              className="text-[var(--accent)] underline-offset-2 hover:underline"
+            >
+              barangay directory
+            </Link>
+            , or sign in as{" "}
+            <Link
+              href="/login/citizen"
+              className="text-[var(--accent)] underline-offset-2 hover:underline"
+            >
+              citizen
+            </Link>{" "}
+            /{" "}
+            <Link
+              href="/login"
+              className="text-[var(--accent)] underline-offset-2 hover:underline"
+            >
+              officer
+            </Link>
+            .
+          </p>
+        </section>
+
+        <section className="space-y-6">
+          <div className="space-y-1">
+            <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold text-[var(--foreground)]">
+              Team
+            </h2>
+            <p>
+              Four people shipping LUWAS together: engineering, design, and
+              quality assurance in one loop from idea to luwasph.com.
+            </p>
+          </div>
+          <ul className="divide-y divide-[var(--border)] border-y border-[var(--border)]">
+            {TEAM.map((person) => (
+              <li key={person.slug} className="flex items-start gap-4 py-5 sm:gap-5">
+                <div
+                  className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[var(--border)] bg-[var(--surface-raised)] font-[family-name:var(--font-display)] text-sm font-semibold tracking-wide text-[var(--accent)] sm:size-14 sm:text-base"
+                  aria-hidden
+                >
+                  {initials(person.name)}
+                </div>
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+                    <p className="font-[family-name:var(--font-display)] text-base font-semibold tracking-wide text-[var(--foreground)]">
+                      {person.name}
+                    </p>
+                    <span className="font-mono text-[10px] tracking-wider text-[var(--accent)] uppercase">
+                      {person.role}
+                    </span>
+                  </div>
+                  <p className="text-xs text-[var(--muted)]">
+                    Goes by {person.short}. {person.focus}.
+                  </p>
+                  <p>{person.bio}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold text-[var(--foreground)]">
+            How we work
+          </h2>
+          <p>
+            Design and engineering sit next to the map: Odette Before / During /
+            After scenarios, elevation-aware flood footprints, and escape
+            routing that prefers dry shelters. Quality assurance walks the same
+            paths a resident or MDRRMO officer would (report, validate, alert)
+            before we push to production.
+          </p>
+          <p>
+            Stack highlights include Next.js, Firebase, Google Gemini and
+            Vertex AI, Maps / Weather / Elevation, and Twilio for outreach when
+            keys are configured.
+          </p>
+        </section>
+
+        <section className="space-y-3 border-t border-[var(--border)] pt-8">
+          <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold text-[var(--foreground)]">
+            Get in touch
+          </h2>
+          <p>
+            Bug, idea, or barangay onboarding question: send it through{" "}
+            <Link
+              href="/support"
+              className="text-[var(--accent)] underline-offset-2 hover:underline"
+            >
+              Support
+            </Link>
+            . Legal details live on{" "}
+            <Link
+              href="/privacy"
+              className="text-[var(--accent)] underline-offset-2 hover:underline"
+            >
+              Privacy
+            </Link>{" "}
+            and{" "}
+            <Link
+              href="/terms"
+              className="text-[var(--accent)] underline-offset-2 hover:underline"
+            >
+              Terms
+            </Link>
+            .
+          </p>
+          <p className="text-xs">©2026 UgnAI Labs Co. All rights reserved.</p>
+        </section>
+      </main>
+    </PublicShell>
+  );
+}

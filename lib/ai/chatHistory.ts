@@ -80,6 +80,26 @@ export function loadHistory(): {
   }
 }
 
+const MAX_THREADS = 40;
+const MAX_MESSAGES_PER_THREAD = 80;
+
+/** Drop heavy flood footprints from persisted assist (map snapshot keeps live copy). */
+function slimResultForStorage(
+  result: ChatThread["result"],
+): ChatThread["result"] {
+  if (!result) return null;
+  const floods = result.predictedFloods;
+  if (!floods?.length) return result;
+  return {
+    ...result,
+    predictedFloods: floods.map((f) => ({
+      ...f,
+      footprints: undefined,
+      footprint: undefined,
+    })),
+  };
+}
+
 export function saveHistory(state: {
   activeId: string;
   threads: ChatThread[];
@@ -89,7 +109,11 @@ export function saveHistory(state: {
   try {
     const payload: StoredHistory = {
       activeId: state.activeId,
-      threads: state.threads.slice(0, 40),
+      threads: state.threads.slice(0, MAX_THREADS).map((t) => ({
+        ...t,
+        messages: t.messages.slice(-MAX_MESSAGES_PER_THREAD),
+        result: slimResultForStorage(t.result),
+      })),
       model: state.model,
     };
     window.localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(payload));
