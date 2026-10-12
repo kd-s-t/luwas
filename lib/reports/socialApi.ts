@@ -50,6 +50,13 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
     mediaMime: String(data.mediaMime ?? ""),
     mediaSource:
       (data.mediaSource as HazardReport["mediaSource"]) ?? null,
+    voiceNoteLabel:
+      data.voiceNoteLabel != null ? String(data.voiceNoteLabel) : null,
+    voicePath: data.voicePath != null ? String(data.voicePath) : null,
+    voiceUrl: data.voiceUrl != null ? String(data.voiceUrl) : null,
+    voiceMime: data.voiceMime != null ? String(data.voiceMime) : null,
+    voiceTranscript:
+      data.voiceTranscript != null ? String(data.voiceTranscript) : null,
     lat: typeof data.lat === "number" ? data.lat : null,
     lng: typeof data.lng === "number" ? data.lng : null,
     locationAccuracyM:

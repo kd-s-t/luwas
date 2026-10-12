@@ -146,6 +146,13 @@ export async function ensureMapReportInDb(
       mediaMime: String(data.mediaMime ?? mimeForUrl(pin.mediaUrl)),
       mediaSource:
         (data.mediaSource as HazardReport["mediaSource"]) ?? "mobile-camera",
+      voiceNoteLabel:
+        data.voiceNoteLabel != null ? String(data.voiceNoteLabel) : null,
+      voicePath: data.voicePath != null ? String(data.voicePath) : null,
+      voiceUrl: data.voiceUrl != null ? String(data.voiceUrl) : null,
+      voiceMime: data.voiceMime != null ? String(data.voiceMime) : null,
+      voiceTranscript:
+        data.voiceTranscript != null ? String(data.voiceTranscript) : null,
       lat: typeof data.lat === "number" ? data.lat : pin.lat,
       lng: typeof data.lng === "number" ? data.lng : pin.lng,
       locationAccuracyM:
@@ -231,6 +238,11 @@ export async function ensureMapReportInDb(
     mediaUrl: pin.mediaUrl,
     mediaMime: mimeForUrl(pin.mediaUrl),
     mediaSource: "mobile-camera" as const,
+    voiceNoteLabel: null,
+    voicePath: null,
+    voiceUrl: null,
+    voiceMime: null,
+    voiceTranscript: null,
     lat: pin.lat,
     lng: pin.lng,
     locationAccuracyM: 25,

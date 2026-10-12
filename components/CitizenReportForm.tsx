@@ -214,7 +214,10 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
   const voiceChunksRef = useRef<Blob[]>([]);
   const voiceStreamRef = useRef<MediaStream | null>(null);
   const voiceKeepRef = useRef(true);
-  const coordsRef = useRef({ lat: NANGKA_HALL.lat, lng: NANGKA_HALL.lng });
+  const coordsRef = useRef<{ lat: number; lng: number }>({
+    lat: NANGKA_HALL.lat,
+    lng: NANGKA_HALL.lng,
+  });
   coordsRef.current = { lat, lng };
 
   function voiceNoteStamp(): string {
