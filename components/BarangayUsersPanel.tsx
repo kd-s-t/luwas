@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -372,6 +371,15 @@ function OfficersFlowCanvas({
   height: number;
 }) {
   const fitted = useRef(false);
+  const flowRef = useRef<{ fitView: (opts?: object) => void } | null>(null);
+  const nodeIdsKey = nodes.map((n) => n.id).join(",");
+
+  useEffect(() => {
+    if (!flowRef.current || !fitted.current) return;
+    window.requestAnimationFrame(() => {
+      flowRef.current?.fitView({ padding: 0.14, minZoom: 0.35, maxZoom: 1 });
+    });
+  }, [nodeIdsKey, height]);
 
   return (
     <div
@@ -383,6 +391,7 @@ function OfficersFlowCanvas({
         edges={edges}
         nodeTypes={officerNodeTypes}
         onInit={(inst) => {
+          flowRef.current = inst;
           if (fitted.current) return;
           fitted.current = true;
           window.requestAnimationFrame(() => {
@@ -645,7 +654,6 @@ function OfficersPyramid({
       >
         <ReactFlowProvider>
           <OfficersFlowCanvas
-            key={structureKey}
             nodes={graph.nodes}
             edges={graph.edges}
             height={graph.height}
@@ -1092,75 +1100,103 @@ export function BarangayUsersPanel() {
   const [showFormer, setShowFormer] = useState(true);
   const [addExistingOpen, setAddExistingOpen] = useState(false);
   const [addNewOpen, setAddNewOpen] = useState(false);
-  const kenSeeded = useRef(false);
+  /** Shared across Strict Mode remounts so the flow waits for one seed pass. */
+  const staffSeedPromise = useRef<Promise<{
+    parts: string[];
+    partialError: string | null;
+  }> | null>(null);
 
+  // Load users + finish staff seed before painting the org flow (no 1-by-1 remounts).
   useEffect(() => {
     if (!isOfficer(profile) || !barangay) {
       setRows([]);
       setLoading(false);
       return;
     }
+
+    let cancelled = false;
+    let gotUsers = false;
+    let seedDone = false;
     setLoading(true);
-    return subscribeBarangayUsers(
+
+    const maybeReady = () => {
+      if (!cancelled && gotUsers && seedDone) setLoading(false);
+    };
+
+    const unsub = subscribeBarangayUsers(
       barangay,
       (next) => {
+        if (cancelled) return;
         setRows(next);
-        setLoading(false);
+        gotUsers = true;
+        maybeReady();
       },
       (err) => {
+        if (cancelled) return;
         setError(err.message);
+        gotUsers = true;
+        seedDone = true;
         setLoading(false);
       },
       areaId,
     );
+
+    void (async () => {
+      if (!isAccountActive(profile)) {
+        seedDone = true;
+        maybeReady();
+        return;
+      }
+
+      if (!staffSeedPromise.current) {
+        const org = profile.orgName || "Brgy. Nangka MDRRMO";
+        const uid = profile.uid;
+        staffSeedPromise.current = (async () => {
+          await ensureCuratedHouseholds(uid, org, []);
+          const off = await ensureNangkaOfficers(uid, org);
+          const cit = await ensureKenHouseholdCitizens();
+          const parts: string[] = [];
+          if (off.officers > 0) {
+            parts.push(
+              `${off.officers} barangay officers · ${off.households} house links`,
+            );
+          }
+          if (cit.linked > 0) {
+            parts.push(`${cit.linked} citizen links (Ken · Carl · Pat)`);
+          }
+          const partialError =
+            off.errors.length > 0
+              ? `Staff seed partial: ${off.errors.slice(0, 2).join(" · ")}${
+                  off.errors.length > 2 ? "…" : ""
+                }`
+              : null;
+          return { parts, partialError };
+        })().catch((err) => {
+          staffSeedPromise.current = null;
+          throw err;
+        });
+      }
+
+      try {
+        const result = await staffSeedPromise.current;
+        if (cancelled) return;
+        setError(result.partialError);
+        if (result.parts.length) setMsg(result.parts.join(" · "));
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Staff seed failed");
+        }
+      } finally {
+        seedDone = true;
+        maybeReady();
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      unsub();
+    };
   }, [profile, barangay, areaId]);
-
-  const seedStaff = useCallback(async () => {
-    if (!isOfficer(profile) || !isAccountActive(profile)) return;
-    setError(null);
-    const org = profile.orgName || "Brgy. Nangka MDRRMO";
-    try {
-      await ensureCuratedHouseholds(profile.uid, org, []);
-      const off = await ensureNangkaOfficers(profile.uid, org);
-      const cit = await ensureKenHouseholdCitizens();
-      const parts: string[] = [];
-      if (off.officers > 0) {
-        parts.push(
-          `${off.officers} barangay officers · ${off.households} house links`,
-        );
-      }
-      if (cit.linked > 0) {
-        parts.push(`${cit.linked} citizen links (Ken · Carl · Pat)`);
-      }
-      if (off.errors.length > 0) {
-        setError(
-          `Staff seed partial: ${off.errors.slice(0, 2).join(" · ")}${
-            off.errors.length > 2 ? "…" : ""
-          }`,
-        );
-      }
-      if (parts.length) setMsg(parts.join(" · "));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Staff seed failed");
-      throw err;
-    }
-  }, [profile]);
-
-  // Seed Nangka staff officers + house links, then Ken/Jeanilou citizens.
-  useEffect(() => {
-    if (
-      !isOfficer(profile) ||
-      !isAccountActive(profile) ||
-      kenSeeded.current ||
-      loading
-    ) {
-      return;
-    }
-    kenSeeded.current = true;
-    void seedStaff().catch(() => {
-      kenSeeded.current = false;
-    });
-  }, [profile, loading, seedStaff]);
 
   const officers = useMemo(
     () =>
@@ -1203,8 +1239,8 @@ export function BarangayUsersPanel() {
   }, [profile, officers]);
 
   useEffect(() => {
-    if (!isOfficer(profile)) {
-      setHouseholds([]);
+    if (!isOfficer(profile) || loading) {
+      if (!isOfficer(profile)) setHouseholds([]);
       return;
     }
     const uids =
@@ -1219,7 +1255,7 @@ export function BarangayUsersPanel() {
     return () => {
       for (const u of unsubs) u();
     };
-  }, [profile, rosterOfficerUids]);
+  }, [profile, rosterOfficerUids, loading]);
 
   const householdByOfficerUid = useMemo(() => {
     const map = new Map<string, Household>();
@@ -1296,7 +1332,22 @@ export function BarangayUsersPanel() {
       ) : null}
 
       {loading ? (
-        <p className="font-mono text-sm text-[var(--muted)]">Loading users…</p>
+        <section
+          className="flex min-h-[360px] flex-col items-center justify-center gap-3 bg-[var(--surface-panel)]/40 px-4 py-16"
+          aria-busy="true"
+          aria-live="polite"
+        >
+          <div
+            className="size-8 animate-spin rounded-full border-2 border-[var(--border)] border-t-[var(--accent)]"
+            aria-hidden
+          />
+          <p className="font-mono text-sm text-[var(--muted)]">
+            Loading officers…
+          </p>
+          <p className="max-w-sm text-center text-xs text-[var(--muted)]">
+            Fetching the full roster before drawing the hierarchy.
+          </p>
+        </section>
       ) : (
         <div className="space-y-6">
           <OfficersPyramid

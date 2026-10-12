@@ -29,11 +29,13 @@ service cloud.firestore {
         && userDoc().role == "citizen";
     }
 
-    // Legacy demos may omit accountStatus — treat missing as active.
+    // Legacy demos may omit accountStatus (or set null) — treat as active.
+    // Never use == null / != null in rules; that throws "Null value error".
     function isActiveOfficer() {
       return isOfficer()
         && (
           !("accountStatus" in userDoc())
+          || !(userDoc().accountStatus is string)
           || userDoc().accountStatus == "active"
         );
     }
@@ -291,13 +293,10 @@ service cloud.firestore {
         && request.resource.data.kind == resource.data.kind
         && request.resource.data.summary == resource.data.summary
         && request.resource.data.status in ["open", "in_progress", "resolved", "closed"]
-        && (!("assignedToUid" in request.resource.data)
-            || request.resource.data.assignedToUid == null
-            || request.resource.data.assignedToUid is string)
+        // assignedToName optional: missing / non-string (null) / string ≤120.
         && (!("assignedToName" in request.resource.data)
-            || request.resource.data.assignedToName == null
-            || (request.resource.data.assignedToName is string
-                && request.resource.data.assignedToName.size() <= 120));
+            || !(request.resource.data.assignedToName is string)
+            || request.resource.data.assignedToName.size() <= 120);
       allow delete: if false;
     }
   }

@@ -41,13 +41,13 @@ const POWERED_BY = [
 ] as const;
 
 const FOOTER_LINKS = [
-  { href: "/about", label: "About us" },
   { href: "/reports", label: "Reports" },
   { href: "/barangays", label: "Barangays" },
   { href: "/bootstrap", label: "Bootstrap UI" },
   { href: "/privacy", label: "Privacy" },
   { href: "/terms", label: "Terms" },
   { href: "/support", label: "Support" },
+  { href: "/about", label: "About us" },
 ] as const;
 
 export function HomeFooter() {

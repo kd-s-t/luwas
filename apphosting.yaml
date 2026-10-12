@@ -47,7 +47,7 @@ env:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_APP_URL
-    value: "https://luwas-192332066427.asia-southeast1.run.app"
+    value: "https://luwasph.com"
     availability:
       - BUILD
       - RUNTIME

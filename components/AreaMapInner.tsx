@@ -21,7 +21,7 @@ import {
 import L from "leaflet";
 import { Crosshair, Loader2, LocateFixed, Tornado } from "lucide-react";
 import type { AssistEscapeRoute, AssistPriority } from "@/lib/ai/assistTypes";
-import { distKm, pointAndBearingAlongPath } from "@/lib/geo/bearing";
+import { distKm } from "@/lib/geo/bearing";
 import { pointInFloodFootprints } from "@/lib/geo/elevFloodFootprint";
 import { DEFAULT_MAP_AREA, type MapArea } from "@/lib/geo/mapAreas";
 import {
@@ -209,22 +209,6 @@ function typhoonIcon() {
   return L.divIcon({
     className: "dro-map-marker",
     html: lucideTyphoonMarkerHtml(28),
-    iconSize: [28, 28],
-    iconAnchor: [14, 14],
-  });
-}
-
-/** Nav chevron — tip = forward. Bearing 0° = north (up on the map). */
-function escapeChevronIcon(bearing: number) {
-  const deg = Number.isFinite(bearing) ? bearing : 0;
-  return L.divIcon({
-    className: "dro-map-marker dro-map-escape-arrow-wrap",
-    html: `<span class="dro-map-escape-chevron" style="transform:rotate(${deg}deg)" aria-hidden="true">
-      <svg viewBox="0 0 32 32" width="28" height="28" focusable="false">
-        <path class="dro-map-escape-chevron-halo" d="M16 3.2 L27.2 26.4 L16 20.8 L4.8 26.4 Z"/>
-        <path class="dro-map-escape-chevron-body" d="M16 5.4 L25.2 25 L16 19.8 L6.8 25 Z"/>
-      </svg>
-    </span>`,
     iconSize: [28, 28],
     iconAnchor: [14, 14],
   });
@@ -1151,55 +1135,6 @@ export default function AreaMapInner({
               ) : null}
             </Popup>
           </Marker>
-        );
-      })}
-      {layerEscapes.map((route) => {
-        const path =
-          route.path?.length >= 2 ? route.path : [route.from, route.to];
-        const positions = path.map(
-          (p) => [p.lat, p.lng] as [number, number],
-        );
-        // One chevron mid-route — direction to go, not a line per house.
-        const tip = pointAndBearingAlongPath(path, 0.55);
-        return (
-          <Fragment key={`escape-${route.destinationId}`}>
-            <Polyline
-              positions={positions}
-              pathOptions={{
-                color: "#ffffff",
-                weight: 8,
-                opacity: 0.9,
-                lineCap: "round",
-                lineJoin: "round",
-              }}
-            />
-            <Polyline
-              positions={positions}
-              pathOptions={{
-                color: "#c72929",
-                weight: 4.5,
-                opacity: 0.95,
-                lineCap: "round",
-                lineJoin: "round",
-                dashArray: "12 10",
-                className: "dro-escape-flow",
-              }}
-            />
-            <Marker
-              position={[tip.point.lat, tip.point.lng]}
-              icon={escapeChevronIcon(tip.bearing)}
-              zIndexOffset={900}
-            >
-              <Popup>
-                <strong>
-                  Go {route.direction} → {route.destinationName}
-                  {route.routed ? " · via roads" : ""}
-                </strong>
-                <br />
-                {route.instruction}
-              </Popup>
-            </Marker>
-          </Fragment>
         );
       })}
       {layerSafePoints.map((sp) => {

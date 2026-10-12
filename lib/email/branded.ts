@@ -31,7 +31,7 @@ export function appOrigin(): string {
 export function mailFromDisplay(): string {
   return (
     process.env.RESEND_FROM_EMAIL?.trim() ||
-    "LUWAS Alerts <onboarding@resend.dev>"
+    "Luwas Alerts <alerts@luwasph.com>"
   );
 }
 
