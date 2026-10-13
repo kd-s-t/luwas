@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AuthCard } from "@/components/AuthCard";
+import { AuthPageSkeleton } from "@/components/AuthPageSkeleton";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import {
   isAccountActive,
@@ -24,18 +25,12 @@ export default function PendingValidationPage() {
       return;
     }
     if (isAccountActive(profile)) {
-      router.replace(isCitizen(profile) ? "/my-reports" : "/command");
+      router.replace(isCitizen(profile) ? "/my-reports" : "/overview");
     }
   }, [loading, user, profile, router]);
 
   if (loading || !user) {
-    return (
-      <div className="flex min-h-screen items-center justify-center text-[var(--muted)]">
-        <p className="font-mono text-sm tracking-widest uppercase">
-          Establishing link…
-        </p>
-      </div>
-    );
+    return <AuthPageSkeleton />;
   }
 
   if (profile && isAccountFired(profile)) {

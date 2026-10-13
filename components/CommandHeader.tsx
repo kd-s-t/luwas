@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { CommandBarangaySwitcher } from "@/components/CommandBarangaySwitcher";
 import { CommandNotifications } from "@/components/CommandNotifications";
 import { FadeIn } from "@/components/motion/primitives";
@@ -12,23 +12,10 @@ import {
 } from "@/lib/auth/accountValidation";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { isAccountActive, isOfficer } from "@/lib/auth/types";
-import { subscribeAllReports } from "@/lib/reports/api";
-import {
-  reportInScope,
-  scopeForProfile,
-} from "@/lib/reports/barangayScope";
-import type { HazardReport } from "@/lib/reports/types";
 import { subscribeSupportTickets } from "@/lib/support/api";
 import { cn } from "@/lib/utils";
 
-type NavBadge = "pending" | "reports" | "support" | null;
-
-const QUEUE_STATUSES = new Set([
-  "queued",
-  "validating",
-  "needs_review",
-  "failed",
-]);
+type NavBadge = "pending" | "support" | null;
 
 const NAV: {
   href: string;
@@ -38,67 +25,53 @@ const NAV: {
   badge: NavBadge;
 }[] = [
   {
-    href: "/command",
-    label: "Command center",
+    href: "/overview",
+    label: "Overview",
     short: "Center",
-    match: (p) => p === "/command",
+    match: (p) => p === "/overview",
     badge: null,
   },
   {
-    href: "/command/reports",
-    label: "Field reports",
-    short: "Reports",
-    match: (p) => p.startsWith("/command/reports"),
-    badge: "reports",
-  },
-  {
-    href: "/my-reports",
-    label: "My reports",
-    short: "Mine",
-    match: (p) =>
-      p.startsWith("/my-reports") || p.startsWith("/citizen"),
-    badge: null,
-  },
-  {
-    href: "/command/households",
-    label: "House owners",
+    href: "/overview/households",
+    label: "Home owners",
     short: "Homes",
-    match: (p) => p.startsWith("/command/households"),
+    match: (p) => p.startsWith("/overview/households"),
     badge: null,
   },
   {
-    href: "/command/users",
-    label: "Users",
-    short: "Users",
-    match: (p) => p.startsWith("/command/users"),
+    href: "/overview/citizens",
+    label: "Citizens",
+    short: "Citizens",
+    match: (p) =>
+      p.startsWith("/overview/citizens") || p.startsWith("/overview/users"),
     badge: "pending",
   },
   {
-    href: "/command/roles",
-    label: "Roles",
-    short: "Roles",
-    match: (p) => p.startsWith("/command/roles"),
+    href: "/overview/officers",
+    label: "Officers",
+    short: "Officers",
+    match: (p) => p.startsWith("/overview/officers"),
     badge: null,
   },
   {
-    href: "/command/support",
+    href: "/overview/roles",
+    label: "Roles",
+    short: "Roles",
+    match: (p) => p.startsWith("/overview/roles"),
+    badge: null,
+  },
+  {
+    href: "/overview/support",
     label: "Support",
     short: "Help",
-    match: (p) => p.startsWith("/command/support"),
+    match: (p) => p.startsWith("/overview/support"),
     badge: "support",
   },
   {
-    href: "/barangays",
-    label: "Barangays",
-    short: "Brgy",
-    match: (p) => p.startsWith("/barangays"),
-    badge: null,
-  },
-  {
-    href: "/command/onboard",
+    href: "/overview/onboard",
     label: "Onboard",
     short: "Onboard",
-    match: (p) => p.startsWith("/command/onboard"),
+    match: (p) => p.startsWith("/overview/onboard"),
     badge: null,
   },
 ];
@@ -133,14 +106,12 @@ export function CommandHeader() {
   const pathname = usePathname();
   const router = useRouter();
   const [pendingCount, setPendingCount] = useState(0);
-  const [reportQueueCount, setReportQueueCount] = useState(0);
   const [supportOpenCount, setSupportOpenCount] = useState(0);
 
   const barangay = isOfficer(profile) ? officerScopeBarangay(profile) : "";
   const areaId = isOfficer(profile)
     ? profile.areaId ?? profile.activeBarangayId
     : null;
-  const reportScope = useMemo(() => scopeForProfile(profile), [profile]);
 
   useEffect(() => {
     if (!isOfficer(profile) || !isAccountActive(profile) || !barangay) {
@@ -154,19 +125,6 @@ export function CommandHeader() {
       areaId,
     );
   }, [profile, barangay, areaId]);
-
-  useEffect(() => {
-    if (!isOfficer(profile) || !isAccountActive(profile)) {
-      setReportQueueCount(0);
-      return;
-    }
-    return subscribeAllReports((rows: HazardReport[]) => {
-      const n = rows.filter(
-        (r) => reportInScope(r, reportScope) && QUEUE_STATUSES.has(r.status),
-      ).length;
-      setReportQueueCount(n);
-    });
-  }, [profile, reportScope]);
 
   useEffect(() => {
     if (!isOfficer(profile) || !isAccountActive(profile)) {
@@ -204,19 +162,15 @@ export function CommandHeader() {
               const badgeCount =
                 item.badge === "pending"
                   ? pendingCount
-                  : item.badge === "reports"
-                    ? reportQueueCount
-                    : item.badge === "support"
-                      ? supportOpenCount
-                      : 0;
+                  : item.badge === "support"
+                    ? supportOpenCount
+                    : 0;
               const badgeLabel =
                 item.badge === "pending"
                   ? `${pendingCount} pending registrations`
-                  : item.badge === "reports"
-                    ? `${reportQueueCount} reports awaiting review`
-                    : item.badge === "support"
-                      ? `${supportOpenCount} open support tickets`
-                      : "";
+                  : item.badge === "support"
+                    ? `${supportOpenCount} open support tickets`
+                    : "";
               return (
                 <Link
                   key={item.href}

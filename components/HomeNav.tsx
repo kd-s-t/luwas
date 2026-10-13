@@ -35,18 +35,11 @@ export function HomeNav({ overlay = false }: HomeNavProps) {
     pathname === "/reports" || pathname.startsWith("/reports/");
   const onBarangays =
     pathname === "/barangays" || pathname.startsWith("/barangays/");
-  const onCommand =
-    pathname === "/command" || pathname.startsWith("/command/");
-  const onCitizen =
-    pathname === "/my-reports" ||
-    pathname.startsWith("/my-reports/") ||
-    pathname === "/citizen" ||
-    pathname.startsWith("/citizen/");
+  const onOverview =
+    pathname === "/overview" || pathname.startsWith("/overview/");
   const onReportIncident =
     pathname === "/report-incident" ||
     pathname.startsWith("/report-incident/");
-  const onProfile =
-    pathname === "/profile" || pathname.startsWith("/profile/");
   const onLoginOfficer = pathname === "/login";
   const onLoginCitizen = pathname === "/login/citizen";
   const onRegister =
@@ -69,27 +62,13 @@ export function HomeNav({ overlay = false }: HomeNavProps) {
     <>
       {role === "officer" ? (
         <Link
-          href="/command"
-          className={navLinkClass(onCommand)}
+          href="/overview"
+          className={navLinkClass(onOverview)}
           onClick={() => setMenuOpen(false)}
         >
-          Command
+          Overview
         </Link>
       ) : null}
-      <Link
-        href="/my-reports"
-        className={navLinkClass(onCitizen)}
-        onClick={() => setMenuOpen(false)}
-      >
-        My reports
-      </Link>
-      <Link
-        href="/profile"
-        className={navLinkClass(onProfile)}
-        onClick={() => setMenuOpen(false)}
-      >
-        Profile
-      </Link>
       <button
         type="button"
         onClick={() => {

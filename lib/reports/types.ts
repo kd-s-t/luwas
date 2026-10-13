@@ -102,6 +102,10 @@ export type HazardReport = {
   vertexClass: string | null;
   vertexConfidence: number | null;
   validatedAt: string | null;
+  /** Officer assigned to investigate this incident. */
+  investigatorUid: string | null;
+  investigatorName: string | null;
+  investigatedAt: string | null;
   /** When set, nearest responders were already auto-dialed for this legit report. */
   autoResponderCallAt: string | null;
   /** Reporter signals used for trust scoring. */

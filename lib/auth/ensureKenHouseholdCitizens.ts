@@ -15,6 +15,7 @@ import {
   where,
 } from "firebase/firestore";
 import { DEMO_CITIZENS, DEMO_ID_PROOF } from "@/lib/auth/demoAccount";
+import { dedupeCitizenUsersByEmail } from "@/lib/auth/dedupeCitizenUsers";
 import {
   dedupeHouseholdsByContact,
   linkCitizenToHousehold,
@@ -313,6 +314,13 @@ export async function ensureKenHouseholdCitizens(): Promise<{
       primaryHouseholdId = result.householdId;
     }
     linked += result.linked;
+  }
+
+  // Collapse Firestore email twins left by prior seed / Auth recreation.
+  try {
+    await dedupeCitizenUsersByEmail();
+  } catch {
+    /* rules may block until deployed; prod script covers one-shot cleanup */
   }
 
   return { householdId: primaryHouseholdId, linked };

@@ -21,6 +21,20 @@ const nextConfig = {
    * Next's default s-maxage (~1y) left luwasph.com stuck on stale HTML/CSS.
    * Keep hashed /_next/static long-lived; keep document HTML fresh.
    */
+  async redirects() {
+    return [
+      {
+        source: "/command",
+        destination: "/overview",
+        permanent: true,
+      },
+      {
+        source: "/command/:path*",
+        destination: "/overview/:path*",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {

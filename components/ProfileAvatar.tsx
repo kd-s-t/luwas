@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 
 function hashHue(seed: string): number {
@@ -17,9 +18,17 @@ function initials(name: string): string {
   return `${parts[0]![0] ?? ""}${parts[1]![0] ?? ""}`.toUpperCase();
 }
 
+/** Deterministic portrait URL when the user has no uploaded photo. */
+export function avatarPhotoSrc(seed: string): string {
+  const key = seed.trim() || "luwas";
+  return `https://i.pravatar.cc/128?u=${encodeURIComponent(key)}`;
+}
+
 type ProfileAvatarProps = {
   name: string;
   photoURL?: string | null;
+  /** Stable id/email for fallback portrait when photoURL is missing. */
+  seed?: string | null;
   size?: "sm" | "md" | "lg";
   className?: string;
 };
@@ -33,22 +42,26 @@ const SIZES = {
 export function ProfileAvatar({
   name,
   photoURL,
+  seed,
   size = "md",
   className,
 }: ProfileAvatarProps) {
-  const hue = hashHue(name || "user");
+  const hue = hashHue(name || seed || "user");
+  const src = photoURL?.trim() || avatarPhotoSrc(seed || name || "user");
+  const [failed, setFailed] = useState(false);
 
-  if (photoURL) {
+  if (!failed && src) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={photoURL}
+        src={src}
         alt=""
         className={cn(
           "shrink-0 rounded-full object-cover ring-1 ring-[var(--border)]",
           SIZES[size],
           className,
         )}
+        onError={() => setFailed(true)}
       />
     );
   }

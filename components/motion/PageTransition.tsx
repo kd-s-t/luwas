@@ -5,12 +5,20 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { easeOut } from "@/components/motion/primitives";
 
-/** Soft enter animation on every route change. */
+/** Soft enter on public routes. Skip shell routes so the left nav never animates. */
 export function PageTransition({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const reduce = useReducedMotion();
 
-  if (reduce) {
+  const skipShell =
+    pathname === "/overview" ||
+    pathname.startsWith("/overview/") ||
+    pathname === "/profile" ||
+    pathname.startsWith("/profile/") ||
+    pathname === "/my-reports" ||
+    pathname.startsWith("/my-reports/");
+
+  if (reduce || skipShell) {
     return <>{children}</>;
   }
 

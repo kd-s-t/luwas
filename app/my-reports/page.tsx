@@ -2,7 +2,7 @@
 
 import { AuthGate } from "@/components/AuthGate";
 import { CitizenReportsList } from "@/components/CitizenReportsList";
-import { CommandHeader } from "@/components/CommandHeader";
+import { CommandShell } from "@/components/CommandShell";
 import {
   PublicPageHeader,
   PublicShell,
@@ -33,8 +33,7 @@ export default function MyReportsPage() {
   return (
     <AuthGate mode="protected">
       {isOfficer(profile) ? (
-        <div className="min-h-screen">
-          <CommandHeader />
+        <CommandShell>
           <main className="mx-auto max-w-xl px-4 py-5 sm:px-6 sm:py-6">
             <div className="mb-6">
               <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-wide">
@@ -46,7 +45,7 @@ export default function MyReportsPage() {
             </div>
             {list}
           </main>
-        </div>
+        </CommandShell>
       ) : (
         <PublicShell hideFooter>
           <PublicPageHeader

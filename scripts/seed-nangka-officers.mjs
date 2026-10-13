@@ -384,7 +384,7 @@ async function main() {
     console.log("\nErrors:");
     for (const e of errors) console.log(" ", e);
   }
-  console.log("\nRefresh http://localhost:3000/command/users");
+  console.log("\nRefresh http://localhost:3000/overview/officers");
   console.log("Password for all: demo1234");
 
   await deleteApp(secondary);

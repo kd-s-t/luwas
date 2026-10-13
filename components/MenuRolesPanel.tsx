@@ -36,7 +36,7 @@ const MENU_ROLE_MATRIX: {
     l3: "Full",
   },
   {
-    menu: "Field reports",
+    menu: "Incidents",
     l1: "View / validate in purok",
     l2: "Verify & prioritize all",
     l3: "Full",
@@ -48,8 +48,14 @@ const MENU_ROLE_MATRIX: {
     l3: "Full",
   },
   {
-    menu: "Users",
-    l1: "View officers / citizens",
+    menu: "Citizens",
+    l1: "View citizens",
+    l2: "View + validate",
+    l3: "Full",
+  },
+  {
+    menu: "Officers",
+    l1: "View hierarchy",
     l2: "View roster",
     l3: "Full · add / fire staff",
   },

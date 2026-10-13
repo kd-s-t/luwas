@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Bell } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   officerScopeBarangay,
   subscribePendingAccounts,
@@ -24,13 +24,28 @@ import {
 import type { HazardReport } from "@/lib/reports/types";
 import { cn } from "@/lib/utils";
 
-export function CommandNotifications() {
+type CommandNotificationsProps = {
+  /** Sidebar footer sits at the bottom — open the panel upward. */
+  placement?: "below" | "above";
+};
+
+export function CommandNotifications({
+  placement = "below",
+}: CommandNotificationsProps) {
   const { profile } = useAuth();
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState<PendingAccount[]>([]);
   const [reports, setReports] = useState<HazardReport[]>([]);
   const [readIds, setReadIds] = useState<Set<string>>(() => new Set());
+  const [panelPos, setPanelPos] = useState<{
+    top?: number;
+    bottom?: number;
+    left: number;
+    width: number;
+    maxHeight: number;
+  } | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   const barangay = isOfficer(profile) ? officerScopeBarangay(profile) : "";
   const areaId = isOfficer(profile)
@@ -81,6 +96,42 @@ export function CommandNotifications() {
     };
   }, [open]);
 
+  useLayoutEffect(() => {
+    if (!open) {
+      setPanelPos(null);
+      return;
+    }
+    function place() {
+      const el = triggerRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const gap = 8;
+      const width = Math.min(352, window.innerWidth - 24);
+      if (placement === "above") {
+        setPanelPos({
+          bottom: window.innerHeight - r.top + gap,
+          left: Math.max(8, Math.min(r.left, window.innerWidth - width - 8)),
+          width,
+          maxHeight: Math.max(160, r.top - gap - 12),
+        });
+      } else {
+        setPanelPos({
+          top: r.bottom + gap,
+          left: Math.max(8, Math.min(r.right - width, window.innerWidth - width - 8)),
+          width,
+          maxHeight: Math.max(160, window.innerHeight - r.bottom - gap - 12),
+        });
+      }
+    }
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, [open, placement]);
+
   const items = useMemo(
     () => buildOfficerNotifications({ pending, reports }),
     [pending, reports],
@@ -114,6 +165,7 @@ export function CommandNotifications() {
   return (
     <div ref={rootRef} className="relative">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={cn(
@@ -135,9 +187,19 @@ export function CommandNotifications() {
         ) : null}
       </button>
 
-      {open ? (
-        <div className="absolute top-[calc(100%+0.4rem)] right-0 z-50 w-[min(22rem,calc(100vw-1.5rem))] border border-[var(--border)] bg-[var(--surface-raised)] shadow-[0_12px_40px_rgba(31,33,38,0.14)]">
-          <div className="flex items-center justify-between gap-2 border-b border-[var(--border)] px-3 py-2.5">
+      {open && panelPos ? (
+        <div
+          className="fixed z-[100] flex flex-col overflow-hidden border border-[var(--border)] bg-[var(--surface-raised)] text-[var(--foreground)] shadow-[0_12px_40px_rgba(31,33,38,0.14)]"
+          style={{
+            left: panelPos.left,
+            width: panelPos.width,
+            maxHeight: panelPos.maxHeight,
+            ...(panelPos.bottom != null
+              ? { bottom: panelPos.bottom }
+              : { top: panelPos.top }),
+          }}
+        >
+          <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[var(--border)] px-3 py-2.5">
             <div>
               <p className="font-mono text-[9px] tracking-[0.18em] text-[var(--accent)] uppercase">
                 Notifications
@@ -166,7 +228,7 @@ export function CommandNotifications() {
               No pending registrations or reports awaiting review.
             </p>
           ) : (
-            <ul className="max-h-[min(70vh,22rem)] overflow-y-auto divide-y divide-[var(--border)]">
+            <ul className="min-h-0 flex-1 overflow-y-auto divide-y divide-[var(--border)]">
               {items.map((n) => {
                 const isUnread = !readIds.has(n.id);
                 return (

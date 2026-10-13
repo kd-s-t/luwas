@@ -23,6 +23,10 @@ import { useAuth } from "@/lib/auth/AuthProvider";
 import { ensureKenHouseholdCitizens } from "@/lib/auth/ensureKenHouseholdCitizens";
 import { isCitizen, isOfficer } from "@/lib/auth/types";
 import {
+  scopeForProfile,
+  scopeLabel,
+} from "@/lib/reports/barangayScope";
+import {
   dedupeHouseholdsByContact,
   healHouseholdCitizenLinks,
 } from "@/lib/households/match";
@@ -107,6 +111,10 @@ const emptyForm = {
 
 export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
   const { profile } = useAuth();
+  const placeLabel = useMemo(
+    () => scopeLabel(scopeForProfile(profile)),
+    [profile],
+  );
   const [rows, setRows] = useState<Household[]>([]);
   const [citizenEmails, setCitizenEmails] = useState<Set<string>>(new Set());
   const [form, setForm] = useState(emptyForm);
@@ -120,7 +128,6 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
   const [purok, setPurok] = useState("all");
   const [pageSize, setPageSize] = useState(PAGE_SIZE_DEFAULT);
   const [page, setPage] = useState(1);
-  const [deduping, setDeduping] = useState(false);
   const [membersEditId, setMembersEditId] = useState<string | null>(null);
   const [membersOwnerName, setMembersOwnerName] = useState("");
   const [membersOwnerPhone, setMembersOwnerPhone] = useState("");
@@ -412,7 +419,7 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
               Roster
             </p>
             <h2 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-wide">
-              House owners
+              House owners · {placeLabel}
             </h2>
             {!loading && rows.length > 0 && rosterUpdatedAt ? (
               <p className="mt-1 font-mono text-[10px] tracking-wide text-[var(--muted)] uppercase">
@@ -428,32 +435,6 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
                   ? `${filtered.length.toLocaleString()} match · ${rows.length.toLocaleString()} total`
                   : `${rows.length.toLocaleString()} household${rows.length === 1 ? "" : "s"}`}
             </p>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={deduping || loading || rows.length === 0}
-              onClick={() => {
-                setDeduping(true);
-                setError(null);
-                void dedupeHouseholdsByContact(officerUid)
-                  .then(({ removed }) => {
-                    setImportMsg(
-                      removed > 0
-                        ? `Merged ${removed} duplicate house-owner row(s).`
-                        : "No duplicate contacts found.",
-                    );
-                  })
-                  .catch((err) => {
-                    setError(
-                      err instanceof Error ? err.message : "Dedupe failed",
-                    );
-                  })
-                  .finally(() => setDeduping(false));
-              }}
-            >
-              {deduping ? "Merging…" : "Merge duplicates"}
-            </Button>
             <Button type="button" size="sm" onClick={openModal}>
               <Plus className="size-4" aria-hidden />
               Add household
@@ -481,20 +462,20 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
           </div>
         ) : (
           <div className="space-y-3">
-            <div className="flex w-full min-w-0 items-center gap-2 border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2">
+            <div className="flex w-full min-w-0 flex-wrap items-center gap-2 border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2">
               <input
                 type="search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search name, address, phone…"
                 aria-label="Search households"
-                className="min-w-0 flex-1 border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-sm outline-none focus:border-[var(--accent)]"
+                className="min-w-[12rem] flex-1 border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-sm outline-none focus:border-[var(--accent)]"
               />
               <select
                 value={purok}
                 onChange={(e) => setPurok(e.target.value)}
                 aria-label="Filter by purok"
-                className="w-[8.5rem] shrink-0 border border-[var(--border)] bg-[var(--input)] px-2 py-1.5 font-mono text-xs outline-none focus:border-[var(--accent)]"
+                className="min-w-[9rem] shrink-0 border border-[var(--border)] bg-[var(--input)] px-2 py-1.5 text-sm outline-none focus:border-[var(--accent)]"
               >
                 <option value="all">All puroks</option>
                 {purokOptions.map((p) => (
@@ -507,11 +488,11 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
                 value={pageSize}
                 onChange={(e) => setPageSize(Number(e.target.value))}
                 aria-label="Rows per page"
-                className="w-[4.5rem] shrink-0 border border-[var(--border)] bg-[var(--input)] px-2 py-1.5 font-mono text-xs outline-none focus:border-[var(--accent)]"
+                className="min-w-[6.5rem] shrink-0 border border-[var(--border)] bg-[var(--input)] px-2 py-1.5 text-sm outline-none focus:border-[var(--accent)]"
               >
                 {PAGE_SIZE_OPTIONS.map((n) => (
                   <option key={n} value={n}>
-                    {n}/page
+                    {n} / page
                   </option>
                 ))}
               </select>
@@ -527,7 +508,7 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
                   Clear
                 </button>
               ) : null}
-              <p className="hidden shrink-0 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase sm:block">
+              <p className="ml-auto shrink-0 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
                 {rangeStart}–{rangeEnd} of {filtered.length.toLocaleString()}
               </p>
             </div>

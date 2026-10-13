@@ -13,6 +13,8 @@ const badgeVariants = cva(
         warn: "border-[var(--warn)]/40 bg-[var(--warn)]/10 text-[var(--warn)]",
         danger:
           "border-[var(--danger)]/40 bg-[var(--danger)]/10 text-[var(--danger)]",
+        success:
+          "border-[var(--success)]/40 bg-[var(--success)]/15 text-[var(--success)]",
       },
     },
     defaultVariants: {

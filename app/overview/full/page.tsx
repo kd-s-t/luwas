@@ -27,7 +27,7 @@ export default function CommandFullViewPage() {
     <AuthGate mode="protected" role="officer">
       <div className="relative flex h-dvh max-h-dvh w-full overflow-hidden bg-[var(--background)]">
         <a
-          href="/command"
+          href="/overview"
           className="absolute top-2 right-3 z-[1200] rounded-md border border-[var(--border)] bg-[var(--surface-raised)]/95 px-2.5 py-1 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase shadow-sm backdrop-blur hover:text-[var(--foreground)]"
         >
           Exit

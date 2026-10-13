@@ -30,7 +30,7 @@ export function ReportStatusBadge({ status, className }: ReportStatusBadgeProps)
     return (
       <span
         className={cn(
-          "inline-flex items-center gap-1.5 border border-transparent bg-[var(--accent)] px-2 py-0.5 font-mono text-[10px] tracking-wider text-[var(--on-accent)] uppercase",
+          "inline-flex items-center gap-1.5 border border-transparent bg-[var(--success)] px-2 py-0.5 font-mono text-[10px] tracking-wider text-white uppercase",
           className,
         )}
       >

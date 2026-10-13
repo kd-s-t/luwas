@@ -49,6 +49,7 @@ import {
   type OfficerProfile,
   type UserProfile,
 } from "@/lib/auth/types";
+import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -221,9 +222,17 @@ function OfficerCard({
           </span>
         ) : null}
       </div>
+      <div className="mt-2 flex justify-center">
+        <ProfileAvatar
+          name={officer.displayName || officer.email}
+          photoURL={officer.photoURL}
+          seed={officer.uid || officer.email}
+          size={tier === "apex" ? "lg" : tier === "mid" ? "md" : "sm"}
+        />
+      </div>
       <p
         className={cn(
-          "mt-1 line-clamp-2 font-medium text-[var(--foreground)]",
+          "mt-1.5 line-clamp-2 font-medium text-[var(--foreground)]",
           tier === "apex" &&
             "font-[family-name:var(--font-display)] text-base tracking-wide",
           tier !== "apex" && "text-sm",
@@ -312,6 +321,26 @@ function pyramidBand(o: OfficerProfile): number {
     return 4; // tanod / staff / volunteer
   }
   return 2;
+}
+
+/** Collapse twin citizen docs (same email) for display until Firestore purge lands. */
+function dedupeCitizens(list: CitizenProfile[]): CitizenProfile[] {
+  const byEmail = new Map<string, CitizenProfile>();
+  for (const c of list) {
+    const email = c.email.trim().toLowerCase();
+    const key = email || `uid:${c.uid}`;
+    const prev = byEmail.get(key);
+    if (!prev) {
+      byEmail.set(key, c);
+      continue;
+    }
+    const score = (x: CitizenProfile) =>
+      (x.accountStatus === "active" || x.accountStatus == null ? 10 : 0) +
+      (x.householdId ? 5 : 0) +
+      (x.phone ? 1 : 0);
+    if (score(c) > score(prev)) byEmail.set(key, c);
+  }
+  return [...byEmail.values()];
 }
 
 /** Collapse twin officer docs (same email / staffId). */
@@ -747,7 +776,15 @@ function CitizensTable({ citizens }: { citizens: CitizenProfile[] }) {
                   className="border-b border-[var(--border)]/70 last:border-0"
                 >
                   <td className="px-3 py-2.5 align-top font-medium">
-                    {c.displayName || "—"}
+                    <div className="flex items-center gap-2.5">
+                      <ProfileAvatar
+                        name={c.displayName || c.email}
+                        photoURL={c.photoURL}
+                        seed={c.uid || c.email}
+                        size="sm"
+                      />
+                      <span>{c.displayName || "—"}</span>
+                    </div>
                   </td>
                   <td className="px-3 py-2.5 align-top break-all font-mono text-xs text-[var(--muted)]">
                     {c.email}
@@ -1121,13 +1158,21 @@ function AddNewOfficerModal({
   );
 }
 
-export function BarangayUsersPanel() {
+export type BarangayUsersPanelMode = "citizens" | "officers";
+
+export function BarangayUsersPanel({
+  mode = "citizens",
+}: {
+  mode?: BarangayUsersPanelMode;
+}) {
   const { profile } = useAuth();
   const barangay = isOfficer(profile) ? officerScopeBarangay(profile) : "";
   const areaId = isOfficer(profile)
     ? profile.areaId ?? profile.activeBarangayId
     : null;
   const captain = isBarangayCaptain(profile) ? profile : null;
+  const showOfficers = mode === "officers";
+  const showCitizens = mode === "citizens";
 
   const [rows, setRows] = useState<UserProfile[]>([]);
   const [households, setHouseholds] = useState<Household[]>([]);
@@ -1243,8 +1288,10 @@ export function BarangayUsersPanel() {
 
   const citizens = useMemo(
     () =>
-      rows.filter(
-        (u): u is CitizenProfile => isCitizen(u) && isAccountActive(u),
+      dedupeCitizens(
+        rows.filter(
+          (u): u is CitizenProfile => isCitizen(u) && isAccountActive(u),
+        ),
       ),
     [rows],
   );
@@ -1316,7 +1363,7 @@ export function BarangayUsersPanel() {
   if (!isOfficer(profile)) {
     return (
       <p className="text-sm text-[var(--muted)]">
-        Sign in as a barangay officer to view users.
+        Sign in as a barangay officer to view this roster.
       </p>
     );
   }
@@ -1326,16 +1373,24 @@ export function BarangayUsersPanel() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-wide">
-            Users
+            {showOfficers ? "Officers" : "Citizens"}
           </h2>
+          <p className="mt-1 text-xs text-[var(--muted)]">
+            Brgy. {barangay}
+            {showOfficers
+              ? " · staff hierarchy and house links"
+              : " · registered citizen accounts in this barangay"}
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <p className="font-mono text-xs text-[var(--muted)]">
             {loading
               ? "…"
-              : `${officers.length} officer${officers.length === 1 ? "" : "s"} · ${citizens.length} citizen${citizens.length === 1 ? "" : "s"}`}
+              : showOfficers
+                ? `${officers.length} officer${officers.length === 1 ? "" : "s"}`
+                : `${citizens.length} citizen${citizens.length === 1 ? "" : "s"}`}
           </p>
-          {captain ? (
+          {showOfficers && captain ? (
             <>
               <Button
                 type="button"
@@ -1362,7 +1417,7 @@ export function BarangayUsersPanel() {
           {error}
         </p>
       ) : null}
-      {msg ? (
+      {msg && showOfficers ? (
         <p className="text-sm text-[var(--accent)]" role="status">
           {msg}
         </p>
@@ -1379,32 +1434,36 @@ export function BarangayUsersPanel() {
             aria-hidden
           />
           <p className="font-mono text-sm text-[var(--muted)]">
-            Loading officers…
+            {showOfficers ? "Loading officers…" : "Loading citizens…"}
           </p>
-          <p className="max-w-sm text-center text-xs text-[var(--muted)]">
-            Fetching the full roster before drawing the hierarchy.
-          </p>
+          {showOfficers ? (
+            <p className="max-w-sm text-center text-xs text-[var(--muted)]">
+              Fetching the full roster before drawing the hierarchy.
+            </p>
+          ) : null}
         </section>
       ) : (
         <div className="space-y-6">
-          <OfficersPyramid
-            barangay={barangay}
-            officers={officers}
-            canManage={Boolean(captain)}
-            captain={captain}
-            householdByOfficerUid={householdByOfficerUid}
-            showFormer={showFormer}
-            onToggleFormer={setShowFormer}
-            onFired={(err) => {
-              setError(err);
-              if (!err) setMsg("Officer removed — history kept.");
-            }}
-            onNotice={(m) => {
-              setMsg(m);
-              if (m) setError(null);
-            }}
-          />
-          <CitizensTable citizens={citizens} />
+          {showOfficers ? (
+            <OfficersPyramid
+              barangay={barangay}
+              officers={officers}
+              canManage={Boolean(captain)}
+              captain={captain}
+              householdByOfficerUid={householdByOfficerUid}
+              showFormer={showFormer}
+              onToggleFormer={setShowFormer}
+              onFired={(err) => {
+                setError(err);
+                if (!err) setMsg("Officer removed — history kept.");
+              }}
+              onNotice={(m) => {
+                setMsg(m);
+                if (m) setError(null);
+              }}
+            />
+          ) : null}
+          {showCitizens ? <CitizensTable citizens={citizens} /> : null}
         </div>
       )}
 
@@ -1415,7 +1474,7 @@ export function BarangayUsersPanel() {
         </p>
       ) : null}
 
-      {captain ? (
+      {showOfficers && captain ? (
         <>
           <AddExistingOfficerModal
             captain={captain}

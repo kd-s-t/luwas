@@ -30,10 +30,10 @@ export default function SupportPage() {
           , or use the form below when signed in. Active officers review open
           tickets at{" "}
           <Link
-            href="/command/support"
+            href="/overview/support"
             className="text-[var(--accent)] underline-offset-2 hover:underline"
           >
-            /command/support
+            /overview/support
           </Link>
           . For life-threatening emergencies, call local responders — do not
           wait on this form.

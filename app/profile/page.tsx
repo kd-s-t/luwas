@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { getDownloadURL, ref } from "firebase/storage";
 import { AuthGate } from "@/components/AuthGate";
-import { CommandHeader } from "@/components/CommandHeader";
+import { CommandShell } from "@/components/CommandShell";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import {
   PublicPageHeader,
@@ -236,10 +236,9 @@ export default function ProfilePage() {
   return (
     <AuthGate mode="protected">
       {isOfficer(profile) ? (
-        <div className="min-h-screen">
-          <CommandHeader />
+        <CommandShell>
           <ProfileBody />
-        </div>
+        </CommandShell>
       ) : (
         <PublicShell>
           <ProfileBody />

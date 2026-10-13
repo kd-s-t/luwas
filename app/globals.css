@@ -26,11 +26,16 @@
   --font-display: var(--font-display);
 }
 
+html {
+  height: 100%;
+}
+
 body {
   background: var(--surface);
   color: var(--foreground);
   font-family: var(--font-body), system-ui, sans-serif;
-  min-height: 100vh;
+  min-height: 100%;
+  min-height: 100dvh;
   background-image:
     radial-gradient(ellipse 80% 50% at 10% -10%, rgba(199, 41, 41, 0.1), transparent),
     radial-gradient(ellipse 55% 40% at 95% 0%, rgba(199, 41, 41, 0.06), transparent),

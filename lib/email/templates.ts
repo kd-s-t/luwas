@@ -365,7 +365,7 @@ Open your citizen hub: ${citizenUrl}`,
 export function buildEqAlertEmail(
   ctx: EmailSampleContext = DEFAULT_EMAIL_SAMPLE,
 ): BrandedEmailParts {
-  const mapUrl = `${appOrigin()}/command`;
+  const mapUrl = `${appOrigin()}/overview`;
   const when = "just now";
   const eq = ctx.earthquake ?? DEFAULT_EMAIL_SAMPLE.earthquake!;
   const home = ctx.home;
@@ -432,7 +432,7 @@ Situation map: ${mapUrl}`,
 export function buildFireAlertEmail(
   ctx: EmailSampleContext = DEFAULT_EMAIL_SAMPLE,
 ): BrandedEmailParts {
-  const mapUrl = `${appOrigin()}/command`;
+  const mapUrl = `${appOrigin()}/overview`;
   const when = "just now";
   const fire = ctx.fire ?? DEFAULT_EMAIL_SAMPLE.fire!;
   const home = ctx.home;
@@ -499,7 +499,7 @@ Situation map: ${mapUrl}`,
 export function buildTyphoonAlertEmail(
   ctx: EmailSampleContext = DEFAULT_EMAIL_SAMPLE,
 ): BrandedEmailParts {
-  const mapUrl = `${appOrigin()}/command`;
+  const mapUrl = `${appOrigin()}/overview`;
   const offlinePdfUrl = `${appOrigin()}/api/email/offline-kit?template=typhoon_alert`;
   const homePoint = {
     ...ctx.home,
@@ -574,7 +574,7 @@ LUWAS · Brgy. Nangka MDRRMO`,
 export function buildEvacuateAlertEmail(
   ctx: EmailSampleContext = DEFAULT_EMAIL_SAMPLE,
 ): BrandedEmailParts {
-  const mapUrl = `${appOrigin()}/command`;
+  const mapUrl = `${appOrigin()}/overview`;
   const place = ctx.purok ? ` (${ctx.purok})` : "";
   return buildBrandedEmail({
     subject: `LUWAS ALERT · ${ctx.barangay} · EVACUATE NOW`,
@@ -613,7 +613,7 @@ Guidance for responders · Tino DRRM simulation.`,
 export function buildPrepareAlertEmail(
   ctx: EmailSampleContext = DEFAULT_EMAIL_SAMPLE,
 ): BrandedEmailParts {
-  const mapUrl = `${appOrigin()}/command`;
+  const mapUrl = `${appOrigin()}/overview`;
   const place = ctx.purok ? ` (${ctx.purok})` : "";
   return buildBrandedEmail({
     subject: `LUWAS ALERT · ${ctx.barangay} · PREPARE`,

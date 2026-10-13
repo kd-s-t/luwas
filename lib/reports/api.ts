@@ -149,6 +149,12 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
           ? Number(data.vertexConfidence)
           : null,
     validatedAt: data.validatedAt != null ? String(data.validatedAt) : null,
+    investigatorUid:
+      data.investigatorUid != null ? String(data.investigatorUid) : null,
+    investigatorName:
+      data.investigatorName != null ? String(data.investigatorName) : null,
+    investigatedAt:
+      data.investigatedAt != null ? String(data.investigatedAt) : null,
     autoResponderCallAt:
       data.autoResponderCallAt != null
         ? String(data.autoResponderCallAt)
@@ -251,6 +257,9 @@ export async function createHazardReport(input: {
     vertexClass: null,
     vertexConfidence: null,
     validatedAt: null,
+    investigatorUid: null,
+    investigatorName: null,
+    investigatedAt: null,
     autoResponderCallAt: null,
     reactionCounts: { ...EMPTY_REACTION_COUNTS },
     commentCount: 0,
@@ -260,6 +269,22 @@ export async function createHazardReport(input: {
     updatedAtServer: serverTimestamp(),
   });
   return id;
+}
+
+/** Assign (or clear) the officer who will investigate this incident. */
+export async function assignReportInvestigator(input: {
+  reportId: string;
+  investigatorUid: string | null;
+  investigatorName: string | null;
+}): Promise<void> {
+  const now = new Date().toISOString();
+  await updateDoc(doc(getClientDb(), COL, input.reportId), {
+    investigatorUid: input.investigatorUid,
+    investigatorName: input.investigatorName?.trim().slice(0, 120) || null,
+    investigatedAt: input.investigatorUid ? now : null,
+    updatedAt: now,
+    updatedAtServer: serverTimestamp(),
+  });
 }
 
 export async function updateReportValidation(

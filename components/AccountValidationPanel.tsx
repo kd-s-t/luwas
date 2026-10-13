@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ProfileAvatar } from "@/components/ProfileAvatar";
 import {
   approvePendingAccount,
   officerScopeBarangay,
@@ -13,7 +14,12 @@ import { useAuth } from "@/lib/auth/AuthProvider";
 import { isAccountActive, isOfficer } from "@/lib/auth/types";
 import { Button } from "@/components/ui/button";
 
-export function AccountValidationPanel() {
+export function AccountValidationPanel({
+  roleFilter,
+}: {
+  /** When set, only show pending accounts of this role. */
+  roleFilter?: "citizen" | "officer";
+} = {}) {
   const { profile } = useAuth();
   const barangay = isOfficer(profile)
     ? officerScopeBarangay(profile)
@@ -47,6 +53,12 @@ export function AccountValidationPanel() {
   const canModerate = useMemo(
     () => isOfficer(profile) && isAccountActive(profile),
     [profile],
+  );
+
+  const visible = useMemo(
+    () =>
+      roleFilter ? rows.filter((r) => r.role === roleFilter) : rows,
+    [rows, roleFilter],
   );
 
   if (!canModerate) {
@@ -88,45 +100,68 @@ export function AccountValidationPanel() {
           Account validation
         </p>
         <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-wide">
-          Pending registrations
+          {roleFilter === "officer"
+            ? "Pending officers"
+            : roleFilter === "citizen"
+              ? "Pending citizens"
+              : "Pending registrations"}
         </h2>
         <p className="text-xs text-[var(--muted)]">
-          Brgy. {barangay} · citizens auto-validate when they match a house
-          owner; officers need peer approval
+          Brgy. {barangay}
+          {roleFilter === "officer"
+            ? " · officers need peer approval"
+            : roleFilter === "citizen"
+              ? " · citizens auto-validate when they match a house owner"
+              : " · citizens auto-validate when they match a house owner; officers need peer approval"}
         </p>
       </div>
       {error ? (
         <p className="px-4 py-2 text-sm text-[var(--danger)]">{error}</p>
       ) : null}
-      {rows.length === 0 ? (
+      {visible.length === 0 ? (
         <p className="px-4 py-8 text-sm text-[var(--muted)]">
-          No pending accounts for this barangay.
+          No pending{" "}
+          {roleFilter === "officer"
+            ? "officers"
+            : roleFilter === "citizen"
+              ? "citizens"
+              : "accounts"}{" "}
+          for this barangay.
         </p>
       ) : (
         <ul className="divide-y divide-[var(--border)]">
-          {rows.map((r) => (
+          {visible.map((r) => (
             <li
               key={r.uid}
               className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
             >
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="font-medium">{r.displayName}</p>
-                  <span className="border border-[var(--border)] px-1.5 py-0.5 font-mono text-[9px] tracking-wider uppercase text-[var(--muted)]">
-                    {r.role}
-                  </span>
-                </div>
-                <p className="mt-0.5 text-xs text-[var(--muted)]">
-                  {r.email}
-                  {r.role === "citizen" ? ` · ${r.phone} · ${r.purok}` : null}
-                  {r.role === "officer" ? ` · ${r.orgName}` : null}
-                </p>
-                {r.barangay ? (
-                  <p className="mt-1 font-mono text-[10px] tracking-wider text-[var(--accent)] uppercase">
-                    {r.barangay}
-                    {r.lgu ? `, ${r.lgu}` : ""}
+              <div className="flex min-w-0 items-start gap-3">
+                <ProfileAvatar
+                  name={r.displayName || r.email}
+                  photoURL={r.photoURL}
+                  seed={r.uid || r.email}
+                  size="md"
+                  className="mt-0.5"
+                />
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-medium">{r.displayName}</p>
+                    <span className="border border-[var(--border)] px-1.5 py-0.5 font-mono text-[9px] tracking-wider uppercase text-[var(--muted)]">
+                      {r.role}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-xs text-[var(--muted)]">
+                    {r.email}
+                    {r.role === "citizen" ? ` · ${r.phone} · ${r.purok}` : null}
+                    {r.role === "officer" ? ` · ${r.orgName}` : null}
                   </p>
-                ) : null}
+                  {r.barangay ? (
+                    <p className="mt-1 font-mono text-[10px] tracking-wider text-[var(--accent)] uppercase">
+                      {r.barangay}
+                      {r.lgu ? `, ${r.lgu}` : ""}
+                    </p>
+                  ) : null}
+                </div>
               </div>
               <div className="flex gap-2">
                 <Button

@@ -71,7 +71,11 @@ service cloud.firestore {
           request.auth.uid == userId
           || isActiveOfficer()
         );
-      allow delete: if false;
+      // Officers may delete orphan citizen profiles (email twins from seed drift).
+      // Never delete your own doc or another officer via this path.
+      allow delete: if isActiveOfficer()
+        && request.auth.uid != userId
+        && resource.data.role == "citizen";
     }
 
     // Onboarded barangay ops areas (hall pin, org, checklist).

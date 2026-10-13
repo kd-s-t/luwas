@@ -103,9 +103,9 @@ const HAZARD_ROWS = [
 ] as const;
 
 const NAV_LINKS = [
-  { href: "/command", label: "Command center" },
-  { href: "/command/reports", label: "Field reports" },
-  { href: "/command/households", label: "House owners" },
+  { href: "/overview", label: "Overview" },
+  { href: "/overview/incidents", label: "Incidents" },
+  { href: "/overview/households", label: "House owners" },
   { href: "/bootstrap#email", label: "Templates" },
   { href: "/barangays", label: "Barangays" },
   { href: "/bootstrap", label: "Bootstrap" },
@@ -191,7 +191,7 @@ export default function BootstrapKitPage() {
       { role: "user", text },
       {
         role: "ai",
-        text: "Sample reply — same shell as /command Mangluluwas.",
+        text: "Sample reply — same shell as /overview Mangluluwas.",
       },
     ]);
     setDraft("");
@@ -496,19 +496,19 @@ export default function BootstrapKitPage() {
                   Command center
                 </span>
                 <span className="inline-flex shrink-0 items-center gap-1.5 px-2 py-3 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
-                  Field reports
+                  Incidents
                   <span className="rounded-sm bg-[var(--accent)]/15 px-1 py-px text-[9px] font-semibold text-[var(--accent)]">
                     7
                   </span>
                 </span>
-                <span className="shrink-0 px-2 py-3 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
-                  My reports
-                </span>
                 <span className="inline-flex shrink-0 items-center gap-1.5 px-2 py-3 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
-                  Users
+                  Citizens
                   <span className="rounded-sm bg-[var(--accent)]/15 px-1 py-px text-[9px] font-semibold text-[var(--accent)]">
                     5
                   </span>
+                </span>
+                <span className="shrink-0 px-2 py-3 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+                  Officers
                 </span>
                 <span className="ml-auto flex shrink-0 items-center gap-2 py-2">
                   <span
@@ -540,7 +540,7 @@ export default function BootstrapKitPage() {
                 </span>
               </div>
               <p className="mt-3 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
-                Routes · /command · /command/reports · /my-reports ·
+                Routes · /overview · /overview/incidents · /my-reports ·
                 /report-incident · /profile
               </p>
             </Section>
@@ -733,7 +733,7 @@ export default function BootstrapKitPage() {
             <Section
               id="chat"
               title="Chat"
-              hint="Mangluluwas shell — matches /command (Lucide history/new/send)."
+              hint="Mangluluwas shell — matches /overview (Lucide history/new/send)."
             >
               <div className="flex max-w-md flex-col border border-[var(--border)] bg-[var(--surface)]">
                 <header className="space-y-2.5 border-b border-[var(--border)] bg-[var(--surface-panel)] px-3 py-3">

@@ -120,7 +120,7 @@ async function main() {
     console.log("ok", id, email, uid);
   }
   console.log(`\nDone · ${ok}/${STAFF.length} officers`);
-  console.log("Refresh /command/users — password demo1234");
+  console.log("Refresh /overview/officers — password demo1234");
 }
 
 main().catch((e) => {

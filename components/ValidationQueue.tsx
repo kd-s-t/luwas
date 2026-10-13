@@ -39,6 +39,9 @@ import {
 import type { HazardReport } from "@/lib/reports/types";
 import {
   downloadVertexMonthZip,
+  formatMonthLabel,
+  listVertexBatchMonths,
+  monthKey,
   reportsForVertexMonthBatch,
 } from "@/lib/reports/vertexExport";
 
@@ -51,6 +54,7 @@ export function ValidationQueue() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [exportNote, setExportNote] = useState<string | null>(null);
+  const [exportMonth, setExportMonth] = useState(monthKey());
   const [here, setHere] = useState<LatLng | null>(null);
   const [hereLabel, setHereLabel] = useState("Brgy. hall");
 
@@ -157,16 +161,32 @@ export function ValidationQueue() {
   }
 
   const orgHint = isOfficer(profile) ? profile.orgName : null;
-  const monthBatchCount = useMemo(
-    () => reportsForVertexMonthBatch(scoped).length,
+  const vertexMonths = useMemo(
+    () => listVertexBatchMonths(scoped),
     [scoped],
+  );
+
+  useEffect(() => {
+    if (vertexMonths.length === 0) return;
+    if (vertexMonths.some((m) => m.ym === exportMonth)) return;
+    const current = monthKey();
+    const pick =
+      vertexMonths.find((m) => m.ym === current)?.ym ?? vertexMonths[0]!.ym;
+    setExportMonth(pick);
+  }, [vertexMonths, exportMonth]);
+
+  const monthBatchCount = useMemo(
+    () => reportsForVertexMonthBatch(scoped, exportMonth).length,
+    [scoped, exportMonth],
   );
 
   async function exportVertexMonth() {
     setExporting(true);
     setExportNote(null);
     try {
-      const { count, fileName } = await downloadVertexMonthZip(scoped);
+      const { count, fileName } = await downloadVertexMonthZip(scoped, {
+        monthYm: exportMonth,
+      });
       setExportNote(`Downloaded ${fileName} · ${count} images`);
     } catch (err) {
       setExportNote(
@@ -188,13 +208,33 @@ export function ValidationQueue() {
             <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-wide sm:text-xl">
               Citizen field reports
             </h2>
+            <label className="inline-flex items-center gap-1.5">
+              <span className="sr-only">Vertex batch month</span>
+              <select
+                value={exportMonth}
+                onChange={(e) => setExportMonth(e.target.value)}
+                disabled={exporting || vertexMonths.length === 0}
+                className="h-8 border border-[var(--border)] bg-[var(--surface)] px-2 font-mono text-[10px] tracking-wider text-[var(--foreground)] uppercase outline-none focus:border-[var(--accent)] disabled:opacity-50"
+                title="Month to pack for Vertex"
+              >
+                {vertexMonths.length === 0 ? (
+                  <option value={exportMonth}>No photos</option>
+                ) : (
+                  vertexMonths.map((m) => (
+                    <option key={m.ym} value={m.ym}>
+                      {formatMonthLabel(m.ym)} · {m.count}
+                    </option>
+                  ))
+                )}
+              </select>
+            </label>
             <Button
               type="button"
               size="sm"
               variant="outline"
               disabled={exporting || monthBatchCount === 0}
               onClick={() => void exportVertexMonth()}
-              title="Zip + CSV for Vertex dataset luwas-vision-v1 (this month)"
+              title={`Zip + CSV for Vertex dataset luwas-vision-v1 (${formatMonthLabel(exportMonth)})`}
             >
               <Download className="size-3.5" strokeWidth={2} />
               {exporting
@@ -282,8 +322,7 @@ export function ValidationQueue() {
             <p className="mt-1 text-[11px] text-[var(--muted)]">{exportNote}</p>
           ) : (
             <p className="mt-1 hidden text-[11px] text-[var(--muted)] sm:block">
-              Vertex batch = this month&apos;s photos as zip + labels.csv for
-              luwas-vision-v1
+              Vertex batch = pick a month → zip + labels.csv for luwas-vision-v1
             </p>
           )}
           <p className="mt-0.5 text-[11px] leading-snug text-[var(--muted)] sm:hidden">

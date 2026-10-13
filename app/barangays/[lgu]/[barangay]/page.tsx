@@ -76,7 +76,7 @@ export default async function BarangayDetailPage({ params }: PageProps) {
           <p className="mb-6 text-sm text-[var(--muted)]">
             Officers can activate this barangay for command ops:{" "}
             <Link
-              href={`/command/onboard?area=${encodeURIComponent(`${lguSlug}/${brgySlug}`)}`}
+              href={`/overview/onboard?area=${encodeURIComponent(`${lguSlug}/${brgySlug}`)}`}
               className="font-medium text-[var(--accent)] underline-offset-2 hover:underline"
             >
               Start onboarding →

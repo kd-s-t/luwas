@@ -1,7 +1,7 @@
 "use client";
 
 import { AuthGate } from "@/components/AuthGate";
-import { CommandHeader } from "@/components/CommandHeader";
+import { CommandShell } from "@/components/CommandShell";
 import { HouseholdsPanel } from "@/components/HouseholdsPanel";
 import { FadeIn } from "@/components/motion/primitives";
 import { useAuth } from "@/lib/auth/AuthProvider";
@@ -12,8 +12,7 @@ export default function CommandHouseholdsPage() {
 
   return (
     <AuthGate mode="protected" role="officer">
-      <div className="min-h-screen">
-        <CommandHeader />
+      <CommandShell>
         <main className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-6">
           {user ? (
             <FadeIn delay={0.06} y={12}>
@@ -24,7 +23,7 @@ export default function CommandHouseholdsPage() {
             </FadeIn>
           ) : null}
         </main>
-      </div>
+      </CommandShell>
     </AuthGate>
   );
 }

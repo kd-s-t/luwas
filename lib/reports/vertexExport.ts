@@ -45,29 +45,60 @@ function extFromUrlOrMime(url: string, mime: string): string {
   return "jpg";
 }
 
-function monthKey(d = new Date()): string {
+/** Calendar month key `YYYY-MM` (local timezone). */
+export function monthKey(d = new Date()): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   return `${y}-${m}`;
 }
 
-function inThisMonth(iso: string, now = new Date()): boolean {
+export function monthKeyFromIso(iso: string): string | null {
   const t = Date.parse(iso);
-  if (!Number.isFinite(t)) return false;
-  const d = new Date(t);
-  return (
-    d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
-  );
+  if (!Number.isFinite(t)) return null;
+  return monthKey(new Date(t));
+}
+
+function inMonth(iso: string, ym: string): boolean {
+  return monthKeyFromIso(iso) === ym;
+}
+
+/** Human label for `YYYY-MM`, e.g. `Oct 2026`. */
+export function formatMonthLabel(ym: string): string {
+  const [ys, ms] = ym.split("-");
+  const y = Number(ys);
+  const m = Number(ms);
+  if (!Number.isFinite(y) || !Number.isFinite(m) || m < 1 || m > 12) return ym;
+  return new Date(y, m - 1, 1).toLocaleString(undefined, {
+    month: "short",
+    year: "numeric",
+  });
+}
+
+export type VertexMonthOption = { ym: string; count: number };
+
+/** Months that have exportable photo reports, newest first. */
+export function listVertexBatchMonths(rows: HazardReport[]): VertexMonthOption[] {
+  const counts = new Map<string, number>();
+  for (const r of rows) {
+    if (!r.mediaUrl || r.mediaType !== "photo") continue;
+    if (r.status === "rejected") continue;
+    const ym = monthKeyFromIso(r.createdAt);
+    if (!ym) continue;
+    counts.set(ym, (counts.get(ym) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([ym, count]) => ({ ym, count }))
+    .sort((a, b) => b.ym.localeCompare(a.ym));
 }
 
 export function reportsForVertexMonthBatch(
   rows: HazardReport[],
-  now = new Date(),
+  ym: string,
 ): HazardReport[] {
   return rows.filter((r) => {
     if (!r.mediaUrl || r.mediaType !== "photo") return false;
     if (r.status === "rejected") return false;
-    return inThisMonth(r.createdAt, now);
+    return inMonth(r.createdAt, ym);
   });
 }
 
@@ -80,17 +111,16 @@ export function reportsForVertexMonthBatch(
  */
 export async function downloadVertexMonthZip(
   rows: HazardReport[],
-  opts?: { bucket?: string; now?: Date },
+  opts?: { bucket?: string; monthYm?: string },
 ): Promise<{ count: number; fileName: string }> {
-  const now = opts?.now ?? new Date();
-  const batch = reportsForVertexMonthBatch(rows, now);
+  const ym = opts?.monthYm ?? monthKey();
+  const batch = reportsForVertexMonthBatch(rows, ym);
   if (batch.length === 0) {
-    throw new Error("No photo reports this month to export.");
+    throw new Error(`No photo reports in ${formatMonthLabel(ym)} to export.`);
   }
 
   const JSZip = (await import("jszip")).default;
   const zip = new JSZip();
-  const ym = monthKey(now);
   const bucket = (opts?.bucket || "YOUR_BUCKET").trim() || "YOUR_BUCKET";
   const prefix = `luwas-vision/${ym}`;
 
@@ -119,7 +149,9 @@ export async function downloadVertexMonthZip(
   }
 
   if (packed === 0) {
-    throw new Error("Could not download any report images for this month.");
+    throw new Error(
+      `Could not download any report images for ${formatMonthLabel(ym)}.`,
+    );
   }
 
   zip.file("labels.csv", relLines.join("\n") + "\n");

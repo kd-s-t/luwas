@@ -2,6 +2,8 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { AuthPageSkeleton } from "@/components/AuthPageSkeleton";
+import { PageLoadSkeleton } from "@/components/PageLoadSkeleton";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import {
   isAccountActive,
@@ -21,7 +23,7 @@ type AuthGateProps = {
 
 function homeForRole(role: UserRole | undefined) {
   if (role === "citizen") return "/my-reports";
-  return "/command";
+  return "/overview";
 }
 
 export function AuthGate({
@@ -67,13 +69,7 @@ export function AuthGate({
   }, [loading, mode, router, user, profile, role, allowPending]);
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[var(--surface)] text-[var(--muted)]">
-        <p className="font-mono text-sm tracking-widest uppercase">
-          Establishing link…
-        </p>
-      </div>
-    );
+    return mode === "guest" ? <AuthPageSkeleton /> : <PageLoadSkeleton />;
   }
 
   if (mode === "protected" && !user) return null;

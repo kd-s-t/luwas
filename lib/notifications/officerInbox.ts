@@ -51,7 +51,8 @@ export function buildOfficerNotifications(input: {
       kind: "pending_registration",
       title: "Pending registration",
       body: `${u.displayName || u.email} · ${u.role}`,
-      href: "/command/users",
+      href:
+        u.role === "officer" ? "/overview/officers" : "/overview/citizens",
       createdAt: u.createdAt || "",
     });
   }
@@ -66,7 +67,7 @@ export function buildOfficerNotifications(input: {
           ? "Needs human review"
           : "Report awaiting review",
       body: r.title || r.id,
-      href: "/command/reports",
+      href: "/overview/incidents",
       createdAt: r.createdAt || "",
     });
   }

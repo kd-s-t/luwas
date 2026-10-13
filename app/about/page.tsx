@@ -18,8 +18,8 @@ const TEAM = [
     slug: "don-sebial",
     name: "Don Sebial",
     short: "Don",
-    role: "UI/UX and Graphic Design",
-    focus: "Visual system and experience",
+    role: "Product Designer",
+    focus: "UI/UX and Graphic Design",
     bio: "Shapes how LUWAS looks and feels: brand direction, map and command layout, citizen report UX, motion, and graphic assets so officers and residents can read urgency at a glance without clutter.",
   },
   {
