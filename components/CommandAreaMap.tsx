@@ -248,10 +248,10 @@ function trackEtaSamples(
   return out;
 }
 
-/** Lucide Tornado — typhoon / tropical cyclone marker. */
+/** Red spiral PNG — typhoon eye marker (slow CSS spin). Keep tiny — PNG is 434px. */
 function typhoonIcon() {
   return L.divIcon({
-    className: "dro-map-marker",
+    className: "dro-map-marker dro-map-marker-typhoon",
     html: lucideTyphoonMarkerHtml(28),
     iconSize: [28, 28],
     iconAnchor: [14, 14],
@@ -1177,7 +1177,7 @@ export default function CommandAreaMap({
         const role = r.kind === "bfp" ? "Fire station (BFP)" : "Hospital";
         // Versioned key remounts DivIcon — HMR left the old Lucide flame stuck.
         const markerKey =
-          r.kind === "bfp" ? `${r.id}-helmet-v3` : `${r.id}-v1`;
+          r.kind === "bfp" ? `${r.id}-helmet-v5` : `${r.id}-v1`;
         return (
           <Marker
             key={markerKey}

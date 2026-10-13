@@ -9,27 +9,25 @@ export type SpeakEmotion =
 export function inferSpeakEmotion(raw: string): SpeakEmotion {
   const t = raw.toLowerCase();
   if (
-    /evacuat|immediate|urgent|rescue|stranded|roof|fire|sunog|drowning|sos|now\b|life.?threat|dispatch/.test(
+    /\b(evacuat\w*|immediate|urgent|rescue|stranded|roof|fire|sunog|drowning|sos|life[\s-]?threat|dispatch)\b/.test(
       t,
     )
   ) {
     return "urgent";
   }
   if (
-    /crime|police|pnp|accident|hospital|fatal|injured|warning|hazard|landslide/.test(
-      t,
-    )
+    /\b(crime|police|pnp|accident|hospital|fatal|injured|landslide)\b/.test(t)
   ) {
     return "serious";
   }
   if (
-    /good (news|job)|well done|kumusta|welcome|salamat|glad|safe|monitor|prepare/.test(
-      t,
-    )
+    /\b(good (news|job)|well done|kumusta|welcome|salamat|glad)\b/.test(t)
   ) {
     return "warm";
   }
-  if (/triage|stand by|ready|can help|let'?s|next step|i'?ll/.test(t)) {
+  if (
+    /\b(run triage|stand by|next step|can help)\b/.test(t)
+  ) {
     return "encouraging";
   }
   return "calm";
@@ -83,39 +81,28 @@ export function elevenVoiceSettings(emotion: SpeakEmotion): {
 }
 
 /**
- * Light spoken delivery cue (natural English) so the model leans emotional
- * without dumping a stage direction the officer hears as a label.
+ * Clean reply text for TTS. Emotion is applied via ElevenLabs voice_settings only —
+ * never prepend stage directions (those were being read aloud as the first words).
  */
 function cleanForSpeech(raw: string): string {
   return raw
     .replace(/\s*\(Gemini[^)]*\)\s*/gi, " ")
     .replace(/\s*\(local[^)]*\)\s*/gi, " ")
+    .replace(
+      /^\s*speaking with (urgency and concern|firmly and clearly|warmly and calmly|steady encouragement)\.\s*/i,
+      "",
+    )
     .replace(/[·•]/g, ",")
     .replace(/\s+/g, " ")
     .trim();
 }
 
+/** Spoken script for ElevenLabs — reply text only; `emotion` kept for API callers. */
 export function textWithEmotionDelivery(
   raw: string,
-  emotion: SpeakEmotion,
+  _emotion: SpeakEmotion,
 ): string {
   const text = cleanForSpeech(raw);
   if (!text) return "";
-  // Cap length for latency / ElevenLabs limits.
-  const clipped =
-    text.length > 2200 ? `${text.slice(0, 2200).trim()}…` : text;
-
-  switch (emotion) {
-    case "urgent":
-      return `Speaking with urgency and concern. ${clipped}`;
-    case "serious":
-      return `Speaking firmly and clearly. ${clipped}`;
-    case "warm":
-      return `Speaking warmly and calmly. ${clipped}`;
-    case "encouraging":
-      return `Speaking with steady encouragement. ${clipped}`;
-    case "calm":
-    default:
-      return clipped;
-  }
+  return text.length > 2200 ? `${text.slice(0, 2200).trim()}…` : text;
 }

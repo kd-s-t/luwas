@@ -534,7 +534,7 @@ export function MangluluwasChat({
                   ttsMuted
                     ? "Voice muted · click to hear replies"
                     : elevenReady
-                      ? "Voice on · ElevenLabs (George) · browser fallback"
+                      ? "Voice on · ElevenLabs (Si Airmac) · browser fallback"
                       : "Voice on · browser speech"
                 }
               >

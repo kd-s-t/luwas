@@ -5,17 +5,6 @@ type LucideStrokeIcon = {
   viewBox?: string;
 };
 
-/** lucide: Tornado */
-const TORNADO: LucideStrokeIcon = {
-  paths: [
-    "M21 4H3",
-    "M18 8H6",
-    "M19 12H9",
-    "M16 16h-6",
-    "M11 20H9",
-  ],
-};
-
 /** lucide: Mountain */
 const MOUNTAIN: LucideStrokeIcon = {
   paths: ['m8 3 4 8 5-5 5 15H2L8 3z'],
@@ -41,13 +30,10 @@ const SLIDE_STROKE: Record<"watch" | "warning" | "critical", string> = {
   critical: "#8b4513",
 };
 
+/** Red spiral PNG — no chip bg; spins clockwise (see `.dro-map-tornado-spin`). */
 export function lucideTyphoonMarkerHtml(size = 28): string {
-  const svg = strokeSvg(TORNADO, {
-    size: size - 6,
-    stroke: "#1d4ed8",
-    className: "dro-map-lucide-typhoon",
-  });
-  return `<span class="dro-map-lucide-wrap dro-map-lucide-wrap-typhoon">${svg}</span>`;
+  const px = Math.max(18, Math.min(32, size));
+  return `<span class="dro-map-tornado-pin" style="display:block;width:${px}px;height:${px}px;background:transparent;border:none;box-shadow:none;overflow:visible"><span class="dro-map-tornado-spin" aria-hidden="true"><img src="/map/tornado.png?v=4" alt="Typhoon" width="${px}" height="${px}" draggable="false" style="display:block;width:${px}px;height:${px}px;background:transparent" /></span></span>`;
 }
 
 export function lucideLandslideMarkerHtml(
@@ -136,12 +122,12 @@ export function facilityMarkerHtml(
       ? ' style="color:#57534e;border-color:#57534e;background:#fafaf9;width:28px;height:28px"'
       : ' style="width:28px;height:28px"';
 
-  // BFP: firefighter helmet PNG (never Lucide flame — Leaflet caches DivIcon HTML).
+  // BFP: firefighter helmet PNG — transparent (no black chip). Version query busts Leaflet DivIcon cache.
   if (kind === "bfp") {
-    const img = size - 2;
+    const px = 28;
     const bfpStyle =
-      ' style="width:28px;height:28px;padding:0;overflow:hidden;color:#c72929;border-color:#c72929;background:#000"';
-    return `<span class="${wrapClass} dro-map-lucide-wrap-facility-bfp-img"${bfpStyle}><img src="/map/bfp-helmet.png?v=3" alt="BFP" width="${img}" height="${img}" class="dro-map-bfp-helmet" draggable="false" style="display:block;width:100%;height:100%;object-fit:cover;border-radius:9999px" /></span>`;
+      ' style="width:28px;height:28px;padding:0;margin:0;overflow:visible;background:transparent;border:none;box-shadow:none"';
+    return `<span class="dro-map-bfp-pin dro-map-lucide-wrap-facility-bfp-img"${bfpStyle}><img src="/map/bfp-helmet.png?v=5" alt="BFP" width="${px}" height="${px}" class="dro-map-bfp-helmet" draggable="false" style="display:block;width:28px;height:28px;object-fit:contain;background:transparent" /></span>`;
   }
 
   // Evac houses: slate dry / orange flooded. Never life-green (#2e8c57).

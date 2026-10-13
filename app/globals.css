@@ -225,11 +225,55 @@ body {
   box-shadow: 0 1px 4px rgba(31, 33, 38, 0.2);
 }
 
-.dro-map-lucide-wrap-typhoon {
-  width: 28px;
-  height: 28px;
-  color: #1d4ed8;
-  border-color: #1d4ed8;
+.dro-map-marker-typhoon {
+  width: 28px !important;
+  height: 28px !important;
+  background: transparent !important;
+  border: none !important;
+}
+
+.dro-map-tornado-pin {
+  display: block;
+  width: 28px !important;
+  height: 28px !important;
+  padding: 0;
+  margin: 0;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  overflow: visible;
+}
+
+/* Spin inner span — Leaflet owns transform on .leaflet-marker-icon. */
+.dro-map-tornado-spin {
+  display: block !important;
+  width: 28px !important;
+  height: 28px !important;
+  transform-origin: 50% 50%;
+  /* Clockwise (opposite of the earlier CCW spin). */
+  animation: dro-tornado-spin 5s linear infinite !important;
+  pointer-events: none;
+  user-select: none;
+  will-change: rotate;
+  background: transparent !important;
+}
+
+.dro-map-tornado-spin img {
+  display: block;
+  width: 28px !important;
+  height: 28px !important;
+  object-fit: contain;
+  background: transparent !important;
+  pointer-events: none;
+}
+
+@keyframes dro-tornado-spin {
+  from {
+    rotate: 0deg;
+  }
+  to {
+    rotate: -360deg;
+  }
 }
 
 .dro-map-lucide-wrap-slide {
@@ -293,21 +337,27 @@ body {
 
 .dro-map-lucide-wrap-facility-bfp {
   color: #c72929;
-  background: #ffffff;
-  border-color: #c72929;
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 
-.dro-map-lucide-wrap-facility-bfp-img {
-  overflow: hidden;
+.dro-map-lucide-wrap-facility-bfp-img,
+.dro-map-bfp-pin {
+  overflow: visible;
   padding: 0;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 .dro-map-bfp-helmet {
   display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 9999px;
+  width: 28px !important;
+  height: 28px !important;
+  object-fit: contain;
+  background: transparent !important;
+  border-radius: 0;
 }
 
 .dro-map-lucide-wrap-facility-hospital {

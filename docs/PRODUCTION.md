@@ -24,6 +24,27 @@ Gemini orchestrates needs and resources; Firebase hosts auth, data, and the live
 
 **Non-Google:** Twilio SMS for barangay phones (`/api/alerts/sms`); Twilio Voice for outbound calls (`/api/alerts/call`) — household evacuate blasts **and** officer-triggered BFP/PNP/hospital/tanod dials from `responderStations`. Without the matching env vars each channel runs in **demo mode** (logs only). Never auto-dial 911. Google FCM is push-to-app, not SMS to MSISDNs.
 
+## ElevenLabs TTS (Mangluluwas Speak)
+
+Server route: `POST /api/ai/tts`. Set `ELEVENLABS_API_KEY` (and optional `ELEVENLABS_VOICE_ID` / `ELEVENLABS_MODEL_ID`) in App Hosting secrets / `.env.local`. First play per reply is cached (memory + Storage `audioUrl` + process LRU) so Speak replay does not regenerate.
+
+| Voice | Voice ID | Notes |
+|-------|----------|--------|
+| **Si Airmac** (default) | `V9wXgxyhEFNo2WPR5uBy` | Voice Library; needs **paid** plan for API (e.g. Starter) |
+| **Grandpa Spuds Oxley** | `NOpBlnGInO9m6vDvFkFC` | Library; paid API |
+| **Bertch - Travel Buddy** | `2YPDVPh2YeXiRMgJXtvc` | Library; paid API |
+| **George** (fallback) | `JBFqnCBsd6RMkjVDRZzb` | Premade; used if library returns `paid_plan_required` |
+
+```bash
+# Default (Si Airmac). Override with Spuds / Bertch / George as needed.
+ELEVENLABS_VOICE_ID=V9wXgxyhEFNo2WPR5uBy
+# ELEVENLABS_VOICE_ID=NOpBlnGInO9m6vDvFkFC
+# ELEVENLABS_VOICE_ID=2YPDVPh2YeXiRMgJXtvc
+# ELEVENLABS_VOICE_ID=JBFqnCBsd6RMkjVDRZzb
+```
+
+Free tier: library voices often return `paid_plan_required`; client falls back to George, then browser `speechSynthesis`.
+
 ## Data (Firestore)
 
 Slice 1 collections:
