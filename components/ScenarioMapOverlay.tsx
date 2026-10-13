@@ -19,16 +19,12 @@ export function ScenarioMapOverlay({ className }: { className?: string }) {
         className,
       )}
     >
-      <div
-        className="pointer-events-auto flex max-w-full items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)]/92 px-2 py-1.5 shadow-md backdrop-blur-md sm:rounded-full sm:px-2.5 sm:py-1"
-        title={bundle.blurb}
-      >
-        <p className="hidden min-w-0 truncate pl-1 font-mono text-[10px] tracking-[0.14em] text-[var(--muted)] uppercase sm:block">
-          <span className="text-[var(--accent)]">Tino</span>
-          <span className="mx-1 text-[var(--border)]">·</span>
-          <span className="text-[var(--foreground)]">{bundle.shortLabel}</span>
-        </p>
-        <ScenarioSwitcher phase={phase} onChange={setPhase} />
+      <div className="pointer-events-auto" title={bundle.blurb}>
+        <ScenarioSwitcher
+          phase={phase}
+          onChange={setPhase}
+          className="shadow-md [&_[role=tablist]]:border-[var(--border)]/80 [&_[role=tablist]]:bg-[var(--surface-raised)]/92 [&_[role=tablist]]:backdrop-blur-md"
+        />
       </div>
     </div>
   );

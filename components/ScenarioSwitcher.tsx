@@ -23,7 +23,7 @@ export function ScenarioSwitcher({
       <div
         role="tablist"
         aria-label="DRRM scenario phase"
-        className="inline-flex border border-[var(--border)] bg-[var(--surface)]"
+        className="inline-flex overflow-hidden rounded-full border border-[var(--border)] bg-[var(--surface)]"
       >
         {SCENARIO_PHASES.map((p) => {
           const active = p === phase;
@@ -36,7 +36,7 @@ export function ScenarioSwitcher({
               aria-selected={active}
               onClick={() => onChange(p)}
               className={cn(
-                "min-w-[3.5rem] px-2.5 py-1 font-mono text-[9px] tracking-wider uppercase transition",
+                "min-w-[3.5rem] px-2.5 py-1.5 font-mono text-[9px] tracking-wider uppercase transition",
                 active
                   ? "bg-[var(--accent)] text-white"
                   : "text-[var(--muted)] hover:bg-[var(--surface-panel)] hover:text-[var(--foreground)]",

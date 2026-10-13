@@ -371,7 +371,10 @@ function OfficersFlowCanvas({
   edges: Edge[];
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
-  const flowRef = useRef<ReactFlowInstance | null>(null);
+  const flowRef = useRef<ReactFlowInstance<
+    FlowNode<OfficerNodeData>,
+    Edge
+  > | null>(null);
   const [width, setWidth] = useState(0);
 
   useEffect(() => {
