@@ -37,11 +37,17 @@ export default function CommandPage() {
     }
   }
 
+  const mapFills = view === "map";
+
   return (
     <AuthGate mode="protected" role="officer">
-      <div className="min-h-dvh">
+      <div
+        className={
+          mapFills ? "flex h-dvh max-h-dvh flex-col overflow-hidden" : "min-h-dvh"
+        }
+      >
         <CommandHeader />
-        <div className="flex flex-col gap-2 border-b border-[var(--border)] bg-[var(--surface-raised)]/80 px-3 py-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-6">
+        <div className="flex shrink-0 flex-col gap-2 border-b border-[var(--border)] bg-[var(--surface-raised)]/80 px-3 py-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-6">
           <p className="min-w-0 truncate text-xs text-[var(--muted)]">
             {view === "workspace"
               ? "Evidence, decisions, and activity for each report"
@@ -59,13 +65,22 @@ export default function CommandPage() {
             <CommandViewSwitch value={view} onChange={changeView} />
           </div>
         </div>
-        <main className="w-full">
+        <main
+          className={
+            mapFills ? "flex min-h-0 w-full flex-1 flex-col" : "w-full"
+          }
+        >
           {user ? (
-            <FadeIn delay={0.06} y={0} key={view}>
+            <FadeIn
+              delay={0.06}
+              y={0}
+              key={view}
+              className={mapFills ? "flex min-h-0 flex-1 flex-col" : undefined}
+            >
               {view === "workspace" ? (
                 <IncidentWorkspace />
               ) : (
-                <SituationMap officerUid={user.uid} />
+                <SituationMap officerUid={user.uid} fillRemaining />
               )}
             </FadeIn>
           ) : null}

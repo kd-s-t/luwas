@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CommandAreaMapMount } from "@/components/CommandAreaMapMount";
+import { ScenarioMapOverlay } from "@/components/ScenarioMapOverlay";
 import type { AssistEscapeRoute, AssistPriority } from "@/lib/ai/assistTypes";
 import {
   loadBarangayMapSnapshot,
@@ -428,6 +429,7 @@ export function PublicSituationMap() {
               scenarioPhase={bundle.phase}
               scrollWheelZoom={false}
             />
+            <ScenarioMapOverlay />
           </div>
           <div className="-mx-px flex gap-2 overflow-x-auto overscroll-x-contain border-t border-[var(--border)] px-3 py-2.5 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase [-ms-overflow-style:none] [scrollbar-width:none] sm:flex-wrap sm:overflow-visible sm:px-4 sm:py-3 [&::-webkit-scrollbar]:hidden">
             {userLocation ? (
