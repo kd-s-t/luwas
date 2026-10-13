@@ -63,7 +63,7 @@ const ORIENTATION_POINTS = [
   },
   {
     title: "From the LUWAS Devs",
-    body: "UgnAI Labs built this playbook so every new barangay activates the same way. If something’s unclear, note it for Support — we iterate with field feedback.",
+    body: "UgnAI Labs sells LUWAS as a paid product. Subscribing barangays activate the same way. If something’s unclear, note it for Support — we iterate with paying customers.",
   },
 ] as const;
 
@@ -409,7 +409,7 @@ export function BarangayOnboardWizard({ defaultOrgName = "" }: Props) {
 
       {draft.step === "orientation" ? (
         <section className="border border-[var(--border)] bg-[var(--surface-raised)] p-4 sm:p-5">
-          <p className="font-mono text-[10px] tracking-[0.2em] text-[var(--accent)] uppercase">
+          <p className="font-mono text-[10px] tracking-[0.16em] text-[var(--accent)]">
             From the LUWAS Devs · UgnAI Labs
           </p>
           <h2 className="mt-1 font-[family-name:var(--font-display)] text-xl font-semibold">

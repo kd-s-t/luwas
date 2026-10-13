@@ -2,7 +2,12 @@
  * Email alert dispatch for household contacts.
  * Primary: Resend HTTP API (server-only).
  * Without RESEND_* creds, runs in demo mode (logs, no inbox send).
+ *
+ * Sandbox: RESEND_SANDBOX=mode redirects every email to RESEND_SANDBOX_TO
+ * (same idea as TWILIO_SANDBOX for Voice/SMS).
  */
+
+import { resendSandboxTos } from "@/lib/alerts/emailSandbox";
 
 export type EmailSendResult = {
   to: string;
@@ -88,6 +93,7 @@ export async function sendEmailBatch(
 ): Promise<{ provider: "resend" | "demo"; results: EmailSendResult[] }> {
   const useResend = resendConfigured();
   const results: EmailSendResult[] = [];
+  const sandboxTos = resendSandboxTos();
 
   for (const r of recipients) {
     const detail = {
@@ -114,17 +120,51 @@ export async function sendEmailBatch(
       });
       continue;
     }
-    try {
-      const sent = await sendViaResend(r.to, r.subject, r.body, r.html);
-      results.push({ ...sent, ...detail });
-    } catch (err) {
-      results.push({
-        to: r.to,
-        ok: false,
-        provider: "resend",
-        error: err instanceof Error ? err.message : "Send failed",
-        ...detail,
-      });
+
+    const mailTargets = sandboxTos.length > 0 ? sandboxTos : [r.to.trim()];
+    const subject =
+      sandboxTos.length > 0
+        ? `[SANDBOX → ${r.to}] ${r.subject}`
+        : r.subject;
+    const text =
+      sandboxTos.length > 0
+        ? `LUWAS sandbox. Intended for ${r.to}.\n\n${r.body}`
+        : r.body;
+    const html =
+      sandboxTos.length > 0 && r.html?.trim()
+        ? `<p><strong>LUWAS sandbox.</strong> Intended for ${r.to}.</p>${r.html}`
+        : r.html;
+
+    for (const mailTo of mailTargets) {
+      if (sandboxTos.length > 0) {
+        console.info(
+          "[email:sandbox]",
+          "intended",
+          r.to,
+          "→ mail",
+          mailTo,
+          r.meta?.ownerName ?? "",
+        );
+      }
+      try {
+        const sent = await sendViaResend(mailTo, subject, text, html);
+        results.push({
+          ...sent,
+          // Keep intended recipient in the log; actual inbox is sandbox when set.
+          to: r.to,
+          ...detail,
+          subject,
+        });
+      } catch (err) {
+        results.push({
+          to: r.to,
+          ok: false,
+          provider: "resend",
+          error: err instanceof Error ? err.message : "Send failed",
+          ...detail,
+          subject,
+        });
+      }
     }
   }
 

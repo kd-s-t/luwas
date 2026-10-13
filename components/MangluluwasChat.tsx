@@ -11,15 +11,24 @@ import {
 } from "react";
 import {
   ArrowUp,
-  Eraser,
   History,
+  List,
   MapPinned,
   Plus,
   Trash2,
+  Volume2,
+  VolumeX,
   X,
 } from "lucide-react";
 import type { AssistResult } from "@/lib/ai/assistTypes";
-import { enrichActionsWithContacts } from "@/lib/ai/callList";
+import {
+  enrichActionsWithContacts,
+  MAP_LEGEND_ITEMS,
+  MAP_LEGEND_MARKER,
+  STOCK_LIST_ITEMS,
+  STOCK_LIST_MARKER,
+  stripTriageProseNoise,
+} from "@/lib/ai/callList";
 import type { ChatMessage, SmsLogEntry } from "@/lib/ai/chatTypes";
 import { relativeTime } from "@/lib/ai/chatHistory";
 import {
@@ -28,6 +37,24 @@ import {
 } from "@/lib/ai/geminiModels";
 import { phoneToTelHref } from "@/lib/geo/responderStations";
 import type { Household } from "@/lib/households/types";
+import {
+  isBrowserTtsAvailable,
+  isWeakDefaultVoice,
+  pickDefaultTtsVoiceUri,
+  readTtsMuted,
+  warmSpeechVoices,
+  writeTtsMuted,
+  writeTtsVoiceUri,
+} from "@/lib/speech/browserTts";
+import {
+  autoSpokenMessageIds,
+  speakAndPersistAssistantReply,
+} from "@/lib/speech/assistantTts";
+import {
+  probeElevenLabsReady,
+  stopAiSpeech,
+  subscribeAiSpeaking,
+} from "@/lib/speech/elevenTts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,20 +62,149 @@ import {
   DialogBody,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
+function MapColorLegend() {
+  return (
+    <div className="mt-2 border border-[var(--border)] bg-[var(--surface-panel)] px-2.5 py-2">
+      <p className="font-mono text-[9px] tracking-wider text-[var(--muted)] uppercase">
+        Map legend
+      </p>
+      <ul className="mt-1.5 flex flex-col gap-1.5">
+        {MAP_LEGEND_ITEMS.map((item) => (
+          <li key={item.label} className="flex items-start gap-2 text-xs">
+            <span
+              className="mt-0.5 size-2.5 shrink-0 rounded-full border border-white shadow-sm"
+              style={{ background: item.color }}
+              aria-hidden
+            />
+            <span>
+              <span className="font-semibold text-[var(--foreground)]">
+                {item.label}
+              </span>
+              <span className="text-[var(--muted)]"> · {item.detail}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function StockChecklist() {
+  return (
+    <div className="mt-2 border border-[var(--border)] bg-[var(--surface-panel)] px-2.5 py-2">
+      <p className="font-mono text-[9px] tracking-wider text-[var(--muted)] uppercase">
+        Stock ECs · schools · hall
+      </p>
+      <ul className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1">
+        {STOCK_LIST_ITEMS.map((item) => (
+          <li
+            key={item}
+            className="flex items-center gap-1.5 text-xs text-[var(--foreground)]"
+          >
+            <span
+              className="size-1.5 shrink-0 rounded-full bg-[var(--accent)]"
+              aria-hidden
+            />
+            {item}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function looksLikeTriageProse(content: string): boolean {
+  return (
+    content.includes(MAP_LEGEND_MARKER) ||
+    content.includes(STOCK_LIST_MARKER) ||
+    /\bred household dots\b/i.test(content) ||
+    /\bBlue squares outline\b/i.test(content) ||
+    /\brunning the AI triage\b/i.test(content) ||
+    /\bAI-predicted flood\b/i.test(content) ||
+    /\bPlease ensure our evacuation centers\b/i.test(content)
+  );
+}
+
+function AssistRichBody({
+  content,
+  forcePanels,
+}: {
+  content: string;
+  /** Always show legend + stock (map-assist replies / old Gemini prose). */
+  forcePanels?: boolean;
+}) {
+  const cleaned = stripTriageProseNoise(content);
+  const hasMarkers =
+    content.includes(MAP_LEGEND_MARKER) || content.includes(STOCK_LIST_MARKER);
+  const showPanels = Boolean(forcePanels || hasMarkers || looksLikeTriageProse(content));
+
+  if (!hasMarkers) {
+    return (
+      <div className="flex flex-col gap-0.5">
+        {cleaned ? (
+          <p className="whitespace-pre-wrap">{cleaned}</p>
+        ) : null}
+        {showPanels ? (
+          <>
+            <MapColorLegend />
+            <StockChecklist />
+          </>
+        ) : null}
+      </div>
+    );
+  }
+
+  const parts = content.split(
+    new RegExp(`(${MAP_LEGEND_MARKER}|${STOCK_LIST_MARKER})`, "g"),
+  );
+  let legendShown = false;
+  let stockShown = false;
+  return (
+    <div className="flex flex-col gap-0.5">
+      {parts.map((part, i) => {
+        if (part === MAP_LEGEND_MARKER) {
+          legendShown = true;
+          return <MapColorLegend key={`legend-${i}`} />;
+        }
+        if (part === STOCK_LIST_MARKER) {
+          stockShown = true;
+          return <StockChecklist key={`stock-${i}`} />;
+        }
+        const text = stripTriageProseNoise(part);
+        if (!text) return null;
+        return (
+          <p key={`text-${i}`} className="whitespace-pre-wrap">
+            {text}
+          </p>
+        );
+      })}
+      {showPanels && !legendShown ? <MapColorLegend /> : null}
+      {showPanels && !stockShown ? <StockChecklist /> : null}
+    </div>
+  );
+}
+
 function SmsReplyBody({
   content,
   smsLog,
   onOpenLog,
+  assistApplied,
 }: {
   content: string;
   smsLog?: SmsLogEntry[];
   onOpenLog: (log: SmsLogEntry[]) => void;
+  assistApplied?: boolean;
 }) {
+  if ((assistApplied || looksLikeTriageProse(content)) && !smsLog?.length) {
+    return <AssistRichBody content={content} forcePanels />;
+  }
+
   if (!smsLog?.length) {
     return <p className="whitespace-pre-wrap">{content}</p>;
   }
@@ -124,6 +280,18 @@ type MangluluwasChatProps = {
   onNewChat: () => void;
   onSelectChat: (id: string) => void;
   onDeleteChat: (id: string) => void;
+  /** Officer uid — upload TTS audio to Storage when missing. */
+  officerUid?: string | null;
+  /** Persist cached audio URL onto the message (Firestore + local). */
+  onMessageAudio?: (
+    messageId: string,
+    audio: {
+      audioUrl: string;
+      audioStoragePath: string;
+      ttsEmotion?: string;
+      ttsProvider?: "elevenlabs" | "browser";
+    },
+  ) => void;
   className?: string;
 };
 
@@ -143,12 +311,31 @@ export function MangluluwasChat({
   onNewChat,
   onSelectChat,
   onDeleteChat,
+  officerUid = null,
+  onMessageAudio,
   className,
 }: MangluluwasChatProps) {
   const [draft, setDraft] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [callListOpen, setCallListOpen] = useState(false);
   const [smsLogOpen, setSmsLogOpen] = useState<SmsLogEntry[] | null>(null);
+  const [ttsMuted, setTtsMuted] = useState(false);
+  const [ttsReady, setTtsReady] = useState(false);
+  const [elevenReady, setElevenReady] = useState(false);
+  const [ttsSpeaking, setTtsSpeaking] = useState(false);
+  /** Message currently being read aloud — only that bubble enables Shut up. */
+  const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
+  /** Silent browser fallback voice (no dropdown) when ElevenLabs fails / out of credits. */
+  const browserVoiceUriRef = useRef<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const spokenIdRef = useRef<string | null>(null);
+  const skipSpeakOnMountRef = useRef(true);
+  const officerUidRef = useRef(officerUid);
+  const activeChatIdRef = useRef(activeChatId);
+  const onMessageAudioRef = useRef(onMessageAudio);
+  officerUidRef.current = officerUid;
+  activeChatIdRef.current = activeChatId;
+  onMessageAudioRef.current = onMessageAudio;
 
   const callActions = useMemo(() => {
     if (!callListVisible || !result?.actions.length) return [];
@@ -170,10 +357,110 @@ export function MangluluwasChat({
   }, [evacuateActions]);
 
   useEffect(() => {
+    const browserOk = isBrowserTtsAvailable();
+    setTtsMuted(readTtsMuted());
+    setTtsReady(browserOk);
+
+    void probeElevenLabsReady().then((ok) => {
+      setElevenReady(ok);
+      setTtsReady(ok || browserOk);
+    });
+
+    // Keep browser speech warmed as silent fallback (credits / API down).
+    if (browserOk) {
+      void warmSpeechVoices().then((voices) => {
+        const best = pickDefaultTtsVoiceUri(voices);
+        const current = voices.find(
+          (v) => v.voiceURI === browserVoiceUriRef.current,
+        );
+        const pick =
+          best && (!current || isWeakDefaultVoice(current)) ? best : current?.voiceURI ?? best;
+        if (pick) {
+          browserVoiceUriRef.current = pick;
+          writeTtsVoiceUri(pick);
+        }
+      });
+    }
+    const unsub = subscribeAiSpeaking((active) => {
+      setTtsSpeaking(active);
+      if (!active) setSpeakingMsgId(null);
+    });
+    // Do not stopAiSpeech() here — Strict Mode remount / HMR was killing TTS
+    // in ~1s and making "Shut up" flash then vanish.
+    return () => {
+      unsub();
+    };
+  }, []);
+
+  // useAiAssist auto-speak doesn't set speakingMsgId — bind Shut up to the latest reply.
+  useEffect(() => {
+    if (!ttsSpeaking) return;
+    if (speakingMsgId) return;
+    const last = [...messages].reverse().find((m) => m.role === "assistant");
+    if (last) setSpeakingMsgId(last.id);
+  }, [ttsSpeaking, speakingMsgId, messages]);
+
+  useEffect(() => {
+    spokenIdRef.current = null;
+    skipSpeakOnMountRef.current = true;
+    setSpeakingMsgId(null);
+    stopAiSpeech();
+  }, [activeChatId]);
+
+  useEffect(() => {
     const el = listRef.current;
     if (!el || historyOpen) return;
     el.scrollTop = el.scrollHeight;
   }, [messages, running, historyOpen, activeChatId]);
+
+  function speakMessage(m: ChatMessage, opts?: { skipIfSpeaking?: boolean }) {
+    // Prefer latest thread copy so audioUrl from Storage save is not stale.
+    const latest = messages.find((x) => x.id === m.id) ?? m;
+    setSpeakingMsgId(latest.id);
+    void speakAndPersistAssistantReply({
+      message: latest,
+      officerUid: officerUidRef.current,
+      threadId: activeChatIdRef.current,
+      browserVoiceUri: browserVoiceUriRef.current,
+      manual: true,
+      skipIfSpeaking: opts?.skipIfSpeaking,
+      onSaved: onMessageAudioRef.current,
+    });
+  }
+
+  // Backup auto-speak if useAiAssist path didn't run (e.g. restored thread).
+  // Primary path: Gemini return → speakAndPersistAssistantReply in useAiAssist.
+  useEffect(() => {
+    if (!ttsReady || ttsMuted || running || historyOpen) return;
+    const last = messages[messages.length - 1];
+    if (!last || last.role !== "assistant") return;
+    if (skipSpeakOnMountRef.current) {
+      skipSpeakOnMountRef.current = false;
+      spokenIdRef.current = last.id;
+      autoSpokenMessageIds.add(last.id);
+      return;
+    }
+    if (spokenIdRef.current === last.id || autoSpokenMessageIds.has(last.id)) {
+      return;
+    }
+    spokenIdRef.current = last.id;
+    setSpeakingMsgId(last.id);
+    void speakAndPersistAssistantReply({
+      message: last,
+      officerUid: officerUidRef.current,
+      threadId: activeChatIdRef.current,
+      browserVoiceUri: browserVoiceUriRef.current,
+      onSaved: onMessageAudioRef.current,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional
+  }, [messages, running, ttsMuted, ttsReady, historyOpen]);
+
+  function toggleTtsMute() {
+    const next = !ttsMuted;
+    setTtsMuted(next);
+    writeTtsMuted(next);
+    if (next) stopAiSpeech();
+  }
 
   function submit(text: string) {
     const trimmed = text.trim();
@@ -220,6 +507,44 @@ export function MangluluwasChat({
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-1">
+            {ttsReady && ttsSpeaking ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1 px-2 font-mono text-[10px] tracking-wider uppercase"
+                onClick={() => stopAiSpeech()}
+                aria-label="Stop speaking"
+                title="Shut up"
+              >
+                <VolumeX className="size-3.5" aria-hidden />
+                Shut up
+              </Button>
+            ) : null}
+            {ttsReady ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="size-8"
+                onClick={toggleTtsMute}
+                aria-label={ttsMuted ? "Unmute voice" : "Mute voice"}
+                aria-pressed={ttsMuted}
+                title={
+                  ttsMuted
+                    ? "Voice muted · click to hear replies"
+                    : elevenReady
+                      ? "Voice on · ElevenLabs (George) · browser fallback"
+                      : "Voice on · browser speech"
+                }
+              >
+                {ttsMuted ? (
+                  <VolumeX className="size-3.5" aria-hidden />
+                ) : (
+                  <Volume2 className="size-3.5" aria-hidden />
+                )}
+              </Button>
+            ) : null}
             <Button
               type="button"
               variant={historyOpen ? "default" : "outline"}
@@ -252,45 +577,47 @@ export function MangluluwasChat({
             >
               <Plus className="size-3.5" aria-hidden />
             </Button>
-            {callListVisible && !historyOpen ? (
+            {callListVisible && callActions.length && !historyOpen ? (
               <Button
                 type="button"
                 variant="outline"
                 size="icon"
                 className="size-8"
-                onClick={onClearCallList}
-                aria-label="Clear evacuate list"
-                title="Clear evacuate list (map stays)"
+                onClick={() => setCallListOpen(true)}
+                aria-label="Open evacuate list"
+                title="View evacuate list"
               >
-                <Eraser className="size-3.5" aria-hidden />
+                <List className="size-3.5" aria-hidden />
               </Button>
             ) : null}
           </div>
         </div>
         {!historyOpen ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <label className="flex min-w-0 flex-1 items-center gap-2 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
-              Model
-              <select
-                value={model}
-                disabled={running}
-                onChange={(e) =>
-                  onModelChange(e.target.value as GeminiAssistModelId)
-                }
-                className="min-w-0 flex-1 border border-[var(--border)] bg-[var(--input)] px-2 py-1 text-[11px] normal-case tracking-normal text-[var(--foreground)] outline-none focus:border-[var(--accent)] disabled:opacity-60"
-              >
-                {GEMINI_ASSIST_MODELS.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {result ? (
-              <Badge variant="outline">
-                via {result.source === "gemini" ? "Gemini" : "local"}
-              </Badge>
-            ) : null}
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="flex min-w-0 flex-1 items-center gap-2 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+                Model
+                <select
+                  value={model}
+                  disabled={running}
+                  onChange={(e) =>
+                    onModelChange(e.target.value as GeminiAssistModelId)
+                  }
+                  className="min-w-0 flex-1 border border-[var(--border)] bg-[var(--input)] px-2 py-1 text-[11px] normal-case tracking-normal text-[var(--foreground)] outline-none focus:border-[var(--accent)] disabled:opacity-60"
+                >
+                  {GEMINI_ASSIST_MODELS.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {result ? (
+                <Badge variant="outline">
+                  via {result.source === "gemini" ? "Gemini" : "local"}
+                </Badge>
+              ) : null}
+            </div>
           </div>
         ) : null}
       </header>
@@ -405,15 +732,64 @@ export function MangluluwasChat({
                         content={m.content}
                         smsLog={m.smsLog}
                         onOpenLog={setSmsLogOpen}
+                        assistApplied={m.assistApplied}
                       />
                     ) : (
                       <p className="whitespace-pre-wrap">{m.content}</p>
                     )}
+                    {m.role === "assistant" && ttsReady ? (
+                      <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            speakMessage(m, { skipIfSpeaking: true })
+                          }
+                          disabled={ttsSpeaking}
+                          className="inline-flex items-center gap-1 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase transition hover:text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-40"
+                          title={
+                            ttsSpeaking
+                              ? "Already speaking — use Shut up to stop"
+                              : m.audioUrl
+                                ? "Replay saved audio"
+                                : "Read aloud"
+                          }
+                        >
+                          <Volume2 className="size-3" aria-hidden />
+                          Speak
+                        </button>
+                        {speakingMsgId === m.id ? (
+                          <button
+                            type="button"
+                            onClick={() => stopAiSpeech()}
+                            className="inline-flex items-center gap-1 font-mono text-[10px] tracking-wider text-[var(--accent)] uppercase transition hover:opacity-80"
+                            title="Stop speaking"
+                          >
+                            <VolumeX className="size-3" aria-hidden />
+                            Shut up
+                          </button>
+                        ) : null}
+                      </div>
+                    ) : null}
                     {m.assistApplied ? (
-                      <p className="mt-1.5 flex items-center gap-1 font-mono text-[10px] tracking-wider text-[var(--accent)] uppercase">
-                        <MapPinned className="size-3" aria-hidden />
-                        Map updated
-                      </p>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                        <p className="flex items-center gap-1 font-mono text-[10px] tracking-wider text-[var(--accent)] uppercase">
+                          <MapPinned className="size-3" aria-hidden />
+                          Map updated
+                        </p>
+                        {callListVisible && callActions.length ? (
+                          <button
+                            type="button"
+                            onClick={() => setCallListOpen(true)}
+                            className="inline-flex items-center gap-1 border border-[var(--accent)]/40 bg-[var(--accent)]/5 px-2 py-1 font-mono text-[10px] tracking-wider text-[var(--accent)] uppercase transition hover:bg-[var(--accent)]/10"
+                          >
+                            <List className="size-3" aria-hidden />
+                            View evacuees
+                            {evacuateActions.length
+                              ? ` · ${evacuateActions.length}`
+                              : ""}
+                          </button>
+                        ) : null}
+                      </div>
                     ) : null}
                   </div>
                 </div>
@@ -442,101 +818,6 @@ export function MangluluwasChat({
             >
               {error}
             </p>
-          ) : null}
-
-          {result && callListVisible ? (
-            <div className="shrink-0 border-t border-[var(--accent)]/30 bg-[var(--surface-panel)] px-3 py-2 sm:px-4">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="font-mono text-[10px] tracking-[0.2em] text-[var(--accent)] uppercase">
-                    Call list · {result.focusHazard}
-                  </p>
-                  <p className="mt-0.5 line-clamp-2 text-xs text-[var(--muted)]">
-                    {result.mapHint}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={onClearCallList}
-                  className="shrink-0 font-mono text-[9px] tracking-wider text-[var(--muted)] uppercase underline-offset-2 hover:text-[var(--accent)] hover:underline"
-                >
-                  Clear list
-                </button>
-              </div>
-              {callActions.length ? (
-                <>
-                  <ul className="mt-1.5 flex max-h-48 flex-col gap-1 overflow-y-auto">
-                    {callActions.map((a) => {
-                      const name = a.ownerName?.trim();
-                      const phone = a.phone?.trim();
-                      return (
-                        <li
-                          key={`${a.householdId}-${a.priority}`}
-                          className="flex flex-wrap items-center gap-1.5 text-xs"
-                        >
-                          <Badge
-                            variant={
-                              a.priority === "evacuate"
-                                ? "danger"
-                                : a.priority === "prepare"
-                                  ? "warn"
-                                  : "outline"
-                            }
-                          >
-                            {a.priority}
-                          </Badge>
-                          <span className="min-w-0 truncate font-medium">
-                            {name || "Unknown owner"}
-                          </span>
-                          {a.purok ? (
-                            <span className="font-mono text-[9px] tracking-wide text-[var(--muted)] uppercase">
-                              {a.purok}
-                            </span>
-                          ) : null}
-                          {phone ? (
-                            <a
-                              href={phoneToTelHref(phone)}
-                              className="font-mono text-[10px] text-[var(--accent)] underline-offset-2 hover:underline"
-                            >
-                              {phone}
-                            </a>
-                          ) : null}
-                          {a.email?.trim() ? (
-                            <a
-                              href={`mailto:${a.email.trim()}`}
-                              className="min-w-0 truncate font-mono text-[10px] text-[var(--accent)] underline-offset-2 hover:underline"
-                            >
-                              {a.email.trim()}
-                            </a>
-                          ) : null}
-                          {!phone && !a.email?.trim() ? (
-                            <span className="font-mono text-[10px] text-[var(--muted)]">
-                              no phone/email
-                            </span>
-                          ) : null}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                  {evacuateActions.length ? (
-                    <button
-                      type="button"
-                      disabled={running}
-                      onClick={() => submit("Alert them to evacuate")}
-                      className="mt-2 w-full border border-[var(--danger)] bg-[var(--danger)] px-2 py-2 font-mono text-[10px] font-semibold tracking-wider text-white uppercase shadow-sm transition hover:brightness-110 disabled:cursor-not-allowed disabled:border-[var(--border)] disabled:bg-[var(--surface-panel)] disabled:text-[var(--muted)] disabled:opacity-100 disabled:shadow-none"
-                    >
-                      {running ? "Sending alerts…" : alertButtonLabel}
-                    </button>
-                  ) : null}
-                </>
-              ) : null}
-            </div>
-          ) : result && !callListVisible ? (
-            <div className="shrink-0 border-t border-[var(--border)] bg-[var(--surface-panel)]/60 px-3 py-2 sm:px-4">
-              <p className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
-                Map still highlighted · list cleared after text
-              </p>
-            </div>
           ) : null}
 
           <div className="shrink-0 border-t border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2.5 sm:px-4">
@@ -581,6 +862,104 @@ export function MangluluwasChat({
           </div>
         </>
       )}
+
+      <Dialog
+        open={callListOpen && callListVisible && callActions.length > 0}
+        onOpenChange={setCallListOpen}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              Call list
+              {result?.focusHazard ? ` · ${result.focusHazard}` : ""}
+            </DialogTitle>
+            <DialogDescription>
+              {result?.mapHint ??
+                "Households flagged for evacuate or prepare after triage."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogBody className="max-h-[min(50vh,24rem)] space-y-2">
+            <ul className="flex flex-col gap-2">
+              {callActions.map((a) => {
+                const name = a.ownerName?.trim();
+                const phone = a.phone?.trim();
+                return (
+                  <li
+                    key={`${a.householdId}-${a.priority}`}
+                    className="flex flex-wrap items-center gap-1.5 border border-[var(--border)] bg-[var(--surface)] px-2.5 py-2 text-xs"
+                  >
+                    <Badge
+                      variant={
+                        a.priority === "evacuate"
+                          ? "danger"
+                          : a.priority === "prepare"
+                            ? "warn"
+                            : "outline"
+                      }
+                    >
+                      {a.priority}
+                    </Badge>
+                    <span className="min-w-0 truncate font-medium">
+                      {name || "Unknown owner"}
+                    </span>
+                    {a.purok ? (
+                      <span className="font-mono text-[9px] tracking-wide text-[var(--muted)] uppercase">
+                        {a.purok}
+                      </span>
+                    ) : null}
+                    {phone ? (
+                      <a
+                        href={phoneToTelHref(phone)}
+                        className="font-mono text-[10px] text-[var(--accent)] underline-offset-2 hover:underline"
+                      >
+                        {phone}
+                      </a>
+                    ) : null}
+                    {a.email?.trim() ? (
+                      <a
+                        href={`mailto:${a.email.trim()}`}
+                        className="min-w-0 truncate font-mono text-[10px] text-[var(--accent)] underline-offset-2 hover:underline"
+                      >
+                        {a.email.trim()}
+                      </a>
+                    ) : null}
+                    {!phone && !a.email?.trim() ? (
+                      <span className="font-mono text-[10px] text-[var(--muted)]">
+                        no phone/email
+                      </span>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          </DialogBody>
+          <DialogFooter className="flex flex-col gap-2 sm:flex-col">
+            {evacuateActions.length ? (
+              <button
+                type="button"
+                disabled={running}
+                onClick={() => {
+                  setCallListOpen(false);
+                  submit("Alert them to evacuate");
+                }}
+                className="w-full border border-[var(--danger)] bg-[var(--danger)] px-3 py-2.5 font-mono text-[10px] font-semibold tracking-wider text-white uppercase transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {running ? "Sending alerts…" : alertButtonLabel}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => {
+                setCallListOpen(false);
+                onClearCallList();
+              }}
+              className="w-full font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase underline-offset-2 hover:text-[var(--accent)] hover:underline"
+            >
+              Clear list (map stays)
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={Boolean(smsLogOpen?.length)}

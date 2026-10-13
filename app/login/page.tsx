@@ -98,13 +98,6 @@ export default function LoginPage() {
     }
   }
 
-  function selectDemo(officer: DemoOfficer) {
-    setSelectedDemoId(officer.id);
-    setEmail(officer.email);
-    setPassword(officer.password);
-    setError(null);
-  }
-
   async function redirectForCurrentUser() {
     const uid = getClientAuth().currentUser?.uid;
     if (!uid) {
@@ -163,83 +156,99 @@ export default function LoginPage() {
           </>
         }
       >
-        <form onSubmit={onSubmit} className="space-y-4">
+        <form onSubmit={onSubmit} className="space-y-5">
           <div className="space-y-2">
             <p className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
               Demo roles · password demo1234
             </p>
-            <div className="grid gap-2">
+            <ul className="divide-y divide-[var(--border)] border border-[var(--border)]">
               {DEMO_OFFICERS.map((o) => {
                 const selected = selectedDemoId === o.id;
                 return (
-                  <div
-                    key={o.id}
-                    className={`flex gap-2 border px-2 py-2 ${
-                      selected
-                        ? "border-[var(--accent)] bg-[var(--accent)]/5"
-                        : "border-[var(--border)]"
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => selectDemo(o)}
-                      disabled={submitting}
-                      className="min-w-0 flex-1 text-left disabled:opacity-60"
-                    >
-                      <span className="block text-sm font-medium text-[var(--foreground)]">
-                        {o.label}
-                        {o.id === "captain" ? " · recommended" : ""}
-                      </span>
-                      <span className="block truncate font-mono text-[10px] text-[var(--muted)]">
-                        {o.displayName} · {o.email}
-                      </span>
-                    </button>
+                  <li key={o.id}>
                     <button
                       type="button"
                       onClick={() => void loginAs(o)}
                       disabled={submitting}
-                      className="shrink-0 self-center border border-[var(--border)] px-2.5 py-1.5 font-mono text-[10px] tracking-wider uppercase transition hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:opacity-60"
+                      className={`flex w-full items-center gap-3 px-3 py-2.5 text-left transition disabled:opacity-60 ${
+                        selected
+                          ? "bg-[var(--accent)]/5"
+                          : "hover:bg-[var(--surface-raised)]"
+                      }`}
                     >
-                      {submitting && selected ? "…" : "Enter"}
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-medium text-[var(--foreground)]">
+                          {o.label}
+                          {o.id === "captain" ? (
+                            <span className="font-normal text-[var(--muted)]">
+                              {" "}
+                              · recommended
+                            </span>
+                          ) : null}
+                        </span>
+                        <span className="mt-0.5 block truncate font-mono text-[10px] text-[var(--muted)]">
+                          {o.displayName}
+                        </span>
+                      </span>
+                      <span
+                        className={`shrink-0 font-mono text-[10px] tracking-wider uppercase ${
+                          selected
+                            ? "text-[var(--accent)]"
+                            : "text-[var(--muted)]"
+                        }`}
+                      >
+                        {submitting && selected ? "…" : "Enter"}
+                      </span>
                     </button>
-                  </div>
+                  </li>
                 );
               })}
-            </div>
-            {useEmulators ? (
-              <p className="text-[11px] text-[var(--muted)]">
-                Local emulators · accounts auto-create on first Enter.
-              </p>
-            ) : (
-              <p className="text-[11px] text-[var(--muted)]">
-                Prod demo · tap Enter on Captain to open command as Punong
-                Barangay.
-              </p>
-            )}
+            </ul>
+            <p className="text-[11px] text-[var(--muted)]">
+              {useEmulators
+                ? "Local emulators · accounts auto-create on first Enter."
+                : "Prod demo · tap Captain to open command as Punong Barangay."}
+            </p>
           </div>
-          <label className="block text-sm">
-            <span className="mb-1.5 block text-[var(--muted)]">Email</span>
-            <input
-              type="email"
-              required
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full border border-[var(--border)] bg-[var(--input)] px-3 py-2.5 outline-none focus:border-[var(--accent)]"
+
+          <div className="relative">
+            <div
+              className="absolute inset-x-0 top-1/2 border-t border-[var(--border)]"
+              aria-hidden
             />
-          </label>
-          <label className="block text-sm">
-            <span className="mb-1.5 block text-[var(--muted)]">Password</span>
-            <input
-              type="password"
-              required
-              autoComplete="current-password"
-              minLength={6}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full border border-[var(--border)] bg-[var(--input)] px-3 py-2.5 outline-none focus:border-[var(--accent)]"
-            />
-          </label>
+            <p className="relative mx-auto w-fit bg-[var(--surface)] px-2 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+              Or email
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <label className="block text-sm">
+              <span className="mb-1.5 block text-[var(--muted)]">Email</span>
+              <input
+                type="email"
+                required
+                autoComplete="email"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setSelectedDemoId("");
+                }}
+                className="w-full border border-[var(--border)] bg-[var(--input)] px-3 py-2.5 outline-none focus:border-[var(--accent)]"
+              />
+            </label>
+            <label className="block text-sm">
+              <span className="mb-1.5 block text-[var(--muted)]">Password</span>
+              <input
+                type="password"
+                required
+                autoComplete="current-password"
+                minLength={6}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full border border-[var(--border)] bg-[var(--input)] px-3 py-2.5 outline-none focus:border-[var(--accent)]"
+              />
+            </label>
+          </div>
           {error ? (
             <p className="text-sm text-[var(--danger)]" role="alert">
               {error}

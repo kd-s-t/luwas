@@ -83,12 +83,96 @@ export function formatAssistCallReply(
   return sections.join("\n");
 }
 
-/** Plain-language map legend for officers (matches pin / flood colors). */
-export const MAP_COLOR_LEGEND =
-  "On the map: red dots = evacuate (low ground / flood belt), yellow dots = prepare and shelter in place on higher lots (stock water, food, cooking fuel), blue squares = AI-predicted flood footprints.";
+/** Injected into chat replies — MangluluwasChat renders a color legend. */
+export const MAP_LEGEND_MARKER = "[[LUWAS_MAP_LEGEND]]";
+
+/** Injected into chat replies — MangluluwasChat renders a stock checklist. */
+export const STOCK_LIST_MARKER = "[[LUWAS_STOCK_LIST]]";
+
+export const MAP_LEGEND_ITEMS = [
+  {
+    color: "#c72929",
+    label: "Red dots",
+    detail: "Evacuate — low ground / flood belt",
+  },
+  {
+    color: "#b8860b",
+    label: "Yellow dots",
+    detail: "Shelter in place — higher lots · stock essentials",
+  },
+  {
+    color: "#2563eb",
+    label: "Blue tiles",
+    detail: "Flood footprints — where water collects first",
+  },
+] as const;
+
+export const STOCK_LIST_ITEMS = [
+  "Food packs",
+  "Drinking water",
+  "Cooking fuel",
+  "Medicine / first aid",
+  "Blankets",
+  "Hygiene kits",
+  "Flashlights",
+  "Power banks",
+] as const;
+
+/** Drop model prose that already explained colors / “running AI”. */
+export function stripTriageProseNoise(reply: string): string {
+  let out = reply;
+
+  // Markers stay for the UI splitter; strip them here when we only want text.
+  out = out.replaceAll(MAP_LEGEND_MARKER, "");
+  out = out.replaceAll(STOCK_LIST_MARKER, "");
+
+  out = out.replace(
+    /\bWe are running the AI triage[^.!?]*[.!?]/gi,
+    "We’re locking in disaster response for Barangay Nangka.",
+  );
+  out = out.replace(
+    /\b(?:I(?:['’]m| am) )?(?:re-?)?running (?:the )?AI triage[^.!?]*[.!?]/gi,
+    "We’re locking in disaster response for Barangay Nangka.",
+  );
+
+  // Single-paragraph Gemini slurries: cut map-color + stock sentences hard.
+  out = out.replace(
+    /\s*On your map,[\s\S]*?(?=(?:Please ensure|You can alert|I(?:['’]ve| have) flagged|$))/i,
+    " ",
+  );
+  out = out.replace(
+    /\s*Blue squares outline[\s\S]*?(?=(?:Please ensure|You can alert|I(?:['’]ve| have) flagged|$))/i,
+    " ",
+  );
+  out = out.replace(
+    /\s*Please ensure our evacuation centers[\s\S]*?(?=(?:You can alert|I(?:['’]ve| have) flagged|$))/i,
+    " ",
+  );
+  out = out.replace(
+    /\s*(?:Red|Yellow)\s+household\s+dots[\s\S]*?(?=(?:Blue |Please |You can |I(?:['’]ve| have) |$))/gi,
+    " ",
+  );
+
+  out = out.replace(/\bAI[- ]?(?:predicted|assisted|powered)\s+/gi, "");
+  out = out.replace(/\bAI triage\b/gi, "triage");
+  out = out.replace(/\bAI-predicted\b/gi, "predicted");
+
+  out = out.replace(
+    /On the map:\s*red dots[\s\S]*?flood footprints\.?/gi,
+    "",
+  );
+  out = out.replace(
+    /stock the evacuation centers[\s\S]*?(?=(\n\n|$))/i,
+    "",
+  );
+
+  out = out.replace(/[ \t]{2,}/g, " ");
+  out = out.replace(/\n{3,}/g, "\n\n").trim();
+  return out;
+}
 
 /**
- * Conversational chat reply after triage — explains colors + counts.
+ * Conversational chat reply after triage — legend + stock render in the UI.
  * Full household roster stays in the call-list panel, not the bubble.
  */
 export function formatChatAssistReply(
@@ -98,11 +182,10 @@ export function formatChatAssistReply(
 ): string {
   const evacuateN = actions.filter((a) => a.priority === "evacuate").length;
   const prepareN = actions.filter((a) => a.priority === "prepare").length;
-  const sections: string[] = [reply.trim()];
+  const cleaned = stripTriageProseNoise(reply);
+  const sections: string[] = cleaned ? [cleaned] : [];
 
-  if (!/\bred\b[\s\S]*\byellow\b[\s\S]*\bblue\b/i.test(reply)) {
-    sections.push("", MAP_COLOR_LEGEND);
-  }
+  sections.push("", MAP_LEGEND_MARKER, "", STOCK_LIST_MARKER);
 
   if (evacuateN || prepareN) {
     sections.push(
@@ -112,8 +195,16 @@ export function formatChatAssistReply(
   }
 
   for (const e of extras) {
-    if (e.trim() && !sections.includes(e.trim())) sections.push("", e.trim());
+    const t = stripTriageProseNoise(e.trim());
+    if (
+      t &&
+      !/flood footprints/i.test(t) &&
+      !/AI /i.test(t) &&
+      !sections.includes(t)
+    ) {
+      sections.push("", t);
+    }
   }
 
-  return sections.join("\n");
+  return sections.join("\n").trim();
 }

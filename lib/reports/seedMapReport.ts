@@ -24,7 +24,7 @@ function hazardForKind(kind: ScenarioReportPin["kind"]): ReportHazardHint {
   if (kind === "flood") return "flood";
   if (kind === "fire") return "fire";
   if (kind === "landslide") return "landslide";
-  if (kind === "blockage") return "typhoon";
+  if (kind === "blockage") return "blockage";
   if (kind === "evac_status") return "evac";
   return "other";
 }
@@ -180,6 +180,12 @@ export async function ensureMapReportInDb(
           : null,
       validatedAt:
         data.validatedAt != null ? String(data.validatedAt) : pin.reportedAt,
+      autoResponderCallAt:
+        data.autoResponderCallAt != null
+          ? String(data.autoResponderCallAt)
+          : data.autoFireCallAt != null
+            ? String(data.autoFireCallAt)
+            : null,
       reporterIdVerified: Boolean(data.reporterIdVerified ?? true),
       reporterEmail:
         data.reporterEmail != null
@@ -264,6 +270,7 @@ export async function ensureMapReportInDb(
     vertexClass: null,
     vertexConfidence: null,
     validatedAt: pin.reportedAt,
+    autoResponderCallAt: null,
     reporterIdVerified: true,
     reporterEmail: citizen.email,
     reporterPhone: citizen.phone,

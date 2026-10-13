@@ -11,23 +11,32 @@ export type ReportHazardHint =
   | "landslide"
   | "typhoon"
   | "fire"
+  | "crime"
+  | "accident"
+  | "blockage"
   | "evac"
   | "other";
 
 /**
- * Situation is locked to Odette (Rai) / Cat 5 peak (CAT5_DURING).
+ * Situation is locked to Tino (Rai) / Cat 5 peak (CAT5_DURING).
  * Show storm name + SSHS category on typhoon reports.
  */
 export function hazardHintLabel(hint: ReportHazardHint): string {
   switch (hint) {
     case "typhoon":
-      return "Typhoon Odette · Cat 5";
+      return "Typhoon Tino · Cat 5";
     case "flood":
       return "Flood";
     case "landslide":
       return "Landslide";
     case "fire":
       return "Fire";
+    case "crime":
+      return "Crime";
+    case "accident":
+      return "Accident";
+    case "blockage":
+      return "Road blockage";
     case "evac":
       return "Evacuation center";
     default:
@@ -93,6 +102,8 @@ export type HazardReport = {
   vertexClass: string | null;
   vertexConfidence: number | null;
   validatedAt: string | null;
+  /** When set, nearest responders were already auto-dialed for this legit report. */
+  autoResponderCallAt: string | null;
   /** Reporter signals used for trust scoring. */
   reporterIdVerified: boolean;
   reporterEmail: string | null;

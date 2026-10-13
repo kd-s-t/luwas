@@ -3,17 +3,33 @@ import { enrichActionsWithContacts } from "@/lib/ai/callList";
 import { buildEscapeRoutes } from "@/lib/ai/escapeRoutes";
 import { predictAiFloods } from "@/lib/ai/predictFloods";
 import { distKm } from "@/lib/geo/bearing";
+import { pointInFloodFootprints } from "@/lib/geo/elevFloodFootprint";
 import { estimateElevM } from "@/lib/geo/nangkaElevation";
 import type { FloodSample } from "@/lib/hazards/floodSamples";
 import type { LandslideSample } from "@/lib/hazards/landslideSamples";
 import type { TyphoonSample } from "@/lib/hazards/typhoonSamples";
 import type { Household } from "@/lib/households/types";
 
-/** Nangka flood fringe ≈ elev ≤ 12 m; core inundation ≈ ≤ 8 m (Google Elevation). */
-const ELEV_CORE_M = 8;
-const ELEV_FRINGE_M = 12;
-/** Above this, treat as high ground — shelter-in-place / stock up, don’t evacuate for flood. */
+/** Align with escapeRoutes / elev flood grid (Google Elevation cache). */
+const ELEV_CORE_M = 9;
+const ELEV_FRINGE_M = 13;
+/** Above this: shelter in place — do not evacuate for flood alone. */
 const ELEV_HIGH_M = 14;
+/** Only used when a flood sample has no footprint polygons. */
+const FLOOD_PIN_PREPARE_KM = 0.2;
+
+function floodFootprintHit(
+  pt: { lat: number; lng: number },
+  floods: FloodSample[],
+): FloodSample | null {
+  for (const f of floods) {
+    if (pointInFloodFootprints(pt, f.footprints)) return f;
+    if (f.footprint?.length && pointInFloodFootprints(pt, [f.footprint])) {
+      return f;
+    }
+  }
+  return null;
+}
 
 /** Deterministic assist when Gemini API key is not set — still updates the map. */
 export function runLocalAssist(input: {
@@ -32,14 +48,15 @@ export function runLocalAssist(input: {
   });
   // Prefer AI footprints for hazard pressure; fall back to scenario pins.
   const floods =
-    predictedFloods.length > 0
-      ? predictedFloods
-      : input.floods;
+    predictedFloods.length > 0 ? predictedFloods : input.floods;
   const criticalFloods = floods.filter((f) => f.severity === "critical");
   const warningFloods = floods.filter((f) => f.severity !== "watch");
   const hotSlides = landslides.filter((l) => l.severity !== "watch");
   const nearestTy = [...typhoons].sort((a, b) => a.distanceKm - b.distanceKm)[0];
   const floodActive = floods.length > 0;
+  const floodsHaveTiles = floods.some(
+    (f) => (f.footprints?.length ?? 0) > 0 || Boolean(f.footprint?.length),
+  );
 
   const actions: AssistResult["actions"] = [];
 
@@ -49,24 +66,26 @@ export function runLocalAssist(input: {
     const elevM = estimateElevM(h.lat, h.lng);
     const elevLabel = `~${Math.round(elevM)} m`;
 
+    const footprint = floodFootprintHit(pt, floods);
     let nearFloodPin = false;
-    let nearSlide = false;
-    let floodDepth = 0;
-    for (const f of floods) {
-      const d = distKm(pt, f);
-      if (d < 0.35) {
-        nearFloodPin = true;
-        floodDepth = Math.max(floodDepth, f.depthCm);
+    let floodDepth = footprint?.depthCm ?? 0;
+    if (!floodsHaveTiles) {
+      for (const f of floods) {
+        if (distKm(pt, f) < FLOOD_PIN_PREPARE_KM) {
+          nearFloodPin = true;
+          floodDepth = Math.max(floodDepth, f.depthCm);
+        }
       }
     }
+
+    let nearSlide = false;
     for (const s of landslides) {
-      if (distKm(pt, s) < 0.3) nearSlide = true;
+      if (distKm(pt, s) < 0.25) nearSlide = true;
     }
 
     const onCore = elevM <= ELEV_CORE_M;
     const onFringe = elevM <= ELEV_FRINGE_M;
     const onHighGround = elevM >= ELEV_HIGH_M;
-    const inLowFloodBelt = floodActive && (onCore || onFringe || nearFloodPin);
 
     const notes = h.notes.toLowerCase();
     const vulnerable =
@@ -82,8 +101,8 @@ export function runLocalAssist(input: {
       continue;
     }
 
-    // High ground: already relatively safe from flood — stock water/food/fuel, don’t flee.
-    if (onHighGround && !nearSlide) {
+    // High ground: shelter in place — never flood-evacuate just for pin proximity.
+    if (onHighGround && !footprint && !nearSlide) {
       if (nearestTy || floodActive || vulnerable) {
         actions.push({
           householdId: h.id,
@@ -94,32 +113,35 @@ export function runLocalAssist(input: {
       continue;
     }
 
-    // Low / fringe: evacuate when wet or vulnerable; else prepare.
-    if (
-      (inLowFloodBelt && onCore) ||
-      (inLowFloodBelt && floodDepth >= 40) ||
-      (inLowFloodBelt && vulnerable)
-    ) {
+    // Red: actually inside elev flood tiles, or true low-ground core.
+    if (footprint || onCore) {
       actions.push({
         householdId: h.id,
         priority: "evacuate",
-        reason: onCore
-          ? `Low ground ${elevLabel} · flood corridor · ${h.purok}`
-          : nearFloodPin
-            ? `Within flood watch (~${floodDepth} cm) · ${elevLabel} · ${h.purok}`
-            : `Vulnerable on flood fringe ${elevLabel} · ${h.purok}`,
+        reason: footprint
+          ? `Inside AI flood footprint · ${elevLabel} · ${h.purok}`
+          : `Low ground ${elevLabel} · flood corridor · ${h.purok}`,
       });
-    } else if (inLowFloodBelt || nearSlide || vulnerable) {
+      continue;
+    }
+
+    // Yellow: fringe elevation, vulnerable, or (legacy) near pin when no tiles.
+    if (onFringe || nearFloodPin || nearSlide || vulnerable) {
       actions.push({
         householdId: h.id,
         priority: "prepare",
         reason: onFringe
           ? `Flood fringe ${elevLabel} · go-bag + water/food stocks · ${h.purok}`
-          : nearSlide
-            ? `Near landslide sample · ${elevLabel} · ${h.purok}`
-            : `Prepare go-bag / stocks · ${elevLabel} · ${h.purok}`,
+          : nearFloodPin
+            ? `Near flood watch (~${floodDepth} cm) · ${elevLabel} · ${h.purok}`
+            : nearSlide
+              ? `Near landslide sample · ${elevLabel} · ${h.purok}`
+              : `Prepare go-bag / stocks · ${elevLabel} · ${h.purok}`,
       });
-    } else if (nearestTy && nearestTy.distanceKm < 200) {
+      continue;
+    }
+
+    if (nearestTy && nearestTy.distanceKm < 200) {
       actions.push({
         householdId: h.id,
         priority: "prepare",
@@ -147,9 +169,9 @@ export function runLocalAssist(input: {
   const evacuateN = ranked.filter((a) => a.priority === "evacuate").length;
   const prepareN = ranked.filter((a) => a.priority === "prepare").length;
   const summary = [
-    `AI assist (local rules): focus on ${focusHazard}.`,
+    `Triage focus: ${focusHazard}.`,
     evacuateN
-      ? `${evacuateN} evacuate from low ground / flood belt.`
+      ? `${evacuateN} evacuate from low ground / flood footprints.`
       : "No low-ground evacuate pins.",
     prepareN
       ? `${prepareN} prepare on higher lots (stock water, food, cooking fuel — shelter in place).`
@@ -173,8 +195,8 @@ export function runLocalAssist(input: {
     predictedFloods,
     mapHint:
       escapes.length > 0
-        ? "AI flood footprints + one escape direction. High lots: stock up. Colors stay after you text."
-        : "AI flood footprints on map. High-ground homes: shelter in place and stock water/food/fuel.",
+        ? "Flood footprints on map · one escape direction. High lots: stock up."
+        : "Flood footprints on map. High-ground homes: shelter in place and stock water/food/fuel.",
     source: input.floodSource ?? "local",
   };
 }

@@ -1,6 +1,5 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import {
   Flame,
   LocateFixed,
@@ -9,12 +8,14 @@ import {
   Tornado,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { CommandAreaMapMount } from "@/components/CommandAreaMapMount";
 import type { AssistEscapeRoute, AssistPriority } from "@/lib/ai/assistTypes";
 import {
   loadBarangayMapSnapshot,
   type BarangayMapSnapshot,
 } from "@/lib/ai/barangayMapSnapshot";
 import { runLocalAssist } from "@/lib/ai/localAssist";
+import { predictAiFloods } from "@/lib/ai/predictFloods";
 import { getBarangayMapPack } from "@/lib/geo/barangayMapPack";
 import {
   DEFAULT_MAP_AREA,
@@ -40,15 +41,6 @@ import {
   isHazardousWeather,
   type AreaWeather,
 } from "@/lib/weather/openMeteo";
-
-const AreaMapInner = dynamic(() => import("@/components/AreaMapInner"), {
-  ssr: false,
-  loading: () => (
-    <div className="flex h-[360px] items-center justify-center bg-[var(--surface-panel)] font-mono text-xs text-[var(--muted)] sm:h-[440px]">
-      Loading map…
-    </div>
-  ),
-});
 
 type LocateStatus =
   | "idle"
@@ -148,25 +140,18 @@ export function PublicSituationMap() {
     return map;
   }, [nangkaOps, triageLive, assist, pack.scenarioActions]);
 
-  // During: snapshot AI floods → local AI footprints → scenario pack.
+  // During: always paint elev-grid blue tiles (client rebuild).
   const mapFloods = useMemo(() => {
     if (!nangkaOps) return [];
-    if (triageLive && snapshot?.predictedFloods?.length) {
-      return snapshot.predictedFloods;
-    }
-    if (triageLive && assist?.predictedFloods?.length) {
-      return assist.predictedFloods;
-    }
-    return pack.floods;
-  }, [nangkaOps, triageLive, snapshot, assist, pack.floods]);
+    if (!triageLive) return pack.floods;
+    return predictAiFloods({
+      typhoons: pack.typhoons,
+      source: "local",
+    });
+  }, [nangkaOps, triageLive, pack.floods, pack.typhoons]);
 
-  // Escape arrows: During triage → scenario pack.
-  const escapeRoutes: AssistEscapeRoute[] = useMemo(() => {
-    if (!nangkaOps) return [];
-    if (triageLive && snapshot?.escapes?.length) return snapshot.escapes;
-    if (triageLive && assist?.escapes?.length) return assist.escapes;
-    return pack.scenarioEscapes;
-  }, [nangkaOps, triageLive, snapshot, assist, pack.scenarioEscapes]);
+  // Escape polylines / chevrons off the public map.
+  const escapeRoutes: AssistEscapeRoute[] = useMemo(() => [], []);
 
   const mapHouseholds = nangkaOps ? nangkaHouseholds : [];
 
@@ -352,7 +337,7 @@ export function PublicSituationMap() {
               ) : (
                 <>
                   {area.barangay} map — each barangay has its own layers. No
-                  Nangka Odette data here yet; live weather and USGS quakes
+                  Nangka Tino data here yet; live weather and USGS quakes
                   still show.
                 </>
               )}
@@ -422,8 +407,8 @@ export function PublicSituationMap() {
 
         <div className="w-full overflow-hidden border-y border-[var(--border)] bg-[var(--surface-raised)]">
           <div className="relative h-[360px] sm:h-[440px] lg:h-[min(70vh,720px)]">
-            <AreaMapInner
-              key={area.id}
+            <CommandAreaMapMount
+              key={`${area.id}-${bundle.phase}`}
               area={area}
               userLocation={userLocation}
               onUserLocationChange={(loc) => {

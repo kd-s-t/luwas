@@ -25,6 +25,11 @@ export type ChatMessage = {
   /** SMS blast log for clickable “N message(s)” in the reply. */
   smsLog?: SmsLogEntry[];
   createdAt?: string;
+  /** Cached ElevenLabs audio (Firebase Storage) — replay without regenerating. */
+  audioUrl?: string;
+  audioStoragePath?: string;
+  ttsProvider?: "elevenlabs" | "browser";
+  ttsEmotion?: string;
 };
 
 /** One Cursor-style chat thread. */

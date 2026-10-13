@@ -1,9 +1,14 @@
 /**
  * Voice call dispatch for barangay phones.
  * Primary: Twilio Voice REST API (server-only).
- * SMS texting uses Semaphore — see sendSms.ts.
+ * SMS texting uses Twilio — see sendSms.ts.
  * Without Twilio creds, runs in demo mode (logs, no dial).
+ *
+ * Sandbox: TWILIO_SANDBOX=mode redirects every dial to TWILIO_SANDBOX_TO
+ * (same list as SMS; verify numbers in Twilio for trial).
  */
+
+import { twilioSandboxTos } from "@/lib/alerts/twilioSandbox";
 
 export type CallSendResult = {
   to: string;
@@ -63,6 +68,8 @@ async function callViaTwilio(
     To: to,
     From: from,
     Twiml: buildSayTwiml(script),
+    /** Cap ring+talk under 1 minute for auto fire alerts and short scripts. */
+    TimeLimit: "55",
   });
 
   const res = await fetch(
@@ -101,6 +108,8 @@ export async function sendCallBatch(
   const useTwilio = twilioConfigured();
   const results: CallSendResult[] = [];
 
+  const sandboxTos = twilioSandboxTos();
+
   for (const r of recipients) {
     const detail = {
       body: r.body,
@@ -125,17 +134,41 @@ export async function sendCallBatch(
       });
       continue;
     }
-    try {
-      const sent = await callViaTwilio(r.to, r.body);
-      results.push({ ...sent, ...detail });
-    } catch (err) {
-      results.push({
-        to: r.to,
-        ok: false,
-        provider: "twilio",
-        error: err instanceof Error ? err.message : "Call failed",
-        ...detail,
-      });
+
+    const dialTargets = sandboxTos.length > 0 ? sandboxTos : [r.to];
+    const script =
+      sandboxTos.length > 0
+        ? `LUWAS sandbox. Intended for ${detail.phoneDisplay}. ${r.body}`
+        : r.body;
+
+    for (const dialTo of dialTargets) {
+      if (sandboxTos.length > 0) {
+        console.info(
+          "[call:sandbox]",
+          "intended",
+          r.to,
+          "→ dial",
+          dialTo,
+          r.meta?.ownerName ?? "",
+        );
+      }
+      try {
+        const sent = await callViaTwilio(dialTo, script);
+        results.push({
+          ...sent,
+          // Keep intended recipient in the log; actual dial is sandbox when set.
+          to: r.to,
+          ...detail,
+        });
+      } catch (err) {
+        results.push({
+          to: r.to,
+          ok: false,
+          provider: "twilio",
+          error: err instanceof Error ? err.message : "Call failed",
+          ...detail,
+        });
+      }
     }
   }
 

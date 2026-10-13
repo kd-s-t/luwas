@@ -6,7 +6,7 @@ import { SituationMap } from "@/components/SituationMap";
 import { useAuth } from "@/lib/auth/AuthProvider";
 
 /**
- * Map + Mangluluwas under the global Odette Before/During/After bar.
+ * Map + Mangluluwas under the global Tino Before/During/After bar.
  * No command header — fills the remaining viewport.
  */
 export default function CommandFullViewPage() {

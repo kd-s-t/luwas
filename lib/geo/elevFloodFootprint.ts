@@ -1,9 +1,9 @@
 import type { LatLng } from "@/lib/geo/cebu";
 import { NANGKA_ELEVATION_GRID } from "@/lib/geo/nangkaElevationGrid";
 
-/** Half-step of the cached Nangka elevation grid. */
-const D_LAT = 0.00043;
-const D_LNG = 0.00052;
+/** Half-step of the cached Nangka elevation grid (slight overlap, not a solid slab). */
+const D_LAT = 0.0005;
+const D_LNG = 0.0006;
 
 /**
  * Ray-cast point-in-polygon for a closed lat/lng ring.

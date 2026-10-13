@@ -1,5 +1,8 @@
 import type { AssistResult } from "@/lib/ai/assistTypes";
-import { formatChatAssistReply } from "@/lib/ai/callList";
+import {
+  formatChatAssistReply,
+  MAP_LEGEND_MARKER,
+} from "@/lib/ai/callList";
 import type { ChatApiResponse } from "@/lib/ai/chatTypes";
 import { runLocalAssist } from "@/lib/ai/localAssist";
 import type { FloodSample } from "@/lib/hazards/floodSamples";
@@ -13,12 +16,12 @@ type Situation = {
   landslides: LandslideSample[];
   typhoons: TyphoonSample[];
   weatherLabel?: string;
-  /** Odette scenario phase — AI triage only paints in "during". */
+  /** Tino scenario phase — AI triage only paints in "during". */
   phase?: "before" | "during" | "after";
 };
 
 const TRIAGE_DURING_ONLY =
-  "AI triage (flood footprints, evacuate/prepare, escape lines) only runs in the During Odette phase. Switch the scenario bar to During, then ask me again.";
+  "Map triage (flood footprints, evacuate/prepare, escape lines) only runs in the During Tino phase. Switch the scenario bar to During, then ask me again.";
 
 function triageAllowed(situation: Situation): boolean {
   return !situation.phase || situation.phase === "during";
@@ -66,34 +69,28 @@ function humanTriageReply(
     return [
       `Three days is a real window — let’s use it, not panic. ${lead}`,
       "",
-      `Here’s the plan: get the ${evacuateN || "low-ground"} households in the flood belt moving toward evacuation centers early, and have the ${prepareN || "higher-lot"} homes shelter in place. Tell families to start buying goods and drinking water now — rice, canned food, cooking fuel, medicine, flashlights — before shelves empty and roads get bad.`,
+      `Get the ${evacuateN || "low-ground"} flood-belt households moving to evacuation centers early. Higher-lot homes (${prepareN || "many"}) shelter in place — tell families to buy rice, canned food, cooking fuel, medicine, and flashlights before shelves empty.`,
       "",
-      "At the same time, stock the evacuation centers, schools used as shelters, and the barangay hall: drinking water, food packs, cooking fuel, blankets, hygiene kits, first aid, and power banks. Halls and schools are staging / command support — people sleep in the designated ECs.",
-      "",
-      "I’ve painted priorities on your map. Walk purok captains through the colors, then use the call list below when you’re ready to blast SMS/email.",
+      "I’ve painted priorities on your map. Walk purok captains through the legend, then use the call list when you’re ready to blast SMS/email.",
     ].join("\n");
   }
 
   if (/\b(flood|baha)\b/i.test(message) || assist.focusHazard === "flood") {
     return [
-      "Flood risk is what we’re watching hardest in this Odette phase.",
+      "Flood risk is what we’re watching hardest in this Tino phase.",
       "",
-      `I’ve marked ${evacuateN} homes that should evacuate from the flood belt and ${prepareN} on higher ground that should prepare and stay put. Escape arrows point to the nearest evacuation centers — not the hall or chapel.`,
+      `I’ve marked ${evacuateN} homes that should evacuate from the flood belt and ${prepareN} on higher ground that should prepare and stay put. Escape lines point to the nearest evacuation centers — not the hall or chapel.`,
       "",
-      "Start stocking now: drinking water and goods for families, plus reserves at the evacuation centers, schools used as shelters, and the barangay hall (food, fuel, medicine, blankets, hygiene kits).",
-      "",
-      "Check the map colors with your team, then alert from the call list when you’re ready.",
+      "Check the map legend with your team, then alert from the call list when you’re ready.",
     ].join("\n");
   }
 
   return [
-    "Okay — I’ve run triage for Brgy. Nangka and updated the map.",
+    "We’re locking in disaster response for Brgy. Nangka — map is updated.",
     "",
-    `Priority right now: ${evacuateN} evacuate from low ground / flood belt, ${prepareN} prepare and shelter in place on higher lots. Escape lines go toward the designated evacuation centers.`,
+    `Priority right now: ${evacuateN} evacuate from low ground / flood belt, ${prepareN} prepare and shelter in place on higher lots.`,
     "",
-    "While you still have time, start buying goods and water for households, and stock the evacuation centers, schools used as shelters, and the barangay hall.",
-    "",
-    "I’ll keep talking you through it — names and contacts are in the call list under the chat when you want to alert them.",
+    "Names and contacts are in the call list under the chat when you want to alert them.",
   ].join("\n");
 }
 
@@ -159,7 +156,7 @@ export function runLocalChat(
   if (/\b(flood|baha)\b/i.test(trimmed)) {
     const critical = situation.floods.filter((f) => f.severity === "critical");
     return {
-      reply: `There are ${situation.floods.length} flood zone(s) in the Odette simulation${
+      reply: `There are ${situation.floods.length} flood zone(s) in the Tino simulation${
         critical.length ? `, including ${critical.length} critical` : ""
       }. Ask “what do we do?” or “run triage” and I’ll paint the map and explain red / yellow / blue.`,
       source: "local",
@@ -182,20 +179,18 @@ export function runLocalChat(
   if (/\b(hello|hi|kumusta|who are you|what can you)\b/i.test(trimmed)) {
     return {
       reply:
-        "Kumusta — I’m Mangluluwas, your LUWAS DRRM colleague for Brgy. Nangka in the Odette simulation. Ask what to do for a storm, or say “run triage” and I’ll paint the map. I can also text households, or call Consolacion BFP / PNP when you say “call the fire station” or “call the police”.",
+        "Kumusta — I’m Mangluluwas, your LUWAS DRRM colleague for Brgy. Nangka in the Tino simulation. Ask what to do for a storm, or say “run triage” and I’ll paint the map. I can also text households, or call Consolacion BFP / PNP when you say “call the fire station” or “call the police”.",
       source: "local",
       assist: null,
     };
   }
 
-  if (/\b(red|yellow|blue|color|colour|dot|square)\b/i.test(trimmed)) {
+  if (/\b(red|yellow|blue|color|colour|dot|square|legend)\b/i.test(trimmed)) {
     return {
       reply: [
-        "Sure — here’s how to read the map after triage:",
+        "Sure — here’s the map legend:",
         "",
-        "Red dots = households that should evacuate (low ground / flood belt).",
-        "Yellow dots = prepare and shelter in place on higher lots — stock water, food, and cooking fuel.",
-        "Blue squares = AI-predicted flood footprints from elevation and storm context.",
+        MAP_LEGEND_MARKER,
         "",
         "Say “run triage” if those layers aren’t on the map yet.",
       ].join("\n"),

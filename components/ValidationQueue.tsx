@@ -18,6 +18,7 @@ import {
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { isOfficer } from "@/lib/auth/types";
 import type { LatLng } from "@/lib/geo/cebu";
+import { triggerAutoResponderCall } from "@/lib/alerts/autoResponderCall";
 import { subscribeAllReports, updateReportValidation } from "@/lib/reports/api";
 import {
   formatDistanceKm,
@@ -40,11 +41,6 @@ import {
   downloadVertexMonthZip,
   reportsForVertexMonthBatch,
 } from "@/lib/reports/vertexExport";
-
-function pct(part: number, total: number): number {
-  if (total <= 0) return 0;
-  return Math.round((part / total) * 100);
-}
 
 type Filter = "queue" | "all" | "legit" | "rejected";
 
@@ -122,24 +118,6 @@ export function ValidationQueue() {
     ["queued", "validating", "needs_review", "failed"].includes(r.status),
   ).length;
 
-  const mix = useMemo(() => {
-    const total = scoped.length;
-    const verified = scoped.filter((r) => r.status === "legit").length;
-    const rejected = scoped.filter((r) => r.status === "rejected").length;
-    const queue = scoped.filter((r) =>
-      ["queued", "validating", "needs_review", "failed"].includes(r.status),
-    ).length;
-    return {
-      total,
-      verified,
-      rejected,
-      queue,
-      verifiedPct: pct(verified, total),
-      rejectedPct: pct(rejected, total),
-      queuePct: pct(queue, total),
-    };
-  }, [scoped]);
-
   async function override(
     report: HazardReport,
     verdict: "legit" | "rejected",
@@ -166,6 +144,13 @@ export function ValidationQueue() {
           locationAccuracyM: report.locationAccuracyM,
         },
       });
+      if (verdict === "legit") {
+        void triggerAutoResponderCall({
+          ...report,
+          status: "legit",
+          autoResponderCallAt: report.autoResponderCallAt ?? null,
+        });
+      }
     } finally {
       setBusyId(null);
     }
@@ -221,111 +206,64 @@ export function ValidationQueue() {
                 <button
                   type="button"
                   className="inline-flex size-7 shrink-0 items-center justify-center border border-[var(--border)] text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
-                  aria-label="Trust score and queue percentages"
+                  aria-label="Trust score percentages"
                 >
                   <Info className="size-3.5" strokeWidth={2} />
                 </button>
               </DialogTrigger>
               <DialogContent className="max-w-md">
                 <DialogHeader>
-                  <DialogTitle>Trust & queue percentages</DialogTitle>
+                  <DialogTitle>Trust percentages</DialogTitle>
                   <DialogDescription>
-                    How Trust % is scored, plus the live mix for{" "}
-                    {scopeLabel(scope)}.
+                    How Trust % is scored for each report.
                   </DialogDescription>
                 </DialogHeader>
-                <DialogBody className="space-y-5">
-                  <div>
-                    <p className="font-mono text-[10px] tracking-[0.16em] text-[var(--accent)] uppercase">
-                      Trust stack · max 100
-                    </p>
-                    <ul className="mt-2 space-y-2 text-sm">
-                      {(
+                <DialogBody>
+                  <p className="font-mono text-[10px] tracking-[0.16em] text-[var(--accent)] uppercase">
+                    Trust stack · max 100
+                  </p>
+                  <ul className="mt-2 space-y-2 text-sm">
+                    {(
+                      [
                         [
-                          [
-                            "Identity",
-                            TRUST_CAPS.identity,
-                            "Registered account + ID verified",
-                          ],
-                          [
-                            "Contact",
-                            TRUST_CAPS.contact,
-                            "Usable email + phone",
-                          ],
-                          [
-                            "Capture",
-                            TRUST_CAPS.capture,
-                            "Mobile camera + tight GPS",
-                          ],
-                          [
-                            "AI",
-                            TRUST_CAPS.ai,
-                            "Model confidence after validation",
-                          ],
-                        ] as const
-                      ).map(([label, cap, hint]) => (
-                        <li
-                          key={label}
-                          className="flex items-baseline justify-between gap-3 border-b border-[var(--border)]/70 pb-2 last:border-0 last:pb-0"
-                        >
-                          <div className="min-w-0">
-                            <p className="font-medium">{label}</p>
-                            <p className="text-xs text-[var(--muted)]">{hint}</p>
-                          </div>
-                          <p className="shrink-0 font-mono text-sm tabular-nums text-[var(--accent)]">
-                            {cap}%
-                          </p>
-                        </li>
-                      ))}
-                    </ul>
-                    <p className="mt-2 text-xs text-[var(--muted)]">
-                      High ≥80 · Moderate ≥55 · Low ≥30 · else Untrusted
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="font-mono text-[10px] tracking-[0.16em] text-[var(--accent)] uppercase">
-                      This barangay · {mix.total} reports
-                    </p>
-                    <ul className="mt-2 space-y-2 text-sm">
-                      {(
+                          "Identity",
+                          TRUST_CAPS.identity,
+                          "Registered account + ID verified",
+                        ],
                         [
-                          ["Awaiting review", mix.queue, mix.queuePct],
-                          ["Verified", mix.verified, mix.verifiedPct],
-                          ["Rejected", mix.rejected, mix.rejectedPct],
-                        ] as const
-                      ).map(([label, count, share]) => (
-                        <li
-                          key={label}
-                          className="flex items-center justify-between gap-3"
-                        >
-                          <span className="text-[var(--muted)]">{label}</span>
-                          <span className="font-mono text-xs tabular-nums">
-                            {count} · {share}%
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                    {mix.total > 0 ? (
-                      <div className="mt-3 flex h-2 overflow-hidden border border-[var(--border)]">
-                        <div
-                          className="bg-[var(--warn)]"
-                          style={{ width: `${mix.queuePct}%` }}
-                          title={`Queue ${mix.queuePct}%`}
-                        />
-                        <div
-                          className="bg-[var(--accent)]"
-                          style={{ width: `${mix.verifiedPct}%` }}
-                          title={`Verified ${mix.verifiedPct}%`}
-                        />
-                        <div
-                          className="bg-[var(--muted)]/40"
-                          style={{ width: `${mix.rejectedPct}%` }}
-                          title={`Rejected ${mix.rejectedPct}%`}
-                        />
-                      </div>
-                    ) : null}
-                  </div>
+                          "Contact",
+                          TRUST_CAPS.contact,
+                          "Usable email + phone",
+                        ],
+                        [
+                          "Capture",
+                          TRUST_CAPS.capture,
+                          "Mobile camera + tight GPS",
+                        ],
+                        [
+                          "Vertex AI",
+                          TRUST_CAPS.ai,
+                          "Gemini confidence after validation",
+                        ],
+                      ] as const
+                    ).map(([label, cap, hint]) => (
+                      <li
+                        key={label}
+                        className="flex items-baseline justify-between gap-3 border-b border-[var(--border)]/70 pb-2 last:border-0 last:pb-0"
+                      >
+                        <div className="min-w-0">
+                          <p className="font-medium">{label}</p>
+                          <p className="text-xs text-[var(--muted)]">{hint}</p>
+                        </div>
+                        <p className="shrink-0 font-mono text-sm tabular-nums text-[var(--accent)]">
+                          {cap}%
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-2 text-xs text-[var(--muted)]">
+                    High ≥80 · Moderate ≥55 · Low ≥30 · else Untrusted
+                  </p>
                 </DialogBody>
               </DialogContent>
             </Dialog>

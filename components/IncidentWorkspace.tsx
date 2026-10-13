@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { isOfficer } from "@/lib/auth/types";
+import { triggerAutoResponderCall } from "@/lib/alerts/autoResponderCall";
 import { subscribeAllReports, updateReportValidation } from "@/lib/reports/api";
 import {
   reportInScope,
@@ -133,6 +134,13 @@ export function IncidentWorkspace() {
           locationAccuracyM: report.locationAccuracyM,
         },
       });
+      if (verdict === "legit") {
+        void triggerAutoResponderCall({
+          ...report,
+          status: "legit",
+          autoResponderCallAt: report.autoResponderCallAt ?? null,
+        });
+      }
     } finally {
       setBusyId(null);
     }

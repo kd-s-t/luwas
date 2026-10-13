@@ -28,6 +28,10 @@ type IdFields = {
   idSource?: "gemini" | "local" | null;
   idDocumentPath?: string | null;
   faceDocumentPath?: string | null;
+  /** Download URL for the government ID scan (when uploaded). */
+  idDocumentUrl?: string | null;
+  /** Download URL for the selfie / face capture (when uploaded). */
+  faceDocumentUrl?: string | null;
 };
 
 type PlaceFields = {

@@ -25,7 +25,7 @@ export type FloodSample = {
 };
 
 /**
- * Flood samples along real Nangka (Consolacion) corridors for the Odette simulation.
+ * Flood samples along real Nangka (Consolacion) corridors for the Tino simulation.
  * Not live PAGASA bulletins.
  */
 export const CEBU_FLOOD_SAMPLES: FloodSample[] = [

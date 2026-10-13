@@ -36,7 +36,7 @@ export const NANGKA_SAMPLE_INVENTORY: SampleInventoryItem[] = [
     label: "First-aid packs",
     unit: "packs",
     available: 8,
-    hazards: ["fire", "landslide", "typhoon", "flood", "other"],
+    hazards: ["fire", "landslide", "typhoon", "flood", "accident", "other"],
   },
   {
     id: "tarps",

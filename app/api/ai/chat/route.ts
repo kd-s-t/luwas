@@ -31,12 +31,12 @@ type Body = {
   typhoons: TyphoonSample[];
   weatherLabel?: string;
   model?: string;
-  /** Odette scenario phase — AI triage overlays only apply in "during". */
+  /** Tino scenario phase — AI triage overlays only apply in "during". */
   phase?: "before" | "during" | "after";
 };
 
 const TRIAGE_DURING_ONLY =
-  "AI triage (flood footprints, evacuate/prepare, escape lines) only runs in the During Odette phase. Switch the scenario bar to During, then ask me again.";
+  "Map triage (flood footprints, evacuate/prepare, escape lines) only runs in the During Tino phase. Switch the scenario bar to During, then ask me again.";
 
 type GeminiChatPayload = {
   reply: string;
@@ -142,29 +142,27 @@ Return ONLY valid JSON (no markdown) matching:
 
 Reply style (required):
 - Answer the officer’s question first (what to do, timeline, who moves vs who stays).
-- 2–4 short paragraphs. Sound human. You may open with a brief acknowledgement (“Three days is a real window — let’s use it.”).
-- For incoming storms / “what do we do?”, always suggest starting logistics now: buy goods and drinking water; stock evacuation centers, schools used as shelters, and barangay halls (food, water, cooking fuel, medicine, blankets, hygiene kits, flashlights/power banks).
-- Also urge households (especially yellow / shelter-in-place) to buy and stock their own water, food, and cooking fuel before roads get bad.
-- When updateMap=true, ALWAYS explain map colors in plain words inside "reply":
-  · Red household dots = evacuate (low ground / flood belt)
-  · Yellow household dots = prepare / shelter in place on higher lots (stock water, food, cooking fuel)
-  · Blue squares = AI-predicted flood footprints
+- 2–3 short paragraphs. Sound human. You may open with a brief acknowledgement (“Three days is a real window — let’s use it.”).
+- NEVER say you are “running AI”, “AI triage”, or “AI-predicted” — you are Mangluluwas, a DRRM colleague. Do not mention AI.
+- Do NOT explain red/yellow/blue map colors in the reply — the UI shows a color legend.
+- Do NOT paste a long “stock evacuation centers with food, water…” paragraph — the UI shows a stock checklist.
+- For storms, urge households (especially higher-lot / shelter-in-place) to buy water, food, and cooking fuel before roads get bad — one short sentence is enough.
 - Do NOT paste long household call lists, phone numbers, or “Call · evacuate” lines in "reply" — the UI shows the call list separately.
 - Mention that they can alert flagged homes by SMS/email from the call list when ready.
 - They can also ask you to call responders: “call the fire station”, “call the police”, “call hospital”, “call barangay hall” (Twilio Voice to curated Consolacion BFP/PNP numbers — officer-triggered, never auto-dial 911).
 - Rule of thumb: low ground / flood belt → evacuate; high ground → shelter in place and stock up (not escape).
 
-Scenario phase: ${body.phase ?? "during"} — AI triage map paint (updateMap) is ONLY allowed when phase is "during". If phase is before or after, set updateMap=false and tell the officer to switch to During for flood footprints / evacuate lines.
+Scenario phase: ${body.phase ?? "during"} — map paint (updateMap) is ONLY allowed when phase is "during". If phase is before or after, set updateMap=false and tell the officer to switch to During for flood footprints / evacuate lines.
 Set updateMap=true only in During when the officer asks for triage, priorities, evacuate/prepare lists, escape routes, map highlights, OR what to do about an incoming typhoon/storm/flood (e.g. “cat 5 coming”, “what do we do”).
 Do not truncate the affected list — the server computes every evacuate/prepare household from hazards + elevation.
-When updateMap=true the server also paints AI-predicted flood footprints (elevation + storm context).
+When updateMap=true the server also paints flood footprints (elevation + storm context).
 Evacuation centers (escape destinations + live population from EC staff field reports): ${JSON.stringify(
     compactEvacStatusesForAi(
       NANGKA_SAFE_POINTS,
       CAT5_DURING.reportPins,
     ),
   )}
-Field reports are not emergencies only — EC staff upload occupancy / capacity / open-full status for AI triage.
+Field reports are not emergencies only — EC staff upload occupancy / capacity / open-full status for triage.
 
 Weather: ${situation.weatherLabel ?? "unknown"}
 Floods: ${JSON.stringify(situation.floods)}
@@ -222,7 +220,7 @@ Officer: ${message}`;
         mapHint: String(
           parsed.mapHint ??
             local.mapHint ??
-            "Map updated with AI flood footprints and priority homes.",
+            "Map updated with flood footprints and priority homes.",
         ),
         source: "gemini",
         model: usedModel,

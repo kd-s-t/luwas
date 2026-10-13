@@ -43,7 +43,7 @@ export type TyphoonSample = {
 
 /**
  * Fallback cyclone samples (Consolacion / Metro Cebu).
- * Odette phases use IBTrACS; these fill gaps only.
+ * Tino phases use IBTrACS; these fill gaps only.
  * Distances from Brgy. Nangka hall (~10.371, 123.959).
  */
 export const CEBU_TYPHOON_SAMPLES: TyphoonSample[] = [

@@ -51,7 +51,7 @@ export function PublicPageHeader({
           wide ? "max-w-6xl sm:px-8" : "max-w-3xl",
         )}
       >
-        <p className="font-mono text-[10px] tracking-[0.2em] text-[var(--accent)] uppercase">
+        <p className="font-mono text-[10px] tracking-[0.16em] text-[var(--accent)]">
           {eyebrow}
         </p>
         <div className="mt-2 flex flex-wrap items-end justify-between gap-4">

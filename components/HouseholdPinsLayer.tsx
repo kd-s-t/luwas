@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useMap } from "react-leaflet";
+import { useMap } from "react-leaflet/hooks";
 import L from "leaflet";
 import type { AssistPriority } from "@/lib/ai/assistTypes";
 import { estimateElevM } from "@/lib/geo/nangkaElevation";
@@ -21,6 +21,10 @@ const PRIORITY_COLOR: Record<AssistPriority, string> = {
   monitor: "#2563eb",
 };
 
+/** Screen-pixel radius — never geographic, never zoom-scaled. */
+const RADIUS_DEFAULT = 1.5;
+const RADIUS_PRIORITY = 2;
+
 type PinRec = {
   marker: L.CircleMarker;
   lat: number;
@@ -31,7 +35,7 @@ type PinRec = {
 function pinStyle(priority: AssistPriority | null | undefined) {
   const color = priority ? PRIORITY_COLOR[priority] : HOUSEHOLD_DOT_GREEN;
   return {
-    radius: priority ? 2.25 : 1.5,
+    radius: priority ? RADIUS_PRIORITY : RADIUS_DEFAULT,
     color: "#ffffff",
     weight: 0.75,
     opacity: 0.9,
@@ -41,7 +45,6 @@ function pinStyle(priority: AssistPriority | null | undefined) {
 }
 
 function rosterFingerprint(households: Household[]): string {
-  // Id + coords only — ignore unrelated household field churn.
   let out = `${households.length}|`;
   for (const h of households) {
     if (h.lat == null || h.lng == null) continue;
@@ -62,8 +65,8 @@ function prioritiesFingerprint(
 }
 
 /**
- * Canvas house pin-points. Reuses the layer/canvas across renders and only
- * rebuilds markers when roster coords change; priority color updates in place.
+ * Household pin-points as CircleMarkers on the default SVG renderer.
+ * A shared L.canvas() was stretching into giant blurry blobs on zoom-in.
  */
 export function HouseholdPinsLayer({
   households,
@@ -71,7 +74,6 @@ export function HouseholdPinsLayer({
 }: HouseholdPinsLayerProps) {
   const map = useMap();
   const groupRef = useRef<L.LayerGroup | null>(null);
-  const canvasRef = useRef<L.Canvas | null>(null);
   const pinsRef = useRef<Map<string, PinRec>>(new Map());
   const rosterFpRef = useRef<string>("");
   const priorityFpRef = useRef<string>("");
@@ -89,12 +91,10 @@ export function HouseholdPinsLayer({
 
     if (!groupRef.current) {
       groupRef.current = L.layerGroup([], { pane: "householdsPane" });
-      canvasRef.current = L.canvas({ pane: "householdsPane", padding: 0.5 });
       map.addLayer(groupRef.current);
     }
 
     const group = groupRef.current;
-    const canvasRenderer = canvasRef.current!;
     const pins = pinsRef.current;
 
     const rosterFp = rosterFingerprint(households);
@@ -111,13 +111,12 @@ export function HouseholdPinsLayer({
       for (const h of households) {
         if (h.lat == null || h.lng == null) continue;
         const priority = assistPriorities[h.id] ?? null;
+        // Default SVG renderer — fixed screen pixels at every zoom.
         const marker = L.circleMarker([h.lat, h.lng], {
-          renderer: canvasRenderer,
           pane: "householdsPane",
           ...pinStyle(priority),
         });
 
-        // Bind popup only on first open - avoid 1.5k HTML strings up front.
         marker.on("click", () => {
           const row = householdsRef.current.find((x) => x.id === h.id) ?? h;
           const p = prioritiesRef.current[h.id];
@@ -148,7 +147,6 @@ export function HouseholdPinsLayer({
       return;
     }
 
-    // Priority-only change: restyle existing markers, no tear-down.
     for (const [id, rec] of pins) {
       const next = assistPriorities[id] ?? null;
       if (next === rec.priority) continue;
@@ -166,7 +164,6 @@ export function HouseholdPinsLayer({
         group.clearLayers();
       }
       groupRef.current = null;
-      canvasRef.current = null;
       pinsRef.current.clear();
       rosterFpRef.current = "";
       priorityFpRef.current = "";

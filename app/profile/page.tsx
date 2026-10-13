@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { getDownloadURL, ref } from "firebase/storage";
 import { AuthGate } from "@/components/AuthGate";
 import { CommandHeader } from "@/components/CommandHeader";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
@@ -10,6 +12,7 @@ import {
 import { ACCEPTED_ID_TYPES } from "@/lib/auth/idTypes";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { isCitizen, isOfficer } from "@/lib/auth/types";
+import { getClientStorage } from "@/lib/firebase/client";
 
 function idTypeLabel(id: string | null | undefined): string {
   if (!id) return "—";
@@ -23,6 +26,84 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
         {label}
       </dt>
       <dd className="text-sm text-[var(--foreground)]">{value}</dd>
+    </div>
+  );
+}
+
+function useIdentitySrc(
+  url: string | null | undefined,
+  path: string | null | undefined,
+): { src: string | null; loading: boolean; missing: boolean } {
+  const [src, setSrc] = useState<string | null>(url?.trim() || null);
+  const [loading, setLoading] = useState(!url?.trim() && Boolean(path?.trim()));
+  const [missing, setMissing] = useState(!url?.trim() && !path?.trim());
+
+  useEffect(() => {
+    const direct = url?.trim() || "";
+    const storagePath = path?.trim() || "";
+    if (direct) {
+      setSrc(direct);
+      setLoading(false);
+      setMissing(false);
+      return;
+    }
+    if (!storagePath) {
+      setSrc(null);
+      setLoading(false);
+      setMissing(true);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    setMissing(false);
+    void getDownloadURL(ref(getClientStorage(), storagePath))
+      .then((next) => {
+        if (cancelled) return;
+        setSrc(next);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setSrc(null);
+        setLoading(false);
+        setMissing(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [url, path]);
+
+  return { src, loading, missing };
+}
+
+function IdPhoto({
+  label,
+  url,
+  path,
+}: {
+  label: string;
+  url?: string | null;
+  path?: string | null;
+}) {
+  const { src, loading, missing } = useIdentitySrc(url, path);
+
+  return (
+    <div className="space-y-2">
+      <p className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+        {label}
+      </p>
+      {loading ? (
+        <p className="font-mono text-xs text-[var(--muted)]">Loading…</p>
+      ) : src ? (
+        // eslint-disable-next-line @next/next/no-img-element -- Storage download URLs
+        <img
+          src={src}
+          alt={label}
+          className="max-h-64 w-full border border-[var(--border)] bg-[var(--surface-panel)] object-contain"
+        />
+      ) : missing ? (
+        <p className="text-sm text-[var(--muted)]">No photo on file.</p>
+      ) : null}
     </div>
   );
 }
@@ -120,6 +201,24 @@ function ProfileBody() {
                 }
               />
             </dl>
+
+            <div className="space-y-5 border-t border-[var(--border)] px-4 py-5">
+              <p className="font-mono text-[10px] tracking-[0.2em] text-[var(--accent)] uppercase">
+                Uploaded ID
+              </p>
+              <div className="grid gap-5 sm:grid-cols-2">
+                <IdPhoto
+                  label="Government ID"
+                  url={profile.idDocumentUrl}
+                  path={profile.idDocumentPath}
+                />
+                <IdPhoto
+                  label="Selfie"
+                  url={profile.faceDocumentUrl ?? profile.photoURL}
+                  path={profile.faceDocumentPath}
+                />
+              </div>
+            </div>
           </div>
         ) : (
           <p className="font-mono text-sm tracking-wider text-[var(--muted)] uppercase">

@@ -149,6 +149,12 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
           ? Number(data.vertexConfidence)
           : null,
     validatedAt: data.validatedAt != null ? String(data.validatedAt) : null,
+    autoResponderCallAt:
+      data.autoResponderCallAt != null
+        ? String(data.autoResponderCallAt)
+        : data.autoFireCallAt != null
+          ? String(data.autoFireCallAt)
+          : null,
     reporterIdVerified,
     reporterEmail,
     reporterPhone,
@@ -245,6 +251,7 @@ export async function createHazardReport(input: {
     vertexClass: null,
     vertexConfidence: null,
     validatedAt: null,
+    autoResponderCallAt: null,
     reactionCounts: { ...EMPTY_REACTION_COUNTS },
     commentCount: 0,
     createdAt: now,

@@ -10,7 +10,7 @@ export default function PrivacyPage() {
       <PublicPageHeader
         eyebrow="Legal"
         title="Privacy"
-        description="How LUWAS handles accounts, guest reports, voice notes, AI triage, and field data for barangay DRRM."
+        description="How LUWAS handles accounts, guest reports, voice notes, AI triage, and field data when a barangay or LGU subscribes."
       />
       <main className="mx-auto max-w-3xl space-y-6 px-4 py-8 text-sm leading-relaxed text-[var(--muted)] sm:px-6">
         <p className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
@@ -22,19 +22,21 @@ export default function PrivacyPage() {
             Who we are
           </h2>
           <p>
-            LUWAS (Logistics &amp; Unified Workflow for Aid &amp; Safety) is
-            operated by{" "}
+            LUWAS (Logistics &amp; Unified Workflow for Aid &amp; Safety) is a
+            commercial product owned and operated by{" "}
             <Link
               href="/about"
               className="text-[var(--accent)] underline-offset-2 hover:underline"
             >
               UgnAI Labs Co.
-            </Link>{" "}
-            for barangay and LGU disaster risk reduction and management (DRRM).
-            The product includes a public situation map, citizen / guest
-            reporting (web and Citizen iOS), officer command tools, and the
-            Odette Before / During / After simulation used for training and
-            demos (including Google AI Builder Cup and related pilots).
+            </Link>
+            . Barangay and LGU DRRM teams use LUWAS under a paid subscription.
+            UgnAI Labs is not a government agency, and LUWAS is not donated or
+            transferred to the Philippine government. The product includes a
+            public situation map, citizen / guest reporting (web and Citizen
+            iOS), officer command tools, and the Tino Before / During / After
+            simulation used for training and demos (including Google AI Builder
+            Cup and related pilots).
           </p>
         </section>
 
@@ -109,7 +111,7 @@ export default function PrivacyPage() {
             >
               community reports
             </Link>
-            , AI-assisted validation, and Odette map assist (Mangluluwas). Voice
+            , AI-assisted validation, and Tino map assist (Mangluluwas). Voice
             notes may be transcribed so officers can read what was said. Photos
             may be scored by a custom Vertex vision model and reasoned over by
             Gemini. Officers may export a monthly photo batch (zip + CSV) to
@@ -129,9 +131,9 @@ export default function PrivacyPage() {
             Firebase (auth &amp; data), Gemini (assist, ID/face check, report
             validation, voice transcription), Vertex AI (image classification
             when an endpoint is configured), and Maps / Weather / Elevation APIs
-            when keyed. Non-Google processors may include Semaphore (SMS),
-            Resend (email), and Twilio (voice calls). Without live API keys,
-            SMS / email / voice run in demo mode (logged, not delivered). Demo
+            when keyed. Non-Google processors may include Twilio (SMS and
+            voice) and Resend (email). Without live API keys, SMS / email /
+            voice run in demo mode (logged, not delivered). Demo
             citizen and officer logins on the login pages may create or reuse
             sample accounts for training; they are not a substitute for real LGU
             credentials. We do not sell personal data.

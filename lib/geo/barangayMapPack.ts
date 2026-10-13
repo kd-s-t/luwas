@@ -40,7 +40,7 @@ export type BarangayMapPack = {
   responders: ResponderMapPin[];
   scenarioActions: AssistHouseholdAction[];
   scenarioEscapes: AssistEscapeRoute[];
-  /** True when this brgy has no curated Odette layers yet. */
+  /** True when this brgy has no curated Tino layers yet. */
   empty: boolean;
 };
 
@@ -64,7 +64,7 @@ export function emptyPack(area: MapArea): BarangayMapPack {
   };
 }
 
-/** Nangka = full Odette scenario pack; every other brgy = facilities + empty hazards. */
+/** Nangka = full Tino scenario pack; every other brgy = facilities + empty hazards. */
 export function getBarangayMapPack(
   area: MapArea,
   scenario: ScenarioBundle,

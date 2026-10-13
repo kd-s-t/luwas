@@ -53,6 +53,7 @@ import {
   markReportValidating,
   updateReportValidation,
 } from "@/lib/reports/api";
+import { triggerAutoResponderCall } from "@/lib/alerts/autoResponderCall";
 import {
   DEFAULT_REPORT_BARANGAY,
   DEFAULT_REPORT_LGU,
@@ -120,8 +121,26 @@ function inferHazard(situation: string): ReportHazardHint {
   const t = situation.toLowerCase();
   if (/flood|tubig|baha|knee-deep|knee deep/.test(t)) return "flood";
   if (/landslide|land slide|gusaw|dahon/.test(t)) return "landslide";
+  if (
+    /road.?block|blockage|blocked road|fallen tree|nahulog.*kahoy|debris|washout|impassable|no.?pass|hindi.?makadaan|road closed|access road/.test(
+      t,
+    )
+  )
+    return "blockage";
   if (/typhoon|bagyo|hangin|wind|storm/.test(t)) return "typhoon";
   if (/fire|sunog|usok|smoke/.test(t)) return "fire";
+  if (
+    /crime|hold.?up|holdup|robbery|theft|nakaw|assault|stab|shoot|gunshot|snatch|riot/.test(
+      t,
+    )
+  )
+    return "crime";
+  if (
+    /accident|banggaan|crash|collision|vehicular|hit.?and.?run|road.?crash|car.?accident|motorcycle.?accident/.test(
+      t,
+    )
+  )
+    return "accident";
   if (/evac|shelter|evacuation/.test(t)) return "evac";
   return "other";
 }
@@ -896,6 +915,22 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
             : null,
         },
       });
+
+      if (data.status === "legit") {
+        void triggerAutoResponderCall({
+          id,
+          hazardHint,
+          status: "legit",
+          barangay: DEFAULT_REPORT_BARANGAY,
+          lgu: DEFAULT_REPORT_LGU,
+          lat,
+          lng,
+          title,
+          notes,
+          citizenPurok: authorPlace(author),
+          autoResponderCallAt: null,
+        });
+      }
 
       setReferenceId(id);
       setConfirmVerdict(data.verdict);

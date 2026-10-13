@@ -2,6 +2,21 @@
 const nextConfig = {
   output: "standalone",
   /**
+   * Dev client: disable splitChunks so the command map’s lib/* factories are
+   * not left in the page chunk while the async map chunk still requires them
+   * (webpack then throws `Cannot read properties of undefined (reading 'call')`).
+   */
+  webpack: (config, { dev, isServer }) => {
+    if (dev && !isServer) {
+      config.optimization = {
+        ...config.optimization,
+        splitChunks: false,
+        runtimeChunk: false,
+      };
+    }
+    return config;
+  },
+  /**
    * Firebase Hosting CDN caches Cloud Run responses using Cache-Control.
    * Next's default s-maxage (~1y) left luwasph.com stuck on stale HTML/CSS.
    * Keep hashed /_next/static long-lived; keep document HTML fresh.

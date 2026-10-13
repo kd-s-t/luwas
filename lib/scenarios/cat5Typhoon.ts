@@ -8,8 +8,7 @@ import {
   CEBU_FLOOD_SAMPLES,
   type FloodSample,
 } from "@/lib/hazards/floodSamples";
-import { CEBU_LANDSLIDE_SAMPLES } from "@/lib/hazards/landslideSamples";
-import { odetteTyphoonForPhase } from "@/lib/hazards/odetteIbtracs";
+import { tinoTyphoonForPhase } from "@/lib/hazards/tinoIbtracs";
 import { CEBU_HOUSEHOLDS } from "@/lib/households/seed";
 import type { Household } from "@/lib/households/types";
 import type {
@@ -72,18 +71,13 @@ function withEscapes(
   actions: AssistHouseholdAction[],
   floods: FloodSample[],
 ): AssistEscapeRoute[] {
-  return buildEscapeRoutes(
-    actions,
-    HOUSEHOLDS,
-    floods,
-    CEBU_LANDSLIDE_SAMPLES,
-  );
+  return buildEscapeRoutes(actions, HOUSEHOLDS, floods, []);
 }
 
-/** Real Odette (Rai) eye snapshots from NOAA IBTrACS. */
-const BEFORE_TYPHOONS = [odetteTyphoonForPhase("before")];
-const DURING_TYPHOONS = [odetteTyphoonForPhase("during")];
-const AFTER_TYPHOONS = [odetteTyphoonForPhase("after")];
+/** Real Tino (Rai) eye snapshots from NOAA IBTrACS. */
+const BEFORE_TYPHOONS = [tinoTyphoonForPhase("before")];
+const DURING_TYPHOONS = [tinoTyphoonForPhase("during")];
+const AFTER_TYPHOONS = [tinoTyphoonForPhase("after")];
 
 /** Flood footprints are AI-predicted on triage — not pre-baked on the scenario. */
 const BEFORE_FLOODS: FloodSample[] = [];
@@ -95,7 +89,7 @@ const AFTER_FLOODS: FloodSample[] = [
     severity: "warning",
     depthCm: 45,
     notes:
-      "Post-Odette residual inundation · town reported thousands of damaged homes",
+      "Post-Tino residual inundation · town reported thousands of damaged homes",
     reportedAt: "2021-12-17T14:00:00+08:00",
   },
   {
@@ -161,46 +155,92 @@ const DURING_REPORTS: ScenarioReportPin[] = [
     href: "/reports/rpt-block-singko",
   },
   {
-    // Map pin near Sto. Niño Chapel → same seeded field report as /reports feed.
+    // Inside elev flood wash (not dry chapel lot) so the pin sits on blue tiles.
     id: "rpt-flood-chapel",
     title: "Flood road · chapel approach",
     kind: "flood",
-    lat: 10.3712,
-    lng: 123.9594,
-    purokHint: "Purok 4",
+    lat: 10.36995,
+    lng: 123.96755,
+    purokHint: "Purok 6",
     sourceLabel: "Image report · live",
-    notes: "Flash flood across both lanes · road impassable",
+    notes: "Flash flood across both lanes · road impassable · east of chapel toward Laray / EC corridor",
     reportedAt: "2026-10-08T00:55:00+08:00",
     mediaUrl: "/reports/flood-road-chapel.png",
     href: "/reports/rpt-flood-chapel",
   },
   {
-    id: "rpt-landslide-east-bank",
-    title: "Landslide · bank failure",
-    kind: "landslide",
-    lat: 10.3682,
-    lng: 123.9664,
+    id: "rpt-laray-flood-debris",
+    title: "Homes destroyed · Laray Road flood",
+    kind: "flood",
+    // East corridor · Laray / Harrison approach to Consolacion EC.
+    lat: 10.37025,
+    lng: 123.96855,
     purokHint: "Purok 6",
     sourceLabel: "Image report · live",
-    notes: "Bank undercut · flood + slide compound risk",
-    reportedAt: "2026-10-07T11:05:00+08:00",
-    mediaUrl: "/reports/landslide-bank-failure.png",
-    href: "/reports/rpt-landslide-east-bank",
+    notes:
+      "Laray Road near Consolacion Evacuation Center · riverside blocks leveled · mud & debris · approaches may be impassable",
+    reportedAt: "2026-10-08T02:05:00+08:00",
+    mediaUrl: "/reports/laray-road-flood-debris.jpg",
+    href: "/reports/rpt-laray-flood-debris",
   },
   {
-    id: "rpt-landslide-cansaga",
-    title: "Landslide · debris slide",
-    kind: "landslide",
-    lat: 10.3742,
-    lng: 123.9562,
-    purokHint: "Purok 2",
+    id: "rpt-laray-embankment",
+    title: "Debris · Laray embankment",
+    kind: "blockage",
+    lat: 10.36985,
+    lng: 123.96895,
+    purokHint: "Purok 6",
     sourceLabel: "Image report · live",
-    notes: "Mud/debris reached lane · 2 houses advised to evacuate to hall",
-    reportedAt: "2026-10-07T05:15:00+08:00",
-    mediaUrl: "/reports/landslide-bank-failure.png",
-    href: "/reports/rpt-landslide-cansaga",
+    notes:
+      "Laray Road river wall · wreckage blocking land-side access · high muddy water · near Consolacion EC",
+    reportedAt: "2026-10-08T02:12:00+08:00",
+    mediaUrl: "/reports/laray-road-embankment.jpg",
+    href: "/reports/rpt-laray-embankment",
   },
-  // EC occupancy pins stay on After / facilities layer — During focuses on flood + field hazards.
+  {
+    id: "rpt-sm-consolacion-atrium",
+    title: "SM Consolacion · atrium flooded",
+    kind: "flood",
+    // Pin from map: SM City Consolacion footprint.
+    lat: 10.379876090660447,
+    lng: 123.96408121585092,
+    purokHint: "Poblacion Occidental",
+    sourceLabel: "Image report · live",
+    notes:
+      "Ground floor atrium under muddy floodwater · escalator base submerged · vehicle in water · mall closed",
+    reportedAt: "2026-10-08T02:20:00+08:00",
+    mediaUrl: "/reports/sm-consolacion-flood-atrium.jpg",
+    href: "/reports/rpt-sm-consolacion-atrium",
+  },
+  {
+    id: "rpt-sm-consolacion-ground",
+    title: "SM Consolacion · ground floor inundated",
+    kind: "flood",
+    lat: 10.37995,
+    lng: 123.96422,
+    purokHint: "Poblacion Occidental",
+    sourceLabel: "Image report · live",
+    notes:
+      "Interior flood to mid-shutter · floating debris · foodcourt / stores inaccessible · power down",
+    reportedAt: "2026-10-08T02:28:00+08:00",
+    mediaUrl: "/reports/sm-consolacion-flood-ground.jpg",
+    href: "/reports/rpt-sm-consolacion-ground",
+  },
+  {
+    id: "rpt-sm-consolacion-highway",
+    title: "SM Consolacion · highway wreck & debris",
+    kind: "blockage",
+    lat: 10.37972,
+    lng: 123.96395,
+    purokHint: "Poblacion Occidental",
+    sourceLabel: "Image report · live",
+    notes:
+      "Cebu North Road outside SM · overturned car · barriers displaced · styrofoam / debris blocking lanes · traffic backed up",
+    reportedAt: "2026-10-08T02:35:00+08:00",
+    mediaUrl: "/reports/sm-consolacion-highway-wreck.jpg",
+    href: "/reports/rpt-sm-consolacion-highway",
+  },
+  // EC occupancy pins stay on After / facilities layer — During focuses on flood.
 ];
 
 const AFTER_REPORTS: ScenarioReportPin[] = [
@@ -257,7 +297,7 @@ const AFTER_REPORTS: ScenarioReportPin[] = [
     purokHint: "Purok 1",
     sourceLabel: "Barangay recovery desk · field report",
     notes:
-      "Open hotspot after Odette · charge phones / message family · open while hall has generator power · not an evacuation shelter",
+      "Open hotspot after Tino · charge phones / message family · open while hall has generator power · not an evacuation shelter",
     reportedAt: "2026-10-08T17:05:00+08:00",
     mediaUrl: "/reports/free-wifi-nangka.png",
     href: "/reports/rpt-after-free-wifi",
@@ -271,7 +311,7 @@ const AFTER_REPORTS: ScenarioReportPin[] = [
     purokHint: "Purok 1",
     sourceLabel: "Barangay recovery desk · field report",
     notes:
-      "Community genset running after Odette · free phone / power-bank charging · limited fuel · queue at hall desk · not for home hookups",
+      "Community genset running after Tino · free phone / power-bank charging · limited fuel · queue at hall desk · not for home hookups",
     reportedAt: "2026-10-08T17:20:00+08:00",
     mediaUrl: "/reports/free-generator-nangka.png",
     href: "/reports/rpt-after-free-generator",
@@ -282,9 +322,9 @@ const BEFORE_ACTIONS: AssistHouseholdAction[] = [
   action(
     10,
     "evacuate",
-    "Odette approaching · Purok 6 flood-prone (LGU list) · no upper floor",
+    "Tino approaching · Purok 6 flood-prone (LGU list) · no upper floor",
   ),
-  action(7, "evacuate", "Pregnant · preemptive move before Odette landfall window"),
+  action(7, "evacuate", "Pregnant · preemptive move before Tino landfall window"),
   action(3, "evacuate", "PWD / wheelchair · move early while roads are clear"),
   action(2, "evacuate", "Flood-prone single-storey · Nangka on Consolacion flood list"),
   action(11, "prepare", "3 children · go-bag · stage at elementary if signal rises"),
@@ -294,7 +334,7 @@ const BEFORE_ACTIONS: AssistHouseholdAction[] = [
 ];
 
 const DURING_ACTIONS: AssistHouseholdAction[] = [
-  action(10, "evacuate", "Odette impact · critical flood · Access Road blocked"),
+  action(10, "evacuate", "Tino impact · critical flood · Access Road blocked"),
   action(7, "evacuate", "Sheet flood at chapel · pregnant · move to shelter now"),
   action(3, "evacuate", "PWD · rising water + fallen tree blocks west exit"),
   action(2, "evacuate", "Single-storey in flood corridor · knee-deep ponding"),
@@ -306,7 +346,7 @@ const DURING_ACTIONS: AssistHouseholdAction[] = [
 ];
 
 const AFTER_ACTIONS: AssistHouseholdAction[] = [
-  action(10, "evacuate", "Still displaced post-Odette · residual flood"),
+  action(10, "evacuate", "Still displaced post-Tino · residual flood"),
   action(7, "evacuate", "Displaced · chapel staging · needs shelter assignment"),
   action(1, "monitor", "Welfare check · elderly · no contact since landfall"),
   action(3, "monitor", "Welfare check · PWD household · confirm meds & mobility"),
@@ -334,11 +374,11 @@ function buildNeeds(
 
 export const CAT5_BEFORE: ScenarioBundle = {
   phase: "before",
-  label: "Before Odette",
+  label: "Before Tino",
   shortLabel: "Before",
-  eyebrow: "Odette simulation · Rai · 15 Dec 2021",
+  eyebrow: "Tino simulation · Rai · 15 Dec 2021",
   blurb:
-    "Typhoon Odette approaching Visayas (IBTrACS track). Run triage for AI flood footprints + household priorities — high lots shelter in place.",
+    "Typhoon Tino approaching Visayas (IBTrACS track). Run triage for AI flood footprints + household priorities — high lots shelter in place.",
   typhoons: BEFORE_TYPHOONS,
   floods: BEFORE_FLOODS,
   landslides: [],
@@ -351,14 +391,14 @@ export const CAT5_BEFORE: ScenarioBundle = {
 
 export const CAT5_DURING: ScenarioBundle = {
   phase: "during",
-  label: "During Odette",
+  label: "During Tino",
   shortLabel: "During",
-  eyebrow: "Odette simulation · Rai · 16 Dec 2021",
+  eyebrow: "Tino simulation · Rai · 16 Dec 2021",
   blurb:
-    "Eye near Cebu (~2 hrs before Carcar landfall). Flood, landslide, and field reports play out on the observed Odette track.",
+    "Eye near Cebu (~2 hrs before Carcar landfall). Flood and field reports play out on the observed Tino track.",
   typhoons: DURING_TYPHOONS,
   floods: CEBU_FLOOD_SAMPLES,
-  landslides: CEBU_LANDSLIDE_SAMPLES,
+  landslides: [],
   fires: [],
   reportPins: DURING_REPORTS,
   actions: DURING_ACTIONS,
@@ -376,11 +416,11 @@ export const CAT5_DURING: ScenarioBundle = {
 
 export const CAT5_AFTER: ScenarioBundle = {
   phase: "after",
-  label: "After Odette",
+  label: "After Tino",
   shortLabel: "After",
-  eyebrow: "Odette simulation · Rai · 17 Dec 2021",
+  eyebrow: "Tino simulation · Rai · 17 Dec 2021",
   blurb:
-    "Storm core west of Negros. Recovery phase: residual flood/fire, welfare checks — Consolacion took heavy housing damage after Odette.",
+    "Storm core west of Negros. Recovery phase: residual flood/fire, welfare checks — Consolacion took heavy housing damage after Tino.",
   typhoons: AFTER_TYPHOONS,
   floods: AFTER_FLOODS,
   landslides: [],

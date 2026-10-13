@@ -6,12 +6,17 @@ import type {
   AssistPriority,
   AssistResult,
 } from "@/lib/ai/assistTypes";
-import { predictAiFloods } from "@/lib/ai/predictFloods";
+import { floodsForMapPaint } from "@/lib/ai/predictFloods";
 import { enrichActionsWithContacts } from "@/lib/ai/callList";
 import {
   clearBarangayMapSnapshot,
   saveBarangayMapSnapshot,
 } from "@/lib/ai/barangayMapSnapshot";
+import {
+  deleteCloudThread,
+  loadCloudHistory,
+  saveCloudHistory,
+} from "@/lib/ai/chatCloud";
 import { DEFAULT_MAP_AREA } from "@/lib/geo/mapAreas";
 import type {
   ChatApiResponse,
@@ -41,7 +46,10 @@ import {
   isSmsDispatchIntent,
   smsPriorityFromIntent,
 } from "@/lib/alerts/smsIntent";
+import { getClientDb } from "@/lib/firebase/client";
 import { enrichEscapesWithRoads } from "@/lib/geo/osrmRoute";
+import { speakAndPersistAssistantReply } from "@/lib/speech/assistantTts";
+import { rememberAudioUrl } from "@/lib/speech/elevenTts";
 import type { FloodSample } from "@/lib/hazards/floodSamples";
 import type { LandslideSample } from "@/lib/hazards/landslideSamples";
 import type { TyphoonSample } from "@/lib/hazards/typhoonSamples";
@@ -54,7 +62,7 @@ export type AssistPayload = {
   typhoons: TyphoonSample[];
   weatherLabel?: string;
   model?: GeminiAssistModelId;
-  /** Odette scenario phase — AI triage overlays only apply in "during". */
+  /** Tino scenario phase — AI triage overlays only apply in "during". */
   phase?: "before" | "during" | "after";
 };
 
@@ -63,7 +71,13 @@ function bootstrap() {
   return { activeId: first.id, threads: [first] as ChatThread[] };
 }
 
-export function useAiAssist() {
+export type UseAiAssistOpts = {
+  /** Officer uid — syncs threads + TTS refs to Firestore / Storage. */
+  officerUid?: string | null;
+};
+
+export function useAiAssist(opts: UseAiAssistOpts = {}) {
+  const officerUid = opts.officerUid?.trim() || null;
   const boot = useMemo(() => bootstrap(), []);
   const [hydrated, setHydrated] = useState(false);
   const [threads, setThreads] = useState<ChatThread[]>(boot.threads);
@@ -74,21 +88,56 @@ export function useAiAssist() {
   const activeIdRef = useRef(activeId);
   activeIdRef.current = activeId;
   const resultRef = useRef<AssistResult | null>(null);
+  const cloudSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    const stored = loadHistory();
-    if (stored) {
-      setThreads(stored.threads);
-      setActiveId(stored.activeId);
-      setModel(stored.model);
-    }
-    setHydrated(true);
-  }, []);
+    let cancelled = false;
+    (async () => {
+      const local = loadHistory();
+      if (local && !cancelled) {
+        setThreads(local.threads);
+        setActiveId(local.activeId);
+        setModel(local.model);
+      }
+      if (officerUid) {
+        try {
+          const cloud = await loadCloudHistory(getClientDb(), officerUid);
+          if (cancelled || !cloud) {
+            if (!cancelled) setHydrated(true);
+            return;
+          }
+          // Prefer cloud when it has any threads (cross-device / refresh).
+          setThreads(cloud.threads);
+          setActiveId(cloud.activeId);
+          setModel(cloud.model);
+          saveHistory(cloud);
+        } catch (err) {
+          console.warn("[useAiAssist] cloud hydrate failed", err);
+        }
+      }
+      if (!cancelled) setHydrated(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [officerUid]);
 
   useEffect(() => {
     if (!hydrated) return;
     saveHistory({ activeId, threads, model });
-  }, [activeId, threads, model, hydrated]);
+    if (!officerUid) return;
+    if (cloudSaveTimer.current) clearTimeout(cloudSaveTimer.current);
+    cloudSaveTimer.current = setTimeout(() => {
+      void saveCloudHistory(getClientDb(), officerUid, {
+        activeId,
+        threads,
+        model,
+      }).catch((err) => console.warn("[useAiAssist] cloud save failed", err));
+    }, 600);
+    return () => {
+      if (cloudSaveTimer.current) clearTimeout(cloudSaveTimer.current);
+    };
+  }, [activeId, threads, model, hydrated, officerUid]);
 
   const active = useMemo(
     () => threads.find((t) => t.id === activeId) ?? threads[0],
@@ -138,17 +187,19 @@ export function useAiAssist() {
       typhoons: TyphoonSample[] = [],
     ) => {
       // Run triage always paints AI flood footprints on the map.
-      const floods =
-        assist.predictedFloods?.length && assist.predictedFloods.length > 0
-          ? assist.predictedFloods
-          : predictAiFloods({ typhoons, source: assist.source });
+      // Rebuild elev tiles if the payload (or slimmed history) dropped footprints.
+      const floods = floodsForMapPaint({
+        floods: assist.predictedFloods,
+        typhoons,
+        source: assist.source,
+      });
       const withContacts: AssistResult = {
         ...assist,
         predictedFloods: floods,
         actions: enrichActionsWithContacts(assist.actions, households),
         mapHint:
           assist.mapHint ||
-          "AI flood footprints on map. Run triage sets predicted flood areas.",
+          "Flood footprints on map. Run triage sets predicted flood areas.",
       };
       patchActive((t) => ({
         ...t,
@@ -169,7 +220,7 @@ export function useAiAssist() {
         predictedFloods: floods,
         mapHint:
           routedN > 0
-            ? "AI flood footprints on map · red lines follow streets to safe points."
+            ? "Flood footprints on map · escape lines follow streets to safe points."
             : withContacts.mapHint,
         summary:
           routedN > 0
@@ -250,20 +301,18 @@ export function useAiAssist() {
         typeof data.provider === "object" ? data.provider.email : undefined;
       const lines: string[] = [];
       if (data.smsAttempted || smsN) {
-        lines.push(
-          smsProv === "demo"
-            ? `Odette simulation · ${smsN} SMS logged.`
-            : `Semaphore SMS · sent ${smsN}${data.failed ? ` · some failed` : ""}.`,
-        );
+        if (smsProv !== "demo") {
+          lines.push(
+            `Twilio SMS · sent ${smsN}${data.failed ? ` · some failed` : ""}.`,
+          );
+        }
       }
       if (data.emailAttempted || emailN) {
-        lines.push(
-          emailProv === "demo"
-            ? `Odette simulation · ${emailN} email(s) logged.`
-            : `Resend email · sent ${emailN}.`,
-        );
+        if (emailProv !== "demo") {
+          lines.push(`Resend email · sent ${emailN}.`);
+        }
       }
-      if (!lines.length) {
+      if (!lines.length && smsProv !== "demo" && emailProv !== "demo") {
         lines.push(`Alerts · ${data.sent ?? smsLog.filter((r) => r.ok).length} sent.`);
       }
       if (skipN) lines.push(`Skipped ${skipN} (no/bad phone or email).`);
@@ -336,11 +385,11 @@ export function useAiAssist() {
       if (callN > 0) {
         lines.push(`${callN} call(s) via available phones.`);
       }
-      lines.push(
-        callProv === "demo"
-          ? `Odette simulation · ${callN} call(s) logged.`
-          : `Twilio Voice · dialed ${callN}${data.failed ? ` · some failed` : ""}.`,
-      );
+      if (callProv !== "demo") {
+        lines.push(
+          `Twilio Voice · dialed ${callN}${data.failed ? ` · some failed` : ""}.`,
+        );
+      }
       if (skipN) lines.push(`Skipped ${skipN} (no/bad phone).`);
       const fails = smsLog.filter((r) => !r.ok).slice(0, 3);
       for (const f of fails) {
@@ -394,11 +443,11 @@ export function useAiAssist() {
       const lines: string[] = [
         `Calling ${labels} for Brgy. ${DEFAULT_MAP_AREA.barangay}, ${DEFAULT_MAP_AREA.lgu}.`,
       ];
-      lines.push(
-        callProv === "demo"
-          ? `Odette simulation · ${callN} responder call(s) logged (no live dial).`
-          : `Twilio Voice · dialed ${callN} station(s)${data.failed ? ` · some failed` : ""}.`,
-      );
+      if (callProv !== "demo") {
+        lines.push(
+          `Twilio Voice · dialed ${callN} station(s)${data.failed ? ` · some failed` : ""}.`,
+        );
+      }
       for (const r of smsLog) {
         const mark = r.ok ? "·" : "· failed";
         lines.push(
@@ -446,6 +495,41 @@ export function useAiAssist() {
       setRunning(true);
       setError(null);
 
+      const speakPersist = (assistantMsg: ChatMessage) => {
+        void speakAndPersistAssistantReply({
+          message: assistantMsg,
+          officerUid,
+          threadId,
+          onSaved: (messageId, audio) => {
+            setThreads((prev) =>
+              prev.map((t) => {
+                if (t.id !== threadId) return t;
+                let changed = false;
+                const messages = t.messages.map((m) => {
+                  if (m.id !== messageId || m.audioUrl === audio.audioUrl) {
+                    return m;
+                  }
+                  changed = true;
+                  return {
+                    ...m,
+                    audioUrl: audio.audioUrl,
+                    audioStoragePath: audio.audioStoragePath,
+                    ttsEmotion: audio.ttsEmotion ?? m.ttsEmotion,
+                    ttsProvider: audio.ttsProvider ?? m.ttsProvider,
+                  };
+                });
+                if (!changed) return t;
+                return {
+                  ...t,
+                  messages,
+                  updatedAt: new Date().toISOString(),
+                };
+              }),
+            );
+          },
+        });
+      };
+
       try {
         if (isResponderCallIntent(trimmed)) {
           const { reply, smsLog } = await dispatchResponderCallFromAssist(
@@ -469,6 +553,7 @@ export function useAiAssist() {
               };
             }),
           );
+          speakPersist(assistantMsg);
           return;
         }
 
@@ -495,6 +580,7 @@ export function useAiAssist() {
               };
             }),
           );
+          speakPersist(assistantMsg);
           return;
         }
 
@@ -522,6 +608,7 @@ export function useAiAssist() {
               };
             }),
           );
+          speakPersist(assistantMsg);
           return;
         }
 
@@ -598,6 +685,8 @@ export function useAiAssist() {
             };
           }),
         );
+        // Gemini reply → emotion → ElevenLabs → play → save audioUrl (Storage + thread).
+        speakPersist(assistantMsg);
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Chat failed";
         setError(msg);
@@ -629,6 +718,7 @@ export function useAiAssist() {
       dispatchResponderCallFromAssist,
       dispatchSmsFromAssist,
       model,
+      officerUid,
       running,
     ],
   );
@@ -687,9 +777,51 @@ export function useAiAssist() {
         }
         return next;
       });
+      if (officerUid) {
+        void deleteCloudThread(getClientDb(), officerUid, id);
+      }
       setError(null);
     },
-    [running],
+    [running, officerUid],
+  );
+
+  /** Persist cached TTS URL on an assistant message (local + cloud via effect). */
+  const patchMessageAudio = useCallback(
+    (
+      messageId: string,
+      audio: {
+        audioUrl: string;
+        audioStoragePath: string;
+        ttsEmotion?: string;
+        ttsProvider?: "elevenlabs" | "browser";
+      },
+    ) => {
+      rememberAudioUrl(messageId, audio.audioUrl);
+      setThreads((prev) =>
+        prev.map((t) => {
+          if (t.id !== activeIdRef.current) return t;
+          let changed = false;
+          const messages = t.messages.map((m) => {
+            if (m.id !== messageId || m.audioUrl === audio.audioUrl) return m;
+            changed = true;
+            return {
+              ...m,
+              audioUrl: audio.audioUrl,
+              audioStoragePath: audio.audioStoragePath,
+              ttsEmotion: audio.ttsEmotion ?? m.ttsEmotion,
+              ttsProvider: audio.ttsProvider ?? m.ttsProvider,
+            };
+          });
+          if (!changed) return t;
+          return {
+            ...t,
+            messages,
+            updatedAt: new Date().toISOString(),
+          };
+        }),
+      );
+    },
+    [],
   );
 
   const renameChat = useCallback((id: string, title: string) => {
@@ -743,5 +875,6 @@ export function useAiAssist() {
     selectChat,
     deleteChat,
     renameChat,
+    patchMessageAudio,
   };
 }

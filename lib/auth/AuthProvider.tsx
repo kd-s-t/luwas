@@ -67,6 +67,8 @@ export type RegisterIdProof = {
   photoURL?: string | null;
   idDocumentPath?: string | null;
   faceDocumentPath?: string | null;
+  idDocumentUrl?: string | null;
+  faceDocumentUrl?: string | null;
 };
 
 type AuthContextValue = {
@@ -119,6 +121,8 @@ function idProofFields(proof: RegisterIdProof) {
     photoURL: proof.photoURL ?? null,
     idDocumentPath: proof.idDocumentPath ?? null,
     faceDocumentPath: proof.faceDocumentPath ?? null,
+    idDocumentUrl: proof.idDocumentUrl ?? null,
+    faceDocumentUrl: proof.faceDocumentUrl ?? null,
   };
 }
 

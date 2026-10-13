@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { AssistPriority } from "@/lib/ai/assistTypes";
 import {
   buildEvacCallScript,
+  buildIncidentAlertCallScript,
   buildResponderCallScript,
 } from "@/lib/alerts/callCopy";
 import { toE164Ph } from "@/lib/alerts/phones";
@@ -10,6 +11,8 @@ import {
   type ResponderCallKind,
 } from "@/lib/alerts/responderCall";
 import { callProviderStatus, sendCallBatch } from "@/lib/alerts/sendCall";
+import { buildIncidentAlertSmsBody } from "@/lib/alerts/smsCopy";
+import { sendSmsBatch, smsProviderStatus } from "@/lib/alerts/sendSms";
 
 export const runtime = "nodejs";
 
@@ -36,12 +39,20 @@ type Body = {
   lgu?: string;
   kinds?: string[];
   reason?: string;
+  /** Brief auto incident script (<1 min) after AI legit fire/crime/accident. */
+  script?: "default" | "fire_alert" | "incident_alert";
+  alertLabel?: string | null;
+  nearLat?: number | null;
+  nearLng?: number | null;
+  purok?: string | null;
+  title?: string | null;
   recipients?: HouseholdRecipient[];
 };
 
 export async function GET() {
   return NextResponse.json({
     call: callProviderStatus(),
+    sms: smsProviderStatus(),
   });
 }
 
@@ -75,7 +86,15 @@ async function postResponderCalls(body: Body) {
     );
   }
 
-  const resolved = resolveResponderCalls({ lgu, barangay, kinds });
+  const near =
+    typeof body.nearLat === "number" &&
+    typeof body.nearLng === "number" &&
+    Number.isFinite(body.nearLat) &&
+    Number.isFinite(body.nearLng)
+      ? { lat: body.nearLat, lng: body.nearLng }
+      : null;
+
+  const resolved = resolveResponderCalls({ lgu, barangay, kinds, near });
   if (resolved.length === 0) {
     return NextResponse.json(
       {
@@ -86,15 +105,32 @@ async function postResponderCalls(body: Body) {
     );
   }
 
+  const useIncidentAlert =
+    body.script === "incident_alert" || body.script === "fire_alert";
+  const alertLabel =
+    body.alertLabel?.trim() ||
+    (body.script === "fire_alert" ? "fire" : "incident");
+
   const callPayloads = resolved.map((r) => ({
     to: r.to,
-    body: buildResponderCallScript({
-      kind: r.kind,
-      stationName: r.stationName,
-      barangay,
-      lgu,
-      reason: body.reason,
-    }),
+    body: useIncidentAlert
+      ? buildIncidentAlertCallScript({
+          alertLabel,
+          stationName: r.stationName,
+          barangay,
+          lgu,
+          purok: body.purok,
+          title: body.title,
+          lat: near?.lat ?? null,
+          lng: near?.lng ?? null,
+        })
+      : buildResponderCallScript({
+          kind: r.kind,
+          stationName: r.stationName,
+          barangay,
+          lgu,
+          reason: body.reason,
+        }),
     meta: {
       ownerName: r.stationName,
       priority: r.kind,
@@ -102,8 +138,37 @@ async function postResponderCalls(body: Body) {
     },
   }));
 
-  const callOut = await sendCallBatch(callPayloads);
-  const results = callOut.results.map((r, i) => ({
+  const smsBody = useIncidentAlert
+    ? buildIncidentAlertSmsBody({
+        alertLabel,
+        barangay,
+        purok: body.purok,
+        title: body.title,
+        lat: near?.lat ?? null,
+        lng: near?.lng ?? null,
+      })
+    : (
+        `LUWAS MDRRMO · Brgy ${barangay}, ${lgu}: ` +
+        `${body.reason?.trim() || "Please stand by for barangay coordination."} ` +
+        `Tino simulation.`
+      );
+
+  const smsPayloads = resolved.map((r) => ({
+    to: r.to,
+    body: smsBody,
+    meta: {
+      ownerName: r.stationName,
+      priority: r.kind,
+      phoneDisplay: r.phoneDisplay,
+    },
+  }));
+
+  const [callOut, smsOut] = await Promise.all([
+    sendCallBatch(callPayloads),
+    sendSmsBatch(smsPayloads),
+  ]);
+
+  const callResults = callOut.results.map((r, i) => ({
     channel: "call" as const,
     to: r.to,
     ok: r.ok,
@@ -117,12 +182,29 @@ async function postResponderCalls(body: Body) {
     kind: resolved[i]?.kind,
   }));
 
+  const smsResults = smsOut.results.map((r, i) => ({
+    channel: "sms" as const,
+    to: r.to,
+    ok: r.ok,
+    ownerName: r.ownerName ?? resolved[i]?.stationName,
+    phoneDisplay: r.phoneDisplay ?? r.to,
+    priority: r.priority ?? resolved[i]?.kind,
+    body: r.body,
+    error: r.error,
+    provider: r.provider,
+    stationId: resolved[i]?.stationId,
+    kind: resolved[i]?.kind,
+  }));
+
+  const results = [...smsResults, ...callResults];
+
   return NextResponse.json({
-    provider: { call: callOut.provider },
+    provider: { call: callOut.provider, sms: smsOut.provider },
     target: "responders",
     requested: kinds.length,
     attempted: results.length,
     callAttempted: callPayloads.length,
+    smsAttempted: smsPayloads.length,
     sent: results.filter((r) => r.ok).length,
     failed: results.filter((r) => !r.ok).length,
     skipped: [],

@@ -1,6 +1,7 @@
 "use client";
 
 import { motion, useReducedMotion } from "framer-motion";
+import { HomeFooter } from "@/components/HomeFooter";
 import { HomeNav } from "@/components/HomeNav";
 import { easeOut } from "@/components/motion/primitives";
 
@@ -17,9 +18,9 @@ export function AuthCard({ title, subtitle, children, footer }: AuthCardProps) {
   return (
     <div className="flex min-h-screen flex-col">
       <HomeNav />
-      <div className="flex flex-1 flex-col items-center justify-center px-4 py-10">
+      <div className="flex flex-1 flex-col items-center overflow-y-auto px-4 py-10">
         <motion.div
-          className="w-full max-w-md border border-[var(--border)] bg-[var(--surface)] p-8 shadow-[0_8px_28px_rgba(31,33,38,0.06)]"
+          className="my-auto w-full max-w-md border border-[var(--border)] bg-[var(--surface)] p-6 shadow-[0_8px_28px_rgba(31,33,38,0.06)] sm:p-8"
           initial={reduce ? false : { opacity: 0, y: 16, scale: 0.985 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ duration: 0.45, delay: 0.12, ease: easeOut }}
@@ -34,6 +35,7 @@ export function AuthCard({ title, subtitle, children, footer }: AuthCardProps) {
           </div>
         </motion.div>
       </div>
+      <HomeFooter />
     </div>
   );
 }

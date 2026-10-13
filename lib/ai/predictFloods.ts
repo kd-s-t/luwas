@@ -2,6 +2,33 @@ import { elevFloodCellPolygons, nearestLowSpot } from "@/lib/geo/elevFloodFootpr
 import type { FloodSample } from "@/lib/hazards/floodSamples";
 import type { TyphoonSample } from "@/lib/hazards/typhoonSamples";
 
+/** True when at least one flood carries elev-grid / ring tiles for the map. */
+export function floodsHaveFootprints(
+  floods: FloodSample[] | null | undefined,
+): boolean {
+  return Boolean(
+    floods?.some(
+      (f) => (f.footprints?.length ?? 0) > 0 || Boolean(f.footprint?.length),
+    ),
+  );
+}
+
+/**
+ * Prefer live floods that still have tiles; otherwise rebuild from elevation.
+ * Chat/localStorage slim strips footprints — map paint must restore them.
+ */
+export function floodsForMapPaint(input: {
+  floods?: FloodSample[] | null;
+  typhoons?: TyphoonSample[];
+  source?: "gemini" | "local";
+}): FloodSample[] {
+  if (floodsHaveFootprints(input.floods)) return input.floods!;
+  return predictAiFloods({
+    typhoons: input.typhoons,
+    source: input.source ?? "local",
+  });
+}
+
 /**
  * AI flood footprint prediction for Nangka.
  * Uses elevation lows + storm intensity (not the static scenario grid).
@@ -16,7 +43,8 @@ export function predictAiFloods(input: {
   )[0];
   const source = input.source ?? "local";
 
-  // Closer / stronger storm → deeper inundation thresholds.
+  // Closer / stronger storm → deeper inundation (keep fringe tight — ≤13 m
+  // painted ~58% of the Nangka elev grid and read as “whole map blue”).
   const near = ty ? ty.distanceKm < 120 : false;
   const intense =
     ty &&
@@ -24,8 +52,8 @@ export function predictAiFloods(input: {
       ty.category === "typhoon" ||
       ty.maxWindsKmh >= 150);
 
-  const fringeMax = near && intense ? 13 : near ? 12 : 11;
-  const coreMax = near && intense ? 9 : near ? 8 : 7;
+  const fringeMax = near && intense ? 10 : near ? 9 : 8;
+  const coreMax = near && intense ? 7 : near ? 6 : 5;
   const fringeDepth = near && intense ? 55 : near ? 35 : 15;
   const coreDepth = near && intense ? 95 : near ? 70 : 25;
   const fringeSev: FloodSample["severity"] =

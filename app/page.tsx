@@ -53,8 +53,9 @@ export default function HomePage() {
 
           <FadeItem>
             <p className="mt-3 max-w-md text-[15px] leading-relaxed text-[var(--muted)] sm:mt-4 sm:text-lg">
-              Command-center software for Philippine barangays — turn a hazard
-              into household needs, resource moves, and the right alerts.
+              Paid command-center software barangays and LGUs subscribe to —
+              turn a hazard into household needs, resource moves, and the right
+              alerts.
             </p>
           </FadeItem>
 

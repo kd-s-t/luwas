@@ -130,6 +130,8 @@ export default function CitizenRegisterPage() {
             photoURL: faceUp.url,
             idDocumentPath: idUp.path,
             faceDocumentPath: faceUp.path,
+            idDocumentUrl: idUp.url,
+            faceDocumentUrl: faceUp.url,
           });
         } catch {
           /* optional path persist */

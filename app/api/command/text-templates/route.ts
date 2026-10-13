@@ -16,9 +16,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unknown template" }, { status: 400 });
     }
     const built = buildTextTemplate(template);
-    // Sender line under “LUWAS Alerts” (Smart / Messages style) — Semaphore sender name.
+    // Sender line under “LUWAS Alerts” (Smart / Messages style) — Twilio From or brand.
     const from =
-      process.env.SEMAPHORE_SENDER_NAME?.trim() || "LUWAS";
+      process.env.TWILIO_FROM_NUMBER?.trim() || "LUWAS";
     return NextResponse.json({
       template,
       preview: {

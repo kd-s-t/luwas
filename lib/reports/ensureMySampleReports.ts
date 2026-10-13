@@ -190,6 +190,7 @@ export async function ensureMySampleReports(input: {
       vertexClass: null,
       vertexConfidence: null,
       validatedAt: sample.status === "queued" ? null : now,
+      autoResponderCallAt: null,
       reporterIdVerified: Boolean(input.idVerified),
       reporterEmail: input.email?.trim() || null,
       reporterPhone: input.phone?.trim() || null,

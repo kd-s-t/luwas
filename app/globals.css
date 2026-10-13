@@ -259,8 +259,31 @@ body {
 }
 
 .dro-map-lucide-wrap-facility-evac_center {
-  color: #2e8c57;
-  background: #eef8f2;
+  /* Dry EC — stone gray only. Never life-green (#2e8c57). */
+  color: #78716c !important;
+  background: #fafaf9 !important;
+  border-color: #78716c !important;
+}
+.dro-map-lucide-wrap-facility-evac_center svg,
+.dro-map-lucide-wrap-facility-evac_center path {
+  stroke: #78716c !important;
+}
+
+/* Flooded facility — orange warning on water. */
+.dro-map-lucide-wrap-facility-flooded,
+.dro-map-lucide-wrap-facility-evac_center.dro-map-lucide-wrap-facility-flooded,
+.dro-map-lucide-wrap-facility-evac_center[data-flooded="1"] {
+  color: #c2410c !important;
+  background: #ffedd5 !important;
+  border-color: #c2410c !important;
+}
+.dro-map-lucide-wrap-facility-flooded svg,
+.dro-map-lucide-wrap-facility-flooded path,
+.dro-map-lucide-wrap-facility-evac_center.dro-map-lucide-wrap-facility-flooded svg,
+.dro-map-lucide-wrap-facility-evac_center.dro-map-lucide-wrap-facility-flooded path,
+.dro-map-lucide-wrap-facility-evac_center[data-flooded="1"] svg,
+.dro-map-lucide-wrap-facility-evac_center[data-flooded="1"] path {
+  stroke: #c2410c !important;
 }
 
 .dro-map-lucide-wrap-facility-landmark {
@@ -269,8 +292,22 @@ body {
 }
 
 .dro-map-lucide-wrap-facility-bfp {
-  color: #ea580c;
-  background: #fff7ed;
+  color: #c72929;
+  background: #ffffff;
+  border-color: #c72929;
+}
+
+.dro-map-lucide-wrap-facility-bfp-img {
+  overflow: hidden;
+  padding: 0;
+}
+
+.dro-map-bfp-helmet {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 9999px;
 }
 
 .dro-map-lucide-wrap-facility-hospital {
@@ -396,48 +433,17 @@ body {
   font-weight: 600;
 }
 
-.dro-map-escape-arrow-wrap {
-  background: transparent !important;
-  border: none !important;
-}
-
-.dro-map-escape-chevron {
-  display: block;
-  width: 28px;
-  height: 28px;
-  transform-origin: 50% 50%;
-  filter: drop-shadow(0 1px 2px rgba(31, 33, 38, 0.35));
-}
-
-.dro-map-escape-chevron-halo {
-  fill: #ffffff;
-}
-
-.dro-map-escape-chevron-body {
-  fill: #c72929;
-}
-
-/* Dashed stroke marches toward the shelter so direction reads without the old triangle. */
-@keyframes dro-escape-dash {
-  to {
-    stroke-dashoffset: -36;
-  }
-}
-
-.leaflet-overlay-pane path.dro-escape-flow {
-  animation: dro-escape-dash 1.1s linear infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .leaflet-overlay-pane path.dro-escape-flow {
-    animation: none;
-  }
-}
-
 /* Pinch / pan stay on the map — don't zoom the whole page. */
 .leaflet-container {
   touch-action: none;
   -ms-touch-action: none;
+}
+
+/* AI flood elev-grid wash — keep above basemap, under markers. */
+.leaflet-container .luwas-flood-tiles {
+  z-index: 450 !important;
+  pointer-events: none;
+  opacity: 0.85;
 }
 
 .leaflet-popup-content-wrapper {

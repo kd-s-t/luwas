@@ -1,13 +1,10 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import {
-  MapContainer,
-  Marker,
-  TileLayer,
-  useMap,
-  useMapEvents,
-} from "react-leaflet";
+import { MapContainer } from "react-leaflet/MapContainer";
+import { Marker } from "react-leaflet/Marker";
+import { TileLayer } from "react-leaflet/TileLayer";
+import { useMap, useMapEvents } from "react-leaflet/hooks";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 

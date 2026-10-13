@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -15,6 +16,7 @@ import {
   type Edge,
   type Node as FlowNode,
   type NodeProps,
+  type ReactFlowInstance,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { motion } from "framer-motion";
@@ -364,25 +366,77 @@ function chunkRows<T>(items: T[], size: number): T[][] {
 function OfficersFlowCanvas({
   nodes,
   edges,
-  height,
 }: {
   nodes: FlowNode<OfficerNodeData>[];
   edges: Edge[];
-  height: number;
 }) {
-  const fitted = useRef(false);
-  const flowRef = useRef<{ fitView: (opts?: object) => void } | null>(null);
-  const nodeIdsKey = nodes.map((n) => n.id).join(",");
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const flowRef = useRef<ReactFlowInstance | null>(null);
+  const [width, setWidth] = useState(0);
 
   useEffect(() => {
-    if (!flowRef.current || !fitted.current) return;
-    window.requestAnimationFrame(() => {
-      flowRef.current?.fitView({ padding: 0.14, minZoom: 0.35, maxZoom: 1 });
-    });
-  }, [nodeIdsKey, height]);
+    const el = wrapRef.current;
+    if (!el) return;
+    const measure = () => setWidth(el.clientWidth);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const layout = useMemo(() => {
+    if (nodes.length === 0) {
+      return { contentW: 400, contentH: 360, midX: 0, minY: 0 };
+    }
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    for (const n of nodes) {
+      const w = NODE_W[n.data.tier] ?? NODE_W.mid;
+      minX = Math.min(minX, n.position.x);
+      maxX = Math.max(maxX, n.position.x + w);
+      minY = Math.min(minY, n.position.y);
+      maxY = Math.max(maxY, n.position.y + NODE_H);
+    }
+    return {
+      contentW: Math.max(1, maxX - minX),
+      contentH: Math.max(NODE_H, maxY - minY),
+      midX: (minX + maxX) / 2,
+      minY,
+    };
+  }, [nodes]);
+
+  // Zoom to fill width from horizontal node span; height grows (page scrolls).
+  const sidePad = 0.05;
+  const zoom =
+    width > 0
+      ? Math.min(
+          1.9,
+          Math.max(0.55, (width * (1 - sidePad * 2)) / layout.contentW),
+        )
+      : 1;
+  const height = Math.ceil(layout.contentH * zoom + 48);
+
+  const applyViewport = useCallback(() => {
+    if (!flowRef.current || width <= 0) return;
+    flowRef.current.setViewport(
+      {
+        x: width / 2 - layout.midX * zoom,
+        y: 24 - layout.minY * zoom,
+        zoom,
+      },
+      { duration: 0 },
+    );
+  }, [width, zoom, layout.midX, layout.minY]);
+
+  useEffect(() => {
+    applyViewport();
+  }, [applyViewport, nodes]);
 
   return (
     <div
+      ref={wrapRef}
       className="officer-hierarchy-flow w-full min-w-0 overflow-hidden rounded-sm"
       style={{ height }}
     >
@@ -392,11 +446,7 @@ function OfficersFlowCanvas({
         nodeTypes={officerNodeTypes}
         onInit={(inst) => {
           flowRef.current = inst;
-          if (fitted.current) return;
-          fitted.current = true;
-          window.requestAnimationFrame(() => {
-            inst.fitView({ padding: 0.14, minZoom: 0.35, maxZoom: 1 });
-          });
+          window.requestAnimationFrame(() => applyViewport());
         }}
         nodesDraggable={false}
         nodesConnectable={false}
@@ -409,8 +459,8 @@ function OfficersFlowCanvas({
         zoomOnPinch={false}
         zoomOnDoubleClick={false}
         preventScrolling={false}
-        minZoom={0.35}
-        maxZoom={1}
+        minZoom={0.4}
+        maxZoom={2}
         proOptions={{ hideAttribution: true }}
         defaultEdgeOptions={{
           type: "smoothstep",
@@ -517,7 +567,6 @@ function OfficersPyramid({
     const edges: Edge[] = [];
     const bandIds: string[][] = [];
     let y = 0;
-    let wrapRows = 0;
 
     for (let ti = 0; ti < tiers.length; ti++) {
       const t = tiers[ti]!;
@@ -554,7 +603,6 @@ function OfficersPyramid({
       });
 
       bandIds.push(ids);
-      wrapRows += strips.length;
       y =
         bandTop +
         strips.length * NODE_H +
@@ -587,17 +635,7 @@ function OfficersPyramid({
       }
     }
 
-    const height = Math.min(
-      720,
-      Math.max(
-        360,
-        wrapRows * NODE_H +
-          Math.max(0, wrapRows - tiers.length) * WRAP_GAP_Y +
-          Math.max(0, tiers.length - 1) * GAP_Y +
-          80,
-      ),
-    );
-    return { nodes, edges, height };
+    return { nodes, edges };
     // structureKey encodes officer display fields; callbacks via refs.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional stable graph
   }, [structureKey]);
@@ -653,11 +691,7 @@ function OfficersPyramid({
         transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
       >
         <ReactFlowProvider>
-          <OfficersFlowCanvas
-            nodes={graph.nodes}
-            edges={graph.edges}
-            height={graph.height}
-          />
+          <OfficersFlowCanvas nodes={graph.nodes} edges={graph.edges} />
         </ReactFlowProvider>
       </motion.div>
     </section>

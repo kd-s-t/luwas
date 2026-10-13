@@ -34,9 +34,9 @@ const TEAM = [
     slug: "patricia-abrenica",
     name: "Patricia Abrenica",
     short: "Pat",
-    role: "Quality Assurance",
-    focus: "Quality and acceptance",
-    bio: "Validates edge cases and acceptance flows: household linking, pending accounts, report status, support tickets, and cross-device checks so what ships on luwasph.com matches what the team promised in the walkthrough.",
+    role: "IT Application Support",
+    focus: "Support and acceptance",
+    bio: "IT application support for LUWAS: validates edge cases and acceptance flows, household linking, pending accounts, report status, support tickets, and cross-device checks so what ships on luwasph.com matches what the team promised in the walkthrough.",
   },
 ] as const;
 
@@ -49,13 +49,13 @@ const PILLARS = [
   },
   {
     title: "AI-assisted triage",
-    body: "Flood footprints, evacuate vs prepare priorities, and escape lines toward dry shelters, especially in the Odette During phase used for drills.",
+    body: "Flood footprints, evacuate vs prepare priorities, and escape lines toward dry shelters, especially in the Tino During phase used for drills.",
     image: "/reports/landslide-bank-failure.png",
     alt: "Landslide bank failure used in field report demos",
   },
   {
     title: "Barangay command",
-    body: "Household roster, live situation map, Mangluluwas chat, SMS / email / voice outreach, and EC occupancy so MDRRMO stays oriented under pressure.",
+    body: "For paying MDRRMO customers: household roster, live situation map, Mangluluwas chat, SMS / email / voice outreach, and EC occupancy under pressure.",
     image: "/reports/ec-nangka-elem-after.jpg",
     alt: "Nangka Elementary School evacuation center",
   },
@@ -74,7 +74,7 @@ export default function AboutPage() {
       <PublicPageHeader
         eyebrow="UgnAI Labs"
         title="About us"
-        description="We build LUWAS so barangays can see hazards early, brief households clearly, and move aid with less guesswork."
+        description="LUWAS is our DRRM command product. Barangays and LGUs subscribe, run ops on it, and pay UgnAI Labs."
       />
       <main className="mx-auto max-w-3xl space-y-14 px-4 py-10 text-sm leading-relaxed text-[var(--muted)] sm:px-6 sm:py-14">
         <section className="space-y-5">
@@ -93,19 +93,22 @@ export default function AboutPage() {
           <div className="space-y-3">
             <p>
               <span className="text-[var(--foreground)]">UgnAI Labs Co.</span>{" "}
-              is a small product team building practical AI tools for Philippine
-              local government. Our first major surface is{" "}
+              builds and sells{" "}
               <span className="text-[var(--foreground)]">LUWAS</span>{" "}
-              (Logistics and Unified Workflow for Aid and Safety), focused on
-              Brgy. Nangka, Consolacion, Cebu, and designed so other barangays
-              can onboard the same playbook.
+              (Logistics and Unified Workflow for Aid and Safety), a paid
+              command-center product for barangay and LGU DRRM teams. We are not
+              a government agency, and LUWAS is not donated or handed over to
+              the Philippine government. Customers activate an area, run their
+              ops on the platform, and pay us for the software and support.
             </p>
             <p>
-              We care about clarity under stress: red means evacuate, yellow
-              means prepare, blue means flood belt. Officers get a command map
-              and an AI colleague (Mangluluwas). Citizens get a fast way to
-              report what they see, including guests who only need a reference
-              ID.
+              Our reference deployment is Brgy. Nangka, Consolacion, Cebu. The
+              same product is designed so other barangays can subscribe and go
+              live the same way. Under stress we keep the map clear: red means
+              evacuate, yellow means prepare, blue means flood belt. Officers
+              get a command map and an AI colleague (Mangluluwas). Residents get
+              a fast way to report what they see, including guests who only need
+              a reference ID.
             </p>
           </div>
         </section>
@@ -174,8 +177,8 @@ export default function AboutPage() {
               Team
             </h2>
             <p>
-              Four people shipping LUWAS together: engineering, design, and
-              quality assurance in one loop from idea to luwasph.com.
+              Four people shipping LUWAS together: engineering, design, QA, and
+              IT application support in one loop from idea to luwasph.com.
             </p>
           </div>
           <ul className="divide-y divide-[var(--border)] border-y border-[var(--border)]">
@@ -211,11 +214,11 @@ export default function AboutPage() {
             How we work
           </h2>
           <p>
-            Design and engineering sit next to the map: Odette Before / During /
+            Design and engineering sit next to the map: Tino Before / During /
             After scenarios, elevation-aware flood footprints, and escape
-            routing that prefers dry shelters. Quality assurance walks the same
-            paths a resident or MDRRMO officer would (report, validate, alert)
-            before we push to production.
+            routing that prefers dry shelters. QA and IT application support
+            walk the same paths a resident or MDRRMO officer would (report,
+            validate, alert) before we push to production.
           </p>
           <p>
             Stack highlights include Next.js, Firebase, Google Gemini and
@@ -229,7 +232,7 @@ export default function AboutPage() {
             Get in touch
           </h2>
           <p>
-            Bug, idea, or barangay onboarding question: email{" "}
+            Sales, billing, bug, or barangay activation question: email{" "}
             <a
               href="mailto:support@luwasph.com"
               className="text-[var(--accent)] underline-offset-2 hover:underline"

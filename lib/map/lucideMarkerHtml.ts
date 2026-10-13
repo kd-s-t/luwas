@@ -29,10 +29,10 @@ function strokeSvg(
   const paths = icon.paths
     .map(
       (d) =>
-        `<path d="${d}" fill="${fill === "none" ? "none" : fill}" stroke="${stroke}"/>`,
+        `<path d="${d}" fill="${fill === "none" ? "none" : fill}" stroke="${stroke}" style="stroke:${stroke} !important;fill:${fill === "none" ? "none" : fill}"/>`,
     )
     .join("");
-  return `<svg class="${className}" xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${stroke}" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+  return `<svg class="${className}" xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${stroke}" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" style="stroke:${stroke} !important" aria-hidden="true">${paths}</svg>`;
 }
 
 const SLIDE_STROKE: Record<"watch" | "warning" | "critical", string> = {
@@ -101,13 +101,6 @@ const LANDMARK: LucideStrokeIcon = {
   ],
 };
 
-/** lucide: Flame — BFP fire station */
-const FLAME: LucideStrokeIcon = {
-  paths: [
-    "M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z",
-  ],
-};
-
 /** lucide: Cross — hospital / health */
 const CROSS: LucideStrokeIcon = {
   paths: [
@@ -127,19 +120,42 @@ export type FacilityMarkerKind =
 export function facilityMarkerHtml(
   kind: FacilityMarkerKind,
   size = 26,
+  opts?: {
+    /** Flooded / inundated — amber warning, never life-green. */
+    flooded?: boolean;
+  },
 ): string {
-  const stroke =
-    kind === "hall"
+  const flooded = Boolean(opts?.flooded);
+  const wrapClass = `dro-map-lucide-wrap dro-map-lucide-wrap-facility dro-map-lucide-wrap-facility-${kind}${
+    flooded ? " dro-map-lucide-wrap-facility-flooded" : ""
+  }`;
+  // Inline styles + hard-coded SVG stroke — CSS HMR used to leave ECs #2e8c57 green on water.
+  const wrapStyle = flooded
+    ? ' style="color:#c2410c;border-color:#c2410c;background:#ffedd5;width:28px;height:28px"'
+    : kind === "evac_center"
+      ? ' style="color:#57534e;border-color:#57534e;background:#fafaf9;width:28px;height:28px"'
+      : ' style="width:28px;height:28px"';
+
+  // BFP: firefighter helmet PNG (never Lucide flame — Leaflet caches DivIcon HTML).
+  if (kind === "bfp") {
+    const img = size - 2;
+    const bfpStyle =
+      ' style="width:28px;height:28px;padding:0;overflow:hidden;color:#c72929;border-color:#c72929;background:#000"';
+    return `<span class="${wrapClass} dro-map-lucide-wrap-facility-bfp-img"${bfpStyle}><img src="/map/bfp-helmet.png?v=3" alt="BFP" width="${img}" height="${img}" class="dro-map-bfp-helmet" draggable="false" style="display:block;width:100%;height:100%;object-fit:cover;border-radius:9999px" /></span>`;
+  }
+
+  // Evac houses: slate dry / orange flooded. Never life-green (#2e8c57).
+  const stroke = flooded
+    ? "#c2410c"
+    : kind === "hall"
       ? "#9e1a1a"
       : kind === "school"
         ? "#1d4ed8"
         : kind === "evac_center"
-          ? "#2e8c57"
-          : kind === "bfp"
-            ? "#ea580c"
-            : kind === "hospital"
-              ? "#be123c"
-              : "#78716c";
+          ? "#78716c"
+          : kind === "hospital"
+            ? "#be123c"
+            : "#78716c";
   const icon =
     kind === "hall"
       ? BUILDING
@@ -147,17 +163,19 @@ export function facilityMarkerHtml(
         ? SCHOOL
         : kind === "evac_center"
           ? HOUSE
-          : kind === "bfp"
-            ? FLAME
-            : kind === "hospital"
-              ? CROSS
-              : LANDMARK;
+          : kind === "hospital"
+            ? CROSS
+            : LANDMARK;
   const svg = strokeSvg(icon, {
     size: size - 8,
     stroke,
-    className: `dro-map-lucide-facility dro-map-lucide-facility-${kind}`,
+    // Soft fill when flooded so the glyph cannot read as "safe green".
+    fill: flooded && kind === "evac_center" ? "#fdba74" : "none",
+    className: `dro-map-lucide-facility dro-map-lucide-facility-${kind}${
+      flooded ? " dro-map-lucide-facility-flooded" : ""
+    }`,
   });
-  return `<span class="dro-map-lucide-wrap dro-map-lucide-wrap-facility dro-map-lucide-wrap-facility-${kind}">${svg}</span>`;
+  return `<span class="${wrapClass}" data-flooded="${flooded ? "1" : "0"}"${wrapStyle}>${svg}</span>`;
 }
 
 export function reportPinMarkerHtml(

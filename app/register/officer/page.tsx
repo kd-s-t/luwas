@@ -139,6 +139,8 @@ export default function OfficerRegisterPage() {
             photoURL: faceUp.url,
             idDocumentPath: idUp.path,
             faceDocumentPath: faceUp.path,
+            idDocumentUrl: idUp.url,
+            faceDocumentUrl: faceUp.url,
           });
         } catch {
           /* rules may block update — profile still verified */

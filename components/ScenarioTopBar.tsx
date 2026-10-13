@@ -6,7 +6,7 @@ import { CAT5_SCENARIOS } from "@/lib/scenarios";
 import { useScenario } from "@/lib/scenarios/ScenarioProvider";
 
 /**
- * Odette Before / During / After — homepage + command center only.
+ * Tino Before / During / After — homepage + command center only.
  * Stay mounted from app/layout.tsx; visibility is pathname-gated here.
  */
 export function ScenarioTopBar() {
@@ -14,11 +14,11 @@ export function ScenarioTopBar() {
   const { phase, setPhase } = useScenario();
   const bundle = CAT5_SCENARIOS[phase];
 
-  const showOdette =
+  const showTino =
     pathname === "/" ||
     pathname === "/command" ||
     pathname === "/command/full";
-  if (!showOdette) {
+  if (!showTino) {
     return null;
   }
 
@@ -29,7 +29,7 @@ export function ScenarioTopBar() {
           className="min-w-0 truncate font-mono text-[10px] tracking-[0.14em] text-[var(--muted)] uppercase"
           title={bundle.blurb}
         >
-          <span className="text-[var(--accent)]">Odette</span>
+          <span className="text-[var(--accent)]">Tino</span>
           <span className="mx-1.5 text-[var(--border)]">·</span>
           <span className="text-[var(--foreground)]">{bundle.shortLabel}</span>
         </p>

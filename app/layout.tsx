@@ -41,7 +41,7 @@ export default function RootLayout({
         className={`${display.variable} ${body.variable} ${mono.variable} antialiased`}
       >
         <AuthProvider>
-          {/* DO NOT REMOVE: global Odette Before/During/After — see .cursor/rules/scenario-top-bar.mdc */}
+          {/* DO NOT REMOVE: global Tino Before/During/After — see .cursor/rules/scenario-top-bar.mdc */}
           <ScenarioProvider>
             <ScenarioTopBar />
             <PageTransition>{children}</PageTransition>

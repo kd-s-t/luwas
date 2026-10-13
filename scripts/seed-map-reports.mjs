@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Seed curated Odette map image-reports into the Firestore emulator.
+ * Seed curated Tino map image-reports into the Firestore emulator.
  * Usage: node scripts/seed-map-reports.mjs
  */
 import { initializeApp } from "firebase/app";

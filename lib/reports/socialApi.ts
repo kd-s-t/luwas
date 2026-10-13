@@ -80,6 +80,12 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
         ? data.vertexConfidence
         : null,
     validatedAt: data.validatedAt != null ? String(data.validatedAt) : null,
+    autoResponderCallAt:
+      data.autoResponderCallAt != null
+        ? String(data.autoResponderCallAt)
+        : data.autoFireCallAt != null
+          ? String(data.autoFireCallAt)
+          : null,
     reporterIdVerified: Boolean(data.reporterIdVerified),
     reporterEmail:
       data.reporterEmail != null ? String(data.reporterEmail) : null,

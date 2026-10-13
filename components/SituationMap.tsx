@@ -1,8 +1,8 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AreaSearchSelect } from "@/components/AreaSearchSelect";
+import { CommandAreaMapMount } from "@/components/CommandAreaMapMount";
 import {
   formatHazardWhen,
   HazardDetailDialog,
@@ -14,6 +14,7 @@ import type {
   AssistPriority,
 } from "@/lib/ai/assistTypes";
 import { runLocalAssist } from "@/lib/ai/localAssist";
+import { predictAiFloods } from "@/lib/ai/predictFloods";
 import type { FloodSample } from "@/lib/hazards/floodSamples";
 import type { LandslideSample } from "@/lib/hazards/landslideSamples";
 import type { TyphoonSample } from "@/lib/hazards/typhoonSamples";
@@ -83,7 +84,7 @@ function reportToMapPin(r: HazardReport): ScenarioReportPin | null {
           ? "landslide"
           : r.hazardHint === "evac"
             ? "evac_status"
-            : r.hazardHint === "typhoon"
+            : r.hazardHint === "blockage" || r.hazardHint === "typhoon"
               ? "blockage"
               : "warning";
   return {
@@ -121,14 +122,6 @@ function seedAsHouseholds(): Household[] {
   }));
 }
 
-const AreaMapInner = dynamic(() => import("@/components/AreaMapInner"), {
-  ssr: false,
-  loading: () => (
-    <div className="flex h-full items-center justify-center bg-[var(--surface)] font-mono text-xs text-[var(--muted)]">
-      Loading map…
-    </div>
-  ),
-});
 
 type SituationMapProps = {
   officerUid: string;
@@ -219,14 +212,14 @@ export function SituationMap({
     activeChatId,
     chats,
     assistPriorities,
-    escapeRoutes,
     callListVisible,
     sendMessage,
     clearCallList,
     newChat,
     selectChat,
     deleteChat,
-  } = useAiAssist();
+    patchMessageAudio,
+  } = useAiAssist({ officerUid });
   /** AI triage overlays (floods / red-yellow / escapes) only paint in During. */
   const triageLive = phase === "during";
   const hasAiOverlay =
@@ -356,13 +349,15 @@ export function SituationMap({
             const extras = pack.reportPins.filter((p) => !seen.has(p.id));
             return [...fromDb, ...extras];
           })();
-    // During/After: drop EC occupancy popups — flood/recovery layers are the story.
+    // During/After: drop EC occupancy + landslide pins (flood drill focus).
     if (phase === "during" || phase === "after") {
       return merged.filter(
         (p) =>
           p.kind !== "evac_status" &&
+          p.kind !== "landslide" &&
           !p.id.includes("-ec-") &&
-          !p.id.startsWith("rpt-ec-"),
+          !p.id.startsWith("rpt-ec-") &&
+          !p.id.includes("landslide"),
       );
     }
     return merged;
@@ -436,24 +431,18 @@ export function SituationMap({
         ? phasePriorities
         : scenarioPriorities
     : {};
-  const mapEscapes = nangkaOps
-    ? hasAiOverlay
-      ? escapeRoutes
-      : phaseAssist?.escapes?.length
-        ? phaseAssist.escapes
-        : pack.scenarioEscapes.length
-          ? pack.scenarioEscapes
-          : EMPTY_ESCAPES
-    : EMPTY_ESCAPES;
-  // During triage → phase local assist → scenario pack floods.
-  const mapFloods =
-    triageLive && nangkaOps && result?.predictedFloods?.length
-      ? result.predictedFloods
-      : triageLive && nangkaOps && phaseAssist?.predictedFloods?.length
-        ? phaseAssist.predictedFloods
-        : nangkaOps
-          ? pack.floods
-          : [];
+  // Escape polylines / chevrons off the map (keep data for triage logic only).
+  const mapEscapes = EMPTY_ESCAPES;
+  // During: always rebuild elev-grid blue tiles client-side (never trust
+  // slimmed chat/history payloads that drop footprints).
+  const mapFloods = useMemo((): FloodSample[] => {
+    if (!nangkaOps) return [];
+    if (!triageLive) return pack.floods;
+    return predictAiFloods({
+      typhoons: pack.typhoons,
+      source: result?.source === "gemini" ? "gemini" : "local",
+    });
+  }, [nangkaOps, triageLive, pack.floods, pack.typhoons, result?.source]);
 
   const stageH = fullViewport
     ? "h-full min-h-0"
@@ -491,8 +480,8 @@ export function SituationMap({
         }
       >
         <div className={`relative z-0 overflow-hidden ${stageH}`}>
-          <AreaMapInner
-            key={mapArea.id}
+          <CommandAreaMapMount
+            key={`${mapArea.id}-${phase}`}
             area={mapArea}
             lockCameraToArea
             households={mapHouseholds}
@@ -579,6 +568,8 @@ export function SituationMap({
               onNewChat={newChat}
               onSelectChat={selectChat}
               onDeleteChat={deleteChat}
+              officerUid={officerUid}
+              onMessageAudio={patchMessageAudio}
               onSend={(text) =>
                 sendMessage(text, {
                   households: mapHouseholds,
@@ -653,7 +644,7 @@ export function SituationMap({
 
         <HazardList
           title="Typhoon"
-          hint="Click for winds, track timing, and notes. IBTrACS Odette (Rai) for this phase."
+          hint="Click for winds, track timing, and notes. IBTrACS Tino (Rai) for this phase."
           borderClass="border-b"
         >
           {pack.typhoons.length === 0 ? (
@@ -687,7 +678,7 @@ export function SituationMap({
 
         <HazardList
           title="Landslides"
-          hint="Click a row for photo + details. Odette phase samples (not a live MGB feed)."
+          hint="Click a row for photo + details. Tino phase samples (not a live MGB feed)."
           borderClass="border-b sm:border-b-0 sm:border-r"
         >
           {pack.landslides.length === 0 ? (

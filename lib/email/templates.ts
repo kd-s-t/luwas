@@ -593,7 +593,7 @@ Please evacuate immediately to Consolacion Evacuation Center, Evacuation Center 
 
 Situation map: ${mapUrl}
 
-Guidance for responders · Odette DRRM simulation.`,
+Guidance for responders · Tino DRRM simulation.`,
     htmlBody: `
       ${p(`<strong>Evacuate now</strong> from <strong>${escapeHtml(ctx.barangay)}</strong>${place ? ` · ${escapeHtml(ctx.purok)}` : ""}.`)}
       ${p("Go to <strong>Consolacion Evacuation Center</strong>, <strong>Evacuation Center 2</strong>, or <strong>Nangka Elementary</strong>.")}
@@ -603,7 +603,7 @@ Guidance for responders · Odette DRRM simulation.`,
         "Do not wait for flood water to rise further.",
         "For life-threatening emergencies call local PNP / BFP / barangay.",
       ])}
-      ${muted("Guidance for responders · Odette DRRM simulation.")}
+      ${muted("Guidance for responders · Tino DRRM simulation.")}
     `,
     cta: { label: "Open situation map", url: mapUrl },
   });
@@ -632,7 +632,7 @@ Barangay advises shelter in place on higher ground. Start stocking now:
 
 Situation map: ${mapUrl}
 
-Guidance for responders · Odette DRRM simulation.`,
+Guidance for responders · Tino DRRM simulation.`,
     htmlBody: `
       ${p(`<strong>Prepare now</strong> for <strong>${escapeHtml(ctx.barangay)}</strong>${place ? ` · ${escapeHtml(ctx.purok)}` : ""}.`)}
       ${p("Shelter in place on higher ground unless barangay tells you to evacuate.")}
@@ -642,7 +642,7 @@ Guidance for responders · Odette DRRM simulation.`,
         "Secure roofs, windows, and outdoor items.",
         "Watch flood / wind updates — move only if barangay directs.",
       ])}
-      ${muted("Guidance for responders · Odette DRRM simulation.")}
+      ${muted("Guidance for responders · Tino DRRM simulation.")}
     `,
     cta: { label: "Open situation map", url: mapUrl },
   });

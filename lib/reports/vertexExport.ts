@@ -16,8 +16,11 @@ export function hazardToVertexClass(hint: ReportHazardHint): VertexVisionClass {
       return "fire";
     case "landslide":
       return "landslide";
+    case "accident":
+    case "blockage":
     case "typhoon":
       return "accident";
+    case "crime":
     case "evac":
     case "other":
     default:

@@ -10,7 +10,7 @@ export default function TermsPage() {
       <PublicPageHeader
         eyebrow="Legal"
         title="Terms"
-        description="Terms of use for LUWAS: command center, citizen reports, voice notes, AI triage, and the Odette simulation."
+        description="Terms of use for LUWAS: command center, citizen reports, voice notes, AI triage, and the Tino simulation."
       />
       <main className="mx-auto max-w-3xl space-y-6 px-4 py-8 text-sm leading-relaxed text-[var(--muted)] sm:px-6">
         <p className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
@@ -22,17 +22,18 @@ export default function TermsPage() {
             Acceptance
           </h2>
           <p>
-            By using LUWAS (web or Citizen iOS) you agree to these terms. The
-            product is provided by{" "}
+            By using LUWAS (web or Citizen iOS) you agree to these terms. LUWAS
+            is a paid product of{" "}
             <Link
               href="/about"
               className="text-[var(--accent)] underline-offset-2 hover:underline"
             >
               UgnAI Labs Co.
-            </Link>{" "}
-            for training, coordination, and operational support - not as a
-            substitute for official emergency channels. Call 911 / local
-            hotlines when life is at risk.
+            </Link>
+            . Subscribing barangays and LGUs use it for training, coordination,
+            and operational support. It is not a government system, not donated
+            to any LGU, and not a substitute for official emergency channels.
+            Call 911 / local hotlines when life is at risk.
           </p>
         </section>
 
@@ -101,12 +102,13 @@ export default function TermsPage() {
           <p>
             Command features (field reports, Vertex month export, house owners,
             users, roles, support tickets, notifications, SMS / email / voice
-            alerts, Mangluluwas triage) are for authorized barangay staff. Scope
-            is limited to onboarded / assigned areas (e.g. Brgy. Nangka). Roster
-            and alert actions in the Odette simulation are for demo and training
-            unless your LGU deploys LUWAS for live ops. Never auto-dial 911 from
-            LUWAS; responder calls are officer-triggered to curated numbers when
-            Twilio is configured.
+            alerts, Mangluluwas triage) are for authorized staff of a
+            subscribing barangay or LGU. Scope is limited to onboarded /
+            assigned areas (e.g. Brgy. Nangka). Roster and alert actions in the
+            Tino simulation are for demo and training unless your organization
+            has an active LUWAS subscription for live ops. Never auto-dial 911
+            from LUWAS; responder calls are officer-triggered to curated numbers
+            when Twilio is configured.
           </p>
         </section>
 
@@ -118,7 +120,7 @@ export default function TermsPage() {
             Running triage (chat or automatic During-phase assist) may paint AI
             flood footprints, evacuate / prepare priorities, and escape lines.
             AI map paint for flood footprints and escape routing is intended for
-            the Odette{" "}
+            the Tino{" "}
             <strong className="font-medium text-[var(--foreground)]">
               During
             </strong>{" "}
@@ -150,7 +152,7 @@ export default function TermsPage() {
           </h2>
           <p>
             Maps, weather, AI suggestions, trust scores, flood footprints,
-            escape routes, and the Odette Before / During / After simulation can
+            escape routes, and the Tino Before / During / After simulation can
             be incomplete or delayed. LUWAS will not present unverified rescue
             or aid as confirmed. Always follow LGU, barangay, PAGASA, and other
             official instructions during hazards.

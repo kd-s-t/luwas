@@ -8,22 +8,19 @@ import {
   useState,
   type MutableRefObject,
 } from "react";
-import {
-  Circle,
-  MapContainer,
-  Marker,
-  Polygon,
-  Polyline,
-  Popup,
-  TileLayer,
-  useMap,
-} from "react-leaflet";
+import { MapContainer } from "react-leaflet/MapContainer";
+import { Marker } from "react-leaflet/Marker";
+import { Polyline } from "react-leaflet/Polyline";
+import { Popup } from "react-leaflet/Popup";
+import { TileLayer } from "react-leaflet/TileLayer";
+import { useMap } from "react-leaflet/hooks";
 import L from "leaflet";
 import { Crosshair, Loader2, LocateFixed, Tornado } from "lucide-react";
 import type { AssistEscapeRoute, AssistPriority } from "@/lib/ai/assistTypes";
 import { distKm } from "@/lib/geo/bearing";
 import { pointInFloodFootprints } from "@/lib/geo/elevFloodFootprint";
 import { DEFAULT_MAP_AREA, type MapArea } from "@/lib/geo/mapAreas";
+import { estimateElevM } from "@/lib/geo/nangkaElevation";
 import {
   phoneToTelHref,
   type ResponderMapPin,
@@ -36,12 +33,13 @@ import { floodSeverityLabel } from "@/lib/hazards/floodSamples";
 import type { LandslideSample } from "@/lib/hazards/landslideSamples";
 import { landslideSeverityLabel } from "@/lib/hazards/landslideSamples";
 import {
-  formatOdetteTrackChip,
-  ODETTE_CEBU_LANDFALL_ISO,
-} from "@/lib/hazards/odetteIbtracs";
+  formatTinoTrackChip,
+  TINO_CEBU_LANDFALL_ISO,
+} from "@/lib/hazards/tinoIbtracs";
 import type { TyphoonSample, TyphoonTrackPoint } from "@/lib/hazards/typhoonSamples";
 import { typhoonCategoryLabel } from "@/lib/hazards/typhoonSamples";
 import type { QuakeEvent } from "@/lib/hazards/usgsEarthquakes";
+import { FloodTilesLayer } from "@/components/FloodTilesLayer";
 import { HouseholdPinsLayer } from "@/components/HouseholdPinsLayer";
 import type { Household } from "@/lib/households/types";
 import {
@@ -63,19 +61,64 @@ import type {
 import { cn } from "@/lib/utils";
 import "leaflet/dist/leaflet.css";
 
-/** True when a facility sits inside AI/scenario flood footprints or near a flood pin. */
+/** True when flood wash tiles are painted (AI elev footprints present). */
+function floodWashOn(floods: FloodSample[]): boolean {
+  return floods.some(
+    (f) => (f.footprints?.length ?? 0) > 0 || Boolean(f.footprint?.length),
+  );
+}
+
+/**
+ * True when a facility sits in / under the blue flood wash.
+ * Matches FloodTilesLayer (bbox of each ring), not only point-in-polygon —
+ * pins on blue cells were staying green when the lat/lng sat just outside a quad.
+ */
 function facilityInFlood(
   lat: number,
   lng: number,
   floods: FloodSample[],
 ): boolean {
   const pt = { lat, lng };
+  const hasTiles = floodWashOn(floods);
+
   for (const fl of floods) {
     if (pointInFloodFootprints(pt, fl.footprints)) return true;
     if (fl.footprint && pointInFloodFootprints(pt, [fl.footprint])) return true;
+    const rings = fl.footprints?.length
+      ? fl.footprints
+      : fl.footprint
+        ? [fl.footprint]
+        : [];
+    for (const ring of rings) {
+      if (ring.length < 3) continue;
+      let minLat = Infinity;
+      let maxLat = -Infinity;
+      let minLng = Infinity;
+      let maxLng = -Infinity;
+      let cLat = 0;
+      let cLng = 0;
+      for (const p of ring) {
+        minLat = Math.min(minLat, p.lat);
+        maxLat = Math.max(maxLat, p.lat);
+        minLng = Math.min(minLng, p.lng);
+        maxLng = Math.max(maxLng, p.lng);
+        cLat += p.lat;
+        cLng += p.lng;
+      }
+      cLat /= ring.length;
+      cLng /= ring.length;
+      // Same bbox paint as FloodTilesLayer cells.
+      if (lat >= minLat && lat <= maxLat && lng >= minLng && lng <= maxLng) {
+        return true;
+      }
+      if (distKm(pt, { lat: cLat, lng: cLng }) * 1000 <= 120) return true;
+    }
     const radiusM = fl.radiusM && fl.radiusM > 0 ? fl.radiusM : 120;
     if (distKm(pt, { lat: fl.lat, lng: fl.lng }) * 1000 <= radiusM) return true;
   }
+
+  // Low elev under an active wash = inundated (Consolacion ECs ~4 m).
+  if (hasTiles && estimateElevM(lat, lng) <= 13) return true;
   return false;
 }
 
@@ -113,10 +156,11 @@ function fitBrgyAndTyphoon(
   });
 }
 
-function facilityIcon(kind: FacilityMarkerKind) {
+function facilityIcon(kind: FacilityMarkerKind, flooded = false) {
   return L.divIcon({
-    className: "dro-map-marker",
-    html: facilityMarkerHtml(kind, 28),
+    // Unique className so Leaflet / HMR cannot reuse a green EC DivIcon.
+    className: `dro-map-marker dro-map-marker-fac${flooded ? "-flood" : ""}-${kind}`,
+    html: facilityMarkerHtml(kind, 28, { flooded }),
     iconSize: [28, 28],
     iconAnchor: [14, 14],
   });
@@ -613,7 +657,7 @@ function FitHouseholds({
   return null;
 }
 
-type AreaMapInnerProps = {
+type CommandAreaMapProps = {
   area?: MapArea;
   /** Visitor GPS pin — map flies here when set (unless lockCameraToArea) */
   userLocation?: { lat: number; lng: number } | null;
@@ -643,7 +687,7 @@ type AreaMapInnerProps = {
   /** householdId → AI priority — updates marker style + map focus */
   assistPriorities?: Record<string, AssistPriority>;
   escapeRoutes?: AssistEscapeRoute[];
-  /** Odette phase — During shows flood warning on inundated ECs. */
+  /** Tino phase — During shows flood warning on inundated ECs. */
   scenarioPhase?: DrrmScenarioPhase;
   /**
    * Wheel / trackpad zoom. Off on the homepage so page scroll is not stolen.
@@ -652,7 +696,7 @@ type AreaMapInnerProps = {
   scrollWheelZoom?: boolean;
 };
 
-export default function AreaMapInner({
+export default function CommandAreaMap({
   area = DEFAULT_MAP_AREA,
   userLocation = null,
   onUserLocationChange,
@@ -671,7 +715,7 @@ export default function AreaMapInner({
   escapeRoutes = [],
   scenarioPhase,
   scrollWheelZoom = true,
-}: AreaMapInnerProps) {
+}: CommandAreaMapProps) {
   void _forceLayers;
   const flyRef = useRef<MapFlyFn | null>(null);
   const fitTyphoonRef = useRef<MapFitFn | null>(null);
@@ -708,6 +752,7 @@ export default function AreaMapInner({
   const layerTyphoons = typhoons;
   const layerFires = fires;
   const layerReports = reportPins;
+  // Escape polylines / chevrons intentionally omitted from the map.
   const layerEscapes = escapeRoutes;
   const layerSafePoints = safePoints;
   const layerResponders = responders;
@@ -865,84 +910,33 @@ export default function AreaMapInner({
           </Popup>
         </Marker>
       ))}
-      {layerFloods.map((fl) => {
-        const floodFill =
-          fl.severity === "critical"
-            ? { color: "#1d4ed8", fill: "#2563eb", opacity: 0.32 }
-            : fl.severity === "warning"
-              ? { color: "#2563eb", fill: "#3b82f6", opacity: 0.24 }
-              : { color: "#60a5fa", fill: "#93c5fd", opacity: 0.18 };
-        const rings = (
-          fl.footprints?.length
-            ? fl.footprints
-            : fl.footprint && fl.footprint.length >= 3
-              ? [fl.footprint]
-              : []
-        ).map((ring) =>
-          ring.map((p) => [p.lat, p.lng] as [number, number]),
-        );
-        return (
-          <Fragment key={fl.id}>
-            {rings.map((ring, i) => (
-              <Polygon
-                key={`${fl.id}-cell-${i}`}
-                positions={ring}
-                pathOptions={{
-                  color: floodFill.color,
-                  weight: 0.5,
-                  opacity: 0.35,
-                  fillColor: floodFill.fill,
-                  fillOpacity: floodFill.opacity,
-                }}
-              >
-                {i === 0 ? (
-                  <Popup>
-                    <strong>
-                      Flood zone · {floodSeverityLabel(fl.severity)}
-                    </strong>
-                    <br />
-                    {fl.name}
-                    <br />
-                    {fl.place}
-                    <br />
-                    {fl.notes}
-                  </Popup>
-                ) : null}
-              </Polygon>
-            ))}
-            {!rings.length && fl.radiusM && fl.radiusM > 0 ? (
-              <Circle
-                center={[fl.lat, fl.lng]}
-                radius={fl.radiusM}
-                pathOptions={{
-                  color: floodFill.color,
-                  weight: 1,
-                  opacity: 0.55,
-                  fillColor: floodFill.fill,
-                  fillOpacity: floodFill.opacity,
-                }}
-              />
-            ) : null}
-            <Marker
-              position={[fl.lat, fl.lng]}
-              icon={floodIcon(fl.severity)}
-              zIndexOffset={650}
-            >
-              <Popup>
-                <strong>Flood · {floodSeverityLabel(fl.severity)}</strong>
-                <br />
-                {fl.name}
-                <br />
-                {fl.place} ({fl.purokHint})
-                <br />
-                Depth ~{fl.depthCm} cm
-                <br />
-                {fl.notes}
-              </Popup>
-            </Marker>
-          </Fragment>
-        );
-      })}
+      <FloodTilesLayer floods={layerFloods} />
+      {/* Pin only when there are no elev tiles yet — tiles already tell the story. */}
+      {layerFloods
+        .filter(
+          (fl) =>
+            !(fl.footprints?.length || fl.footprint?.length),
+        )
+        .map((fl) => (
+          <Marker
+            key={fl.id}
+            position={[fl.lat, fl.lng]}
+            icon={floodIcon(fl.severity)}
+            zIndexOffset={650}
+          >
+            <Popup>
+              <strong>Flood · {floodSeverityLabel(fl.severity)}</strong>
+              <br />
+              {fl.name}
+              <br />
+              {fl.place} ({fl.purokHint})
+              <br />
+              Depth ~{fl.depthCm} cm
+              <br />
+              {fl.notes}
+            </Popup>
+          </Marker>
+        ))}
       {layerTyphoons.map((ty) =>
         ty.track && ty.track.length > 1 ? (
           <Fragment key={`${ty.id}-track`}>
@@ -966,12 +960,12 @@ export default function AreaMapInner({
                 key={`${ty.id}-eta-${p.at}`}
                 position={[p.lat, p.lng]}
                 icon={trackEtaIcon(
-                  formatOdetteTrackChip(p.at!),
-                  p.at === ODETTE_CEBU_LANDFALL_ISO ||
+                  formatTinoTrackChip(p.at!),
+                  p.at === TINO_CEBU_LANDFALL_ISO ||
                     (p.at != null &&
                       Math.abs(
                         new Date(p.at).getTime() -
-                          new Date(ODETTE_CEBU_LANDFALL_ISO).getTime(),
+                          new Date(TINO_CEBU_LANDFALL_ISO).getTime(),
                       ) <
                         4 * 3_600_000),
                   i % 2 === 0 ? "above" : "below",
@@ -979,12 +973,12 @@ export default function AreaMapInner({
                 zIndexOffset={720}
               >
                 <Popup>
-                  <strong>Track · {formatOdetteTrackChip(p.at!)} PHT</strong>
+                  <strong>Track · {formatTinoTrackChip(p.at!)} PHT</strong>
                   <br />
                   {p.label ?? ty.name}
                   <br />
                   Cebu landfall ETA ·{" "}
-                  {formatOdetteTrackChip(ODETTE_CEBU_LANDFALL_ISO)} PHT
+                  {formatTinoTrackChip(TINO_CEBU_LANDFALL_ISO)} PHT
                 </Popup>
               </Marker>
             ))}
@@ -1012,49 +1006,8 @@ export default function AreaMapInner({
               {ty.notes}
             </Popup>
           </Marker>
-          {(ty.windRadiiKm
-            ? [
-                {
-                  key: "gale",
-                  km: ty.windRadiiKm.gale,
-                  color: "#93c5fd",
-                  fill: 0.03,
-                },
-                {
-                  key: "storm",
-                  km: ty.windRadiiKm.storm,
-                  color: "#3b82f6",
-                  fill: 0.05,
-                },
-                {
-                  key: "typhoon",
-                  km: ty.windRadiiKm.typhoon,
-                  color: "#1d4ed8",
-                  fill: 0.08,
-                },
-              ]
-            : [
-                {
-                  key: "approx",
-                  km: Math.max(20, ty.distanceKm * 0.4),
-                  color: "#2563eb",
-                  fill: 0.04,
-                },
-              ]
-          ).map((ring) => (
-            <Circle
-              key={`${ty.id}-${ring.key}`}
-              center={[ty.lat, ty.lng]}
-              radius={ring.km * 1000}
-              pathOptions={{
-                color: ring.color,
-                weight: 1,
-                dashArray: "4 6",
-                fillColor: ring.color,
-                fillOpacity: ring.fill,
-              }}
-            />
-          ))}
+          {/* Wind-radius discs omitted — even stroke-only rings read as a blue
+              wash at barangay zoom when the eye is near Cebu. */}
         </Fragment>
       ))}
       {layerFires.map((fi) => (
@@ -1140,12 +1093,23 @@ export default function AreaMapInner({
       {layerSafePoints.map((sp) => {
         const active = activeEvacIds.has(sp.id);
         const pop = evacStatusForSafePoint(sp, layerReports);
-        // During + active flood layer: warn on low ECs (~flood belt) or footprint hit.
-        const floodedDuring =
-          scenarioPhase === "during" &&
-          layerFloods.length > 0 &&
-          (sp.isEvacCenter || sp.kind === "evac_center") &&
-          (sp.elevM <= 12 || facilityInFlood(sp.lat, sp.lng, layerFloods));
+        const isShelter =
+          sp.isEvacCenter ||
+          sp.kind === "evac_center" ||
+          (sp.kind === "school" && sp.isEvacCenter);
+        const washOn = floodWashOn(layerFloods);
+        const inFlood = facilityInFlood(sp.lat, sp.lng, layerFloods);
+        // DURING: every shelter is amber. Also amber when wash/flood hit.
+        // No elev gates — Consolacion ECs kept reading green on blue tiles.
+        const floodedPin =
+          Boolean(isShelter) &&
+          (scenarioPhase === "during" ||
+            washOn ||
+            inFlood ||
+            layerFloods.length > 0);
+        // Shelter pins use house glyph; force flooded house look even for school ECs.
+        const iconKind: FacilityMarkerKind =
+          floodedPin && isShelter ? "evac_center" : sp.kind;
         const z =
           sp.kind === "hall"
             ? 760
@@ -1158,14 +1122,14 @@ export default function AreaMapInner({
                   : 690;
         return (
           <Marker
-            key={sp.id}
+            key={`${sp.id}-ecv5-${floodedPin ? "flood" : "dry"}-${iconKind}`}
             position={[sp.lat, sp.lng]}
-            icon={facilityIcon(sp.kind)}
+            icon={facilityIcon(iconKind, floodedPin)}
             zIndexOffset={z}
           >
             <Popup>
               <strong>{sp.name}</strong>
-              {floodedDuring ? (
+              {floodedPin ? (
                 <>
                   <br />
                   <span style={{ fontWeight: 700, color: "#b45309" }}>
@@ -1173,7 +1137,7 @@ export default function AreaMapInner({
                   </span>
                   <br />
                   <span style={{ color: "#9a3412", opacity: 0.95 }}>
-                    During Odette · approaches may be impassable · redirect to
+                    During Tino · approaches may be impassable · redirect to
                     dry high ground / alternate EC
                   </span>
                 </>
@@ -1211,9 +1175,12 @@ export default function AreaMapInner({
       })}
       {layerResponders.map((r) => {
         const role = r.kind === "bfp" ? "Fire station (BFP)" : "Hospital";
+        // Versioned key remounts DivIcon — HMR left the old Lucide flame stuck.
+        const markerKey =
+          r.kind === "bfp" ? `${r.id}-helmet-v3` : `${r.id}-v1`;
         return (
           <Marker
-            key={r.id}
+            key={markerKey}
             position={[r.lat, r.lng]}
             icon={facilityIcon(r.kind)}
             zIndexOffset={r.kind === "bfp" ? 730 : 725}

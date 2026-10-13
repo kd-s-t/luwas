@@ -47,6 +47,11 @@ service cloud.firestore {
         && resource.data.officerUid == request.auth.uid;
     }
 
+    // Mangluluwas command chat threads (+ meta doc) under the officer.
+    match /users/{userId}/mangluluwasThreads/{threadId} {
+      allow read, write: if signedIn() && request.auth.uid == userId;
+    }
+
     match /users/{userId} {
       allow read: if signedIn() && (
         request.auth.uid == userId

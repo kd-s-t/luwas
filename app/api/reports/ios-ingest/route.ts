@@ -48,11 +48,29 @@ function hazardFromText(text: string, category?: string): ReportHazardHint {
   if (t.includes("flood") || t.includes("baha")) return "flood";
   if (t.includes("landslide") || t.includes("guho") || t.includes("gusaw"))
     return "landslide";
+  if (
+    /road.?block|blockage|blocked road|fallen tree|debris|impassable|hindi.?makadaan|road closed|access road/.test(
+      t,
+    )
+  )
+    return "blockage";
   if (t.includes("fire") || t.includes("sunog")) return "fire";
+  if (
+    /crime|hold.?up|robbery|theft|nakaw|assault|stab|shoot|gunshot|snatch/.test(
+      t,
+    )
+  )
+    return "crime";
+  if (
+    /accident|banggaan|crash|collision|vehicular|hit.?and.?run|road.?crash/.test(
+      t,
+    )
+  )
+    return "accident";
   if (
     t.includes("typhoon") ||
     t.includes("bagyo") ||
-    t.includes("odette") ||
+    t.includes("tino") ||
     t.includes("wind")
   )
     return "typhoon";
@@ -86,6 +104,13 @@ function mediaForHazard(hazard: ReportHazardHint): {
       return {
         mediaUrl: "/reports/fallen-tree-access-road.webp",
         mediaMime: "image/webp",
+      };
+    case "blockage":
+    case "crime":
+    case "accident":
+      return {
+        mediaUrl: "/reports/road-block-access-east.jpg",
+        mediaMime: "image/jpeg",
       };
     default:
       return {
@@ -422,6 +447,7 @@ export async function POST(req: Request) {
     vertexClass,
     vertexConfidence,
     validatedAt: now,
+    autoResponderCallAt: null,
     reactionCounts: { ...EMPTY_REACTION_COUNTS },
     commentCount: 0,
     source,

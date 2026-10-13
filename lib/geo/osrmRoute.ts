@@ -23,6 +23,11 @@ async function fetchViaProxy(from: LatLng, to: LatLng): Promise<ProxyRoute | nul
 }
 
 async function enrichOne(escape: AssistEscapeRoute): Promise<AssistEscapeRoute> {
+  // Already OSM-routed (e.g. from triage) — keep street geometry.
+  if (escape.routed && escape.path.length > 2) {
+    return escape;
+  }
+
   const road = await fetchViaProxy(escape.from, escape.to);
   if (!road || road.path.length < 2) {
     return escape;

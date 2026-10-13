@@ -109,7 +109,7 @@ export const NANGKA_STAFF_SEED: StaffMemberInput[] = [
     email: "officer@nangka.consolacion.demo",
     accountEmail: "officer@nangka.consolacion.demo",
     status: "active",
-    notes: "Ops map · triage · SMS/email alerts · Odette simulation lead",
+    notes: "Ops map · triage · SMS/email alerts · Tino simulation lead",
   },
   {
     id: "rescue-lead",

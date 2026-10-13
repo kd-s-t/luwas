@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowUp, Bell, ChevronDown, History, Plus } from "lucide-react";
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   BootstrapEmailTemplates,
   BootstrapTemplateNav,
@@ -24,7 +24,6 @@ const TOC = [
   { id: "colors", label: "Theme color" },
   { id: "email", label: "Email & text" },
   { id: "header", label: "Header" },
-  { id: "stack", label: "Stack" },
   { id: "type", label: "Typography" },
   { id: "buttons", label: "Buttons" },
   { id: "forms", label: "Forms" },
@@ -41,21 +40,25 @@ const STACK = [
     name: "Tailwind CSS",
     href: "https://tailwindcss.com/",
     role: "Utility styling",
-  },
-  {
-    name: "shadcn/ui",
-    href: "https://ui.shadcn.com/",
-    role: "Dialog, button, badge",
-  },
-  {
-    name: "Lucide",
-    href: "https://lucide.dev/",
-    role: "Icons",
+    src: "/brands/tailwindcss.svg",
   },
   {
     name: "Framer Motion",
     href: "https://www.framer.com/motion/",
     role: "Motion",
+    src: "/brands/framer-motion.svg",
+  },
+  {
+    name: "Lucide",
+    href: "https://lucide.dev/",
+    role: "Icons",
+    src: "/brands/lucide.svg",
+  },
+  {
+    name: "shadcn/ui",
+    href: "https://ui.shadcn.com/",
+    role: "UI primitives",
+    src: "/brands/shadcn.svg",
   },
 ] as const;
 
@@ -138,18 +141,32 @@ export default function BootstrapKitPage() {
   const { profile, user, logout } = useAuth();
   const [templateId, setTemplateId] =
     useState<EmailTemplateId>("typhoon_alert");
-  const [emailNavOpen, setEmailNavOpen] = useState(true);
+  /** Submenu open only — not the same as “active section” highlight. */
+  const [emailNavOpen, setEmailNavOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState("");
   const [draft, setDraft] = useState("");
   const [chat, setChat] = useState<{ role: "ai" | "user"; text: string }[]>([
     {
       role: "ai",
-      text: "Kumusta — I’m Mangluluwas. Ask about Odette triage, flood belts, or who to call. Red = evacuate, yellow = prepare, blue = flood footprints.",
+      text: "Kumusta — I’m Mangluluwas. Ask about Tino triage, flood belts, or who to call. Red = evacuate, yellow = prepare, blue = flood footprints.",
     },
   ]);
 
+  useEffect(() => {
+    const syncHash = () => {
+      setActiveSection(window.location.hash.replace(/^#/, ""));
+    };
+    syncHash();
+    window.addEventListener("hashchange", syncHash);
+    return () => window.removeEventListener("hashchange", syncHash);
+  }, []);
+
   function selectTemplate(id: EmailTemplateId) {
     setTemplateId(id);
+    setEmailNavOpen(true);
+    setActiveSection("email");
     if (typeof document !== "undefined") {
+      window.history.replaceState(null, "", "#email");
       document.getElementById("email")?.scrollIntoView({
         behavior: "smooth",
         block: "start",
@@ -268,6 +285,7 @@ export default function BootstrapKitPage() {
                     "flex w-full items-center gap-1 border-l-2 border-transparent bg-transparent px-2.5 py-1.5 font-mono text-[10px] leading-none tracking-wider text-[var(--muted)] uppercase transition hover:border-[var(--accent)] hover:bg-[var(--surface-panel)]/60 hover:text-[var(--foreground)]";
 
                   if (item.id === "email") {
+                    const emailActive = activeSection === "email";
                     return (
                       <li key={item.id}>
                         <button
@@ -275,16 +293,21 @@ export default function BootstrapKitPage() {
                           aria-expanded={emailNavOpen}
                           aria-controls="bootstrap-email-nav"
                           onClick={() => {
-                            setEmailNavOpen((v) => !v);
-                            document.getElementById("email")?.scrollIntoView({
-                              behavior: "smooth",
-                              block: "start",
-                            });
+                            const next = !emailNavOpen;
+                            setEmailNavOpen(next);
+                            if (next) {
+                              setActiveSection("email");
+                              window.history.replaceState(null, "", "#email");
+                              document.getElementById("email")?.scrollIntoView({
+                                behavior: "smooth",
+                                block: "start",
+                              });
+                            }
                           }}
                           className={cn(
                             rowClass,
                             "cursor-pointer text-left",
-                            emailNavOpen &&
+                            emailActive &&
                               "border-[var(--accent)] bg-[var(--surface-panel)]/60 text-[var(--foreground)]",
                           )}
                         >
@@ -320,9 +343,18 @@ export default function BootstrapKitPage() {
                     );
                   }
 
+                  const active = activeSection === item.id;
                   return (
                     <li key={item.id}>
-                      <a href={`#${item.id}`} className={rowClass}>
+                      <a
+                        href={`#${item.id}`}
+                        onClick={() => setActiveSection(item.id)}
+                        className={cn(
+                          rowClass,
+                          active &&
+                            "border-[var(--accent)] bg-[var(--surface-panel)]/60 text-[var(--foreground)]",
+                        )}
+                      >
                         {item.label}
                       </a>
                     </li>
@@ -333,6 +365,37 @@ export default function BootstrapKitPage() {
           </aside>
 
           <main className="flex flex-col gap-4">
+            <ul
+              id="stack"
+              className="scroll-mt-24 grid grid-cols-2 gap-6 sm:grid-cols-4 sm:gap-8"
+            >
+              {STACK.map((item) => (
+                <li key={item.name} className="min-w-0">
+                  <a
+                    href={item.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="group flex flex-col items-center gap-2 text-center transition hover:opacity-90"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={item.src}
+                      alt=""
+                      width={40}
+                      height={40}
+                      className="size-10 object-contain transition group-hover:scale-105"
+                    />
+                    <span className="text-sm font-medium leading-snug text-[var(--foreground)] underline-offset-4 group-hover:underline">
+                      {item.name}
+                    </span>
+                    <span className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+                      {item.role}
+                    </span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+
             <Section
               id="logo"
               title="Logo"
@@ -480,30 +543,6 @@ export default function BootstrapKitPage() {
                 Routes · /command · /command/reports · /my-reports ·
                 /report-incident · /profile
               </p>
-            </Section>
-
-            <Section
-              id="stack"
-              title="Stack"
-              hint="Framework links for this app — Tailwind, shadcn/ui, Lucide, Framer Motion."
-            >
-              <ul className="grid gap-3 sm:grid-cols-2">
-                {STACK.map((item) => (
-                  <li key={item.name}>
-                    <a
-                      href={item.href}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex flex-col border border-[var(--border)] bg-[var(--surface)] px-3 py-3 transition hover:border-[var(--accent)]"
-                    >
-                      <span className="font-medium">{item.name}</span>
-                      <span className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
-                        {item.role}
-                      </span>
-                    </a>
-                  </li>
-                ))}
-              </ul>
             </Section>
 
             <Section

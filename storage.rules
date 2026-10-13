@@ -20,5 +20,14 @@ service firebase.storage {
         && request.resource.size < 12 * 1024 * 1024
         && request.resource.contentType.matches('image/.*');
     }
+
+    // Mangluluwas TTS cache — officer owns path; any signed-in can read for replay.
+    match /chat-tts/{userId}/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.size < 8 * 1024 * 1024
+        && request.resource.contentType.matches('audio/.*');
+    }
   }
 }
