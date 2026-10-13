@@ -1,9 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { OfficerWorkloadInfo } from "@/components/OfficerWorkloadInfo";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { Badge } from "@/components/ui/badge";
+
 import {
   officerScopeBarangay,
   subscribeBarangayUsers,
@@ -16,6 +24,7 @@ import {
 } from "@/lib/auth/types";
 import {
   assignSupportTicket,
+  LUWAS_DEVELOPERS_ASSIGNEE,
   subscribeSupportTickets,
   updateSupportTicketStatus,
   type SupportTicket,
@@ -80,25 +89,77 @@ export function SupportBoard() {
   );
   const [busyId, setBusyId] = useState<string | null>(null);
   const [assignMenuId, setAssignMenuId] = useState<string | null>(null);
+  const [assignQuery, setAssignQuery] = useState("");
+  const [assignPos, setAssignPos] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
   const draggedRef = useRef(false);
   const assignMenuRef = useRef<HTMLDivElement | null>(null);
+  const assignSearchRef = useRef<HTMLInputElement | null>(null);
+  const assignAnchorRef = useRef<HTMLElement | null>(null);
+
+  function closeAssignMenu() {
+    setAssignMenuId(null);
+    setAssignQuery("");
+    setAssignPos(null);
+    assignAnchorRef.current = null;
+  }
+
+  function openAssignMenu(ticketId: string, anchor: HTMLElement) {
+    assignAnchorRef.current = anchor;
+    setAssignQuery("");
+    setAssignMenuId((cur) => (cur === ticketId ? null : ticketId));
+  }
+
+  useLayoutEffect(() => {
+    if (!assignMenuId || !assignAnchorRef.current) {
+      setAssignPos(null);
+      return;
+    }
+    function place() {
+      const el = assignAnchorRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const width = Math.max(r.width, 220);
+      const left = Math.min(
+        Math.max(8, r.left),
+        window.innerWidth - width - 8,
+      );
+      const below = r.bottom + 6;
+      const menuH = 280;
+      const top =
+        below + menuH > window.innerHeight - 8
+          ? Math.max(8, r.top - menuH - 6)
+          : below;
+      setAssignPos({ top, left, width });
+    }
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, [assignMenuId]);
 
   useEffect(() => {
     if (!assignMenuId) return;
+    const t = window.setTimeout(() => assignSearchRef.current?.focus(), 0);
     function onDoc(e: MouseEvent) {
-      if (
-        assignMenuRef.current &&
-        !assignMenuRef.current.contains(e.target as Node)
-      ) {
-        setAssignMenuId(null);
-      }
+      const target = e.target as Node;
+      if (assignMenuRef.current?.contains(target)) return;
+      if (assignAnchorRef.current?.contains(target)) return;
+      closeAssignMenu();
     }
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setAssignMenuId(null);
+      if (e.key === "Escape") closeAssignMenu();
     }
     document.addEventListener("mousedown", onDoc);
     document.addEventListener("keydown", onKey);
     return () => {
+      window.clearTimeout(t);
       document.removeEventListener("mousedown", onDoc);
       document.removeEventListener("keydown", onKey);
     };
@@ -221,6 +282,7 @@ export function SupportBoard() {
         assigneeName,
         promoteToInProgress: promote,
       });
+      closeAssignMenu();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Assign failed");
       setRows((prev) =>
@@ -255,9 +317,12 @@ export function SupportBoard() {
         </div>
         <div className="mt-0.5 flex flex-wrap items-end justify-between gap-2">
           <div>
-            <h1 className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-wide sm:text-2xl">
-              Support tickets
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-wide sm:text-2xl">
+                Support tickets
+              </h1>
+              <OfficerWorkloadInfo />
+            </div>
             <p className="text-xs text-[var(--muted)]">
               {openCount} open · drag to change status · assign on the card
             </p>
@@ -323,7 +388,12 @@ export function SupportBoard() {
                     {cards.length}
                   </span>
                 </header>
-                <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto p-2">
+                <ul
+                  className={cn(
+                    "min-h-0 flex-1 space-y-2 p-2",
+                    assignMenuId ? "overflow-visible" : "overflow-y-auto",
+                  )}
+                >
                   {cards.length === 0 ? (
                     <li className="pointer-events-none px-2 py-6 text-center text-xs text-[var(--muted)]">
                       {isOver ? "Drop here" : "No cards"}
@@ -407,9 +477,7 @@ export function SupportBoard() {
                               onMouseDown={(e) => e.stopPropagation()}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setAssignMenuId((cur) =>
-                                  cur === t.id ? null : t.id,
-                                );
+                                openAssignMenu(t.id, e.currentTarget);
                               }}
                               className="flex w-full items-center gap-2 rounded-md text-left transition hover:bg-[var(--surface-panel)]/60 disabled:opacity-50"
                             >
@@ -460,91 +528,192 @@ export function SupportBoard() {
                             {assignMenuId === t.id ? (
                               <div
                                 ref={assignMenuRef}
-                                role="listbox"
-                                className="absolute bottom-full left-0 z-30 mb-1 max-h-56 w-full min-w-[12rem] overflow-y-auto border border-[var(--border)] bg-[var(--surface-raised)] py-1 shadow-md"
+                                className="absolute top-full left-0 z-30 mt-1 flex max-h-72 w-full min-w-[13rem] flex-col border border-[var(--border)] bg-[var(--surface-raised)] shadow-md"
                                 onMouseDown={(e) => e.stopPropagation()}
                               >
-                                <button
-                                  type="button"
-                                  role="option"
-                                  className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs hover:bg-[var(--surface-panel)]"
-                                  onClick={() => {
-                                    void assignTicket(t, null, null);
-                                    setAssignMenuId(null);
-                                  }}
-                                >
-                                  <span className="flex size-7 items-center justify-center rounded-full border border-dashed border-[var(--border)] text-[10px] text-[var(--muted)]">
-                                    —
-                                  </span>
-                                  Unassigned
-                                </button>
-                                {isOfficer(profile) ? (
-                                  <button
-                                    type="button"
-                                    role="option"
-                                    aria-selected={
-                                      t.assignedToUid === profile.uid
+                                <div className="shrink-0 space-y-1 border-b border-[var(--border)] p-1.5">
+                                  <input
+                                    ref={assignSearchRef}
+                                    type="search"
+                                    value={assignQuery}
+                                    onChange={(e) =>
+                                      setAssignQuery(e.target.value)
                                     }
-                                    className={cn(
-                                      "flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs hover:bg-[var(--surface-panel)]",
-                                      t.assignedToUid === profile.uid &&
-                                        "bg-[var(--accent)]/10",
-                                    )}
-                                    onClick={() => {
-                                      void assignTicket(
-                                        t,
-                                        profile.uid,
-                                        profile.displayName || profile.email,
+                                    onKeyDown={(e) => e.stopPropagation()}
+                                    placeholder="Search officers…"
+                                    aria-label="Search officers"
+                                    className="w-full bg-[var(--input)] px-2 py-1.5 text-xs outline-none ring-1 ring-[var(--border)] focus:ring-[var(--accent)]"
+                                  />
+                                  {(() => {
+                                    const q = assignQuery.trim().toLowerCase();
+                                    const match = (label: string) =>
+                                      !q || label.toLowerCase().includes(q);
+                                    const showUnassigned = match("unassigned");
+                                    const showDevs = match(
+                                      LUWAS_DEVELOPERS_ASSIGNEE.name,
+                                    );
+                                    return (
+                                      <>
+                                        {showUnassigned ? (
+                                          <button
+                                            type="button"
+                                            role="option"
+                                            className="flex w-full items-center gap-2 px-2 py-1.5 text-left text-xs hover:bg-[var(--surface-panel)]"
+                                            onClick={() => {
+                                              void assignTicket(t, null, null);
+                                              closeAssignMenu();
+                                            }}
+                                          >
+                                            <span className="flex size-7 items-center justify-center rounded-full border border-dashed border-[var(--border)] text-[10px] text-[var(--muted)]">
+                                              —
+                                            </span>
+                                            Unassigned
+                                          </button>
+                                        ) : null}
+                                        {showDevs ? (
+                                          <button
+                                            type="button"
+                                            role="option"
+                                            aria-selected={
+                                              t.assignedToUid ===
+                                              LUWAS_DEVELOPERS_ASSIGNEE.uid
+                                            }
+                                            className={cn(
+                                              "flex w-full items-center gap-2 px-2 py-1.5 text-left text-xs hover:bg-[var(--surface-panel)]",
+                                              t.assignedToUid ===
+                                                LUWAS_DEVELOPERS_ASSIGNEE.uid &&
+                                                "bg-[var(--accent)]/10",
+                                            )}
+                                            onClick={() => {
+                                              void assignTicket(
+                                                t,
+                                                LUWAS_DEVELOPERS_ASSIGNEE.uid,
+                                                LUWAS_DEVELOPERS_ASSIGNEE.name,
+                                              );
+                                              closeAssignMenu();
+                                            }}
+                                          >
+                                            <ProfileAvatar
+                                              name={
+                                                LUWAS_DEVELOPERS_ASSIGNEE.name
+                                              }
+                                              seed={
+                                                LUWAS_DEVELOPERS_ASSIGNEE.uid
+                                              }
+                                              size="sm"
+                                            />
+                                            <span className="min-w-0 truncate font-medium">
+                                              {LUWAS_DEVELOPERS_ASSIGNEE.name}
+                                            </span>
+                                          </button>
+                                        ) : null}
+                                      </>
+                                    );
+                                  })()}
+                                </div>
+                                <div
+                                  role="listbox"
+                                  className="min-h-0 flex-1 overflow-y-auto py-1"
+                                >
+                                  {(() => {
+                                    const q = assignQuery.trim().toLowerCase();
+                                    const match = (label: string) =>
+                                      !q || label.toLowerCase().includes(q);
+                                    const showMe =
+                                      isOfficer(profile) &&
+                                      match(
+                                        `me ${profile.displayName || ""} ${profile.email || ""}`,
                                       );
-                                      setAssignMenuId(null);
-                                    }}
-                                  >
-                                    <ProfileAvatar
-                                      name={
-                                        profile.displayName || profile.email
-                                      }
-                                      photoURL={profile.photoURL}
-                                      seed={profile.uid}
-                                      size="sm"
-                                    />
-                                    <span className="min-w-0 truncate">
-                                      Me · {profile.displayName || profile.email}
-                                    </span>
-                                  </button>
-                                ) : null}
-                                {officers
-                                  .filter((o) => o.uid !== profile?.uid)
-                                  .map((o) => (
-                                    <button
-                                      key={o.uid}
-                                      type="button"
-                                      role="option"
-                                      aria-selected={t.assignedToUid === o.uid}
-                                      className={cn(
-                                        "flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs hover:bg-[var(--surface-panel)]",
-                                        t.assignedToUid === o.uid &&
-                                          "bg-[var(--accent)]/10",
-                                      )}
-                                      onClick={() => {
-                                        void assignTicket(
-                                          t,
-                                          o.uid,
-                                          o.displayName || o.email,
-                                        );
-                                        setAssignMenuId(null);
-                                      }}
-                                    >
-                                      <ProfileAvatar
-                                        name={o.displayName || o.email}
-                                        photoURL={o.photoURL}
-                                        seed={o.uid}
-                                        size="sm"
-                                      />
-                                      <span className="min-w-0 truncate">
-                                        {o.displayName || o.email}
-                                      </span>
-                                    </button>
-                                  ))}
+                                    const filtered = officers.filter(
+                                      (o) =>
+                                        o.uid !== profile?.uid &&
+                                        match(
+                                          `${o.displayName || ""} ${o.email || ""}`,
+                                        ),
+                                    );
+                                    const none = !showMe && filtered.length === 0;
+                                    return (
+                                      <>
+                                        {showMe && isOfficer(profile) ? (
+                                          <button
+                                            type="button"
+                                            role="option"
+                                            aria-selected={
+                                              t.assignedToUid === profile.uid
+                                            }
+                                            className={cn(
+                                              "flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs hover:bg-[var(--surface-panel)]",
+                                              t.assignedToUid === profile.uid &&
+                                                "bg-[var(--accent)]/10",
+                                            )}
+                                            onClick={() => {
+                                              void assignTicket(
+                                                t,
+                                                profile.uid,
+                                                profile.displayName ||
+                                                  profile.email,
+                                              );
+                                              closeAssignMenu();
+                                            }}
+                                          >
+                                            <ProfileAvatar
+                                              name={
+                                                profile.displayName ||
+                                                profile.email
+                                              }
+                                              photoURL={profile.photoURL}
+                                              seed={profile.uid}
+                                              size="sm"
+                                            />
+                                            <span className="min-w-0 truncate">
+                                              Me ·{" "}
+                                              {profile.displayName ||
+                                                profile.email}
+                                            </span>
+                                          </button>
+                                        ) : null}
+                                        {filtered.map((o) => (
+                                          <button
+                                            key={o.uid}
+                                            type="button"
+                                            role="option"
+                                            aria-selected={
+                                              t.assignedToUid === o.uid
+                                            }
+                                            className={cn(
+                                              "flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs hover:bg-[var(--surface-panel)]",
+                                              t.assignedToUid === o.uid &&
+                                                "bg-[var(--accent)]/10",
+                                            )}
+                                            onClick={() => {
+                                              void assignTicket(
+                                                t,
+                                                o.uid,
+                                                o.displayName || o.email,
+                                              );
+                                              closeAssignMenu();
+                                            }}
+                                          >
+                                            <ProfileAvatar
+                                              name={o.displayName || o.email}
+                                              photoURL={o.photoURL}
+                                              seed={o.uid}
+                                              size="sm"
+                                            />
+                                            <span className="min-w-0 truncate">
+                                              {o.displayName || o.email}
+                                            </span>
+                                          </button>
+                                        ))}
+                                        {none ? (
+                                          <p className="px-2.5 py-3 text-center text-xs text-[var(--muted)]">
+                                            No matches
+                                          </p>
+                                        ) : null}
+                                      </>
+                                    );
+                                  })()}
+                                </div>
                               </div>
                             ) : null}
                           </div>

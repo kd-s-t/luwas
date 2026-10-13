@@ -18,6 +18,7 @@ import {
 import {
   addSupportTicketMessage,
   assignSupportTicket,
+  LUWAS_DEVELOPERS_ASSIGNEE,
   subscribeSupportTickets,
   updateSupportTicketStatus,
   type SupportTicket,
@@ -363,6 +364,13 @@ export function SupportDetail({ ticketId }: { ticketId: string }) {
                       void assign(null, null);
                       return;
                     }
+                    if (uid === LUWAS_DEVELOPERS_ASSIGNEE.uid) {
+                      void assign(
+                        LUWAS_DEVELOPERS_ASSIGNEE.uid,
+                        LUWAS_DEVELOPERS_ASSIGNEE.name,
+                      );
+                      return;
+                    }
                     const officer = officers.find((o) => o.uid === uid);
                     void assign(
                       uid,
@@ -372,6 +380,9 @@ export function SupportDetail({ ticketId }: { ticketId: string }) {
                   className="w-full border border-[var(--border)] bg-[var(--input)] px-2 py-1.5 font-mono text-[10px] tracking-wider uppercase outline-none focus:border-[var(--accent)] disabled:opacity-50"
                 >
                   <option value="">Unassigned</option>
+                  <option value={LUWAS_DEVELOPERS_ASSIGNEE.uid}>
+                    {LUWAS_DEVELOPERS_ASSIGNEE.name}
+                  </option>
                   {officers.map((o) => (
                     <option key={o.uid} value={o.uid}>
                       {o.displayName || o.email}

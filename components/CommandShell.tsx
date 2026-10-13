@@ -199,8 +199,8 @@ function CommandShellInner({ children, fill = false }: CommandShellProps) {
     : "Duty coordinator";
 
   const sidebar = (
-    <aside className="flex h-full w-[15.5rem] shrink-0 flex-col bg-[#0f1b2d] text-white">
-      <div className="border-b border-white/10 px-5 pt-6 pb-5">
+    <aside className="flex h-full min-h-0 w-[15.5rem] shrink-0 flex-col bg-[#0f1b2d] text-white">
+      <div className="shrink-0 border-b border-white/10 px-5 pt-6 pb-5">
         <Link
           href="/"
           className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-[0.08em]"
@@ -212,7 +212,7 @@ function CommandShellInner({ children, fill = false }: CommandShellProps) {
         </p>
       </div>
 
-      <nav className="flex flex-1 flex-col gap-0.5 px-3 py-4">
+      <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto overscroll-contain px-3 py-4">
         {PRIMARY.map((item) => {
           const active = item.match(pathname, view);
           const Icon = item.icon;
@@ -222,7 +222,7 @@ function CommandShellInner({ children, fill = false }: CommandShellProps) {
               key={item.id}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition",
+                "flex shrink-0 items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition",
                 active
                   ? "bg-white font-medium text-[#0f1b2d]"
                   : "text-white/75 hover:bg-white/8 hover:text-white",
@@ -246,7 +246,7 @@ function CommandShellInner({ children, fill = false }: CommandShellProps) {
           );
         })}
 
-        <div className="mt-4 border-t border-white/10 pt-3">
+        <div className="mt-4 shrink-0 border-t border-white/10 pt-3">
           <p className="px-3 pb-1.5 font-mono text-[9px] tracking-[0.16em] text-white/35 uppercase">
             Admin
           </p>
@@ -283,7 +283,7 @@ function CommandShellInner({ children, fill = false }: CommandShellProps) {
         </div>
       </nav>
 
-      <div className="mt-auto space-y-3 px-3 pb-4">
+      <div className="mt-auto shrink-0 space-y-3 px-3 pb-4">
         <div className="rounded-xl border border-[#2a4a7a]/50 bg-[#16325a]/80 px-3.5 py-3 text-[11px] leading-relaxed text-white/80">
           <p className="flex items-start gap-2">
             <Shield className="mt-0.5 size-3.5 shrink-0 text-[#7eb6ff]" aria-hidden />
@@ -337,7 +337,9 @@ function CommandShellInner({ children, fill = false }: CommandShellProps) {
           : "min-h-dvh",
       )}
     >
-      <div className="hidden h-full shrink-0 lg:flex">{sidebar}</div>
+      <div className="sticky top-0 hidden h-dvh shrink-0 self-start lg:flex">
+        {sidebar}
+      </div>
 
       {/* Mobile top bar */}
       <div

@@ -14,6 +14,12 @@ import { getClientDb } from "@/lib/firebase/client";
 
 export type SupportTicketStatus = "open" | "in_progress" | "resolved" | "closed";
 
+/** Permanent product-team assignee (not a Firestore user). */
+export const LUWAS_DEVELOPERS_ASSIGNEE = {
+  uid: "luwas-developers",
+  name: "Luwas developers",
+} as const;
+
 export type SupportMessage = {
   id: string;
   body: string;
