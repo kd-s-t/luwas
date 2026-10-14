@@ -365,8 +365,8 @@ function OfficerFlowNode({ data }: NodeProps<FlowNode<OfficerNodeData>>) {
 const officerNodeTypes = { officer: OfficerFlowNode };
 
 const NODE_W = { apex: 216, mid: 164, base: 152 } as const;
-/** Layout box height — must clear avatar + title + history row. */
-const NODE_H = 188;
+/** Layout box height — avatar, title, email. */
+const NODE_H = 168;
 const GAP_X = 28;
 const GAP_Y = 88;
 const WRAP_GAP_Y = 48;
