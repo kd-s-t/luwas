@@ -15,17 +15,11 @@ import {
   HOUSEHOLD_CSV_TEMPLATE,
   parseHouseholdCsv,
 } from "@/lib/households/csv";
-import {
-  officerScopeBarangay,
-  subscribeBarangayUsers,
-} from "@/lib/auth/accountValidation";
-import { useAuth } from "@/lib/auth/AuthProvider";
+import { useCommandWorkspace } from "@/components/CommandWorkspaceProvider";
+import { CommandContentSkeleton } from "@/components/PageLoadSkeleton";
+import { Button } from "@/components/ui/button";
 import { ensureKenHouseholdCitizens } from "@/lib/auth/ensureKenHouseholdCitizens";
-import { isCitizen, isOfficer } from "@/lib/auth/types";
-import {
-  scopeForProfile,
-  scopeLabel,
-} from "@/lib/reports/barangayScope";
+import { isCitizen } from "@/lib/auth/types";
 import {
   dedupeHouseholdsByContact,
   healHouseholdCitizenLinks,
@@ -38,8 +32,7 @@ import {
   householdAppUserStatus,
   type Household,
 } from "@/lib/households/types";
-import { CommandContentSkeleton } from "@/components/PageLoadSkeleton";
-import { Button } from "@/components/ui/button";
+import { scopeLabel } from "@/lib/reports/barangayScope";
 import {
   Dialog,
   DialogBody,
@@ -111,13 +104,21 @@ const emptyForm = {
 };
 
 export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
-  const { profile } = useAuth();
-  const placeLabel = useMemo(
-    () => scopeLabel(scopeForProfile(profile)),
-    [profile],
-  );
+  const { barangayUsers, reportScope } = useCommandWorkspace();
+  const placeLabel = useMemo(() => scopeLabel(reportScope), [reportScope]);
+  const citizenEmails = useMemo(() => {
+    const emails = new Set<string>();
+    for (const u of barangayUsers) {
+      if (!isCitizen(u)) continue;
+      if (u.accountStatus === "fired" || u.accountStatus === "rejected") {
+        continue;
+      }
+      const e = u.email.trim().toLowerCase();
+      if (e) emails.add(e);
+    }
+    return emails;
+  }, [barangayUsers]);
   const [rows, setRows] = useState<Household[]>([]);
-  const [citizenEmails, setCitizenEmails] = useState<Set<string>>(new Set());
   const [form, setForm] = useState(emptyForm);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -182,32 +183,6 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
       trimPass.current = false;
     });
   }, [loading, rows.length, officerUid, orgName]);
-
-  useEffect(() => {
-    if (!isOfficer(profile)) {
-      setCitizenEmails(new Set());
-      return;
-    }
-    const barangay = officerScopeBarangay(profile);
-    const areaId = profile.areaId ?? profile.activeBarangayId;
-    return subscribeBarangayUsers(
-      barangay,
-      (users) => {
-        const emails = new Set<string>();
-        for (const u of users) {
-          if (!isCitizen(u)) continue;
-          if (u.accountStatus === "fired" || u.accountStatus === "rejected") {
-            continue;
-          }
-          const e = u.email.trim().toLowerCase();
-          if (e) emails.add(e);
-        }
-        setCitizenEmails(emails);
-      },
-      undefined,
-      areaId,
-    );
-  }, [profile]);
 
   // Inject curated pins (Ken, etc.) into an already-seeded roster,
   // then register Ken + Jeanilou as linked citizen app users.
