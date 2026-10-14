@@ -101,12 +101,12 @@ export default function LoginPage() {
   async function redirectForCurrentUser() {
     const uid = getClientAuth().currentUser?.uid;
     if (!uid) {
-      router.replace("/overview");
+      router.replace("/admin/overview");
       return;
     }
     const snap = await getDoc(doc(getClientDb(), "users", uid));
     const profile = snap.exists() ? (snap.data() as UserProfile) : null;
-    router.replace(profile?.role === "citizen" ? "/my-reports" : "/overview");
+    router.replace(profile?.role === "citizen" ? "/my-reports" : "/admin/overview");
   }
 
   async function onSubmit(e: FormEvent) {

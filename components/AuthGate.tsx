@@ -23,7 +23,7 @@ type AuthGateProps = {
 
 function homeForRole(role: UserRole | undefined) {
   if (role === "citizen") return "/my-reports";
-  return "/overview";
+  return "/admin/overview";
 }
 
 export function AuthGate({

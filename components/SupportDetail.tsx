@@ -282,7 +282,7 @@ export function SupportDetail({ ticketId }: { ticketId: string }) {
           Ticket not found
         </p>
         <Link
-          href="/overview/support"
+          href="/admin/support"
           className="font-mono text-[10px] tracking-wider text-[var(--accent)] uppercase hover:underline"
         >
           ← Back to board
@@ -296,7 +296,7 @@ export function SupportDetail({ ticketId }: { ticketId: string }) {
       <div className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--surface)]/95 px-4 py-3 backdrop-blur sm:px-5">
         <div className="mb-2">
           <Link
-            href="/overview/support"
+            href="/admin/support"
             className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase transition hover:text-[var(--accent)]"
           >
             ← Support board

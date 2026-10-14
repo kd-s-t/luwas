@@ -37,10 +37,10 @@ function CommandPageInner() {
     if (panel !== "workspace") return;
     if (reportId) {
       router.replace(
-        `/overview/incidents/${encodeURIComponent(reportId)}`,
+        `/admin/incidents/${encodeURIComponent(reportId)}`,
       );
     } else {
-      router.replace("/overview/incidents");
+      router.replace("/admin/incidents");
     }
   }, [panel, reportId, router]);
 

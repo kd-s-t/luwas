@@ -104,7 +104,7 @@ export default function OfficerRegisterPage() {
         const message = err instanceof Error ? err.message : "";
         if (/email-already-in-use/i.test(message)) {
           await login(trimmedEmail, password);
-          router.replace("/overview");
+          router.replace("/admin/overview");
           return;
         }
         throw err;
@@ -147,7 +147,7 @@ export default function OfficerRegisterPage() {
         }
       }
 
-      router.replace(accountStatus === "pending" ? "/pending" : "/overview");
+      router.replace(accountStatus === "pending" ? "/pending" : "/admin/overview");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Registration failed";
       setError(message);

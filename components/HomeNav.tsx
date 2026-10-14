@@ -35,8 +35,7 @@ export function HomeNav({ overlay = false }: HomeNavProps) {
     pathname === "/reports" || pathname.startsWith("/reports/");
   const onBarangays =
     pathname === "/barangays" || pathname.startsWith("/barangays/");
-  const onOverview =
-    pathname === "/overview" || pathname.startsWith("/overview/");
+  const onOverview = pathname.startsWith("/admin");
   const onReportIncident =
     pathname === "/report-incident" ||
     pathname.startsWith("/report-incident/");
@@ -62,7 +61,7 @@ export function HomeNav({ overlay = false }: HomeNavProps) {
     <>
       {role === "officer" ? (
         <Link
-          href="/overview"
+          href="/admin/overview"
           className={navLinkClass(onOverview)}
           onClick={() => setMenuOpen(false)}
         >

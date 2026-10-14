@@ -150,7 +150,7 @@ export function IncidentDetail({ reportId }: IncidentDetailProps) {
           This report is missing, out of scope, or was removed.
         </p>
         <Link
-          href="/overview/incidents"
+          href="/admin/incidents"
           className="font-mono text-[10px] tracking-wider text-[var(--accent)] uppercase hover:underline"
         >
           ← Back to board
@@ -164,7 +164,7 @@ export function IncidentDetail({ reportId }: IncidentDetailProps) {
       <div className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--surface)]/95 px-4 py-3 backdrop-blur sm:px-5">
         <div className="mb-2">
           <Link
-            href="/overview/incidents"
+            href="/admin/incidents"
             className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase transition hover:text-[var(--accent)]"
           >
             ← Incidents board
@@ -306,7 +306,7 @@ export function IncidentDetail({ reportId }: IncidentDetailProps) {
                 {related.map((r) => (
                   <li key={r.id}>
                     <Link
-                      href={`/overview/incidents/${encodeURIComponent(r.id)}`}
+                      href={`/admin/incidents/${encodeURIComponent(r.id)}`}
                       className="block w-full border border-[var(--border)] px-2.5 py-2 text-left text-xs transition hover:border-[var(--accent)]"
                     >
                       <span className="font-medium">{r.title}</span>

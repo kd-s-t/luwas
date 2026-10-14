@@ -52,7 +52,7 @@ export function buildOfficerNotifications(input: {
       title: "Pending registration",
       body: `${u.displayName || u.email} · ${u.role}`,
       href:
-        u.role === "officer" ? "/overview/officers" : "/overview/citizens",
+        u.role === "officer" ? "/admin/officers" : "/admin/citizens",
       createdAt: u.createdAt || "",
     });
   }
@@ -67,7 +67,7 @@ export function buildOfficerNotifications(input: {
           ? "Needs human review"
           : "Report awaiting review",
       body: r.title || r.id,
-      href: "/overview/incidents",
+      href: "/admin/incidents",
       createdAt: r.createdAt || "",
     });
   }

@@ -9,7 +9,7 @@ import { PageLoadSkeleton } from "@/components/PageLoadSkeleton";
 export default function CommandReportsRedirectPage() {
   const router = useRouter();
   useEffect(() => {
-    router.replace("/overview/incidents");
+    router.replace("/admin/incidents");
   }, [router]);
 
   return (

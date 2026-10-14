@@ -232,7 +232,7 @@ export function CommandOverview() {
                 approval, they appear here.
               </p>
               <Link
-                href="/overview/incidents"
+                href="/admin/incidents"
                 className="mt-4 inline-flex text-sm font-medium text-[#2f5f9e] hover:underline"
               >
                 Open incidents board →
@@ -252,7 +252,7 @@ export function CommandOverview() {
 
       <div className="mt-6 flex flex-col gap-2 border-t border-[var(--border)] pt-5 pb-2 sm:flex-row sm:items-center sm:justify-between">
         <Link
-          href="/overview/incidents"
+          href="/admin/incidents"
           className="text-sm font-medium text-[#2f5f9e] hover:underline"
         >
           Open incidents board →

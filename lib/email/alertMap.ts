@@ -101,7 +101,7 @@ export function alertDistanceMapHtml(input: {
         </tr>
         <tr>
           <td style="padding:0;line-height:0;">
-            <a href="${escapeHtml(`${appOrigin()}/overview`)}" style="display:block;text-decoration:none;">
+            <a href="${escapeHtml(`${appOrigin()}/admin/overview`)}" style="display:block;text-decoration:none;">
               <img src="${escapeHtml(mapSrc)}" width="560" height="280" alt="Map: ${escapeHtml(dist)} from you to ${escapeHtml(hazTitle)}" style="display:block;width:100%;max-width:560px;height:auto;border:0;" />
             </a>
           </td>
@@ -207,7 +207,7 @@ export function shelterOptionsMapHtml(input: {
         </tr>
         <tr>
           <td style="padding:0;line-height:0;">
-            <a href="${escapeHtml(`${appOrigin()}/overview`)}" style="display:block;text-decoration:none;">
+            <a href="${escapeHtml(`${appOrigin()}/admin/overview`)}" style="display:block;text-decoration:none;">
               <img src="${escapeHtml(mapSrc)}" width="560" height="280" alt="Map of your home and nearby evacuation centers" style="display:block;width:100%;max-width:560px;height:auto;border:0;" />
             </a>
           </td>

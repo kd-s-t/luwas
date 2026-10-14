@@ -72,14 +72,14 @@ const OPS_ACTIONS = [
     key: "householdsReady" as const,
     title: "House owners roster",
     hint: "Import CSV or add households for this barangay.",
-    href: "/overview/households",
+    href: "/admin/households",
     cta: "Open households",
   },
   {
     key: "staffReady" as const,
     title: "Staff / users",
     hint: "Punong barangay, MDRRMO, tanods on Users.",
-    href: "/overview/officers",
+    href: "/admin/officers",
     cta: "Open users",
   },
   {
@@ -93,7 +93,7 @@ const OPS_ACTIONS = [
     key: "mapOpened" as const,
     title: "Situation map",
     hint: "Open command map centered on this barangay hall.",
-    href: "/overview",
+    href: "/admin/overview",
     cta: "Open map",
   },
 ] as const;
@@ -120,7 +120,7 @@ export function BarangayOnboardWizard({ defaultOrgName = "" }: Props) {
     void hydrateOnboardedBarangays().then(setActivated);
   }, []);
 
-  // Deep-link: /overview/onboard?area=consolacion/tayud
+  // Deep-link: /admin/onboard?area=consolacion/tayud
   useEffect(() => {
     const areaId = searchParams.get("area");
     if (!areaId || draft.areaId) return;
@@ -325,8 +325,8 @@ export function BarangayOnboardWizard({ defaultOrgName = "" }: Props) {
     if (draft.areaId) setPreferredAreaId(draft.areaId);
     router.push(
       draft.areaId
-        ? `/overview?area=${encodeURIComponent(draft.areaId)}`
-        : "/overview",
+        ? `/admin/overview?area=${encodeURIComponent(draft.areaId)}`
+        : "/admin/overview",
     );
   }
 
@@ -626,7 +626,7 @@ export function BarangayOnboardWizard({ defaultOrgName = "" }: Props) {
               const done = draft.checklist[item.key];
               const href =
                 item.key === "mapOpened" && draft.areaId
-                  ? `/overview?area=${encodeURIComponent(draft.areaId)}`
+                  ? `/admin/overview?area=${encodeURIComponent(draft.areaId)}`
                   : item.href;
               return (
                 <li
@@ -719,7 +719,7 @@ export function BarangayOnboardWizard({ defaultOrgName = "" }: Props) {
               </p>
               <Button asChild type="button" size="sm" variant="outline" className="mt-3">
                 <Link
-                  href="/overview/households"
+                  href="/admin/households"
                   onClick={() => markCheck("householdsReady")}
                 >
                   Open CSV import →
@@ -776,7 +776,7 @@ export function BarangayOnboardWizard({ defaultOrgName = "" }: Props) {
                         () => undefined,
                       );
                       router.push(
-                        `/overview?area=${encodeURIComponent(row.id)}`,
+                        `/admin/overview?area=${encodeURIComponent(row.id)}`,
                       );
                     }}
                     className="border border-[var(--border)] px-2.5 py-1 font-mono text-[10px] tracking-wider uppercase transition hover:border-[var(--accent)]"

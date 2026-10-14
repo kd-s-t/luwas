@@ -117,7 +117,7 @@ export function OverviewMapPanel({ items }: OverviewMapPanelProps) {
           <ScenarioSwitcher phase={phase} onChange={setPhase} />
         </div>
         <Link
-          href="/overview/full"
+          href="/admin/full"
           target="_blank"
           rel="noreferrer"
           className="text-sm font-medium text-[#2f5f9e] transition hover:underline"

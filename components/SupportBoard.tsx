@@ -309,7 +309,7 @@ export function SupportBoard() {
             Product support
           </p>
           <Link
-            href="/overview"
+            href="/admin/overview"
             className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase transition hover:text-[var(--accent)]"
           >
             ← Overview
@@ -441,7 +441,7 @@ export function SupportBoard() {
                         >
                           <div className="flex items-start justify-between gap-2">
                             <Link
-                              href={`/overview/support/${encodeURIComponent(t.id)}`}
+                              href={`/admin/support/${encodeURIComponent(t.id)}`}
                               className="line-clamp-2 min-w-0 flex-1 text-sm font-medium leading-snug hover:text-[var(--accent)] hover:underline"
                               onClick={(e) => {
                                 if (draggedRef.current) e.preventDefault();

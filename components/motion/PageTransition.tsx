@@ -11,8 +11,7 @@ export function PageTransition({ children }: { children: ReactNode }) {
   const reduce = useReducedMotion();
 
   const skipShell =
-    pathname === "/overview" ||
-    pathname.startsWith("/overview/") ||
+    pathname.startsWith("/admin") ||
     pathname === "/profile" ||
     pathname.startsWith("/profile/") ||
     pathname === "/my-reports" ||

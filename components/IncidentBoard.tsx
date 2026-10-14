@@ -212,7 +212,7 @@ export function IncidentBoard() {
             Incidents
           </p>
           <Link
-            href="/overview"
+            href="/admin/overview"
             className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase transition hover:text-[var(--accent)]"
           >
             ← Overview
@@ -292,7 +292,7 @@ export function IncidentBoard() {
                         >
                           <div className="flex items-start justify-between gap-2">
                             <Link
-                              href={`/overview/incidents/${encodeURIComponent(r.id)}`}
+                              href={`/admin/incidents/${encodeURIComponent(r.id)}`}
                               className="line-clamp-2 min-w-0 flex-1 text-sm font-medium leading-snug hover:text-[var(--accent)] hover:underline"
                             >
                               {r.title}

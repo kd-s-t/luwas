@@ -25,12 +25,22 @@ const nextConfig = {
     return [
       {
         source: "/command",
-        destination: "/overview",
+        destination: "/admin/overview",
         permanent: true,
       },
       {
         source: "/command/:path*",
-        destination: "/overview/:path*",
+        destination: "/admin/:path*",
+        permanent: true,
+      },
+      {
+        source: "/overview",
+        destination: "/admin/overview",
+        permanent: true,
+      },
+      {
+        source: "/overview/:path*",
+        destination: "/admin/:path*",
         permanent: true,
       },
     ];

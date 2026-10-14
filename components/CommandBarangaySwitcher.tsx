@@ -153,7 +153,7 @@ export function CommandBarangaySwitcher({
     } catch {
       /* local preferred area still set */
     }
-    router.push(`/overview?area=${encodeURIComponent(row.id)}`);
+    router.push(`/admin/overview?area=${encodeURIComponent(row.id)}`);
   }
 
   return (
@@ -239,7 +239,7 @@ export function CommandBarangaySwitcher({
             )}
             <div className="shrink-0 border-t border-[var(--border)] bg-[var(--surface)]">
               <Link
-                href="/overview/onboard"
+                href="/admin/onboard"
                 onClick={() => setOpen(false)}
                 className="block px-3 py-2 font-mono text-[10px] tracking-wider text-[var(--accent)] uppercase hover:bg-[var(--surface-panel)]/60"
               >

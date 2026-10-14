@@ -64,7 +64,7 @@ export const SAMPLE_SUPPORT_TICKETS: SampleTicket[] = [
     id: "sup-sample-004",
     status: "in_progress",
     email: "bfp.desk@nangka.demo",
-    pageUrl: "/overview",
+    pageUrl: "/admin/overview",
     summary: "Command header badges stale until full reload",
     details:
       "Users pending badge stayed at 5 after I approved someone. Field reports badge updated only after refresh.",

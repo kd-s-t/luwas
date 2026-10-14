@@ -164,7 +164,7 @@ function buildItem(
   const place = placeLine(report);
   const unverified = isUnverified(report);
   const short = inventoryShortfall(report);
-  const href = `/overview/incidents/${encodeURIComponent(report.id)}`;
+  const href = `/admin/incidents/${encodeURIComponent(report.id)}`;
 
   if (kind === "critical") {
     const tags: AttentionTag[] = [
@@ -204,7 +204,7 @@ function buildItem(
       timeLabel: timeLabelPht(report.createdAt),
       meta: "1 request",
       ctaLabel: "Find assistance",
-      ctaHref: "/overview/households",
+      ctaHref: "/admin/households",
       primaryCta: false,
       lat: report.lat,
       lng: report.lng,

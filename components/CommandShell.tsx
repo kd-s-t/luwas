@@ -42,59 +42,59 @@ type PrimaryNav = {
 const PRIMARY: PrimaryNav[] = [
   {
     id: "overview",
-    href: "/overview",
+    href: "/admin/overview",
     label: "Overview",
     icon: LayoutDashboard,
-    match: (p, view) => p === "/overview" && (!view || view === "overview"),
+    match: (p, view) => p === "/admin/overview" && (!view || view === "overview"),
   },
   {
     id: "incidents",
-    href: "/overview/incidents",
+    href: "/admin/incidents",
     label: "Incidents",
     icon: AlertTriangle,
-    match: (p) => p.startsWith("/overview/incidents"),
+    match: (p) => p.startsWith("/admin/incidents"),
   },
   {
     id: "activity",
-    href: "/overview/activity",
+    href: "/admin/activity",
     label: "Activity",
     icon: Activity,
-    match: (p) => p.startsWith("/overview/activity"),
+    match: (p) => p.startsWith("/admin/activity"),
   },
 ];
 
 const SECONDARY: { href: string; label: string; match: (p: string) => boolean }[] =
   [
     {
-      href: "/overview/households",
+      href: "/admin/households",
       label: "Home owners",
-      match: (p) => p.startsWith("/overview/households"),
+      match: (p) => p.startsWith("/admin/households"),
     },
     {
-      href: "/overview/citizens",
+      href: "/admin/citizens",
       label: "Citizens",
       match: (p) =>
-        p.startsWith("/overview/citizens") || p.startsWith("/overview/users"),
+        p.startsWith("/admin/citizens") || p.startsWith("/admin/users"),
     },
     {
-      href: "/overview/officers",
+      href: "/admin/officers",
       label: "Officers",
-      match: (p) => p.startsWith("/overview/officers"),
+      match: (p) => p.startsWith("/admin/officers"),
     },
     {
-      href: "/overview/roles",
+      href: "/admin/roles",
       label: "Roles",
-      match: (p) => p.startsWith("/overview/roles"),
+      match: (p) => p.startsWith("/admin/roles"),
     },
     {
-      href: "/overview/support",
+      href: "/admin/support",
       label: "Support",
-      match: (p) => p.startsWith("/overview/support"),
+      match: (p) => p.startsWith("/admin/support"),
     },
     {
-      href: "/overview/onboard",
+      href: "/admin/onboard",
       label: "Onboard",
-      match: (p) => p.startsWith("/overview/onboard"),
+      match: (p) => p.startsWith("/admin/onboard"),
     },
   ];
 
@@ -194,11 +194,11 @@ function CommandShellInner({ children, fill = false }: CommandShellProps) {
           {SECONDARY.map((item) => {
             const active = item.match(pathname);
             const badge =
-              item.href === "/overview/citizens"
+              item.href === "/admin/citizens"
                 ? pendingCitizenCount
-                : item.href === "/overview/officers"
+                : item.href === "/admin/officers"
                   ? pendingOfficerCount
-                  : item.href === "/overview/support"
+                  : item.href === "/admin/support"
                     ? supportOpenCount
                     : 0;
             return (

@@ -103,9 +103,9 @@ const HAZARD_ROWS = [
 ] as const;
 
 const NAV_LINKS = [
-  { href: "/overview", label: "Overview" },
-  { href: "/overview/incidents", label: "Incidents" },
-  { href: "/overview/households", label: "House owners" },
+  { href: "/admin/overview", label: "Overview" },
+  { href: "/admin/incidents", label: "Incidents" },
+  { href: "/admin/households", label: "House owners" },
   { href: "/bootstrap#email", label: "Templates" },
   { href: "/barangays", label: "Barangays" },
   { href: "/bootstrap", label: "Bootstrap" },
@@ -191,7 +191,7 @@ export default function BootstrapKitPage() {
       { role: "user", text },
       {
         role: "ai",
-        text: "Sample reply — same shell as /overview Mangluluwas.",
+        text: "Sample reply — same shell as /admin/overview Mangluluwas.",
       },
     ]);
     setDraft("");
@@ -540,7 +540,7 @@ export default function BootstrapKitPage() {
                 </span>
               </div>
               <p className="mt-3 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
-                Routes · /overview · /overview/incidents · /my-reports ·
+                Routes · /admin/overview · /admin/incidents · /my-reports ·
                 /report-incident · /profile
               </p>
             </Section>
@@ -733,7 +733,7 @@ export default function BootstrapKitPage() {
             <Section
               id="chat"
               title="Chat"
-              hint="Mangluluwas shell — matches /overview (Lucide history/new/send)."
+              hint="Mangluluwas shell — matches /admin/overview (Lucide history/new/send)."
             >
               <div className="flex max-w-md flex-col border border-[var(--border)] bg-[var(--surface)]">
                 <header className="space-y-2.5 border-b border-[var(--border)] bg-[var(--surface-panel)] px-3 py-3">
