@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { demoPortraitUrl } from "@/lib/auth/demoPortraits";
 import { cn } from "@/lib/utils";
 
 function hashHue(seed: string): number {
@@ -27,6 +28,7 @@ export function avatarPhotoSrc(seed: string): string {
 type ProfileAvatarProps = {
   name: string;
   photoURL?: string | null;
+  email?: string | null;
   /** Stable id/email for fallback portrait when photoURL is missing. */
   seed?: string | null;
   size?: "sm" | "md" | "lg";
@@ -42,12 +44,18 @@ const SIZES = {
 export function ProfileAvatar({
   name,
   photoURL,
+  email,
   seed,
   size = "md",
   className,
 }: ProfileAvatarProps) {
   const hue = hashHue(name || seed || "user");
-  const src = photoURL?.trim() || avatarPhotoSrc(seed || name || "user");
+  const curated = demoPortraitUrl({ email, name });
+  // Prefer curated demo face (e.g. Hon. Ricardo), then stored URL, then pravatar.
+  const src =
+    curated ||
+    photoURL?.trim() ||
+    avatarPhotoSrc(seed || name || "user");
   const [failed, setFailed] = useState(false);
 
   if (!failed && src) {

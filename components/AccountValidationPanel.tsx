@@ -139,7 +139,7 @@ export function AccountValidationPanel({
                 <ProfileAvatar
                   name={r.displayName || r.email}
                   photoURL={r.photoURL}
-                  seed={r.uid || r.email}
+                  seed={r.displayName || r.email}
                   size="md"
                   className="mt-0.5"
                 />

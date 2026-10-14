@@ -115,6 +115,9 @@ async function main() {
       idVerifiedAt: sv(now),
       updatedAt: sv(now),
       phone: sv(phone),
+      photoURL: sv(
+        `https://i.pravatar.cc/128?u=${encodeURIComponent(displayName)}`,
+      ),
     });
     ok += 1;
     console.log("ok", id, email, uid);

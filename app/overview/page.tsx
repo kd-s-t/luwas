@@ -5,6 +5,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AuthGate } from "@/components/AuthGate";
 import { CommandOverview } from "@/components/CommandOverview";
 import { CommandShell } from "@/components/CommandShell";
+import {
+  CommandContentSkeleton,
+  PageLoadSkeleton,
+} from "@/components/PageLoadSkeleton";
 import { SituationMap } from "@/components/SituationMap";
 import { FadeIn } from "@/components/motion/primitives";
 import { useAuth } from "@/lib/auth/AuthProvider";
@@ -45,9 +49,7 @@ function CommandPageInner() {
   if (panel === "workspace") {
     return (
       <CommandShell>
-        <div className="flex flex-1 items-center justify-center p-8 text-sm text-[var(--muted)]">
-          Opening incidents…
-        </div>
+        <CommandContentSkeleton />
       </CommandShell>
     );
   }
@@ -55,9 +57,7 @@ function CommandPageInner() {
   return (
     <CommandShell fill={fill}>
       {!mounted ? (
-        <div className="flex flex-1 items-center justify-center p-8 text-sm text-[var(--muted)]">
-          Loading command…
-        </div>
+        <CommandContentSkeleton fill />
       ) : panel === "overview" ? (
         <CommandOverview />
       ) : user ? (
@@ -77,13 +77,7 @@ function CommandPageInner() {
 export default function CommandPage() {
   return (
     <AuthGate mode="protected" role="officer">
-      <Suspense
-        fallback={
-          <div className="flex min-h-dvh items-center justify-center bg-[#eef1f5] text-sm text-[var(--muted)]">
-            Loading command…
-          </div>
-        }
-      >
+      <Suspense fallback={<PageLoadSkeleton />}>
         <CommandPageInner />
       </Suspense>
     </AuthGate>

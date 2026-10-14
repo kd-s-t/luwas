@@ -17,6 +17,7 @@ import {
   type StaffMember,
   type StaffScope,
 } from "@/lib/staff/types";
+import { CommandContentSkeleton } from "@/components/PageLoadSkeleton";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -160,9 +161,7 @@ export function StaffDirectoryPanel() {
         ) : null}
 
         {loading ? (
-          <p className="font-mono text-sm text-[var(--muted)]">
-            Loading staff directory…
-          </p>
+          <CommandContentSkeleton className="min-h-[280px] border border-[var(--border)]" />
         ) : rows.length === 0 ? (
           <div className="border border-dashed border-[var(--border)] bg-[var(--surface-panel)]/50 px-5 py-10 text-[var(--muted)]">
             <p>No staff roster yet.</p>

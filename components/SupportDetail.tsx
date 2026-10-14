@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { CommandContentSkeleton } from "@/components/PageLoadSkeleton";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -271,11 +272,7 @@ export function SupportDetail({ ticketId }: { ticketId: string }) {
   }
 
   if (!ready) {
-    return (
-      <div className="flex flex-1 items-center justify-center p-8 text-sm text-[var(--muted)]">
-        Loading ticket…
-      </div>
-    );
+    return <CommandContentSkeleton fill />;
   }
 
   if (!selected) {

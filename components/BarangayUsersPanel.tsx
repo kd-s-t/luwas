@@ -49,6 +49,7 @@ import {
   type OfficerProfile,
   type UserProfile,
 } from "@/lib/auth/types";
+import { CommandContentSkeleton } from "@/components/PageLoadSkeleton";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -225,8 +226,9 @@ function OfficerCard({
       <div className="mt-2 flex justify-center">
         <ProfileAvatar
           name={officer.displayName || officer.email}
+          email={officer.email}
           photoURL={officer.photoURL}
-          seed={officer.uid || officer.email}
+          seed={officer.displayName || officer.email}
           size={tier === "apex" ? "lg" : tier === "mid" ? "md" : "sm"}
         />
       </div>
@@ -780,7 +782,7 @@ function CitizensTable({ citizens }: { citizens: CitizenProfile[] }) {
                       <ProfileAvatar
                         name={c.displayName || c.email}
                         photoURL={c.photoURL}
-                        seed={c.uid || c.email}
+                        seed={c.displayName || c.email}
                         size="sm"
                       />
                       <span>{c.displayName || "—"}</span>
@@ -1424,24 +1426,7 @@ export function BarangayUsersPanel({
       ) : null}
 
       {loading ? (
-        <section
-          className="flex min-h-[360px] flex-col items-center justify-center gap-3 bg-[var(--surface-panel)]/40 px-4 py-16"
-          aria-busy="true"
-          aria-live="polite"
-        >
-          <div
-            className="size-8 animate-spin rounded-full border-2 border-[var(--border)] border-t-[var(--accent)]"
-            aria-hidden
-          />
-          <p className="font-mono text-sm text-[var(--muted)]">
-            {showOfficers ? "Loading officers…" : "Loading citizens…"}
-          </p>
-          {showOfficers ? (
-            <p className="max-w-sm text-center text-xs text-[var(--muted)]">
-              Fetching the full roster before drawing the hierarchy.
-            </p>
-          ) : null}
-        </section>
+        <CommandContentSkeleton className="min-h-[360px] border border-[var(--border)]" />
       ) : (
         <div className="space-y-6">
           {showOfficers ? (

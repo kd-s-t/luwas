@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { getDownloadURL, ref } from "firebase/storage";
 import { AuthGate } from "@/components/AuthGate";
 import { CommandShell } from "@/components/CommandShell";
+import { CommandContentSkeleton } from "@/components/PageLoadSkeleton";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   PublicPageHeader,
   PublicShell,
@@ -93,7 +95,7 @@ function IdPhoto({
         {label}
       </p>
       {loading ? (
-        <p className="font-mono text-xs text-[var(--muted)]">Loading…</p>
+        <Skeleton className="h-48 w-full" />
       ) : src ? (
         // eslint-disable-next-line @next/next/no-img-element -- Storage download URLs
         <img
@@ -152,7 +154,9 @@ function ProfileBody() {
             <div className="flex items-center gap-4 border-b border-[var(--border)] px-4 py-5">
               <ProfileAvatar
                 name={profile.displayName}
+                email={profile.email}
                 photoURL={profile.photoURL}
+                seed={profile.displayName || profile.email}
                 size="lg"
                 className="!size-16 !text-base"
               />
@@ -221,9 +225,7 @@ function ProfileBody() {
             </div>
           </div>
         ) : (
-          <p className="font-mono text-sm tracking-wider text-[var(--muted)] uppercase">
-            Loading profile…
-          </p>
+          <CommandContentSkeleton className="border border-[var(--border)]" />
         )}
       </main>
     </>

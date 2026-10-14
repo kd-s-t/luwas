@@ -17,7 +17,13 @@ import {
   updateProfile,
   type User,
 } from "firebase/auth";
-import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  onSnapshot,
+  serverTimestamp,
+  setDoc,
+} from "firebase/firestore";
 import type { AcceptedIdType } from "@/lib/auth/idTypes";
 import { getClientAuth, getClientDb, useEmulators } from "@/lib/firebase/client";
 import { isFirstActiveOfficerInBarangay } from "@/lib/auth/accountValidation";
@@ -132,10 +138,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let unsub: (() => void) | undefined;
+    let unsubAuth: (() => void) | undefined;
+    let unsubProfile: (() => void) | undefined;
     try {
       const auth = getClientAuth();
-      unsub = onAuthStateChanged(auth, async (nextUser) => {
+      unsubAuth = onAuthStateChanged(auth, (nextUser) => {
+        unsubProfile?.();
+        unsubProfile = undefined;
         setUser(nextUser);
         if (!nextUser) {
           setProfile(null);
@@ -143,11 +152,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        try {
-          const snap = await getDoc(doc(getClientDb(), "users", nextUser.uid));
-          if (snap.exists()) {
+        unsubProfile = onSnapshot(
+          doc(getClientDb(), "users", nextUser.uid),
+          (snap) => {
+            if (!snap.exists()) {
+              setProfile(null);
+              setLoading(false);
+              return;
+            }
             const nextProfile = snap.data() as UserProfile;
             setProfile(nextProfile);
+            setLoading(false);
             if (nextProfile.role === "officer") {
               void hydrateOnboardedBarangays().then(() => {
                 const active = nextProfile.activeBarangayId;
@@ -156,14 +171,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 }
               });
             }
-          } else {
+          },
+          () => {
             setProfile(null);
-          }
-        } catch {
-          setProfile(null);
-        } finally {
-          setLoading(false);
-        }
+            setLoading(false);
+          },
+        );
       });
     } catch (err) {
       console.error("[luwas] Firebase Auth failed to initialize", err);
@@ -172,7 +185,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     }
 
-    return () => unsub?.();
+    return () => {
+      unsubProfile?.();
+      unsubAuth?.();
+    };
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {

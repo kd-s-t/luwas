@@ -495,8 +495,10 @@ export function SupportBoard() {
                                         ?.photoURL ?? null
                                     }
                                     seed={
-                                      t.assignedToUid ||
                                       t.assignedToName ||
+                                      officerByUid.get(t.assignedToUid ?? "")
+                                        ?.displayName ||
+                                      t.assignedToUid ||
                                       undefined
                                     }
                                     size="sm"
@@ -662,7 +664,10 @@ export function SupportBoard() {
                                                 profile.email
                                               }
                                               photoURL={profile.photoURL}
-                                              seed={profile.uid}
+                                              seed={
+                                                profile.displayName ||
+                                                profile.email
+                                              }
                                               size="sm"
                                             />
                                             <span className="min-w-0 truncate">
@@ -697,7 +702,7 @@ export function SupportBoard() {
                                             <ProfileAvatar
                                               name={o.displayName || o.email}
                                               photoURL={o.photoURL}
-                                              seed={o.uid}
+                                              seed={o.displayName || o.email}
                                               size="sm"
                                             />
                                             <span className="min-w-0 truncate">

@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { CommandBarangaySwitcher } from "@/components/CommandBarangaySwitcher";
 import { CommandNotifications } from "@/components/CommandNotifications";
+import { PageLoadSkeleton } from "@/components/PageLoadSkeleton";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import {
   officerScopeBarangay,
@@ -301,8 +302,9 @@ function CommandShellInner({ children, fill = false }: CommandShellProps) {
         <div className="flex items-center gap-2.5 rounded-lg px-2 py-2">
           <ProfileAvatar
             name={displayName}
+            email={profile?.email || user?.email}
             photoURL={profile?.photoURL}
-            seed={profile?.uid || user?.uid || displayName}
+            seed={displayName || profile?.email || user?.email}
             size="sm"
           />
           <div className="min-w-0 flex-1">
@@ -395,13 +397,7 @@ function CommandShellInner({ children, fill = false }: CommandShellProps) {
 
 export function CommandShell(props: CommandShellProps) {
   return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-dvh items-center justify-center bg-[#eef1f5] text-sm text-[var(--muted)]">
-          Loading…
-        </div>
-      }
-    >
+    <Suspense fallback={<PageLoadSkeleton />}>
       <CommandShellInner {...props} />
     </Suspense>
   );

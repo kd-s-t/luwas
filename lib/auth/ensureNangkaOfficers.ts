@@ -16,6 +16,7 @@ import {
   where,
 } from "firebase/firestore";
 import { DEMO_ID_PROOF } from "@/lib/auth/demoAccount";
+import { demoPortraitAbsoluteUrl } from "@/lib/auth/demoPortraits";
 import { getClientDb, getSecondaryAuth } from "@/lib/firebase/client";
 import {
   NANGKA_ORG_NAME,
@@ -91,6 +92,12 @@ function staffSyncPatch(s: StaffMemberInput) {
     idReason: "Nangka staff seed",
     idSource: DEMO_ID_PROOF.idSource,
     idVerifiedAt: now,
+    photoURL:
+      demoPortraitAbsoluteUrl({
+        email: loginEmail(s),
+        name: s.displayName,
+      }) ??
+      `https://i.pravatar.cc/128?u=${encodeURIComponent(s.displayName)}`,
     updatedAt: now,
     updatedAtServer: serverTimestamp(),
   };
@@ -106,6 +113,22 @@ async function ensureOfficerAuth(
 
   if (existing) {
     await updateDoc(doc(getClientDb(), "users", existing), patch);
+    // Keep Auth portrait in sync when we can sign in as the demo account.
+    try {
+      const secondary = getSecondaryAuth();
+      const cred = await signInWithEmailAndPassword(
+        secondary,
+        email,
+        DEMO_PASSWORD,
+      );
+      await updateProfile(cred.user, {
+        displayName: s.displayName,
+        photoURL: patch.photoURL,
+      });
+      await signOut(secondary);
+    } catch {
+      /* Auth photo sync is best-effort for already-created accounts. */
+    }
     return existing;
   }
 
@@ -119,7 +142,10 @@ async function ensureOfficerAuth(
         DEMO_PASSWORD,
       );
       uid = cred.user.uid;
-      await updateProfile(cred.user, { displayName: s.displayName });
+      await updateProfile(cred.user, {
+        displayName: s.displayName,
+        photoURL: patch.photoURL,
+      });
     } catch (err) {
       const code =
         err && typeof err === "object" && "code" in err
@@ -132,6 +158,10 @@ async function ensureOfficerAuth(
         DEMO_PASSWORD,
       );
       uid = cred.user.uid;
+      await updateProfile(cred.user, {
+        displayName: s.displayName,
+        photoURL: patch.photoURL,
+      });
     }
 
     const now = new Date().toISOString();

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, FileText, Package } from "lucide-react";
 import { CommandAreaMapMount } from "@/components/CommandAreaMapMount";
+import { ScenarioSwitcher } from "@/components/ScenarioSwitcher";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { isOfficer } from "@/lib/auth/types";
 import {
@@ -36,7 +37,7 @@ function kindToPin(
 
 export function OverviewMapPanel({ items }: OverviewMapPanelProps) {
   const { profile } = useAuth();
-  const { officerBundle, phase } = useScenario();
+  const { officerBundle, phase, setPhase, bundle } = useScenario();
   const [mapArea, setMapArea] = useState<MapArea>(DEFAULT_MAP_AREA);
 
   useEffect(() => {
@@ -109,9 +110,12 @@ export function OverviewMapPanel({ items }: OverviewMapPanelProps) {
   return (
     <section className="overflow-hidden rounded-2xl border border-[var(--border)] bg-white shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-3 sm:px-5">
-        <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-wide text-[var(--foreground)]">
-          Situation map
-        </h2>
+        <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+          <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-wide text-[var(--foreground)]">
+            Situation map
+          </h2>
+          <ScenarioSwitcher phase={phase} onChange={setPhase} />
+        </div>
         <Link
           href="/overview/full"
           target="_blank"
@@ -170,8 +174,8 @@ export function OverviewMapPanel({ items }: OverviewMapPanelProps) {
       </div>
 
       <p className="border-t border-[var(--border)] px-4 py-2.5 text-[11px] leading-snug text-[var(--muted)] sm:px-5">
-        Illustrative multi-area view. Marker positions are not verified; no safe
-        route is shown.
+        {bundle.shortLabel} · illustrative multi-area view. Marker positions are
+        not verified; no safe route is shown.
       </p>
     </section>
   );

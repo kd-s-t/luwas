@@ -38,6 +38,7 @@ import {
   householdAppUserStatus,
   type Household,
 } from "@/lib/households/types";
+import { CommandContentSkeleton } from "@/components/PageLoadSkeleton";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -449,7 +450,7 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
         ) : null}
 
         {loading ? (
-          <p className="font-mono text-sm text-[var(--muted)]">Loading roster…</p>
+          <CommandContentSkeleton className="min-h-[280px] border border-[var(--border)]" />
         ) : rows.length === 0 ? (
           <div className="border border-dashed border-[var(--border)] bg-[var(--surface-panel)]/50 px-5 py-10 text-[var(--muted)]">
             <p>No households yet. Add a local house owner to start the roster.</p>

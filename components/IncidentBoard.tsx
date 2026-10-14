@@ -409,8 +409,10 @@ export function IncidentBoard() {
                                         ?.photoURL ?? null
                                     }
                                     seed={
-                                      r.investigatorUid ||
                                       r.investigatorName ||
+                                      officerByUid.get(r.investigatorUid ?? "")
+                                        ?.displayName ||
+                                      r.investigatorUid ||
                                       undefined
                                     }
                                     size="sm"
@@ -519,7 +521,7 @@ export function IncidentBoard() {
                     <ProfileAvatar
                       name={profile.displayName || profile.email}
                       photoURL={profile.photoURL}
-                      seed={profile.uid}
+                      seed={profile.displayName || profile.email}
                       size="sm"
                     />
                     <span className="min-w-0 truncate">
@@ -549,7 +551,7 @@ export function IncidentBoard() {
                     <ProfileAvatar
                       name={o.displayName || o.email}
                       photoURL={o.photoURL}
-                      seed={o.uid}
+                      seed={o.displayName || o.email}
                       size="sm"
                     />
                     <span className="min-w-0 truncate">

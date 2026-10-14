@@ -120,7 +120,7 @@ export function OfficerWorkloadInfo({
         key: o.uid,
         name: o.displayName || o.email,
         photoURL: o.photoURL ?? null,
-        seed: o.uid || o.email,
+        seed: o.displayName || o.email,
         title: o.officerTitle || o.orgName || null,
         support: 0,
         incidents: 0,

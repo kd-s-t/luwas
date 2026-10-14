@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { CommandContentSkeleton } from "@/components/PageLoadSkeleton";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { ReportStatusBadge } from "@/components/ReportStatusBadge";
 import { Badge } from "@/components/ui/badge";
@@ -193,11 +194,7 @@ export function IncidentDetail({ reportId }: IncidentDetailProps) {
   }
 
   if (!ready) {
-    return (
-      <div className="flex flex-1 items-center justify-center p-8 text-sm text-[var(--muted)]">
-        Loading incident…
-      </div>
-    );
+    return <CommandContentSkeleton fill />;
   }
 
   if (!selected) {
