@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -10,16 +10,9 @@ import {
 } from "lucide-react";
 import { FadeIn } from "@/components/motion/primitives";
 import { OverviewMapPanel } from "@/components/OverviewMapPanel";
+import { useCommandWorkspace } from "@/components/CommandWorkspaceProvider";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { isOfficer } from "@/lib/auth/types";
-import { subscribeAllReports } from "@/lib/reports/api";
-import {
-  reportInScope,
-  scopeForProfile,
-} from "@/lib/reports/barangayScope";
-import { ensureAllMapReportsInDb } from "@/lib/reports/seedMapReport";
-import type { HazardReport } from "@/lib/reports/types";
-import { fetchCebuWeather, isHazardousWeather } from "@/lib/weather/openMeteo";
 import {
   buildAttentionBoard,
   formatSnapshotLabel,
@@ -137,57 +130,12 @@ function AttentionCard({ item, index }: { item: AttentionItem; index: number }) 
 
 export function CommandOverview() {
   const { profile } = useAuth();
-  const [rows, setRows] = useState<HazardReport[]>([]);
-  const [weatherOk, setWeatherOk] = useState<boolean | null>(null);
-  const [weatherHazard, setWeatherHazard] = useState(false);
+  const { scopedReports, weatherOk, weatherHazard } = useCommandWorkspace();
 
-  const scope = useMemo(() => scopeForProfile(profile), [profile]);
-
-  useEffect(() => {
-    let unsub: (() => void) | undefined;
-    let cancelled = false;
-    void (async () => {
-      try {
-        await ensureAllMapReportsInDb();
-      } catch (err) {
-        console.warn("Map report seed failed", err);
-      }
-      if (cancelled) return;
-      unsub = subscribeAllReports(setRows);
-    })();
-    return () => {
-      cancelled = true;
-      unsub?.();
-    };
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    void fetchCebuWeather()
-      .then((w) => {
-        if (cancelled) return;
-        setWeatherOk(true);
-        setWeatherHazard(
-          isHazardousWeather(w.weatherCode, w.precipitationMm),
-        );
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setWeatherOk(false);
-          setWeatherHazard(false);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const scoped = useMemo(
-    () => rows.filter((r) => reportInScope(r, scope)),
-    [rows, scope],
+  const board = useMemo(
+    () => buildAttentionBoard(scopedReports),
+    [scopedReports],
   );
-
-  const board = useMemo(() => buildAttentionBoard(scoped), [scoped]);
 
   const orgHint = isOfficer(profile) ? profile.orgName : null;
 

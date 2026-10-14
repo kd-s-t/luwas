@@ -18,22 +18,15 @@ import {
 } from "lucide-react";
 import { CommandBarangaySwitcher } from "@/components/CommandBarangaySwitcher";
 import { CommandNotifications } from "@/components/CommandNotifications";
+import {
+  CommandWorkspaceProvider,
+  useCommandWorkspace,
+} from "@/components/CommandWorkspaceProvider";
 import { PageLoadSkeleton } from "@/components/PageLoadSkeleton";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
-import {
-  officerScopeBarangay,
-  subscribePendingAccounts,
-} from "@/lib/auth/accountValidation";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { isAccountActive, isOfficer } from "@/lib/auth/types";
-import { subscribeAllReports } from "@/lib/reports/api";
-import {
-  reportInScope,
-  scopeForProfile,
-  scopeLabel,
-} from "@/lib/reports/barangayScope";
-import type { HazardReport } from "@/lib/reports/types";
-import { subscribeSupportTickets } from "@/lib/support/api";
+import { isOfficer } from "@/lib/auth/types";
+import { scopeForProfile, scopeLabel } from "@/lib/reports/barangayScope";
 import { cn } from "@/lib/utils";
 
 type NavId = "overview" | "incidents" | "activity";
@@ -105,13 +98,6 @@ const SECONDARY: { href: string; label: string; match: (p: string) => boolean }[
     },
   ];
 
-const QUEUE_STATUSES = new Set([
-  "queued",
-  "validating",
-  "needs_review",
-  "failed",
-]);
-
 type CommandShellProps = {
   children: ReactNode;
   /** Fill remaining height (map / workspace). */
@@ -124,66 +110,20 @@ function CommandShellInner({ children, fill = false }: CommandShellProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const view = searchParams.get("view");
-  const [pendingCitizenCount, setPendingCitizenCount] = useState(0);
-  const [pendingOfficerCount, setPendingOfficerCount] = useState(0);
-  const [reportQueueCount, setReportQueueCount] = useState(0);
-  const [supportOpenCount, setSupportOpenCount] = useState(0);
+  const {
+    pendingCitizenCount,
+    pendingOfficerCount,
+    reportQueueCount,
+    supportOpenCount,
+  } = useCommandWorkspace();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
-  const barangay = isOfficer(profile) ? officerScopeBarangay(profile) : "";
-  const areaId = isOfficer(profile)
-    ? profile.areaId ?? profile.activeBarangayId
-    : null;
   const reportScope = useMemo(() => scopeForProfile(profile), [profile]);
   const workspaceLine = useMemo(() => {
     if (!isOfficer(profile)) return "Municipal DRRMO workspace";
     const place = scopeLabel(reportScope);
     return `${place} · Municipal DRRMO workspace`;
   }, [profile, reportScope]);
-
-  useEffect(() => {
-    if (!isOfficer(profile) || !isAccountActive(profile) || !barangay) {
-      setPendingCitizenCount(0);
-      setPendingOfficerCount(0);
-      return;
-    }
-    return subscribePendingAccounts(
-      barangay,
-      (rows) => {
-        setPendingCitizenCount(rows.filter((r) => r.role === "citizen").length);
-        setPendingOfficerCount(rows.filter((r) => r.role === "officer").length);
-      },
-      undefined,
-      areaId,
-    );
-  }, [profile, barangay, areaId]);
-
-  useEffect(() => {
-    if (!isOfficer(profile) || !isAccountActive(profile)) {
-      setReportQueueCount(0);
-      return;
-    }
-    return subscribeAllReports((rows: HazardReport[]) => {
-      const n = rows.filter(
-        (r) => reportInScope(r, reportScope) && QUEUE_STATUSES.has(r.status),
-      ).length;
-      setReportQueueCount(n);
-    });
-  }, [profile, reportScope]);
-
-  useEffect(() => {
-    if (!isOfficer(profile) || !isAccountActive(profile)) {
-      setSupportOpenCount(0);
-      return;
-    }
-    return subscribeSupportTickets((rows) => {
-      setSupportOpenCount(
-        rows.filter(
-          (r) => r.status === "open" || r.status === "in_progress",
-        ).length,
-      );
-    });
-  }, [profile]);
 
   useEffect(() => {
     setMobileNavOpen(false);
@@ -398,7 +338,9 @@ function CommandShellInner({ children, fill = false }: CommandShellProps) {
 export function CommandShell(props: CommandShellProps) {
   return (
     <Suspense fallback={<PageLoadSkeleton />}>
-      <CommandShellInner {...props} />
+      <CommandWorkspaceProvider>
+        <CommandShellInner {...props} />
+      </CommandWorkspaceProvider>
     </Suspense>
   );
 }

@@ -3,11 +3,7 @@
 import Link from "next/link";
 import { Bell } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import {
-  officerScopeBarangay,
-  subscribePendingAccounts,
-  type PendingAccount,
-} from "@/lib/auth/accountValidation";
+import { useCommandWorkspace } from "@/components/CommandWorkspaceProvider";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { isAccountActive, isOfficer } from "@/lib/auth/types";
 import {
@@ -16,12 +12,6 @@ import {
   saveReadIds,
   type OfficerNotification,
 } from "@/lib/notifications/officerInbox";
-import { subscribeAllReports } from "@/lib/reports/api";
-import {
-  reportInScope,
-  scopeForProfile,
-} from "@/lib/reports/barangayScope";
-import type { HazardReport } from "@/lib/reports/types";
 import { cn } from "@/lib/utils";
 
 type CommandNotificationsProps = {
@@ -33,9 +23,8 @@ export function CommandNotifications({
   placement = "below",
 }: CommandNotificationsProps) {
   const { profile } = useAuth();
+  const { pendingAccounts, scopedReports } = useCommandWorkspace();
   const [open, setOpen] = useState(false);
-  const [pending, setPending] = useState<PendingAccount[]>([]);
-  const [reports, setReports] = useState<HazardReport[]>([]);
   const [readIds, setReadIds] = useState<Set<string>>(() => new Set());
   const [panelPos, setPanelPos] = useState<{
     top?: number;
@@ -47,11 +36,6 @@ export function CommandNotifications({
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
-  const barangay = isOfficer(profile) ? officerScopeBarangay(profile) : "";
-  const areaId = isOfficer(profile)
-    ? profile.areaId ?? profile.activeBarangayId
-    : null;
-  const reportScope = useMemo(() => scopeForProfile(profile), [profile]);
   const uid = profile?.uid ?? "";
 
   useEffect(() => {
@@ -61,24 +45,6 @@ export function CommandNotifications({
     }
     setReadIds(loadReadIds(uid));
   }, [uid]);
-
-  useEffect(() => {
-    if (!isOfficer(profile) || !isAccountActive(profile) || !barangay) {
-      setPending([]);
-      return;
-    }
-    return subscribePendingAccounts(barangay, setPending, undefined, areaId);
-  }, [profile, barangay, areaId]);
-
-  useEffect(() => {
-    if (!isOfficer(profile) || !isAccountActive(profile)) {
-      setReports([]);
-      return;
-    }
-    return subscribeAllReports((rows) => {
-      setReports(rows.filter((r) => reportInScope(r, reportScope)));
-    });
-  }, [profile, reportScope]);
 
   useEffect(() => {
     if (!open) return;
@@ -133,8 +99,12 @@ export function CommandNotifications({
   }, [open, placement]);
 
   const items = useMemo(
-    () => buildOfficerNotifications({ pending, reports }),
-    [pending, reports],
+    () =>
+      buildOfficerNotifications({
+        pending: pendingAccounts,
+        reports: scopedReports,
+      }),
+    [pendingAccounts, scopedReports],
   );
 
   const unread = useMemo(
