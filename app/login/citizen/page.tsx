@@ -14,6 +14,7 @@ import {
 } from "@/lib/auth/demoAccount";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { getClientAuth, getClientDb, useEmulators } from "@/lib/firebase/client";
+import { syncCitizenPresenceFromDevice } from "@/lib/households/citizenPresence";
 
 const FIRST = DEMO_CITIZENS[0]!;
 
@@ -95,11 +96,24 @@ function CitizenLoginForm() {
     setError(null);
   }
 
+  async function captureLocationAfterLogin(fallbackEmail: string) {
+    const authUser = getClientAuth().currentUser;
+    if (!authUser?.uid) return;
+    await syncCitizenPresenceFromDevice({
+      uid: authUser.uid,
+      email: authUser.email ?? fallbackEmail,
+      barangay: "Nangka",
+    }).catch(() => {
+      /* permission / offline — session sync may retry later */
+    });
+  }
+
   async function loginAs(citizen: DemoCitizen) {
     selectDemo(citizen);
     setSubmitting(true);
     try {
       await ensureDemoCitizen(citizen);
+      await captureLocationAfterLogin(citizen.email);
       router.replace(nextPath);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
@@ -120,6 +134,7 @@ function CitizenLoginForm() {
       } else {
         await login(trimmedEmail, password);
       }
+      await captureLocationAfterLogin(trimmedEmail);
       router.replace(nextPath);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Login failed";
