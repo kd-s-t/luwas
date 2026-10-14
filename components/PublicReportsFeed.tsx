@@ -73,30 +73,21 @@ export function PublicReportsFeed() {
   const anchor = useMemo(() => here ?? scopeAnchor(scope), [here, scope]);
 
   useEffect(() => {
-    let unsub: (() => void) | undefined;
-    let cancelled = false;
     setError(null);
-
-    void (async () => {
-      try {
-        await ensureAllMapReportsInDb();
-      } catch (err) {
-        console.warn("Map report seed failed", err);
-      }
-      if (cancelled) return;
-      unsub = subscribePublicReports(setRows, (err) => {
-        setError(err.message);
-        setRows([]);
-      });
-    })();
-
-    return () => {
-      cancelled = true;
-      unsub?.();
-    };
+    // Paint from Firestore first; seed curated pins in the background.
+    const unsub = subscribePublicReports(setRows, (err) => {
+      setError(err.message);
+      setRows([]);
+    });
+    void ensureAllMapReportsInDb().catch((err) => {
+      console.warn("Map report seed failed", err);
+    });
+    return () => unsub();
   }, []);
 
   useEffect(() => {
+    // Guests: skip GPS/IP — scope center is enough for nearest-first.
+    if (!profile) return;
     let cancelled = false;
     void captureReportMeta().then((meta) => {
       if (cancelled) return;
@@ -107,7 +98,7 @@ export function PublicReportsFeed() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [profile]);
 
   const scoped = useMemo(() => {
     if (!rows) return null;

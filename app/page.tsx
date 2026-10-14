@@ -3,8 +3,8 @@
 import { motion, useReducedMotion } from "framer-motion";
 import { HomeCta } from "@/components/HomeCta";
 import { HomeFooter } from "@/components/HomeFooter";
+import { HomeLiveMap } from "@/components/HomeLiveMap";
 import { HomeNav } from "@/components/HomeNav";
-import { PublicSituationMap } from "@/components/PublicSituationMap";
 import {
   easeOut,
   FadeIn,
@@ -81,7 +81,7 @@ export default function HomePage() {
       </section>
 
       <FadeIn delay={0.15} y={18}>
-        <PublicSituationMap />
+        <HomeLiveMap />
       </FadeIn>
 
       <HomeFooter />

@@ -27,6 +27,8 @@ import { cn } from "@/lib/utils";
 
 type PublicReportCardProps = {
   report: HazardReport;
+  /** When true, open comments and live social listeners immediately. */
+  expandSocial?: boolean;
 };
 
 function countsFromReactions(
@@ -41,8 +43,13 @@ function countsFromReactions(
   return next;
 }
 
-export function PublicReportCard({ report }: PublicReportCardProps) {
+export function PublicReportCard({
+  report,
+  expandSocial = false,
+}: PublicReportCardProps) {
   const { user, profile } = useAuth();
+  const [commentsOpen, setCommentsOpen] = useState(expandSocial);
+  const [liveSocial, setLiveSocial] = useState(expandSocial || Boolean(user));
   const [comments, setComments] = useState<ReportComment[]>([]);
   const [reactions, setReactions] = useState<ReportReaction[]>([]);
   const [draft, setDraft] = useState("");
@@ -50,12 +57,18 @@ export function PublicReportCard({ report }: PublicReportCardProps) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    return subscribeReportComments(report.id, setComments);
-  }, [report.id]);
+    if (user) setLiveSocial(true);
+  }, [user]);
 
   useEffect(() => {
+    if (!liveSocial && !commentsOpen) return;
+    return subscribeReportComments(report.id, setComments);
+  }, [report.id, liveSocial, commentsOpen]);
+
+  useEffect(() => {
+    if (!liveSocial) return;
     return subscribeReportReactions(report.id, setReactions);
-  }, [report.id]);
+  }, [report.id, liveSocial]);
 
   const myReaction = useMemo(
     () => reactions.find((r) => r.uid === user?.uid) ?? null,
@@ -63,22 +76,33 @@ export function PublicReportCard({ report }: PublicReportCardProps) {
   );
 
   const liveCounts = useMemo(
-    () => countsFromReactions(reactions, report.reactionCounts),
-    [reactions, report.reactionCounts],
+    () =>
+      liveSocial
+        ? countsFromReactions(reactions, report.reactionCounts)
+        : { ...report.reactionCounts },
+    [liveSocial, reactions, report.reactionCounts],
   );
 
   const likeCount = liveCounts.like;
   const liked = myReaction?.type === "like";
+  const commentCount = liveSocial
+    ? comments.length
+    : report.commentCount ?? 0;
 
   const displayName =
     profile?.displayName ?? user?.email?.split("@")[0] ?? "User";
   const photoURL = profile?.photoURL ?? user?.photoURL ?? null;
+
+  function ensureLiveSocial() {
+    setLiveSocial(true);
+  }
 
   async function onLike() {
     if (!user) {
       setError("Sign in to like.");
       return;
     }
+    ensureLiveSocial();
     setBusy(true);
     setError(null);
     try {
@@ -103,6 +127,7 @@ export function PublicReportCard({ report }: PublicReportCardProps) {
       setError("Sign in to react.");
       return;
     }
+    ensureLiveSocial();
     setBusy(true);
     setError(null);
     try {
@@ -130,6 +155,8 @@ export function PublicReportCard({ report }: PublicReportCardProps) {
     }
     const text = draft.trim();
     if (!text) return;
+    ensureLiveSocial();
+    setCommentsOpen(true);
     setBusy(true);
     setError(null);
     try {
@@ -255,12 +282,14 @@ export function PublicReportCard({ report }: PublicReportCardProps) {
             src={report.mediaUrl}
             alt=""
             className="max-h-[420px] w-full object-contain"
+            loading="lazy"
           />
         ) : (
           <video
             src={report.mediaUrl}
             className="max-h-[420px] w-full"
             controls
+            preload="metadata"
           />
         )}
       </div>
@@ -310,83 +339,103 @@ export function PublicReportCard({ report }: PublicReportCardProps) {
         >
           Concern{liveCounts.concern ? ` · ${liveCounts.concern}` : ""}
         </button>
-        <span className="ml-auto inline-flex items-center gap-1.5 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+        <button
+          type="button"
+          onClick={() => {
+            setCommentsOpen((v) => !v);
+            setLiveSocial(true);
+          }}
+          className="ml-auto inline-flex items-center gap-1.5 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase transition hover:text-[var(--accent)]"
+        >
           <MessageCircle className="size-3.5" aria-hidden />
-          {comments.length} comment{comments.length === 1 ? "" : "s"}
-        </span>
+          {commentCount} comment{commentCount === 1 ? "" : "s"}
+          {commentsOpen ? " · hide" : " · show"}
+        </button>
       </div>
 
-      <div className="px-4 py-3">
-        <ul className="space-y-3">
-          {comments.length === 0 ? (
-            <li className="text-sm text-[var(--muted)]">
-              No comments yet — be the first.
-            </li>
-          ) : (
-            comments.map((c) => (
-              <li key={c.id} className="flex gap-2">
-                <ProfileAvatar
-                  name={c.displayName}
-                  photoURL={c.photoURL}
-                  size="sm"
-                />
-                <div className="min-w-0 flex-1 border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="text-sm font-medium">{c.displayName}</p>
-                      <p className="font-mono text-[9px] text-[var(--muted)] uppercase">
-                        {c.createdAt
-                          ? new Date(c.createdAt).toLocaleString()
-                          : ""}
-                      </p>
-                    </div>
-                    {user?.uid === c.uid ? (
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => void onDeleteComment(c)}
-                        className="p-1 text-[var(--muted)] transition hover:text-[var(--danger)]"
-                        aria-label="Delete comment"
-                        title="Delete comment"
-                      >
-                        <Trash2 className="size-3.5" aria-hidden />
-                      </button>
-                    ) : null}
-                  </div>
-                  <p className="mt-1 text-sm whitespace-pre-wrap">{c.text}</p>
-                </div>
+      {commentsOpen ? (
+        <div className="px-4 py-3">
+          <ul className="space-y-3">
+            {comments.length === 0 ? (
+              <li className="text-sm text-[var(--muted)]">
+                No comments yet — be the first.
               </li>
-            ))
-          )}
-        </ul>
+            ) : (
+              comments.map((c) => (
+                <li key={c.id} className="flex gap-2">
+                  <ProfileAvatar
+                    name={c.displayName}
+                    photoURL={c.photoURL}
+                    size="sm"
+                  />
+                  <div className="min-w-0 flex-1 border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-medium">{c.displayName}</p>
+                        <p className="font-mono text-[9px] text-[var(--muted)] uppercase">
+                          {c.createdAt
+                            ? new Date(c.createdAt).toLocaleString()
+                            : ""}
+                        </p>
+                      </div>
+                      {user?.uid === c.uid ? (
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void onDeleteComment(c)}
+                          className="p-1 text-[var(--muted)] transition hover:text-[var(--danger)]"
+                          aria-label="Delete comment"
+                          title="Delete comment"
+                        >
+                          <Trash2 className="size-3.5" aria-hidden />
+                        </button>
+                      ) : null}
+                    </div>
+                    <p className="mt-1 text-sm whitespace-pre-wrap">{c.text}</p>
+                  </div>
+                </li>
+              ))
+            )}
+          </ul>
 
-        {user ? (
-          <form onSubmit={onComment} className="mt-4 flex items-start gap-2">
-            <ProfileAvatar name={displayName} photoURL={photoURL} size="sm" />
-            <textarea
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              rows={2}
-              placeholder="Write a comment…"
-              disabled={busy}
-              className="min-h-10 flex-1 resize-y border border-[var(--border)] bg-[var(--input)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
-            />
-            <Button type="submit" size="sm" disabled={busy || !draft.trim()}>
-              Post
-            </Button>
-          </form>
-        ) : (
-          <p className="mt-4 text-sm text-[var(--muted)]">
-            <Link
-              href="/login/citizen"
-              className="text-[var(--accent)] underline-offset-2 hover:underline"
-            >
-              Sign in
-            </Link>{" "}
-            to like or comment.
-          </p>
-        )}
-      </div>
+          {user ? (
+            <form onSubmit={onComment} className="mt-4 flex items-start gap-2">
+              <ProfileAvatar name={displayName} photoURL={photoURL} size="sm" />
+              <textarea
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                rows={2}
+                placeholder="Write a comment…"
+                disabled={busy}
+                className="min-h-10 flex-1 resize-y border border-[var(--border)] bg-[var(--input)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+              />
+              <Button type="submit" size="sm" disabled={busy || !draft.trim()}>
+                Post
+              </Button>
+            </form>
+          ) : (
+            <p className="mt-4 text-sm text-[var(--muted)]">
+              <Link
+                href="/login/citizen"
+                className="text-[var(--accent)] underline-offset-2 hover:underline"
+              >
+                Sign in
+              </Link>{" "}
+              to like or comment.
+            </p>
+          )}
+        </div>
+      ) : !user ? (
+        <p className="px-4 py-3 text-sm text-[var(--muted)]">
+          <Link
+            href="/login/citizen"
+            className="text-[var(--accent)] underline-offset-2 hover:underline"
+          >
+            Sign in
+          </Link>{" "}
+          to like or comment.
+        </p>
+      ) : null}
 
       {error ? (
         <p className="px-4 pb-3 text-sm text-[var(--danger)]" role="alert">

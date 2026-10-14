@@ -168,10 +168,8 @@ export function PublicSituationMap() {
       }
     };
     window.addEventListener("storage", onStorage);
-    const id = window.setInterval(reload, 4000);
     return () => {
       window.removeEventListener("storage", onStorage);
-      window.clearInterval(id);
     };
   }, [area.id]);
 
@@ -296,10 +294,27 @@ export function PublicSituationMap() {
     );
   }, [applyCoords]);
 
-  // Defer locate so the map paints first
+  // Locate only when the map section is on screen (skip for off-screen guests).
   useEffect(() => {
-    const id = window.setTimeout(() => requestLocation(), 1500);
-    return () => window.clearTimeout(id);
+    const el = document.getElementById("live-map");
+    if (!el || typeof IntersectionObserver === "undefined") {
+      const id = window.setTimeout(() => requestLocation(), 2500);
+      return () => window.clearTimeout(id);
+    }
+    let done = false;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (done) return;
+        if (entries.some((e) => e.isIntersecting)) {
+          done = true;
+          io.disconnect();
+          requestLocation();
+        }
+      },
+      { rootMargin: "120px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
   }, [requestLocation]);
 
   const hazard =

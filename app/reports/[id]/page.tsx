@@ -76,7 +76,7 @@ export default function ReportDetailPage() {
             <p className="mt-1 font-mono text-[11px]">{error}</p>
           </div>
         ) : null}
-        {report ? <PublicReportCard report={report} /> : null}
+        {report ? <PublicReportCard report={report} expandSocial /> : null}
       </main>
     </PublicShell>
   );
