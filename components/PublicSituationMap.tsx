@@ -29,7 +29,7 @@ import {
 } from "@/lib/hazards/usgsEarthquakes";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { isCitizen } from "@/lib/auth/types";
-import { updateHouseholdPresenceByEmail } from "@/lib/households/api";
+import { updateHouseholdPresenceForCitizen } from "@/lib/households/api";
 import {
   CEBU_HOUSEHOLDS,
   NANGKA_CENSUS_2020,
@@ -209,14 +209,17 @@ export function PublicSituationMap() {
     async (lat: number, lng: number, located: MapArea) => {
       if (!isCitizen(profile)) return;
       try {
-        await updateHouseholdPresenceByEmail(profile.email, {
-          lat,
-          lng,
-          areaLabel: `Brgy. ${located.barangay}, ${located.lgu}`,
-          // Demo citizens (incl. Ken) are registered to Brgy. Nangka.
-          homeBarangay: DEFAULT_MAP_AREA.barangay,
-          locatedBarangay: located.barangay,
-        });
+        await updateHouseholdPresenceForCitizen(
+          { uid: profile.uid, email: profile.email },
+          {
+            lat,
+            lng,
+            areaLabel: `Brgy. ${located.barangay}, ${located.lgu}`,
+            homeBarangay:
+              profile.barangay?.trim() || DEFAULT_MAP_AREA.barangay,
+            locatedBarangay: located.barangay,
+          },
+        );
       } catch {
         /* roster update best-effort */
       }

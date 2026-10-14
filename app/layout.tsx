@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Barlow_Condensed, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import { AuthProvider } from "@/lib/auth/AuthProvider";
+import { CitizenPresenceSync } from "@/components/CitizenPresenceSync";
 import { ScenarioProvider } from "@/lib/scenarios/ScenarioProvider";
 import { PageTransition } from "@/components/motion/PageTransition";
 import "./globals.css";
@@ -40,6 +41,7 @@ export default function RootLayout({
         className={`${display.variable} ${body.variable} ${mono.variable} antialiased`}
       >
         <AuthProvider>
+          <CitizenPresenceSync />
           <ScenarioProvider>
             <PageTransition>{children}</PageTransition>
           </ScenarioProvider>

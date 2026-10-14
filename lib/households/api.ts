@@ -10,6 +10,7 @@ import {
   updateDoc,
   where,
   writeBatch,
+  type QueryDocumentSnapshot,
   type Unsubscribe,
 } from "firebase/firestore";
 import { getClientDb } from "@/lib/firebase/client";
@@ -469,26 +470,10 @@ function presenceFromLocate(
   return "away";
 }
 
-/**
- * Citizen locate → update roster presence for households matching email.
- * Home pin stays put; lastSeen* records where they are now.
- */
-export async function updateHouseholdPresenceByEmail(
-  email: string,
+async function applyPresenceToHouseholdDocs(
+  matches: QueryDocumentSnapshot[],
   input: PresenceLocateInput,
 ): Promise<number> {
-  const normalized = email.trim().toLowerCase();
-  if (!normalized) return 0;
-
-  const snap = await getDocs(
-    query(
-      collection(getClientDb(), "households"),
-      where("email", "==", normalized),
-    ),
-  );
-  const matches = snap.docs;
-  if (matches.length === 0) return 0;
-
   const now = new Date().toISOString();
   let n = 0;
   for (const d of matches) {
@@ -511,4 +496,45 @@ export async function updateHouseholdPresenceByEmail(
     n += 1;
   }
   return n;
+}
+
+/**
+ * Citizen locate → update roster presence for households matching email.
+ * Home pin stays put; lastSeen* records where they are now.
+ */
+export async function updateHouseholdPresenceByEmail(
+  email: string,
+  input: PresenceLocateInput,
+): Promise<number> {
+  const normalized = email.trim().toLowerCase();
+  if (!normalized) return 0;
+
+  const snap = await getDocs(
+    query(
+      collection(getClientDb(), "households"),
+      where("email", "==", normalized),
+    ),
+  );
+  return applyPresenceToHouseholdDocs(snap.docs, input);
+}
+
+/**
+ * Prefer email match; also update houses that linked this citizen uid.
+ */
+export async function updateHouseholdPresenceForCitizen(
+  citizen: { uid: string; email: string },
+  input: PresenceLocateInput,
+): Promise<number> {
+  const byEmail = await updateHouseholdPresenceByEmail(citizen.email, input);
+  if (byEmail > 0) return byEmail;
+
+  const uid = citizen.uid.trim();
+  if (!uid) return 0;
+  const snap = await getDocs(
+    query(
+      collection(getClientDb(), "households"),
+      where("linkedCitizenUids", "array-contains", uid),
+    ),
+  );
+  return applyPresenceToHouseholdDocs(snap.docs, input);
 }

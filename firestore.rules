@@ -118,11 +118,6 @@ service cloud.firestore {
         )
         || (
           isCitizen()
-          && ("email" in resource.data)
-          && resource.data.email is string
-          && ("email" in userDoc())
-          && userDoc().email is string
-          && resource.data.email == userDoc().email
           && request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly([
               "presence",
@@ -134,6 +129,20 @@ service cloud.firestore {
               "updatedAt",
               "updatedAtServer"
             ])
+          && (
+            (
+              ("email" in resource.data)
+              && resource.data.email is string
+              && ("email" in userDoc())
+              && userDoc().email is string
+              && resource.data.email == userDoc().email
+            )
+            || (
+              ("linkedCitizenUids" in resource.data)
+              && resource.data.linkedCitizenUids is list
+              && request.auth.uid in resource.data.linkedCitizenUids
+            )
+          )
         )
         || (
           // Citizen self-link after register match (email may differ; uid must be added).
