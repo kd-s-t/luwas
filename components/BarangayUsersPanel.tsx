@@ -97,7 +97,7 @@ function OfficerCard({
   const showFire =
     canManage &&
     captain &&
-    officer.accountStatus !== "fired" &&
+    isAccountActive(officer) &&
     officer.uid !== captain.uid &&
     !hasCaptainRole(officer);
 
