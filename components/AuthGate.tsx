@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AuthPageSkeleton } from "@/components/AuthPageSkeleton";
 import { PageLoadSkeleton } from "@/components/PageLoadSkeleton";
@@ -34,9 +34,15 @@ export function AuthGate({
 }: AuthGateProps) {
   const { user, profile, loading } = useAuth();
   const router = useRouter();
+  // Keep SSR + first client paint on the skeleton so Firebase auth cannot
+  // resolve to a different tree during hydration.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
-    if (loading) return;
+    if (!mounted || loading) return;
     if (mode === "protected" && !user) {
       router.replace(role === "citizen" ? "/login/citizen" : "/login");
       return;
@@ -66,9 +72,9 @@ export function AuthGate({
     ) {
       router.replace("/pending");
     }
-  }, [loading, mode, router, user, profile, role, allowPending]);
+  }, [mounted, loading, mode, router, user, profile, role, allowPending]);
 
-  if (loading) {
+  if (!mounted || loading) {
     return mode === "guest" ? <AuthPageSkeleton /> : <PageLoadSkeleton />;
   }
 
