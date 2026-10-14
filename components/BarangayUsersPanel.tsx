@@ -19,6 +19,7 @@ import {
   type ReactFlowInstance,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { MoreVertical } from "lucide-react";
 import { motion } from "framer-motion";
 import {
   officerScopeBarangay,
@@ -88,8 +89,10 @@ function OfficerCard({
   onNotice,
 }: OfficerNodeData) {
   const [busy, setBusy] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [confirmFire, setConfirmFire] = useState(false);
   const [reason, setReason] = useState("");
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const showFire =
     canManage &&
@@ -97,6 +100,24 @@ function OfficerCard({
     officer.accountStatus !== "fired" &&
     officer.uid !== captain.uid &&
     !hasCaptainRole(officer);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onDoc(e: MouseEvent) {
+      if (!menuRef.current?.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
 
   async function onFire() {
     if (!captain) return;
@@ -106,6 +127,7 @@ function OfficerCard({
       await fireOfficerByCaptain(captain, officer, reason);
       setConfirmFire(false);
       setReason("");
+      setMenuOpen(false);
     } catch (err) {
       onFired(err instanceof Error ? err.message : "Could not fire officer");
     } finally {
@@ -114,6 +136,7 @@ function OfficerCard({
   }
 
   function onViewLocation() {
+    setMenuOpen(false);
     const lat = household?.lat;
     const lng = household?.lng;
     if (lat == null || lng == null) {
@@ -131,13 +154,60 @@ function OfficerCard({
   return (
     <article
       className={cn(
-        "relative flex min-w-0 flex-col border bg-[var(--surface-raised)] px-2.5 py-2.5 text-center sm:px-3",
+        "relative flex h-full min-w-0 flex-col border bg-[var(--surface-raised)] px-2.5 py-2.5 pr-7 text-center sm:px-3 sm:pr-8",
         tier === "apex" &&
           "w-[13.5rem] border-[var(--accent)] shadow-[0_0_0_1px_rgba(199, 41, 41,0.15)]",
         tier === "mid" && "w-[10.25rem] border-[var(--border)]",
         tier === "base" && "w-[9.5rem] border-[var(--border)] opacity-95",
       )}
     >
+      <div
+        ref={menuRef}
+        className="nodrag nopan absolute top-1.5 right-1 z-20"
+      >
+        <button
+          type="button"
+          aria-label="Officer actions"
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+          className="flex h-7 w-7 items-center justify-center text-[var(--muted)] transition hover:bg-[var(--surface-panel)] hover:text-[var(--foreground)]"
+          onClick={() => {
+            setMenuOpen((v) => !v);
+            setConfirmFire(false);
+          }}
+        >
+          <MoreVertical className="h-4 w-4" strokeWidth={2} />
+        </button>
+        {menuOpen ? (
+          <div
+            role="menu"
+            className="absolute top-full right-0 mt-0.5 min-w-[9.5rem] bg-[var(--surface)] py-1 text-left shadow-md ring-1 ring-[var(--border)]"
+          >
+            <button
+              type="button"
+              role="menuitem"
+              className="block w-full px-3 py-1.5 text-left text-xs text-[var(--foreground)] hover:bg-[var(--surface-panel)]"
+              onClick={onViewLocation}
+            >
+              View location
+            </button>
+            {showFire ? (
+              <button
+                type="button"
+                role="menuitem"
+                className="block w-full px-3 py-1.5 text-left text-xs text-[var(--danger)] hover:bg-[var(--surface-panel)]"
+                onClick={() => {
+                  setConfirmFire(true);
+                  setMenuOpen(false);
+                }}
+              >
+                Fire
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+
       <div className="flex flex-wrap items-center justify-center gap-1.5">
         <span
           className={cn(
@@ -200,26 +270,6 @@ function OfficerCard({
               ))}
           </ul>
         </details>
-      ) : null}
-      {!confirmFire ? (
-        <div className="nodrag nopan mt-2 flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
-          <button
-            type="button"
-            className="font-mono text-[10px] tracking-wider text-[var(--accent)] uppercase underline-offset-2 hover:underline"
-            onClick={onViewLocation}
-          >
-            Map
-          </button>
-          {showFire ? (
-            <button
-              type="button"
-              className="font-mono text-[10px] tracking-wider text-[var(--danger)] uppercase underline-offset-2 hover:underline"
-              onClick={() => setConfirmFire(true)}
-            >
-              Fire
-            </button>
-          ) : null}
-        </div>
       ) : null}
       {confirmFire && showFire ? (
         <div className="nodrag nopan mt-2 space-y-1.5 pt-2 text-left">
@@ -320,21 +370,22 @@ function dedupeOfficers(list: OfficerProfile[]): OfficerProfile[] {
 
 function OfficerFlowNode({ data }: NodeProps<FlowNode<OfficerNodeData>>) {
   return (
-    <>
+    <div className="h-full w-full">
       <Handle type="target" position={Position.Top} />
       <OfficerCard {...data} />
       <Handle type="source" position={Position.Bottom} />
-    </>
+    </div>
   );
 }
 
 const officerNodeTypes = { officer: OfficerFlowNode };
 
 const NODE_W = { apex: 216, mid: 164, base: 152 } as const;
-const NODE_H = 128;
-const GAP_X = 20;
-const GAP_Y = 64;
-const WRAP_GAP_Y = 24;
+/** Layout box height — must clear avatar + title + history row. */
+const NODE_H = 188;
+const GAP_X = 28;
+const GAP_Y = 88;
+const WRAP_GAP_Y = 48;
 const MAX_COLS = { apex: 1, mid: 4, base: 5 } as const;
 
 function chunkRows<T>(items: T[], size: number): T[][] {
@@ -570,6 +621,7 @@ function OfficersPyramid({
             id: o.uid,
             type: "officer",
             position: { x: startX + i * (w + GAP_X), y: rowY },
+            style: { width: w, height: NODE_H },
             data: {
               officer: o,
               tier: t.tier,
