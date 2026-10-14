@@ -9,31 +9,21 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { useCommandWorkspace } from "@/components/CommandWorkspaceProvider";
 import { OfficerWorkloadInfo } from "@/components/OfficerWorkloadInfo";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { ReportStatusBadge } from "@/components/ReportStatusBadge";
-import {
-  officerScopeBarangay,
-  subscribeBarangayUsers,
-} from "@/lib/auth/accountValidation";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import {
-  isAccountActive,
   isOfficer,
   type OfficerProfile,
 } from "@/lib/auth/types";
+import { assignReportInvestigator } from "@/lib/reports/api";
 import {
-  assignReportInvestigator,
-  subscribeAllReports,
-} from "@/lib/reports/api";
-import {
-  reportInScope,
   scopeAnchor,
-  scopeForProfile,
   scopeLabel,
   sortReportsByDistance,
 } from "@/lib/reports/barangayScope";
-import { ensureAllMapReportsInDb } from "@/lib/reports/seedMapReport";
 import {
   hazardHintLabel,
   type HazardReport,
@@ -76,8 +66,7 @@ const COLUMNS: BoardColumn[] = [
 export function IncidentBoard() {
   const { profile } = useAuth();
   const { officerBundle } = useScenario();
-  const [rows, setRows] = useState<HazardReport[]>([]);
-  const [officers, setOfficers] = useState<OfficerProfile[]>([]);
+  const { scopedReports, activeOfficers, reportScope } = useCommandWorkspace();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [assignMenuId, setAssignMenuId] = useState<string | null>(null);
@@ -90,12 +79,6 @@ export function IncidentBoard() {
   const assignMenuRef = useRef<HTMLDivElement | null>(null);
   const assignSearchRef = useRef<HTMLInputElement | null>(null);
   const assignAnchorRef = useRef<HTMLElement | null>(null);
-
-  const scope = useMemo(() => scopeForProfile(profile), [profile]);
-  const barangay = isOfficer(profile) ? officerScopeBarangay(profile) : "";
-  const areaId = isOfficer(profile)
-    ? profile.areaId ?? profile.activeBarangayId
-    : null;
 
   function closeAssignMenu() {
     setAssignMenuId(null);
@@ -166,64 +149,26 @@ export function IncidentBoard() {
     };
   }, [assignMenuId]);
 
-  useEffect(() => {
-    let unsub: (() => void) | undefined;
-    let cancelled = false;
-    void (async () => {
-      try {
-        await ensureAllMapReportsInDb();
-      } catch (err) {
-        console.warn("Map report seed failed", err);
-      }
-      if (cancelled) return;
-      unsub = subscribeAllReports(setRows);
-    })();
-    return () => {
-      cancelled = true;
-      unsub?.();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!isOfficer(profile) || !isAccountActive(profile) || !barangay) {
-      setOfficers([]);
-      return;
-    }
-    return subscribeBarangayUsers(
-      barangay,
-      (users) => {
-        const active = users.filter(
-          (u): u is OfficerProfile => isOfficer(u) && isAccountActive(u),
-        );
-        active.sort((a, b) =>
-          (a.displayName || a.email).localeCompare(b.displayName || b.email),
-        );
-        setOfficers(active);
-      },
-      undefined,
-      areaId,
-    );
-  }, [profile, barangay, areaId]);
-
   const officerByUid = useMemo(() => {
     const map = new Map<string, OfficerProfile>();
-    for (const o of officers) map.set(o.uid, o);
+    for (const o of activeOfficers) map.set(o.uid, o);
     if (isOfficer(profile)) map.set(profile.uid, profile);
     return map;
-  }, [officers, profile]);
+  }, [activeOfficers, profile]);
 
-  const ranked = useMemo(() => {
-    const scoped = rows.filter((r) => reportInScope(r, scope));
-    return sortReportsByDistance(scoped, scopeAnchor(scope)).map(
-      (x) => x.report,
-    );
-  }, [rows, scope]);
+  const ranked = useMemo(
+    () =>
+      sortReportsByDistance(
+        scopedReports,
+        scopeAnchor(reportScope),
+      ).map((x) => x.report),
+    [scopedReports, reportScope],
+  );
 
   const queueCount = ranked.filter((r) => REVIEW_STATUSES.has(r.status)).length;
   const orgHint = isOfficer(profile) ? profile.orgName : null;
   const assignTicket = assignMenuId
-    ? ranked.find((r) => r.id === assignMenuId) ??
-      rows.find((r) => r.id === assignMenuId)
+    ? ranked.find((r) => r.id === assignMenuId) ?? null
     : null;
 
   async function assignInvestigator(
@@ -233,20 +178,6 @@ export function IncidentBoard() {
   ) {
     setBusyId(report.id);
     setError(null);
-    setRows((prev) =>
-      prev.map((r) =>
-        r.id === report.id
-          ? {
-              ...r,
-              investigatorUid,
-              investigatorName,
-              investigatedAt: investigatorUid
-                ? new Date().toISOString()
-                : null,
-            }
-          : r,
-      ),
-    );
     try {
       await assignReportInvestigator({
         reportId: report.id,
@@ -263,7 +194,7 @@ export function IncidentBoard() {
 
   const q = assignQuery.trim().toLowerCase();
   const match = (label: string) => !q || label.toLowerCase().includes(q);
-  const filteredOfficers = officers.filter(
+  const filteredOfficers = activeOfficers.filter(
     (o) =>
       o.uid !== profile?.uid &&
       match(`${o.displayName || ""} ${o.email || ""}`),
@@ -291,7 +222,7 @@ export function IncidentBoard() {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-wide sm:text-2xl">
-                {officerBundle.shortLabel} · {scopeLabel(scope)}
+                {officerBundle.shortLabel} · {scopeLabel(reportScope)}
               </h1>
               <OfficerWorkloadInfo />
             </div>
@@ -318,7 +249,7 @@ export function IncidentBoard() {
             No field reports in scope yet
           </p>
           <p className="max-w-md text-sm text-[var(--muted)]">
-            When citizens or relay channels post reports for {scopeLabel(scope)},
+            When citizens or relay channels post reports for {scopeLabel(reportScope)},
             they appear on this board.
           </p>
         </div>

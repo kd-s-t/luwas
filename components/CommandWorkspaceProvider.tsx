@@ -10,11 +10,17 @@ import {
 } from "react";
 import {
   officerScopeBarangay,
+  subscribeBarangayUsers,
   subscribePendingAccounts,
   type PendingAccount,
 } from "@/lib/auth/accountValidation";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { isAccountActive, isOfficer } from "@/lib/auth/types";
+import {
+  isAccountActive,
+  isOfficer,
+  type OfficerProfile,
+  type UserProfile,
+} from "@/lib/auth/types";
 import { subscribeAllReports } from "@/lib/reports/api";
 import {
   reportInScope,
@@ -41,6 +47,10 @@ type CommandWorkspaceValue = {
   scopedReports: HazardReport[];
   pendingAccounts: PendingAccount[];
   supportTickets: SupportTicket[];
+  /** Active + pending users in this barangay (officers + citizens). */
+  barangayUsers: UserProfile[];
+  /** Active officers only, sorted by name (assign menus / workload). */
+  activeOfficers: OfficerProfile[];
   pendingCitizenCount: number;
   pendingOfficerCount: number;
   reportQueueCount: number;
@@ -69,6 +79,7 @@ export function CommandWorkspaceProvider({
     [],
   );
   const [supportTickets, setSupportTickets] = useState<SupportTicket[]>([]);
+  const [barangayUsers, setBarangayUsers] = useState<UserProfile[]>([]);
   const [weatherOk, setWeatherOk] = useState<boolean | null>(null);
   const [weatherHazard, setWeatherHazard] = useState(false);
   const [seedReady, setSeedReady] = useState(false);
@@ -125,6 +136,19 @@ export function CommandWorkspaceProvider({
   }, [canSync]);
 
   useEffect(() => {
+    if (!canSync || !barangay) {
+      setBarangayUsers([]);
+      return;
+    }
+    return subscribeBarangayUsers(
+      barangay,
+      setBarangayUsers,
+      undefined,
+      areaId,
+    );
+  }, [canSync, barangay, areaId]);
+
+  useEffect(() => {
     let cancelled = false;
     void fetchCebuWeather()
       .then((w) => {
@@ -150,6 +174,16 @@ export function CommandWorkspaceProvider({
     [reports, reportScope],
   );
 
+  const activeOfficers = useMemo(() => {
+    const active = barangayUsers.filter(
+      (u): u is OfficerProfile => isOfficer(u) && isAccountActive(u),
+    );
+    active.sort((a, b) =>
+      (a.displayName || a.email).localeCompare(b.displayName || b.email),
+    );
+    return active;
+  }, [barangayUsers]);
+
   const value = useMemo<CommandWorkspaceValue>(() => {
     const pendingCitizenCount = pendingAccounts.filter(
       (r) => r.role === "citizen",
@@ -170,6 +204,8 @@ export function CommandWorkspaceProvider({
       scopedReports,
       pendingAccounts,
       supportTickets,
+      barangayUsers,
+      activeOfficers,
       pendingCitizenCount,
       pendingOfficerCount,
       reportQueueCount,
@@ -184,6 +220,8 @@ export function CommandWorkspaceProvider({
     scopedReports,
     pendingAccounts,
     supportTickets,
+    barangayUsers,
+    activeOfficers,
     weatherOk,
     weatherHazard,
     seedReady,

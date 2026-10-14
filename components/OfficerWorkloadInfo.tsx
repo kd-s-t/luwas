@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Scale } from "lucide-react";
+import { useCommandWorkspace } from "@/components/CommandWorkspaceProvider";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import {
   Dialog,
@@ -12,28 +13,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  officerScopeBarangay,
-  subscribeBarangayUsers,
-} from "@/lib/auth/accountValidation";
-import { useAuth } from "@/lib/auth/AuthProvider";
-import {
-  isAccountActive,
-  isOfficer,
-  type OfficerProfile,
-} from "@/lib/auth/types";
-import { subscribeAllReports } from "@/lib/reports/api";
-import {
-  reportInScope,
-  scopeForProfile,
-  scopeLabel,
-} from "@/lib/reports/barangayScope";
 import type { HazardReport, ReportStatus } from "@/lib/reports/types";
 import {
   LUWAS_DEVELOPERS_ASSIGNEE,
-  subscribeSupportTickets,
   type SupportTicket,
 } from "@/lib/support/api";
+import { scopeLabel } from "@/lib/reports/barangayScope";
 import { cn } from "@/lib/utils";
 
 const ACTIVE_SUPPORT = new Set(["open", "in_progress"]);
@@ -69,50 +54,18 @@ export function OfficerWorkloadInfo({
 }: {
   className?: string;
 }) {
-  const { profile } = useAuth();
+  const {
+    activeOfficers,
+    supportTickets: tickets,
+    scopedReports,
+    reportScope,
+  } = useCommandWorkspace();
   const [open, setOpen] = useState(false);
-  const [officers, setOfficers] = useState<OfficerProfile[]>([]);
-  const [tickets, setTickets] = useState<SupportTicket[]>([]);
-  const [reports, setReports] = useState<HazardReport[]>([]);
 
-  const scope = useMemo(() => scopeForProfile(profile), [profile]);
-  const barangay = isOfficer(profile) ? officerScopeBarangay(profile) : "";
-  const areaId = isOfficer(profile)
-    ? profile.areaId ?? profile.activeBarangayId
-    : null;
-  const place = scopeLabel(scope);
-
-  useEffect(() => {
-    if (!open) return;
-    return subscribeSupportTickets(setTickets);
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    return subscribeAllReports(setReports);
-  }, [open]);
-
-  useEffect(() => {
-    if (!open || !isOfficer(profile) || !isAccountActive(profile) || !barangay) {
-      if (open) setOfficers([]);
-      return;
-    }
-    return subscribeBarangayUsers(
-      barangay,
-      (users) => {
-        setOfficers(
-          users.filter(
-            (u): u is OfficerProfile => isOfficer(u) && isAccountActive(u),
-          ),
-        );
-      },
-      undefined,
-      areaId,
-    );
-  }, [open, profile, barangay, areaId]);
+  const place = scopeLabel(reportScope);
+  const officers = activeOfficers;
 
   const rows = useMemo(() => {
-    const scopedReports = reports.filter((r) => reportInScope(r, scope));
     const byUid = new Map<string, LoadRow>();
 
     for (const o of officers) {
@@ -207,7 +160,7 @@ export function OfficerWorkloadInfo({
       });
     }
     return out;
-  }, [officers, tickets, reports, scope]);
+  }, [officers, tickets, scopedReports]);
 
   const totals = useMemo(() => {
     return rows.reduce(

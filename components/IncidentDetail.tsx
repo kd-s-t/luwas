@@ -2,32 +2,22 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCommandWorkspace } from "@/components/CommandWorkspaceProvider";
 import { CommandContentSkeleton } from "@/components/PageLoadSkeleton";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { ReportStatusBadge } from "@/components/ReportStatusBadge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { triggerAutoResponderCall } from "@/lib/alerts/autoResponderCall";
-import {
-  officerScopeBarangay,
-  subscribeBarangayUsers,
-} from "@/lib/auth/accountValidation";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import {
-  isAccountActive,
   isOfficer,
   type OfficerProfile,
 } from "@/lib/auth/types";
 import {
   assignReportInvestigator,
-  subscribeAllReports,
   updateReportValidation,
 } from "@/lib/reports/api";
-import {
-  reportInScope,
-  scopeForProfile,
-} from "@/lib/reports/barangayScope";
-import { ensureAllMapReportsInDb } from "@/lib/reports/seedMapReport";
 import {
   hazardHintLabel,
   type HazardReport,
@@ -52,66 +42,19 @@ type IncidentDetailProps = {
 
 export function IncidentDetail({ reportId }: IncidentDetailProps) {
   const { profile } = useAuth();
-  const [rows, setRows] = useState<HazardReport[]>([]);
-  const [officers, setOfficers] = useState<OfficerProfile[]>([]);
+  const {
+    scopedReports,
+    activeOfficers,
+    seedReady,
+  } = useCommandWorkspace();
   const [busy, setBusy] = useState(false);
   const [activityOpen, setActivityOpen] = useState(true);
   const [plan, setPlan] = useState<PlanState>({ notes: "", recordedAt: null });
   const [planDraft, setPlanDraft] = useState("");
-  const [ready, setReady] = useState(false);
 
-  const scope = useMemo(() => scopeForProfile(profile), [profile]);
-  const barangay = isOfficer(profile) ? officerScopeBarangay(profile) : "";
-  const areaId = isOfficer(profile)
-    ? profile.areaId ?? profile.activeBarangayId
-    : null;
-
-  useEffect(() => {
-    let unsub: (() => void) | undefined;
-    let cancelled = false;
-    void (async () => {
-      try {
-        await ensureAllMapReportsInDb();
-      } catch (err) {
-        console.warn("Map report seed failed", err);
-      }
-      if (cancelled) return;
-      unsub = subscribeAllReports((next) => {
-        setRows(next);
-        setReady(true);
-      });
-    })();
-    return () => {
-      cancelled = true;
-      unsub?.();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!isOfficer(profile) || !isAccountActive(profile) || !barangay) {
-      setOfficers([]);
-      return;
-    }
-    return subscribeBarangayUsers(
-      barangay,
-      (users) => {
-        const active = users.filter(
-          (u): u is OfficerProfile => isOfficer(u) && isAccountActive(u),
-        );
-        active.sort((a, b) =>
-          (a.displayName || a.email).localeCompare(b.displayName || b.email),
-        );
-        setOfficers(active);
-      },
-      undefined,
-      areaId,
-    );
-  }, [profile, barangay, areaId]);
-
-  const scoped = useMemo(
-    () => rows.filter((r) => reportInScope(r, scope)),
-    [rows, scope],
-  );
+  const ready = seedReady;
+  const scoped = scopedReports;
+  const officers = activeOfficers;
 
   const selected = scoped.find((r) => r.id === reportId) ?? null;
 
