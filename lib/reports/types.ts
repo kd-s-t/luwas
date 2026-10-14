@@ -56,6 +56,17 @@ export type ReportStatus =
   | "needs_review"
   | "failed";
 
+/** Audit of responder outreach after a report is verified/legit. */
+export type ReportDispatchLog = {
+  at: string;
+  /** Station / unit labels that received a voice call. */
+  called: string[];
+  /** Station / unit labels that received SMS. */
+  texted: string[];
+  /** Short one-line summary for list UIs. */
+  summary: string;
+};
+
 export type HazardReport = {
   id: string;
   citizenUid: string;
@@ -108,6 +119,8 @@ export type HazardReport = {
   investigatedAt: string | null;
   /** When set, nearest responders were already auto-dialed for this legit report. */
   autoResponderCallAt: string | null;
+  /** Who was called / texted after verification (dispatch audit). */
+  dispatchLog: ReportDispatchLog | null;
   /** Reporter signals used for trust scoring. */
   reporterIdVerified: boolean;
   reporterEmail: string | null;

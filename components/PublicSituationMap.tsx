@@ -83,10 +83,14 @@ function seedAsHouseholds(): Household[] {
 
 export function PublicSituationMap() {
   const { profile } = useAuth();
-  const nangkaHouseholds = useMemo(() => seedAsHouseholds(), []);
-  const { bundle, phase } = useScenario();
-  /** AI triage overlays only paint in During. */
-  const triageLive = phase === "during";
+  const { bundle, phase, simulationOn } = useScenario();
+  const nangkaHouseholds = useMemo(
+    () => (simulationOn ? seedAsHouseholds() : []),
+    [simulationOn],
+  );
+  /** AI triage overlays paint in Before + During (simulation). */
+  const triageLive =
+    simulationOn && (phase === "before" || phase === "during");
   const [weather, setWeather] = useState<AreaWeather | null>(null);
   const [weatherError, setWeatherError] = useState<string | null>(null);
   const [quakes, setQuakes] = useState<QuakeEvent[]>([]);
@@ -106,7 +110,7 @@ export function PublicSituationMap() {
   );
   const nangkaOps = isNangkaOpsArea(area);
 
-  // During only: live local triage so homepage matches command (floods + red/yellow).
+  // Before/During: live local triage so homepage matches command (floods + red/yellow).
   const assist = useMemo(() => {
     if (!nangkaOps || !triageLive) return null;
     try {
@@ -132,7 +136,7 @@ export function PublicSituationMap() {
   const assistPriorities = useMemo(() => {
     const map: Record<string, AssistPriority> = {};
     if (!nangkaOps) return map;
-    // Public roster uses public-seed-* ids — triage only in During.
+    // Public roster uses public-seed-* ids — triage in Before + During.
     if (triageLive && assist?.actions?.length) {
       for (const a of assist.actions) map[a.householdId] = a.priority;
       return map;
@@ -141,7 +145,7 @@ export function PublicSituationMap() {
     return map;
   }, [nangkaOps, triageLive, assist, pack.scenarioActions]);
 
-  // During: always paint elev-grid blue tiles (client rebuild).
+  // Before/During: paint elev-grid blue tiles (client rebuild).
   const mapFloods = useMemo(() => {
     if (!nangkaOps) return [];
     if (!triageLive) return pack.floods;
@@ -354,11 +358,7 @@ export function PublicSituationMap() {
                   {snapshot ? " · synced from command triage" : ""}.
                 </>
               ) : (
-                <>
-                  {area.barangay} map — each barangay has its own layers. No
-                  Nangka Tino data here yet; live weather and USGS quakes
-                  still show.
-                </>
+                <>{area.barangay} map — each barangay has its own layers.</>
               )}
             </p>
 

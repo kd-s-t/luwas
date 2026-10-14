@@ -65,7 +65,7 @@ const COLUMNS: BoardColumn[] = [
 
 export function IncidentBoard() {
   const { profile } = useAuth();
-  const { officerBundle } = useScenario();
+  const { officerBundle, simulationOn } = useScenario();
   const { scopedReports, activeOfficers, reportScope } = useCommandWorkspace();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -222,7 +222,9 @@ export function IncidentBoard() {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-wide sm:text-2xl">
-                {officerBundle.shortLabel} · {scopeLabel(reportScope)}
+                {simulationOn
+                  ? `${officerBundle.shortLabel} · ${scopeLabel(reportScope)}`
+                  : scopeLabel(reportScope)}
               </h1>
               <OfficerWorkloadInfo />
             </div>

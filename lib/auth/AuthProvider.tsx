@@ -102,6 +102,8 @@ type AuthContextValue = {
     areaId: string;
     barangay: string;
     lgu: string;
+    /** Gemini name off the ID — used for homeowner match. */
+    idExtractedName?: string | null;
   }) => Promise<{ autoValidated: boolean; householdId: string | null }>;
   logout: () => Promise<void>;
   /** Refresh profile from Firestore (e.g. after onboarding updates). */
@@ -299,10 +301,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       areaId: string;
       barangay: string;
       lgu: string;
+      idExtractedName?: string | null;
     }) => {
-      if (!input.idProof.idVerified) {
-        throw new Error("ID verification required before registration.");
-      }
       if (!input.areaId.trim() || !input.barangay.trim()) {
         throw new Error("Choose your barangay / location to continue.");
       }
@@ -317,6 +317,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           photoURL: input.idProof.photoURL ?? undefined,
         });
 
+        const extracted = input.idExtractedName?.trim() || null;
         const pending: CitizenProfile = {
           uid: cred.user.uid,
           email: input.email.trim().toLowerCase(),
@@ -330,6 +331,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           lgu: input.lgu.trim(),
           areaId: input.areaId.trim(),
           householdId: null,
+          idExtractedName: extracted,
+          officerCalledAt: null,
           ...idProofFields(input.idProof),
         };
         await setDoc(doc(getClientDb(), "users", cred.user.uid), {
@@ -337,17 +340,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           createdAtServer: serverTimestamp(),
         });
 
-        // Match after auth so Firestore household reads are allowed.
-        const match = await findMatchingHousehold({
-          email: input.email,
-          phone: input.phone,
-          displayName: input.displayName,
-          purok: input.purok,
-          barangay: input.barangay,
-        });
-        const autoValidated = Boolean(match);
+        // Valid path: Gemini OK + homeowner roster hit → active + email (caller).
+        // Invalid path: Gemini fail and/or no match → stay pending for officer.
+        let match = null as Awaited<ReturnType<typeof findMatchingHousehold>>;
+        if (input.idProof.idVerified) {
+          match = await findMatchingHousehold({
+            email: input.email,
+            phone: input.phone,
+            displayName: input.displayName,
+            purok: input.purok,
+            barangay: input.barangay,
+          });
+          if (
+            !match &&
+            extracted &&
+            extracted.toLowerCase() !== input.displayName.trim().toLowerCase()
+          ) {
+            match = await findMatchingHousehold({
+              email: input.email,
+              phone: input.phone,
+              displayName: extracted,
+              purok: input.purok,
+              barangay: input.barangay,
+            });
+          }
+        }
+        const autoValidated = Boolean(input.idProof.idVerified && match);
         let profileDoc = pending;
-        if (match) {
+        if (autoValidated && match) {
           const { updateDoc } = await import("firebase/firestore");
           profileDoc = {
             ...pending,

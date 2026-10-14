@@ -79,6 +79,10 @@ export type CitizenProfile = {
   createdAt: string;
   /** Linked house-owner roster row when matched/validated. */
   householdId?: string | null;
+  /** Name Gemini read off the ID (for homeowner match). */
+  idExtractedName?: string | null;
+  /** Officer tapped Call on pending registration. */
+  officerCalledAt?: string | null;
 } & IdFields &
   PlaceFields;
 

@@ -89,7 +89,7 @@ export default function PendingValidationPage() {
       subtitle={
         isOfficer(profile)
           ? "Another active officer in your barangay must approve your account."
-          : "A barangay officer will verify your registration. Matching house-owner records validate automatically."
+          : "Gemini could not auto-approve (ID issue or no homeowner match). An officer will call you, then confirm."
       }
       footer={
         <>
@@ -113,14 +113,21 @@ export default function PendingValidationPage() {
           {" · "}
           {profile?.email}
         </p>
+        {isCitizen(profile) && profile.phone ? (
+          <p>Phone on file · {profile.phone}</p>
+        ) : null}
         {profile?.barangay ? (
           <p className="font-mono text-[10px] tracking-wider uppercase text-[var(--accent)]">
             Location · Brgy. {profile.barangay}
             {profile.lgu ? `, ${profile.lgu}` : ""}
           </p>
         ) : null}
+        {profile?.idReason ? (
+          <p className="text-xs">Gemini · {profile.idReason}</p>
+        ) : null}
         <p>
-          You can close this tab — once approved, sign in again to open{" "}
+          You will get an email when confirmed or rejected. After confirm, sign
+          in again to open{" "}
           {isCitizen(profile) ? "citizen reports" : "command center"}.
         </p>
       </div>

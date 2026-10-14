@@ -3,6 +3,7 @@
 import {
   CAT5_SCENARIOS,
   SCENARIO_PHASES,
+  isSimulationOn,
   type DrrmScenarioPhase,
 } from "@/lib/scenarios";
 import { cn } from "@/lib/utils";
@@ -18,6 +19,8 @@ export function ScenarioSwitcher({
   onChange,
   className,
 }: ScenarioSwitcherProps) {
+  if (!isSimulationOn()) return null;
+
   return (
     <div className={cn("flex shrink-0", className)}>
       <div

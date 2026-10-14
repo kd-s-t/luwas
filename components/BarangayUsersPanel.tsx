@@ -1193,6 +1193,10 @@ export function BarangayUsersPanel({
         const org = profile.orgName || "Brgy. Nangka MDRRMO";
         const uid = profile.uid;
         staffSeedPromise.current = (async () => {
+          const { isSimulationOn } = await import("@/lib/config/simulation");
+          if (!isSimulationOn()) {
+            return { parts: [] as string[], partialError: null as string | null };
+          }
           await ensureCuratedHouseholds(uid, org, []);
           const off = await ensureNangkaOfficers(uid, org);
           const cit = await ensureKenHouseholdCitizens();

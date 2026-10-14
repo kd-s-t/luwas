@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  getDoc,
   onSnapshot,
   orderBy,
   query,
@@ -16,6 +17,7 @@ import {
   DEFAULT_REPORT_LGU,
   resolveReportPlace,
 } from "@/lib/reports/barangayScope";
+import { mapDispatchLog } from "@/lib/reports/dispatchLog";
 import { EMPTY_REACTION_COUNTS } from "@/lib/reports/socialTypes";
 import {
   computeReportTrust,
@@ -161,6 +163,7 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
         : data.autoFireCallAt != null
           ? String(data.autoFireCallAt)
           : null,
+    dispatchLog: mapDispatchLog(data.dispatchLog),
     reporterIdVerified,
     reporterEmail,
     reporterPhone,
@@ -176,6 +179,17 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
     createdAt: String(data.createdAt ?? new Date().toISOString()),
     updatedAt: String(data.updatedAt ?? new Date().toISOString()),
   };
+}
+
+/** Public track / detail — any report id (guest LUW-* or signed-in). */
+export async function getHazardReportById(
+  reportId: string,
+): Promise<HazardReport | null> {
+  const id = reportId.trim();
+  if (!id) return null;
+  const snap = await getDoc(doc(getClientDb(), COL, id));
+  if (!snap.exists()) return null;
+  return mapReport(snap.id, snap.data() as Record<string, unknown>);
 }
 
 export async function createHazardReport(input: {
@@ -261,6 +275,7 @@ export async function createHazardReport(input: {
     investigatorName: null,
     investigatedAt: null,
     autoResponderCallAt: null,
+    dispatchLog: null,
     reactionCounts: { ...EMPTY_REACTION_COUNTS },
     commentCount: 0,
     createdAt: now,

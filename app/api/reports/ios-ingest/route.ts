@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
+import { upsertHazardReportToBigQuery } from "@/lib/bigquery/hazardReports";
 import { runLocalValidate } from "@/lib/reports/localValidate";
 import {
   DEFAULT_REPORT_BARANGAY,
@@ -8,7 +9,11 @@ import {
 } from "@/lib/reports/barangayScope";
 import { EMPTY_REACTION_COUNTS } from "@/lib/reports/socialTypes";
 import { computeReportTrust } from "@/lib/reports/trustScore";
-import type { ReportHazardHint, ReportStatus } from "@/lib/reports/types";
+import type {
+  HazardReport,
+  ReportHazardHint,
+  ReportStatus,
+} from "@/lib/reports/types";
 
 export const runtime = "nodejs";
 
@@ -448,6 +453,7 @@ export async function POST(req: Request) {
     vertexConfidence,
     validatedAt: now,
     autoResponderCallAt: null,
+    dispatchLog: null,
     reactionCounts: { ...EMPTY_REACTION_COUNTS },
     commentCount: 0,
     source,
@@ -470,6 +476,60 @@ export async function POST(req: Request) {
       { status: 502 },
     );
   }
+
+  // Mirror final AI verdicts into BigQuery (skipped when not configured).
+  void upsertHazardReportToBigQuery({
+    id: reference,
+    citizenUid: String(payload.citizenUid ?? ""),
+    citizenName: String(payload.citizenName ?? ""),
+    citizenPurok: String(payload.citizenPurok ?? ""),
+    barangay: DEFAULT_REPORT_BARANGAY,
+    lgu: DEFAULT_REPORT_LGU,
+    citizenPhotoURL: null,
+    title,
+    notes,
+    hazardHint,
+    mediaType: "photo",
+    mediaPath,
+    mediaUrl,
+    mediaMime,
+    mediaSource: source === "web" ? "desktop-file" : "mobile-camera",
+    voiceNoteLabel: voiceNoteLabel || null,
+    voicePath,
+    voiceUrl,
+    voiceMime: voiceMimeOut,
+    voiceTranscript: voiceTranscript || null,
+    lat,
+    lng,
+    locationAccuracyM: body.approximateLocation ? 120 : 35,
+    locationLabel: placeLabel,
+    device: source === "web" ? "web-luwas-citizen" : "ios-luwas-citizen",
+    ipAddress: null,
+    status,
+    aiVerdict,
+    aiConfidence,
+    aiReason: String(payload.aiReason ?? ""),
+    aiSource: "local",
+    aiModel: String(payload.aiModel ?? ""),
+    vertexClass,
+    vertexConfidence,
+    validatedAt: now,
+    investigatorUid: null,
+    investigatorName: null,
+    investigatedAt: null,
+    autoResponderCallAt: null,
+    dispatchLog: null,
+    reporterIdVerified: false,
+    reporterEmail: null,
+    reporterPhone: phone || null,
+    reporterEmailVerified: false,
+    trustScore: trust.total,
+    trustBreakdown: trust,
+    reactionCounts: { ...EMPTY_REACTION_COUNTS },
+    commentCount: 0,
+    createdAt: now,
+    updatedAt: now,
+  } satisfies HazardReport);
 
   return NextResponse.json({
     ok: true,

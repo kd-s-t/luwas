@@ -20,7 +20,7 @@ const PublicSituationMap = dynamic(
   },
 );
 
-/** Lazy client map so the hero paints before Leaflet / weather / GPS. */
+/** Lazy client map so the hero paints before Google Maps / weather / GPS. */
 export function HomeLiveMap() {
   return <PublicSituationMap />;
 }

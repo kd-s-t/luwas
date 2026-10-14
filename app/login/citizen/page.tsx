@@ -13,10 +13,12 @@ import {
   type DemoCitizen,
 } from "@/lib/auth/demoAccount";
 import { useAuth } from "@/lib/auth/AuthProvider";
+import { isSimulationOn } from "@/lib/config/simulation";
 import { getClientAuth, getClientDb, useEmulators } from "@/lib/firebase/client";
 import { syncCitizenPresenceFromDevice } from "@/lib/households/citizenPresence";
 
 const FIRST = DEMO_CITIZENS[0]!;
+const SIM = isSimulationOn();
 
 function safeNextPath(raw: string | null): string {
   if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "/my-reports";
@@ -28,9 +30,11 @@ function CitizenLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextPath = safeNextPath(searchParams.get("next"));
-  const [email, setEmail] = useState<string>(FIRST.email);
-  const [password, setPassword] = useState<string>(FIRST.password);
-  const [selectedEmail, setSelectedEmail] = useState<string>(FIRST.email);
+  const [email, setEmail] = useState<string>(SIM ? FIRST.email : "");
+  const [password, setPassword] = useState<string>(SIM ? FIRST.password : "");
+  const [selectedEmail, setSelectedEmail] = useState<string>(
+    SIM ? FIRST.email : "",
+  );
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -128,7 +132,7 @@ function CitizenLoginForm() {
     setSubmitting(true);
     const trimmedEmail = email.trim();
     try {
-      const demo = findDemoCitizen(trimmedEmail, password);
+      const demo = SIM ? findDemoCitizen(trimmedEmail, password) : undefined;
       if (demo) {
         await ensureDemoCitizen(demo);
       } else {
@@ -171,43 +175,45 @@ function CitizenLoginForm() {
         }
       >
         <form onSubmit={onSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <p className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
-              Demo citizens · password demo1234
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {DEMO_CITIZENS.map((c) => {
-                const selected = selectedEmail === c.email;
-                return (
-                  <button
-                    key={c.email}
-                    type="button"
-                    onClick={() => void loginAs(c)}
-                    disabled={submitting}
-                    className={`border px-2 py-1 font-mono text-[10px] tracking-wider uppercase transition disabled:opacity-60 ${
-                      selected
-                        ? "border-[var(--accent)] text-[var(--foreground)]"
-                        : "border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--foreground)]"
-                    }`}
-                  >
-                    {submitting && selected
-                      ? "…"
-                      : `${c.displayName.split(" ")[0]} · ${c.purok}`}
-                  </button>
-                );
-              })}
+          {SIM ? (
+            <div className="space-y-2">
+              <p className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+                Demo citizens · password demo1234
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {DEMO_CITIZENS.map((c) => {
+                  const selected = selectedEmail === c.email;
+                  return (
+                    <button
+                      key={c.email}
+                      type="button"
+                      onClick={() => void loginAs(c)}
+                      disabled={submitting}
+                      className={`border px-2 py-1 font-mono text-[10px] tracking-wider uppercase transition disabled:opacity-60 ${
+                        selected
+                          ? "border-[var(--accent)] text-[var(--foreground)]"
+                          : "border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--foreground)]"
+                      }`}
+                    >
+                      {submitting && selected
+                        ? "…"
+                        : `${c.displayName.split(" ")[0]} · ${c.purok}`}
+                    </button>
+                  );
+                })}
+              </div>
+              {useEmulators ? (
+                <p className="text-[11px] text-[var(--muted)]">
+                  Local emulators · accounts auto-create on first tap.
+                </p>
+              ) : (
+                <p className="text-[11px] text-[var(--muted)]">
+                  Prod demo · tap a name to open citizen reports (auto-creates
+                  if missing).
+                </p>
+              )}
             </div>
-            {useEmulators ? (
-              <p className="text-[11px] text-[var(--muted)]">
-                Local emulators · accounts auto-create on first tap.
-              </p>
-            ) : (
-              <p className="text-[11px] text-[var(--muted)]">
-                Prod demo · tap a name to open citizen reports (auto-creates
-                if missing).
-              </p>
-            )}
-          </div>
+          ) : null}
           <label className="block text-sm">
             <span className="mb-1.5 block text-[var(--muted)]">Email</span>
             <input

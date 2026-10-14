@@ -14,7 +14,7 @@ import {
 import {
   DEFAULT_MAP_AREA,
   listMapAreaOptions,
-  resolveKnownMapArea,
+  resolveMapArea,
   type MapArea,
 } from "@/lib/geo/mapAreas";
 import { officerReportScope } from "@/lib/reports/barangayScope";
@@ -37,7 +37,8 @@ function kindToPin(
 
 export function OverviewMapPanel({ items }: OverviewMapPanelProps) {
   const { profile } = useAuth();
-  const { officerBundle, phase, setPhase, bundle } = useScenario();
+  const { officerBundle, phase, setPhase, bundle, simulationOn } =
+    useScenario();
   const [mapArea, setMapArea] = useState<MapArea>(DEFAULT_MAP_AREA);
 
   useEffect(() => {
@@ -53,18 +54,9 @@ export function OverviewMapPanel({ items }: OverviewMapPanelProps) {
               "@/lib/onboarding/storage"
             );
             const onboarded = getOnboardedBarangay(option.id);
-            if (!cancelled && onboarded) {
-              setMapArea({
-                id: option.id,
-                barangay: option.barangay,
-                lgu: option.lgu,
-                name: option.name,
-                center: { ...onboarded.center },
-                zoom: onboarded.zoom,
-              });
-              return;
+            if (!cancelled) {
+              setMapArea(resolveMapArea(option, onboarded));
             }
-            if (!cancelled) setMapArea(resolveKnownMapArea(option));
             return;
           }
         }
@@ -114,7 +106,9 @@ export function OverviewMapPanel({ items }: OverviewMapPanelProps) {
           <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-wide text-[var(--foreground)]">
             Situation map
           </h2>
-          <ScenarioSwitcher phase={phase} onChange={setPhase} />
+          {simulationOn ? (
+            <ScenarioSwitcher phase={phase} onChange={setPhase} />
+          ) : null}
         </div>
         <Link
           href="/admin/full"
@@ -174,8 +168,9 @@ export function OverviewMapPanel({ items }: OverviewMapPanelProps) {
       </div>
 
       <p className="border-t border-[var(--border)] px-4 py-2.5 text-[11px] leading-snug text-[var(--muted)] sm:px-5">
-        {bundle.shortLabel} · illustrative multi-area view. Marker positions are
-        not verified; no safe route is shown.
+        {simulationOn
+          ? `${bundle.shortLabel} · illustrative multi-area view. Marker positions are not verified; no safe route is shown.`
+          : "Live ops · marker positions from verified reports and hall pin."}
       </p>
     </section>
   );

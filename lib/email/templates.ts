@@ -332,6 +332,52 @@ Sign in: ${loginUrl}`,
   });
 }
 
+export function buildAccountApprovedEmail(
+  ctx: EmailSampleContext = DEFAULT_EMAIL_SAMPLE,
+): BrandedEmailParts {
+  const loginUrl = `${appOrigin()}/login/citizen`;
+  return buildBrandedEmail({
+    subject: `LUWAS · Account approved · ${ctx.barangay}`,
+    eyebrow: "Registration approved",
+    headline: "You're verified",
+    greetingName: ctx.name,
+    textBody: `Your LUWAS registration for ${ctx.barangay} (${ctx.lgu}) was approved.
+
+You can sign in and file hazard reports for your barangay.
+
+Sign in: ${loginUrl}`,
+    htmlBody: `
+      ${p(
+        `Your LUWAS registration for <strong>${escapeHtml(ctx.barangay)}</strong> (${escapeHtml(ctx.lgu)}) was <strong>approved</strong>.`,
+      )}
+      ${p("You can sign in and file hazard reports for your barangay.")}
+    `,
+    cta: { label: "Sign in", url: loginUrl },
+  });
+}
+
+export function buildAccountRejectedEmail(
+  ctx: EmailSampleContext = DEFAULT_EMAIL_SAMPLE,
+): BrandedEmailParts {
+  return buildBrandedEmail({
+    subject: `LUWAS · Registration not approved · ${ctx.barangay}`,
+    eyebrow: "Registration update",
+    headline: "Not approved",
+    greetingName: ctx.name,
+    textBody: `Your LUWAS registration for ${ctx.barangay} (${ctx.lgu}) was not approved.
+
+Contact your barangay MDRRMO if you believe this is a mistake.`,
+    htmlBody: `
+      ${p(
+        `Your LUWAS registration for <strong>${escapeHtml(ctx.barangay)}</strong> (${escapeHtml(ctx.lgu)}) was <strong>not approved</strong>.`,
+      )}
+      ${p(
+        "Contact your barangay MDRRMO if you believe this is a mistake.",
+      )}
+    `,
+  });
+}
+
 export function buildWelcomeEmail(
   ctx: EmailSampleContext = DEFAULT_EMAIL_SAMPLE,
 ): BrandedEmailParts {
@@ -775,6 +821,10 @@ export function buildEmailTemplate(
       return buildRegisterEmail(ctx);
     case "verified":
       return buildVerifiedEmail(ctx);
+    case "account_approved":
+      return buildAccountApprovedEmail(ctx);
+    case "account_rejected":
+      return buildAccountRejectedEmail(ctx);
     case "welcome":
       return buildWelcomeEmail(ctx);
     case "officer_add_existing":

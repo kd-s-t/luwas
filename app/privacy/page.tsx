@@ -73,7 +73,7 @@ export default function PrivacyPage() {
             </li>
             <li>
               <strong className="font-medium text-[var(--foreground)]">
-                Map triage (During phase):
+                Map triage (Before / During):
               </strong>{" "}
               AI flood footprints from elevation and storm context, evacuate /
               prepare household priorities, and escape lines toward dry
@@ -130,7 +130,7 @@ export default function PrivacyPage() {
             when published, on the public feed. We use Google processors such as
             Firebase (auth &amp; data), Gemini (assist, ID/face check, report
             validation, voice transcription), Vertex AI (image classification
-            when an endpoint is configured), and Maps / Weather / Elevation APIs
+            when an endpoint is configured), and Google Maps / Weather / Elevation APIs
             when keyed. Non-Google processors may include Twilio (SMS and
             voice) and Resend (email). Without live API keys, SMS / email /
             voice run in demo mode (logged, not delivered). Demo

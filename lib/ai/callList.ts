@@ -91,6 +91,11 @@ export const STOCK_LIST_MARKER = "[[LUWAS_STOCK_LIST]]";
 
 export const MAP_LEGEND_ITEMS = [
   {
+    color: "#1f8f55",
+    label: "Green dots",
+    detail: "House owners — mapped households · not on evacuate/prepare yet",
+  },
+  {
     color: "#c72929",
     label: "Red dots",
     detail: "Evacuate — low ground / flood belt",

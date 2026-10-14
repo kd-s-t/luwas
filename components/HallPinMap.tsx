@@ -1,12 +1,17 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { MapContainer } from "react-leaflet/MapContainer";
-import { Marker } from "react-leaflet/Marker";
-import { TileLayer } from "react-leaflet/TileLayer";
-import { useMap, useMapEvents } from "react-leaflet/hooks";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
+import { useCallback, useEffect, useRef } from "react";
+import {
+  APIProvider,
+  AdvancedMarker,
+  Map,
+  useMap,
+} from "@vis.gl/react-google-maps";
+import {
+  googleMapsApiKey,
+  googleMapsMapId,
+  hasGoogleMapsApiKey,
+} from "@/lib/map/googleMapsConfig";
 
 type Props = {
   center: { lat: number; lng: number };
@@ -18,13 +23,6 @@ type Props = {
   className?: string;
 };
 
-const hallIcon = L.divIcon({
-  className: "dro-map-marker",
-  html: `<span class="dro-map-marker-dot" style="width:16px;height:16px;background:var(--accent,#c72929);border:2px solid #fff;border-radius:999px;display:block;box-shadow:0 1px 4px rgba(31, 33, 38,.35)"></span>`,
-  iconSize: [16, 16],
-  iconAnchor: [8, 8],
-});
-
 function MapSync({
   center,
   zoom,
@@ -34,14 +32,17 @@ function MapSync({
 }) {
   const map = useMap();
   useEffect(() => {
+    if (!map) return;
     const cur = map.getCenter();
     const z = map.getZoom();
+    if (!cur || z == null) return;
     if (
-      Math.abs(cur.lat - center.lat) > 1e-5 ||
-      Math.abs(cur.lng - center.lng) > 1e-5 ||
+      Math.abs(cur.lat() - center.lat) > 1e-5 ||
+      Math.abs(cur.lng() - center.lng) > 1e-5 ||
       z !== zoom
     ) {
-      map.setView([center.lat, center.lng], zoom, { animate: true });
+      map.panTo({ lat: center.lat, lng: center.lng });
+      map.setZoom(zoom);
     }
   }, [center.lat, center.lng, zoom, map]);
   return null;
@@ -54,52 +55,72 @@ function PinInteractions({
   center: { lat: number; lng: number };
   onChange: Props["onChange"];
 }) {
+  const map = useMap();
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
   const centerRef = useRef(center);
   centerRef.current = center;
 
-  const map = useMapEvents({
-    click(e) {
-      onChangeRef.current({
-        center: { lat: e.latlng.lat, lng: e.latlng.lng },
-        zoom: map.getZoom(),
-      });
-    },
-    zoomend() {
+  useEffect(() => {
+    if (!map) return;
+    const clickListener = map.addListener(
+      "click",
+      (e: google.maps.MapMouseEvent) => {
+        const ll = e.latLng;
+        if (!ll) return;
+        onChangeRef.current({
+          center: { lat: ll.lat(), lng: ll.lng() },
+          zoom: map.getZoom() ?? 14,
+        });
+      },
+    );
+    const zoomListener = map.addListener("zoom_changed", () => {
       onChangeRef.current({
         center: { ...centerRef.current },
-        zoom: map.getZoom(),
+        zoom: map.getZoom() ?? 14,
+      });
+    });
+    return () => {
+      clickListener.remove();
+      zoomListener.remove();
+    };
+  }, [map]);
+
+  const onDragEnd = useCallback(
+    (e: google.maps.MapMouseEvent) => {
+      const ll = e.latLng;
+      if (!ll || !map) return;
+      onChangeRef.current({
+        center: { lat: ll.lat(), lng: ll.lng() },
+        zoom: map.getZoom() ?? 14,
       });
     },
-  });
+    [map],
+  );
 
   return (
-    <Marker
-      position={[center.lat, center.lng]}
+    <AdvancedMarker
+      position={{ lat: center.lat, lng: center.lng }}
       draggable
-      icon={hallIcon}
-      eventHandlers={{
-        dragend(e) {
-          const m = e.target as L.Marker;
-          const ll = m.getLatLng();
-          onChangeRef.current({
-            center: { lat: ll.lat, lng: ll.lng },
-            zoom: map.getZoom(),
-          });
-        },
-      }}
-    />
+      onDragEnd={onDragEnd}
+    >
+      <span
+        className="dro-map-marker-dot"
+        style={{
+          width: 16,
+          height: 16,
+          background: "var(--accent, #c72929)",
+          border: "2px solid #fff",
+          borderRadius: 999,
+          display: "block",
+          boxShadow: "0 1px 4px rgba(31, 33, 38, .35)",
+        }}
+      />
+    </AdvancedMarker>
   );
 }
 
-/** Click or drag the pin to set a location on the map. */
-export default function HallPinMap({
-  center,
-  zoom,
-  onChange,
-  className,
-}: Props) {
+function HallPinMapInner({ center, zoom, onChange, className }: Props) {
   return (
     <div
       className={
@@ -107,22 +128,45 @@ export default function HallPinMap({
         "relative h-[280px] w-full overflow-hidden border border-[var(--border)] sm:h-[340px]"
       }
     >
-      <MapContainer
-        center={[center.lat, center.lng]}
-        zoom={zoom}
+      <Map
         className="h-full w-full"
-        scrollWheelZoom
+        defaultCenter={{ lat: center.lat, lng: center.lng }}
+        defaultZoom={zoom}
+        mapId={googleMapsMapId()}
+        gestureHandling="greedy"
+        mapTypeControl={false}
+        streetViewControl={false}
+        fullscreenControl={false}
+        style={{ width: "100%", height: "100%" }}
       >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
         <MapSync center={center} zoom={zoom} />
         <PinInteractions center={center} onChange={onChange} />
-      </MapContainer>
+      </Map>
       <p className="pointer-events-none absolute bottom-2 left-2 z-[1000] border border-[var(--border)] bg-[var(--surface)]/95 px-2 py-1 font-mono text-[9px] tracking-wider text-[var(--muted)] uppercase shadow-sm">
         Drag pin · or click map
       </p>
     </div>
+  );
+}
+
+/** Click or drag the pin to set a location on the map. */
+export default function HallPinMap(props: Props) {
+  if (!hasGoogleMapsApiKey()) {
+    return (
+      <div
+        className={
+          props.className ??
+          "relative flex h-[280px] w-full items-center justify-center border border-[var(--border)] bg-[var(--surface)] font-mono text-xs text-[var(--muted)] sm:h-[340px]"
+        }
+      >
+        Set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY for Google Maps
+      </div>
+    );
+  }
+
+  return (
+    <APIProvider apiKey={googleMapsApiKey()} libraries={["marker"]}>
+      <HallPinMapInner {...props} />
+    </APIProvider>
   );
 }

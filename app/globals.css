@@ -148,10 +148,11 @@ body {
   }
 }
 
-/* Leaflet markers (command map) */
+/* Google Maps markers (command map) */
 .dro-map-marker {
   background: transparent;
   border: none;
+  line-height: 0;
 }
 
 .dro-map-marker-dot {
@@ -219,7 +220,7 @@ body {
   background: #1d4ed8;
 }
 
-/* Lucide SVG markers (Tornado / Mountain) on Leaflet */
+/* Lucide SVG markers (Tornado / Mountain) on Google Maps */
 .dro-map-lucide-wrap {
   display: flex;
   align-items: center;
@@ -249,7 +250,7 @@ body {
   overflow: visible;
 }
 
-/* Spin inner span — Leaflet owns transform on .leaflet-marker-icon. */
+/* Spin inner span — keep transform off the Advanced Marker root. */
 .dro-map-tornado-spin {
   display: block !important;
   width: 28px !important;
@@ -489,32 +490,15 @@ body {
 }
 
 /* Pinch / pan stay on the map — don't zoom the whole page. */
-.leaflet-container {
+.dro-gmap-root,
+.dro-gmap-root .gm-style {
   touch-action: none;
   -ms-touch-action: none;
 }
 
-/* AI flood elev-grid wash — keep above basemap, under markers. */
-.leaflet-container .luwas-flood-tiles {
-  z-index: 450 !important;
-  pointer-events: none;
-  opacity: 0.85;
-}
-
-.leaflet-popup-content-wrapper {
-  background: #ffffff;
+.dro-gmap-popup {
+  max-width: 220px;
   color: #1f2126;
-  border-radius: 0;
-  border: 1px solid #dbe0e6;
-  box-shadow: 0 8px 24px rgba(31, 33, 38, 0.08);
-}
-
-.leaflet-popup-tip {
-  background: #ffffff;
-}
-
-.leaflet-popup-content {
-  margin: 10px 12px;
   font-size: 13px;
   line-height: 1.4;
 }

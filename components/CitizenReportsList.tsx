@@ -1,11 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { ReportStatusBadge } from "@/components/ReportStatusBadge";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { isCitizen } from "@/lib/auth/types";
 import { subscribeCitizenReports } from "@/lib/reports/api";
+import { formatDispatchListLine } from "@/lib/reports/dispatchLog";
 import { ensureMySampleReports } from "@/lib/reports/ensureMySampleReports";
 import type { HazardReport } from "@/lib/reports/types";
 
@@ -18,17 +20,20 @@ export function CitizenReportsList({ citizenUid }: { citizenUid: string }) {
     if (!citizenUid || !profile || profile.uid !== citizenUid) return;
     if (seeded.current) return;
     seeded.current = true;
-    void ensureMySampleReports({
-      uid: profile.uid,
-      displayName: profile.displayName,
-      purok: isCitizen(profile) ? profile.purok : "Purok 6",
-      email: profile.email,
-      phone: isCitizen(profile) ? profile.phone : null,
-      photoURL: profile.photoURL,
-      idVerified: profile.idVerified,
-    }).catch((err) => {
-      seeded.current = false;
-      console.warn("My reports sample seed failed", err);
+    void import("@/lib/config/simulation").then(({ isSimulationOn }) => {
+      if (!isSimulationOn()) return;
+      return ensureMySampleReports({
+        uid: profile.uid,
+        displayName: profile.displayName,
+        purok: isCitizen(profile) ? profile.purok : "Purok 6",
+        email: profile.email,
+        phone: isCitizen(profile) ? profile.phone : null,
+        photoURL: profile.photoURL,
+        idVerified: profile.idVerified,
+      }).catch((err) => {
+        seeded.current = false;
+        console.warn("My reports sample seed failed", err);
+      });
     });
   }, [citizenUid, profile]);
 
@@ -60,42 +65,52 @@ export function CitizenReportsList({ citizenUid }: { citizenUid: string }) {
       ) : (
         <ul className="divide-y divide-[var(--border)]/70 border-t border-[var(--border)]/70">
           {rows.map((r) => (
-            <li key={r.id} className="flex gap-3 py-3.5">
-              <ProfileAvatar
-                name={r.citizenName}
-                photoURL={r.citizenPhotoURL}
-                size="md"
-              />
-              <div className="size-14 shrink-0 overflow-hidden bg-[var(--surface-panel)] sm:size-16">
-                {r.mediaType === "photo" ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={r.mediaUrl}
-                    alt=""
-                    className="size-full object-cover"
-                  />
-                ) : (
-                  <video
-                    src={r.mediaUrl}
-                    className="size-full object-cover"
-                    muted
-                  />
-                )}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="truncate text-sm font-medium">{r.title}</p>
-                  <ReportStatusBadge status={r.status} />
+            <li key={r.id}>
+              <Link
+                href={`/reports/${r.id}`}
+                className="-mx-1 flex gap-3 px-1 py-3.5 transition hover:bg-[var(--surface-raised)]/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]"
+              >
+                <ProfileAvatar
+                  name={r.citizenName}
+                  photoURL={r.citizenPhotoURL}
+                  size="md"
+                />
+                <div className="size-14 shrink-0 overflow-hidden bg-[var(--surface-panel)] sm:size-16">
+                  {r.mediaType === "photo" ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={r.mediaUrl}
+                      alt=""
+                      className="size-full object-cover"
+                    />
+                  ) : (
+                    <video
+                      src={r.mediaUrl}
+                      className="size-full object-cover"
+                      muted
+                    />
+                  )}
                 </div>
-                <p className="mt-0.5 text-xs text-[var(--muted)]">
-                  {r.hazardHint} · {new Date(r.createdAt).toLocaleString()}
-                </p>
-                {r.aiReason ? (
-                  <p className="mt-1 line-clamp-2 text-xs text-[var(--muted)]">
-                    {r.aiReason}
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="truncate text-sm font-medium">{r.title}</p>
+                    <ReportStatusBadge status={r.status} />
+                  </div>
+                  <p className="mt-0.5 text-xs text-[var(--muted)]">
+                    {r.hazardHint} · {new Date(r.createdAt).toLocaleString()}
                   </p>
-                ) : null}
-              </div>
+                  {r.aiReason ? (
+                    <p className="mt-1 line-clamp-2 text-xs text-[var(--muted)]">
+                      {r.aiReason}
+                    </p>
+                  ) : null}
+                  {r.dispatchLog ? (
+                    <p className="mt-1 line-clamp-2 text-xs text-[var(--foreground)]">
+                      Dispatched · {formatDispatchListLine(r.dispatchLog)}
+                    </p>
+                  ) : null}
+                </div>
+              </Link>
             </li>
           ))}
         </ul>

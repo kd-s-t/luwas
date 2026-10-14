@@ -138,7 +138,7 @@ export default function TermsPage() {
           </h2>
           <p>
             LUWAS uses Google AI and Cloud services (including Gemini, Vertex
-            AI, Firebase, and Maps / Weather / Elevation) to assist validation
+            AI, Firebase, and Google Maps / Weather / Elevation) to assist validation
             and command decisions. Model outputs can be wrong. Officers remain
             responsible for verification before acting. Vertex prediction
             endpoints and training jobs may incur Google Cloud charges when

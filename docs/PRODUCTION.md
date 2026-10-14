@@ -18,9 +18,14 @@ Gemini orchestrates needs and resources; Firebase hosts auth, data, and the live
 | **Cloud Firestore** | Officer profiles; later barangays, contacts, incidents, resources, alert logs |
 | **Firebase App Hosting** | Host Next.js command center (Cup-valid deploy target) |
 | **Gemini 2.5 Flash** | Needs triage, resource allocation suggestions, alert copy (later) |
+| **Earth Engine** | Offline Cebu DEM + hazards (`npm run ee:dem`, `npm run ee:hazards` → `data/cebu-ee-*.json`); map reads cache only |
+| **Vertex AI** | Optional report photo classification before Gemini |
+| **Maps Platform** | Optional Weather / Elevation (`GOOGLE_WEATHER_API_KEY`) |
 | **Cloud Functions for Firebase** | Server-side Gemini + multi-channel dispatch (later) |
 | **Firebase Cloud Messaging** | Push alerts to resident devices (later) |
 | **Trigger Email** (Firebase Extension) | Email alerts (later) |
+
+**Checklist:** [GOOGLE_CHECKLIST.md](./GOOGLE_CHECKLIST.md) (Firebase, Gemini, Vertex, Maps, Earth Engine, Cup Google slice).
 
 **Non-Google:** Twilio SMS for barangay phones (`/api/alerts/sms`); Twilio Voice for outbound calls (`/api/alerts/call`) — household evacuate blasts **and** officer-triggered BFP/PNP/hospital/tanod dials from `responderStations`. Without the matching env vars each channel runs in **demo mode** (logs only). Never auto-dial 911. Google FCM is push-to-app, not SMS to MSISDNs.
 
@@ -124,13 +129,16 @@ Repo: [kd-s-t/luwas](https://github.com/kd-s-t/luwas)
 
 ## Cup deploy checklist
 
+Full Google tech boxes: **[GOOGLE_CHECKLIST.md](./GOOGLE_CHECKLIST.md)**.
+
 1. GCP project + billing; `terraform apply` (or console equivalent)
 2. Enable email/password in Firebase Auth
 3. Deploy Firestore rules (`gh` Actions Deploy, or `firebase deploy --only firestore`)
-4. Set Gemini API key in Secret Manager / Functions config (when agents land)
-5. Deploy Next.js via Firebase App Hosting (connect [kd-s-t/luwas](https://github.com/kd-s-t/luwas))
-6. Verify live URL for submission package
-7. Keep demo framing: orchestration for barangay responders
+4. Set Gemini API key in Secret Manager / App Hosting secrets
+5. Refresh EE caches before demo if needed (`npm run ee:dem`, `npm run ee:hazards`)
+6. Deploy Next.js via Firebase App Hosting (connect [kd-s-t/luwas](https://github.com/kd-s-t/luwas))
+7. Verify live URL for submission package
+8. Keep demo framing: orchestration for barangay responders
 
 ## Security notes
 

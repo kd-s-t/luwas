@@ -47,6 +47,7 @@ next-env.d.ts
 firebase-debug.log
 firestore-debug.log
 ui-debug.log
+.emulator-backup/
 
 # Guest report photo uploads (local ingest)
 /public/reports/guest/
@@ -54,3 +55,6 @@ ui-debug.log
 # Cursor / local agent
 .cursor/
 .firebase/
+
+# Earth Engine / local SA keys
+.secrets/

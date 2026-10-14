@@ -192,6 +192,25 @@ export async function ensureMapReportInDb(
           : data.autoFireCallAt != null
             ? String(data.autoFireCallAt)
             : null,
+      dispatchLog:
+        data.dispatchLog && typeof data.dispatchLog === "object"
+          ? {
+              at: String((data.dispatchLog as { at?: string }).at ?? ""),
+              called: Array.isArray(
+                (data.dispatchLog as { called?: unknown }).called,
+              )
+                ? (data.dispatchLog as { called: unknown[] }).called.map(String)
+                : [],
+              texted: Array.isArray(
+                (data.dispatchLog as { texted?: unknown }).texted,
+              )
+                ? (data.dispatchLog as { texted: unknown[] }).texted.map(String)
+                : [],
+              summary: String(
+                (data.dispatchLog as { summary?: string }).summary ?? "",
+              ),
+            }
+          : null,
       reporterIdVerified: Boolean(data.reporterIdVerified ?? true),
       reporterEmail:
         data.reporterEmail != null
@@ -280,6 +299,7 @@ export async function ensureMapReportInDb(
     investigatorName: null,
     investigatedAt: null,
     autoResponderCallAt: null,
+    dispatchLog: null,
     reporterIdVerified: true,
     reporterEmail: citizen.email,
     reporterPhone: citizen.phone,

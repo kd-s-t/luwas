@@ -16,21 +16,23 @@ import {
 import { DEMO_OFFICER } from "@/lib/auth/demoAccount";
 import { uploadIdentityMedia } from "@/lib/auth/idUpload";
 import { useAuth } from "@/lib/auth/AuthProvider";
+import { isSimulationOn } from "@/lib/config/simulation";
 import { verifyIdWithApi } from "@/lib/auth/verifyIdClient";
 import { getClientAuth, useEmulators } from "@/lib/firebase/client";
 
 export default function OfficerRegisterPage() {
   const { register, login } = useAuth();
   const router = useRouter();
+  const fillDemo = useEmulators && isSimulationOn();
   const [displayName, setDisplayName] = useState(
-    useEmulators ? DEMO_OFFICER.displayName : "",
+    fillDemo ? DEMO_OFFICER.displayName : "",
   );
   const [orgName, setOrgName] = useState(
-    useEmulators ? DEMO_OFFICER.orgName : "",
+    fillDemo ? DEMO_OFFICER.orgName : "",
   );
-  const [email, setEmail] = useState(useEmulators ? DEMO_OFFICER.email : "");
+  const [email, setEmail] = useState(fillDemo ? DEMO_OFFICER.email : "");
   const [password, setPassword] = useState(
-    useEmulators ? DEMO_OFFICER.password : "",
+    fillDemo ? DEMO_OFFICER.password : "",
   );
   const [location, setLocation] = useState<RegisterLocation | null>({
     areaId: "consolacion/nangka",

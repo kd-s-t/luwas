@@ -2,12 +2,7 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import {
-  AlertTriangle,
-  CheckCircle2,
-  FileText,
-  Package,
-} from "lucide-react";
+import { AlertTriangle, FileText, Package } from "lucide-react";
 import { FadeIn } from "@/components/motion/primitives";
 import { OverviewMapPanel } from "@/components/OverviewMapPanel";
 import { useCommandWorkspace } from "@/components/CommandWorkspaceProvider";
@@ -15,7 +10,6 @@ import { useAuth } from "@/lib/auth/AuthProvider";
 import { isOfficer } from "@/lib/auth/types";
 import {
   buildAttentionBoard,
-  formatSnapshotLabel,
   type AttentionItem,
   type AttentionKind,
 } from "@/lib/workspace/attentionBoard";
@@ -148,16 +142,11 @@ export function CommandOverview() {
               What needs attention?
             </h1>
             <p className="mt-1 text-sm text-[var(--muted)]">
-              Responder overview · Snapshot{" "}
-              {formatSnapshotLabel(board.snapshotAt)} (PHT)
+              Responder overview
               {orgHint ? ` · ${orgHint}` : ""}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#ecfdf3] px-2.5 py-1 text-[11px] font-medium text-[#16794c] ring-1 ring-[#86efac]/60">
-              <CheckCircle2 className="size-3.5" aria-hidden />
-              Snapshot loaded
-            </span>
             <span
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1",

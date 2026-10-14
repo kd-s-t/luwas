@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "standalone",
+  serverExternalPackages: ["@google/earthengine"],
   /**
    * Dev client: disable splitChunks so the command map’s lib/* factories are
    * not left in the page chunk while the async map chunk still requires them

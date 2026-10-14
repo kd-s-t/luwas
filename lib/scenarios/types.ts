@@ -75,3 +75,24 @@ export const SCENARIO_PHASES: DrrmScenarioPhase[] = [
   "during",
   "after",
 ];
+
+/** Empty ops pack when NEXT_PUBLIC_SIMULATION_ON is off (live data only). */
+export function liveOpsScenarioBundle(
+  phase: DrrmScenarioPhase = "during",
+): ScenarioBundle {
+  return {
+    phase,
+    label: "Live ops",
+    shortLabel: "Live",
+    eyebrow: "Live operations",
+    blurb: "Simulation off — live reports and roster only.",
+    typhoons: [],
+    floods: [],
+    landslides: [],
+    fires: [],
+    reportPins: [],
+    actions: [],
+    needs: [],
+    escapes: [],
+  };
+}

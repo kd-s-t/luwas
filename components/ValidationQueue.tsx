@@ -20,6 +20,7 @@ import { isOfficer } from "@/lib/auth/types";
 import type { LatLng } from "@/lib/geo/cebu";
 import { triggerAutoResponderCall } from "@/lib/alerts/autoResponderCall";
 import { subscribeAllReports, updateReportValidation } from "@/lib/reports/api";
+import { syncHazardReportToBigQuery } from "@/lib/reports/bigquerySync";
 import {
   formatDistanceKm,
   reportInScope,
@@ -65,15 +66,18 @@ export function ValidationQueue() {
     let unsub: (() => void) | undefined;
     let cancelled = false;
     void (async () => {
-      try {
-        await ensureAllMapReportsInDb();
-      } catch (err) {
-        console.warn("Map report seed failed", err);
-      }
-      try {
-        await ensureQueueSampleReports();
-      } catch (err) {
-        console.warn("Queue sample seed failed", err);
+      const { isSimulationOn } = await import("@/lib/config/simulation");
+      if (isSimulationOn()) {
+        try {
+          await ensureAllMapReportsInDb();
+        } catch (err) {
+          console.warn("Map report seed failed", err);
+        }
+        try {
+          await ensureQueueSampleReports();
+        } catch (err) {
+          console.warn("Queue sample seed failed", err);
+        }
       }
       if (cancelled) return;
       unsub = subscribeAllReports(setRows);
@@ -128,6 +132,7 @@ export function ValidationQueue() {
   ) {
     setBusyId(report.id);
     try {
+      const validatedAt = new Date().toISOString();
       await updateReportValidation(report.id, {
         status: verdict,
         aiVerdict: verdict,
@@ -135,7 +140,7 @@ export function ValidationQueue() {
         aiReason: `Officer override → ${verdict}. ${report.aiReason ?? ""}`.trim(),
         aiSource: report.aiSource,
         aiModel: report.aiModel,
-        validatedAt: new Date().toISOString(),
+        validatedAt,
         trustInput: {
           registered: Boolean(report.citizenUid),
           idVerified: report.reporterIdVerified,
@@ -147,6 +152,12 @@ export function ValidationQueue() {
           lng: report.lng,
           locationAccuracyM: report.locationAccuracyM,
         },
+      });
+      syncHazardReportToBigQuery({
+        ...report,
+        status: verdict,
+        aiVerdict: verdict,
+        validatedAt,
       });
       if (verdict === "legit") {
         void triggerAutoResponderCall({

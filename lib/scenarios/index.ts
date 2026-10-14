@@ -12,8 +12,10 @@ export {
 } from "@/lib/scenarios/ScenarioProvider";
 export {
   SCENARIO_PHASES,
+  liveOpsScenarioBundle,
   type DrrmScenarioPhase,
   type ScenarioBundle,
   type ScenarioHouseholdNeed,
   type ScenarioReportPin,
 } from "@/lib/scenarios/types";
+export { isSimulationOn } from "@/lib/config/simulation";

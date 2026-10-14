@@ -580,7 +580,21 @@ async function seedStaff() {
   return n;
 }
 
+function simulationOn() {
+  const raw = (process.env.NEXT_PUBLIC_SIMULATION_ON || "").trim().toLowerCase();
+  if (!raw) return true;
+  return raw === "true" || raw === "1" || raw === "on" || raw === "yes";
+}
+
 async function main() {
+  if (!simulationOn()) {
+    console.error(
+      "NEXT_PUBLIC_SIMULATION_ON is false — refuse to seed demo officers/citizens.",
+    );
+    console.error("Set NEXT_PUBLIC_SIMULATION_ON=true to run npm run seed:local.");
+    process.exit(1);
+  }
+
   console.log(`Seeding local Luwas DB · project=${PROJECT}`);
   console.log(`Auth ${AUTH_HOST} · Firestore ${FS_HOST}`);
 

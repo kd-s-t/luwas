@@ -1,5 +1,5 @@
 import type { LatLng } from "@/lib/geo/cebu";
-import { NANGKA_ELEVATION_GRID } from "@/lib/geo/nangkaElevationGrid";
+import { getNangkaElevGrid } from "@/lib/geo/nangkaEeDem";
 
 /** Half-step of the cached Nangka elevation grid (slight overlap, not a solid slab). */
 const D_LAT = 0.0005;
@@ -47,7 +47,7 @@ export function pointInFloodFootprints(
  */
 export function elevFloodCellPolygons(maxElevM: number): LatLng[][] {
   const rings: LatLng[][] = [];
-  for (const s of NANGKA_ELEVATION_GRID) {
+  for (const s of getNangkaElevGrid()) {
     if (s.elevM > maxElevM) continue;
     rings.push([
       { lat: s.lat - D_LAT, lng: s.lng - D_LNG },
@@ -67,7 +67,7 @@ export function nearestLowSpot(
 ): (LatLng & { elevM: number }) | null {
   let best: (LatLng & { elevM: number }) | null = null;
   let bestD = Number.POSITIVE_INFINITY;
-  for (const s of NANGKA_ELEVATION_GRID) {
+  for (const s of getNangkaElevGrid()) {
     if (s.elevM > maxElevM) continue;
     const dLat = s.lat - near.lat;
     const dLng = (s.lng - near.lng) * Math.cos((near.lat * Math.PI) / 180);

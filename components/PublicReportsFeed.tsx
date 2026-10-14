@@ -79,8 +79,11 @@ export function PublicReportsFeed() {
       setError(err.message);
       setRows([]);
     });
-    void ensureAllMapReportsInDb().catch((err) => {
-      console.warn("Map report seed failed", err);
+    void import("@/lib/config/simulation").then(({ isSimulationOn }) => {
+      if (!isSimulationOn()) return;
+      return ensureAllMapReportsInDb().catch((err) => {
+        console.warn("Map report seed failed", err);
+      });
     });
     return () => unsub();
   }, []);

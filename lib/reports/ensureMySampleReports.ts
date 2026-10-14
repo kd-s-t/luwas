@@ -11,7 +11,12 @@ import {
 } from "@/lib/reports/barangayScope";
 import { EMPTY_REACTION_COUNTS } from "@/lib/reports/socialTypes";
 import { computeReportTrust } from "@/lib/reports/trustScore";
-import type { ReportHazardHint, ReportStatus } from "@/lib/reports/types";
+import { buildDispatchSummary } from "@/lib/reports/dispatchLog";
+import type {
+  ReportDispatchLog,
+  ReportHazardHint,
+  ReportStatus,
+} from "@/lib/reports/types";
 
 type MySample = {
   suffix: string;
@@ -27,6 +32,8 @@ type MySample = {
   lng: number;
   aiConfidence: number;
   aiReason: string;
+  /** Who was called / texted after verify (demo). */
+  dispatch?: { called: string[]; texted: string[] };
 };
 
 const SAMPLES: MySample[] = [
@@ -66,18 +73,26 @@ const SAMPLES: MySample[] = [
     lng: 123.9608,
     aiConfidence: 0.86,
     aiReason: "Verified · slope risk consistent with photo.",
+    dispatch: {
+      called: ["Barangay tanod · Nangka"],
+      texted: ["Barangay tanod · Nangka", "MDRRMO Consolacion"],
+    },
   },
   {
     suffix: "04",
     status: "legit",
     title: "Road blocked · east access",
     notes: "Debris pile after wind. Passable on foot only.",
-    hazardHint: "typhoon",
+    hazardHint: "blockage",
     mediaUrl: "/reports/road-block-access-east.jpg",
     lat: 10.3709,
     lng: 123.9598,
     aiConfidence: 0.9,
     aiReason: "Verified · blockage clear in media.",
+    dispatch: {
+      called: ["Barangay tanod · Nangka"],
+      texted: ["Barangay tanod · Nangka", "BFP Consolacion"],
+    },
   },
   {
     suffix: "05",
@@ -127,6 +142,30 @@ export async function ensureMySampleReports(input: {
     const ref = doc(db, "reports", id);
     const existing = await getDoc(ref);
     if (existing.exists()) {
+      // Backfill dispatch audit on already-seeded verified demos.
+      if (sample.dispatch && sample.status === "legit") {
+        const data = existing.data() as { dispatchLog?: unknown };
+        if (!data.dispatchLog) {
+          const at = now;
+          const dispatchLog: ReportDispatchLog = {
+            at,
+            called: sample.dispatch.called,
+            texted: sample.dispatch.texted,
+            summary: buildDispatchSummary(sample.dispatch),
+          };
+          await setDoc(
+            ref,
+            {
+              hazardHint: sample.hazardHint,
+              autoResponderCallAt: at,
+              dispatchLog,
+              updatedAt: at,
+              updatedAtServer: serverTimestamp(),
+            },
+            { merge: true },
+          );
+        }
+      }
       skipped += 1;
       continue;
     }
@@ -190,7 +229,17 @@ export async function ensureMySampleReports(input: {
       vertexClass: null,
       vertexConfidence: null,
       validatedAt: sample.status === "queued" ? null : now,
-      autoResponderCallAt: null,
+      autoResponderCallAt:
+        sample.status === "legit" && sample.dispatch ? now : null,
+      dispatchLog:
+        sample.status === "legit" && sample.dispatch
+          ? ({
+              at: now,
+              called: sample.dispatch.called,
+              texted: sample.dispatch.texted,
+              summary: buildDispatchSummary(sample.dispatch),
+            } satisfies ReportDispatchLog)
+          : null,
       reporterIdVerified: Boolean(input.idVerified),
       reporterEmail: input.email?.trim() || null,
       reporterPhone: input.phone?.trim() || null,

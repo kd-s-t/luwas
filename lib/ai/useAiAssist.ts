@@ -640,15 +640,19 @@ export function useAiAssist(opts: UseAiAssistOpts = {}) {
         let assistApplied = false;
         let nextResult: AssistResult | null | undefined;
 
-        if (data.assist && payload.phase === "during") {
+        const phaseOk =
+          !payload.phase ||
+          payload.phase === "before" ||
+          payload.phase === "during";
+        if (data.assist && phaseOk) {
           await applyAssist(
             data.assist,
             payload.households,
             payload.typhoons,
           );
           assistApplied = true;
-        } else if (data.assist && payload.phase !== "during") {
-          // Ignore map paint outside During (API should already withhold assist).
+        } else if (data.assist && !phaseOk) {
+          // Ignore map paint in After (API should already withhold assist).
           assistApplied = false;
         } else if (
           /\b(clear|reset|remove)\b.*\b(highlight|map|pin|assist|flood)\b/i.test(

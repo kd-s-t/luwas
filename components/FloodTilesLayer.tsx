@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useMap, useMapEvents } from "react-leaflet/hooks";
-import L from "leaflet";
+import { useMap } from "@vis.gl/react-google-maps";
 import type { FloodSample } from "@/lib/hazards/floodSamples";
 
 /** Nangka elev-grid extent (matches nangkaElevationGrid). */
@@ -14,7 +13,6 @@ const CANVAS_W = 768;
 const CANVAS_H = 768;
 
 function floodRgba(severity: FloodSample["severity"]): string {
-  // Soft wash — map labels/roads stay readable (was too dark at ~0.6).
   if (severity === "critical") return "rgba(37, 99, 235, 0.28)";
   if (severity === "warning") return "rgba(59, 130, 246, 0.2)";
   return "rgba(96, 165, 250, 0.14)";
@@ -73,83 +71,59 @@ function paintFloodCanvas(floods: FloodSample[]): string | null {
 }
 
 /**
- * Blue elev-grid flood wash as a single ImageOverlay.
- * Survives canvas house-pin stacking that hid SVG polygons.
+ * Blue elev-grid flood wash as a GroundOverlay on Google Maps.
  */
 export function FloodTilesLayer({ floods }: { floods: FloodSample[] }) {
   const map = useMap();
-  const overlayRef = useRef<L.ImageOverlay | null>(null);
+  const overlayRef = useRef<google.maps.GroundOverlay | null>(null);
   const fpRef = useRef("");
 
-  function sync() {
+  useEffect(() => {
+    if (!map) return;
+
     const fp = footprintFingerprint(floods);
     const hasTiles = floods.some(
       (f) => (f.footprints?.length ?? 0) > 0 || Boolean(f.footprint?.length),
     );
 
     if (!hasTiles) {
-      if (overlayRef.current) {
-        map.removeLayer(overlayRef.current);
-        overlayRef.current = null;
-      }
+      overlayRef.current?.setMap(null);
+      overlayRef.current = null;
       fpRef.current = fp;
       return;
     }
 
-    if (fp === fpRef.current && overlayRef.current && map.hasLayer(overlayRef.current)) {
-      return;
-    }
+    if (fp === fpRef.current && overlayRef.current) return;
     fpRef.current = fp;
 
     const url = paintFloodCanvas(floods);
     if (!url) return;
 
-    if (overlayRef.current) {
-      map.removeLayer(overlayRef.current);
-      overlayRef.current = null;
-    }
-
-    const overlay = L.imageOverlay(
-      url,
-      [
-        [SOUTH, WEST],
-        [NORTH, EAST],
-      ],
-      {
-        opacity: 1,
-        interactive: false,
-        className: "luwas-flood-tiles",
-        zIndex: 450,
-      },
+    overlayRef.current?.setMap(null);
+    const bounds = new google.maps.LatLngBounds(
+      { lat: SOUTH, lng: WEST },
+      { lat: NORTH, lng: EAST },
     );
-    overlay.addTo(map);
+    const overlay = new google.maps.GroundOverlay(url, bounds, {
+      opacity: 0.85,
+      clickable: false,
+    });
+    overlay.setMap(map);
     overlayRef.current = overlay;
-  }
 
-  useEffect(() => {
-    sync();
     return () => {
-      if (overlayRef.current) {
-        map.removeLayer(overlayRef.current);
-        overlayRef.current = null;
-      }
-      fpRef.current = "";
+      overlay.setMap(null);
+      if (overlayRef.current === overlay) overlayRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- sync reads floods
   }, [map, floods]);
 
-  useMapEvents({
-    // Re-assert overlay if another layer wipe removed it.
-    overlayadd: () => {
-      if (
-        overlayRef.current &&
-        !map.hasLayer(overlayRef.current) &&
-        fpRef.current
-      ) {
-        overlayRef.current.addTo(map);
-      }
-    },
-  });
+  useEffect(() => {
+    return () => {
+      overlayRef.current?.setMap(null);
+      overlayRef.current = null;
+      fpRef.current = "";
+    };
+  }, []);
 
   return null;
 }

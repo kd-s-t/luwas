@@ -286,6 +286,7 @@ export async function ensureQueueSampleReports(): Promise<{
       vertexConfidence: null,
       validatedAt: now,
       autoResponderCallAt: null,
+      dispatchLog: null,
       reporterIdVerified: false,
       reporterEmail: sample.email,
       reporterPhone: sample.phone,

@@ -58,6 +58,7 @@ import {
   DEFAULT_REPORT_BARANGAY,
   DEFAULT_REPORT_LGU,
 } from "@/lib/reports/barangayScope";
+import { syncHazardReportToBigQuery } from "@/lib/reports/bigquerySync";
 import type { ReportHazardHint } from "@/lib/reports/types";
 import {
   latestGuestReportId,
@@ -199,6 +200,7 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
   const [situation, setSituation] = useState("");
   const [voiceNoteLabel, setVoiceNoteLabel] = useState<string | null>(null);
   const [voiceFile, setVoiceFile] = useState<File | null>(null);
+  const [voicePreviewUrl, setVoicePreviewUrl] = useState<string | null>(null);
   const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
   const [voiceTranscribing, setVoiceTranscribing] = useState(false);
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
@@ -353,6 +355,26 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- cleanup on unmount only
   }, []);
 
+  useEffect(() => {
+    if (!voiceFile) {
+      setVoicePreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(voiceFile);
+    setVoicePreviewUrl(url);
+    return () => {
+      URL.revokeObjectURL(url);
+      setVoicePreviewUrl(null);
+    };
+  }, [voiceFile]);
+
+  function clearSavedVoice() {
+    setVoiceNoteLabel(null);
+    setVoiceFile(null);
+    setVoiceTranscript(null);
+    setVoiceTranscribing(false);
+  }
+
   function stopVoiceCapture(saveLabel: boolean) {
     voiceKeepRef.current = saveLabel;
     const recorder = mediaRecorderRef.current;
@@ -379,11 +401,8 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
 
   function resetDraft() {
     stopVoiceCapture(false);
+    clearSavedVoice();
     setSituation("");
-    setVoiceNoteLabel(null);
-    setVoiceFile(null);
-    setVoiceTranscript(null);
-    setVoiceTranscribing(false);
     setPhotos((prev) => {
       for (const p of prev) URL.revokeObjectURL(p.preview);
       return [];
@@ -477,6 +496,8 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
       stopVoiceCapture(true);
       return;
     }
+    // Starting a new take replaces any saved note.
+    clearSavedVoice();
     setError(null);
     setVoiceBusy(true);
     try {
@@ -888,6 +909,7 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
         vertexConfidence?: number | null;
       };
 
+      const validatedAt = new Date().toISOString();
       await updateReportValidation(id, {
         status: data.status,
         aiVerdict: data.verdict,
@@ -900,7 +922,7 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
           typeof data.vertexConfidence === "number"
             ? data.vertexConfidence
             : null,
-        validatedAt: new Date().toISOString(),
+        validatedAt,
         trustInput: {
           registered: true,
           idVerified: Boolean(author.idVerified),
@@ -914,6 +936,36 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
             ? (captured?.locationAccuracyM ?? null)
             : null,
         },
+      });
+
+      syncHazardReportToBigQuery({
+        id,
+        citizenUid: author.uid,
+        citizenName: author.displayName || "Citizen",
+        citizenPurok: authorPlace(author),
+        barangay: DEFAULT_REPORT_BARANGAY,
+        lgu: DEFAULT_REPORT_LGU,
+        title,
+        notes,
+        hazardHint,
+        mediaType,
+        mediaPath: uploaded.mediaPath,
+        mediaUrl: uploaded.mediaUrl,
+        status: data.status,
+        aiVerdict: data.verdict,
+        aiConfidence: data.confidence,
+        aiSource: data.source,
+        aiModel: data.model ?? null,
+        vertexClass: data.vertexClass ?? null,
+        vertexConfidence:
+          typeof data.vertexConfidence === "number"
+            ? data.vertexConfidence
+            : null,
+        lat,
+        lng,
+        trustScore: null,
+        validatedAt,
+        createdAt: validatedAt,
       });
 
       if (data.status === "legit") {
@@ -1269,32 +1321,61 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
             </span>
           </label>
 
-          <button
-            type="button"
-            disabled={voiceBusy}
-            className={cn(
-              "flex w-full items-center justify-center gap-2 rounded-xl border-[1.5px] bg-[var(--surface)] px-3 py-3.5 text-sm font-semibold disabled:opacity-60",
-              recording
-                ? "border-[var(--danger)] text-[var(--danger)]"
-                : "border-[var(--border)]",
-            )}
-            onClick={() => void toggleVoiceRecording()}
-          >
-            {voiceBusy && !recording ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden />
-            ) : recording ? (
-              <Square className="size-3.5 fill-current" aria-hidden />
-            ) : (
-              <Mic className="size-4" aria-hidden />
-            )}
-            {recording
-              ? t(language, "situation.recording")
-              : voiceTranscribing
-                ? "Transcribing…"
-                : voiceNoteLabel
-                  ? t(language, "situation.voiceReady")
+          {voiceFile && voicePreviewUrl && !recording ? (
+            <div className="space-y-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold">
+                    {t(language, "situation.voiceReady")}
+                  </p>
+                  <p className="truncate font-mono text-[10px] text-[var(--muted)]">
+                    {voiceNoteLabel ?? voiceFile.name}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={voiceBusy}
+                  className="shrink-0 rounded-lg border border-[var(--border)] px-2.5 py-1.5 text-xs font-semibold disabled:opacity-60"
+                  onClick={() => void toggleVoiceRecording()}
+                >
+                  {t(language, "situation.voiceReRecord")}
+                </button>
+              </div>
+              <audio
+                controls
+                src={voicePreviewUrl}
+                className="w-full"
+                preload="metadata"
+              >
+                {t(language, "situation.voicePlay")}
+              </audio>
+            </div>
+          ) : (
+            <button
+              type="button"
+              disabled={voiceBusy}
+              className={cn(
+                "flex w-full items-center justify-center gap-2 rounded-xl border-[1.5px] bg-[var(--surface)] px-3 py-3.5 text-sm font-semibold disabled:opacity-60",
+                recording
+                  ? "border-[var(--danger)] text-[var(--danger)]"
+                  : "border-[var(--border)]",
+              )}
+              onClick={() => void toggleVoiceRecording()}
+            >
+              {voiceBusy && !recording ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+              ) : recording ? (
+                <Square className="size-3.5 fill-current" aria-hidden />
+              ) : (
+                <Mic className="size-4" aria-hidden />
+              )}
+              {recording
+                ? t(language, "situation.recording")
+                : voiceTranscribing
+                  ? "Transcribing…"
                   : t(language, "situation.recordVoice")}
-          </button>
+            </button>
+          )}
           {voiceTranscript ? (
             <p className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm leading-relaxed">
               <span className="block font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">

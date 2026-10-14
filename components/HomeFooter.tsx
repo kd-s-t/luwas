@@ -15,6 +15,18 @@ const POWERED_BY = [
     src: "/brands/vertex-ai.svg",
   },
   {
+    name: "BigQuery",
+    href: "https://cloud.google.com/bigquery",
+    role: "Incident warehouse",
+    src: "/brands/bigquery.png",
+  },
+  {
+    name: "Earth Engine",
+    href: "https://earthengine.google.com/",
+    role: "Geospatial intel",
+    src: "/brands/earth-engine.webp",
+  },
+  {
     name: "Google Weather",
     href: "https://developers.google.com/maps/documentation/weather",
     role: "Live conditions",
@@ -23,7 +35,7 @@ const POWERED_BY = [
   {
     name: "Google Maps",
     href: "https://developers.google.com/maps",
-    role: "Elevation & places",
+    role: "Basemap & elevation",
     src: "/brands/google-maps.png",
   },
   {
@@ -100,40 +112,40 @@ export function HomeFooter() {
           Powered by
         </p>
 
-        <ul className="mt-5 grid w-full max-w-sm grid-cols-2 gap-x-4 gap-y-6 sm:flex sm:max-w-none sm:flex-wrap sm:items-start sm:justify-center sm:gap-10">
+        <ul className="mt-4 grid w-full max-w-md grid-cols-4 gap-x-3 gap-y-4 sm:flex sm:max-w-2xl sm:flex-wrap sm:items-start sm:justify-center sm:gap-x-5 sm:gap-y-5">
           {POWERED_BY.map(({ name, href, role, src }) => (
             <li key={name} className="min-w-0">
               <a
                 href={href}
                 target="_blank"
                 rel="noreferrer"
-                className="group inline-flex w-full flex-col items-center gap-2"
+                className="group inline-flex w-full flex-col items-center gap-1.5"
               >
-                <span className="relative flex size-11 items-center justify-center sm:size-12">
+                <span className="relative flex size-8 items-center justify-center sm:size-9">
                   {src.endsWith(".svg") ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={src}
                       alt=""
-                      width={36}
-                      height={36}
-                      className="size-8 object-contain transition group-hover:scale-105 sm:size-9"
+                      width={28}
+                      height={28}
+                      className="size-6 object-contain transition group-hover:scale-105 sm:size-7"
                     />
                   ) : (
                     <Image
                       src={src}
                       alt=""
-                      width={36}
-                      height={36}
-                      className="size-8 object-contain transition group-hover:scale-105 sm:size-9"
+                      width={28}
+                      height={28}
+                      className="size-6 object-contain transition group-hover:scale-105 sm:size-7"
                     />
                   )}
                 </span>
-                <span className="flex min-w-0 flex-col items-center gap-0.5 px-1">
-                  <span className="text-center text-xs font-medium leading-snug text-[var(--foreground)] underline-offset-4 transition group-hover:text-[var(--accent)] group-hover:underline sm:text-sm">
+                <span className="flex min-w-0 flex-col items-center gap-0.5 px-0.5">
+                  <span className="text-center text-[10px] font-medium leading-snug text-[var(--foreground)] underline-offset-4 transition group-hover:text-[var(--accent)] group-hover:underline sm:text-xs">
                     {name}
                   </span>
-                  <span className="font-mono text-[9px] tracking-wider text-[var(--muted)] uppercase">
+                  <span className="font-mono text-[8px] tracking-wider text-[var(--muted)] uppercase">
                     {role}
                   </span>
                 </span>

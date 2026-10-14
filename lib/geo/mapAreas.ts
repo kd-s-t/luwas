@@ -47,6 +47,8 @@ const KNOWN_CENTERS: Record<string, { lat: number; lng: number; zoom?: number }>
     "consolacion/tolotolo": { lat: 10.3338, lng: 123.9658, zoom: 15 },
     "consolacion/lanipga": { lat: 10.4055, lng: 123.9712, zoom: 15 },
     "cebu-city/mabolo": { lat: 10.3275, lng: 123.9158, zoom: 15 },
+    /** Apas Barangay Hall · Generoso St (OSM) — not IT Park / Sugbo Mercado. */
+    "cebu-city/apas": { lat: 10.337229, lng: 123.90484, zoom: 16 },
     "cebu-city/lahug": { lat: 10.3356, lng: 123.8942, zoom: 15 },
     "mandaue-city/tipolo": { lat: 10.3331, lng: 123.9354, zoom: 15 },
   };
@@ -107,6 +109,11 @@ export function listMapAreaOptions(): MapAreaOption[] {
   return rows.sort((a, b) => a.label.localeCompare(b.label));
 }
 
+/** True when we have a surveyed / OSM hall pin (overrides stale onboard coords). */
+export function hasCuratedHallCenter(areaId: string): boolean {
+  return Boolean(KNOWN_CENTERS[areaId]);
+}
+
 export function resolveKnownMapArea(option: MapAreaOption): MapArea {
   const known = KNOWN_CENTERS[option.id];
   if (known) {
@@ -123,6 +130,27 @@ export function resolveKnownMapArea(option: MapAreaOption): MapArea {
     center: { ...fallback },
     zoom: 14,
   };
+}
+
+/**
+ * Prefer curated hall coords over onboarded pins (fixes wrong Apas / IT Park drops).
+ * Falls back to onboarded center only when no curated entry exists.
+ */
+export function resolveMapArea(
+  option: MapAreaOption,
+  onboarded?: { center: { lat: number; lng: number }; zoom?: number } | null,
+): MapArea {
+  if (hasCuratedHallCenter(option.id)) {
+    return resolveKnownMapArea(option);
+  }
+  if (onboarded?.center) {
+    return {
+      ...option,
+      center: { ...onboarded.center },
+      zoom: onboarded.zoom ?? 15,
+    };
+  }
+  return resolveKnownMapArea(option);
 }
 
 export function filterMapAreaOptions(

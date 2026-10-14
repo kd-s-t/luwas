@@ -9,7 +9,8 @@ import { cn } from "@/lib/utils";
  * Before / During / After — floats on the situation map (home + command).
  */
 export function ScenarioMapOverlay({ className }: { className?: string }) {
-  const { phase, setPhase } = useScenario();
+  const { phase, setPhase, simulationOn } = useScenario();
+  if (!simulationOn) return null;
   const bundle = CAT5_SCENARIOS[phase];
 
   return (

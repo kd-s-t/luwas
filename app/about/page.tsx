@@ -222,7 +222,7 @@ export default function AboutPage() {
           </p>
           <p>
             Stack highlights include Next.js, Firebase, Google Gemini and
-            Vertex AI, Maps / Weather / Elevation, and Twilio for outreach when
+            Vertex AI, Google Maps / Weather / Elevation, and Twilio for outreach when
             keys are configured.
           </p>
         </section>

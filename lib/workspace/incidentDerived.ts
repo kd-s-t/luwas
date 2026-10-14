@@ -174,6 +174,45 @@ export function activityForReport(report: HazardReport): ActivityEvent[] {
     });
   }
 
+  if (report.dispatchLog) {
+    const log = report.dispatchLog;
+    if (log.called.length > 0) {
+      events.push({
+        id: `${report.id}-call`,
+        at: log.at || report.autoResponderCallAt || report.updatedAt,
+        kind: "system",
+        title: "Voice call dispatched",
+        detail: log.called.join(", "),
+      });
+    }
+    if (log.texted.length > 0) {
+      events.push({
+        id: `${report.id}-sms`,
+        at: log.at || report.autoResponderCallAt || report.updatedAt,
+        kind: "system",
+        title: "SMS dispatched",
+        detail: log.texted.join(", "),
+      });
+    }
+    if (log.called.length === 0 && log.texted.length === 0 && log.summary) {
+      events.push({
+        id: `${report.id}-dispatch`,
+        at: log.at || report.autoResponderCallAt || report.updatedAt,
+        kind: "system",
+        title: "Responders notified",
+        detail: log.summary,
+      });
+    }
+  } else if (report.autoResponderCallAt) {
+    events.push({
+      id: `${report.id}-dispatch`,
+      at: report.autoResponderCallAt,
+      kind: "system",
+      title: "Auto responder outreach",
+      detail: "Nearest matching units were dialed / texted after verification.",
+    });
+  }
+
   return events.sort(
     (a, b) => new Date(a.at).getTime() - new Date(b.at).getTime(),
   );

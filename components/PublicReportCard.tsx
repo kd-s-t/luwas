@@ -22,7 +22,10 @@ import {
   type ReportComment,
   type ReportReaction,
 } from "@/lib/reports/socialTypes";
+import { formatDispatchListLine } from "@/lib/reports/dispatchLog";
+import { formatTrustBreakdown } from "@/lib/reports/trustScore";
 import { hazardHintLabel, type HazardReport } from "@/lib/reports/types";
+import { activityForReport } from "@/lib/workspace/incidentDerived";
 import { cn } from "@/lib/utils";
 
 type PublicReportCardProps = {
@@ -273,6 +276,181 @@ export function PublicReportCard({
         <p className="mt-1 text-sm whitespace-pre-wrap text-[var(--muted)]">
           {report.notes}
         </p>
+
+        {expandSocial ? (
+          <dl className="mt-3 grid gap-2 border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2.5 text-xs sm:grid-cols-2">
+            <div>
+              <dt className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+                Place
+              </dt>
+              <dd className="mt-0.5 text-[var(--foreground)]">
+                {[report.citizenPurok, report.barangay, report.lgu]
+                  .filter(Boolean)
+                  .join(" · ") || "Not set"}
+              </dd>
+            </div>
+            <div>
+              <dt className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+                Received
+              </dt>
+              <dd className="mt-0.5 text-[var(--foreground)]">
+                {new Date(report.createdAt).toLocaleString()}
+              </dd>
+            </div>
+            {report.validatedAt ? (
+              <div>
+                <dt className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+                  Validated
+                </dt>
+                <dd className="mt-0.5 text-[var(--foreground)]">
+                  {new Date(report.validatedAt).toLocaleString()}
+                </dd>
+              </div>
+            ) : null}
+            {report.investigatorName || report.investigatorUid ? (
+              <div>
+                <dt className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+                  Investigator
+                </dt>
+                <dd className="mt-0.5 text-[var(--foreground)]">
+                  {report.investigatorName || report.investigatorUid}
+                </dd>
+              </div>
+            ) : null}
+            {report.lat != null && report.lng != null ? (
+              <div className="sm:col-span-2">
+                <dt className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+                  Coordinates
+                </dt>
+                <dd className="mt-0.5">
+                  <a
+                    href={`https://www.google.com/maps?q=${report.lat},${report.lng}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[var(--accent)] underline-offset-2 hover:underline"
+                  >
+                    {report.lat.toFixed(5)}, {report.lng.toFixed(5)}
+                    {report.locationAccuracyM != null
+                      ? ` · ±${Math.round(report.locationAccuracyM)} m`
+                      : ""}
+                  </a>
+                </dd>
+              </div>
+            ) : null}
+            {report.trustScore != null ? (
+              <div className="sm:col-span-2">
+                <dt className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+                  Trust
+                </dt>
+                <dd className="mt-0.5 text-[var(--foreground)]">
+                  {report.trustScore}%
+                  {report.trustBreakdown
+                    ? ` · ${formatTrustBreakdown(report.trustBreakdown)}`
+                    : ""}
+                </dd>
+              </div>
+            ) : null}
+          </dl>
+        ) : null}
+
+        {report.aiReason ? (
+          <div className="mt-3 border border-dashed border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2.5">
+            <p className="font-mono text-[10px] tracking-wider text-[var(--warn)] uppercase">
+              AI validation
+              {report.aiSource ? ` · ${report.aiSource}` : ""}
+              {report.aiConfidence != null
+                ? ` · ${Math.round(report.aiConfidence * 100)}%`
+                : ""}
+              {report.aiModel ? ` · ${report.aiModel}` : ""}
+            </p>
+            <p className="mt-1 text-sm text-[var(--foreground)]">
+              {report.aiReason}
+            </p>
+            {report.vertexClass ? (
+              <p className="mt-1 font-mono text-[10px] text-[var(--muted)] uppercase">
+                Vertex · {report.vertexClass}
+                {report.vertexConfidence != null
+                  ? ` · ${Math.round(report.vertexConfidence * 100)}%`
+                  : ""}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
+        {report.voiceUrl || report.voiceTranscript ? (
+          <div className="mt-3 border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2.5">
+            <p className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+              Voice note
+              {report.voiceNoteLabel ? ` · ${report.voiceNoteLabel}` : ""}
+            </p>
+            {report.voiceUrl ? (
+              <audio
+                controls
+                preload="metadata"
+                src={report.voiceUrl}
+                className="mt-2 w-full"
+              />
+            ) : null}
+            {report.voiceTranscript ? (
+              <p className="mt-2 text-sm whitespace-pre-wrap text-[var(--muted)]">
+                {report.voiceTranscript}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
+        {report.dispatchLog || report.status === "legit" ? (
+          <div className="mt-3 border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2.5">
+            <p className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+              Dispatch activity
+            </p>
+            {report.dispatchLog ? (
+              <ul className="mt-1.5 space-y-1 text-xs text-[var(--foreground)]">
+                {report.dispatchLog.called.length > 0 ? (
+                  <li>
+                    <span className="text-[var(--muted)]">Called · </span>
+                    {report.dispatchLog.called.join(", ")}
+                  </li>
+                ) : null}
+                {report.dispatchLog.texted.length > 0 ? (
+                  <li>
+                    <span className="text-[var(--muted)]">Texted · </span>
+                    {report.dispatchLog.texted.join(", ")}
+                  </li>
+                ) : null}
+                {report.dispatchLog.called.length === 0 &&
+                report.dispatchLog.texted.length === 0 ? (
+                  <li>{formatDispatchListLine(report.dispatchLog)}</li>
+                ) : null}
+              </ul>
+            ) : (
+              <p className="mt-1.5 text-xs text-[var(--muted)]">
+                Verified · waiting for responder call / SMS log.
+              </p>
+            )}
+            {expandSocial ? (
+              <ul className="mt-2 space-y-1 border-t border-[var(--border)] pt-2">
+                {activityForReport(report)
+                  .filter(
+                    (e) =>
+                      e.id.includes("-call") ||
+                      e.id.includes("-sms") ||
+                      e.id.includes("-dispatch") ||
+                      e.id.includes("-ai") ||
+                      e.id.includes("-status"),
+                  )
+                  .map((e) => (
+                    <li key={e.id} className="text-[11px] text-[var(--muted)]">
+                      <span className="font-medium text-[var(--foreground)]">
+                        {e.title}
+                      </span>
+                      {e.detail ? ` · ${e.detail}` : null}
+                    </li>
+                  ))}
+              </ul>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <div className="border-y border-[var(--border)] bg-[var(--surface-panel)]">

@@ -92,8 +92,11 @@ export function StaffDirectoryPanel() {
   useEffect(() => {
     if (seeded.current || loading) return;
     seeded.current = true;
-    void ensureNangkaStaffSeed().catch(() => {
-      seeded.current = false;
+    void import("@/lib/config/simulation").then(({ isSimulationOn }) => {
+      if (!isSimulationOn()) return;
+      return ensureNangkaStaffSeed().catch(() => {
+        seeded.current = false;
+      });
     });
   }, [loading, rows.length]);
 
@@ -170,7 +173,12 @@ export function StaffDirectoryPanel() {
               className="mt-4"
               onClick={() => {
                 seeded.current = false;
-                void ensureNangkaStaffSeed();
+                void import("@/lib/config/simulation").then(
+                  ({ isSimulationOn }) => {
+                    if (!isSimulationOn()) return;
+                    void ensureNangkaStaffSeed();
+                  },
+                );
               }}
             >
               Seed Nangka staff

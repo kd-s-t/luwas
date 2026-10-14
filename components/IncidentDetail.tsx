@@ -18,6 +18,7 @@ import {
   assignReportInvestigator,
   updateReportValidation,
 } from "@/lib/reports/api";
+import { syncHazardReportToBigQuery } from "@/lib/reports/bigquerySync";
 import {
   hazardHintLabel,
   type HazardReport,
@@ -95,6 +96,7 @@ export function IncidentDetail({ reportId }: IncidentDetailProps) {
     if (!selected) return;
     setBusy(true);
     try {
+      const validatedAt = new Date().toISOString();
       await updateReportValidation(selected.id, {
         status: verdict,
         aiVerdict: verdict,
@@ -103,7 +105,7 @@ export function IncidentDetail({ reportId }: IncidentDetailProps) {
           `Officer override → ${verdict}. ${selected.aiReason ?? ""}`.trim(),
         aiSource: selected.aiSource,
         aiModel: selected.aiModel,
-        validatedAt: new Date().toISOString(),
+        validatedAt,
         trustInput: {
           registered: Boolean(selected.citizenUid),
           idVerified: selected.reporterIdVerified,
@@ -115,6 +117,12 @@ export function IncidentDetail({ reportId }: IncidentDetailProps) {
           lng: selected.lng,
           locationAccuracyM: selected.locationAccuracyM,
         },
+      });
+      syncHazardReportToBigQuery({
+        ...selected,
+        status: verdict,
+        aiVerdict: verdict,
+        validatedAt,
       });
       if (verdict === "legit") {
         void triggerAutoResponderCall({

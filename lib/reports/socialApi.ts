@@ -12,6 +12,7 @@ import {
 } from "firebase/firestore";
 import { getClientDb } from "@/lib/firebase/client";
 import { resolveReportPlace } from "@/lib/reports/barangayScope";
+import { mapDispatchLog } from "@/lib/reports/dispatchLog";
 import type { HazardReport } from "@/lib/reports/types";
 import {
   EMPTY_REACTION_COUNTS,
@@ -92,6 +93,7 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
         : data.autoFireCallAt != null
           ? String(data.autoFireCallAt)
           : null,
+    dispatchLog: mapDispatchLog(data.dispatchLog),
     reporterIdVerified: Boolean(data.reporterIdVerified),
     reporterEmail:
       data.reporterEmail != null ? String(data.reporterEmail) : null,

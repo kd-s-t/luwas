@@ -1,18 +1,20 @@
+import { NANGKA_ELEV_RANGE } from "@/lib/geo/nangkaElevationGrid";
 import {
-  NANGKA_ELEVATION_GRID,
-  NANGKA_ELEV_RANGE,
-} from "@/lib/geo/nangkaElevationGrid";
+  getNangkaElevGrid,
+  getNangkaElevRange,
+} from "@/lib/geo/nangkaEeDem";
 
 export { NANGKA_ELEV_RANGE };
 
-/** Inverse-distance elevation estimate from the cached Google Elevation grid. */
+/** Inverse-distance elevation estimate from EE cache or static elev grid. */
 export function estimateElevM(lat: number, lng: number): number {
+  const grid = getNangkaElevGrid();
   let wSum = 0;
   let eSum = 0;
-  let best = NANGKA_ELEVATION_GRID[0]!;
+  let best = grid[0]!;
   let bestD2 = Number.POSITIVE_INFINITY;
 
-  for (const s of NANGKA_ELEVATION_GRID) {
+  for (const s of grid) {
     const dLat = s.lat - lat;
     const dLng = (s.lng - lng) * Math.cos((lat * Math.PI) / 180);
     const d2 = dLat * dLat + dLng * dLng;
@@ -37,7 +39,7 @@ export function estimateElevM(lat: number, lng: number): number {
  * Range anchored to Nangka sample min/max.
  */
 export function elevFillColor(elevM: number): string {
-  const { minM, maxM } = NANGKA_ELEV_RANGE;
+  const { minM, maxM } = getNangkaElevRange();
   const t = Math.max(0, Math.min(1, (elevM - minM) / (maxM - minM || 1)));
   // 0 = #c05621 (low), 0.5 = #ca8a04, 1 = #2e8c57 (high)
   if (t < 0.5) {

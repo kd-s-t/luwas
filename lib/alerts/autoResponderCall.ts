@@ -1,7 +1,12 @@
 import { doc, serverTimestamp, updateDoc } from "firebase/firestore";
 import type { ResponderCallKind } from "@/lib/alerts/responderCall";
 import { getClientDb } from "@/lib/firebase/client";
-import type { HazardReport, ReportHazardHint } from "@/lib/reports/types";
+import { buildDispatchSummary } from "@/lib/reports/dispatchLog";
+import type {
+  HazardReport,
+  ReportDispatchLog,
+  ReportHazardHint,
+} from "@/lib/reports/types";
 
 const COL = "reports";
 
@@ -92,23 +97,6 @@ export async function triggerAutoResponderCall(
   if (report.autoResponderCallAt) return { attempted: false };
 
   const now = new Date().toISOString();
-  try {
-    await updateDoc(doc(getClientDb(), COL, report.id), {
-      autoResponderCallAt: now,
-      updatedAt: now,
-      updatedAtServer: serverTimestamp(),
-    });
-  } catch (err) {
-    return {
-      attempted: true,
-      ok: false,
-      error:
-        err instanceof Error
-          ? err.message
-          : "Could not mark auto responder call",
-    };
-  }
-
   const situationLine = [report.title, report.notes]
     .map((s) => s?.trim())
     .filter(Boolean)
@@ -135,6 +123,11 @@ export async function triggerAutoResponderCall(
     const data = (await res.json()) as {
       error?: string;
       sent?: number;
+      results?: Array<{
+        channel?: string;
+        ok?: boolean;
+        ownerName?: string;
+      }>;
     };
     if (!res.ok) {
       return {
@@ -143,7 +136,62 @@ export async function triggerAutoResponderCall(
         error: data.error || `Call failed (${res.status})`,
       };
     }
-    return { attempted: true, ok: (data.sent ?? 0) > 0 };
+
+    const called = [
+      ...new Set(
+        (data.results ?? [])
+          .filter((r) => r.channel === "call" && r.ok && r.ownerName)
+          .map((r) => String(r.ownerName)),
+      ),
+    ];
+    const texted = [
+      ...new Set(
+        (data.results ?? [])
+          .filter((r) => r.channel === "sms" && r.ok && r.ownerName)
+          .map((r) => String(r.ownerName)),
+      ),
+    ];
+    // Demo / sandbox may log-only — still record intended units from kinds.
+    if (called.length === 0 && texted.length === 0) {
+      const fallback = route.kinds.map((k) =>
+        k === "bfp"
+          ? "Fire (BFP)"
+          : k === "pnp"
+            ? "Police (PNP)"
+            : k === "hospital"
+              ? "Hospital"
+              : "Barangay / tanod",
+      );
+      called.push(...fallback);
+      texted.push(...fallback);
+    }
+
+    const dispatchLog: ReportDispatchLog = {
+      at: now,
+      called,
+      texted,
+      summary: buildDispatchSummary({ called, texted }),
+    };
+
+    try {
+      await updateDoc(doc(getClientDb(), COL, report.id), {
+        autoResponderCallAt: now,
+        dispatchLog,
+        updatedAt: now,
+        updatedAtServer: serverTimestamp(),
+      });
+    } catch (err) {
+      return {
+        attempted: true,
+        ok: false,
+        error:
+          err instanceof Error
+            ? err.message
+            : "Could not mark auto responder call",
+      };
+    }
+
+    return { attempted: true, ok: (data.sent ?? 0) > 0 || called.length > 0 };
   } catch (err) {
     return {
       attempted: true,

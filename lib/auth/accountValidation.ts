@@ -12,6 +12,7 @@ import {
 import { getClientDb } from "@/lib/firebase/client";
 import type {
   AccountStatus,
+  CitizenProfile,
   EmploymentEvent,
   OfficerProfile,
   OfficerRank,
@@ -77,6 +78,15 @@ function mapUser(id: string, data: Record<string, unknown>): UserProfile {
     areaId: data.areaId != null ? String(data.areaId) : null,
     photoURL: data.photoURL != null ? String(data.photoURL) : null,
     idVerified: Boolean(data.idVerified),
+    idType: (data.idType as CitizenProfile["idType"]) ?? null,
+    idConfidence:
+      data.idConfidence != null ? Number(data.idConfidence) : null,
+    idReason: data.idReason != null ? String(data.idReason) : null,
+    idSource: (data.idSource as CitizenProfile["idSource"]) ?? null,
+    idDocumentUrl:
+      data.idDocumentUrl != null ? String(data.idDocumentUrl) : null,
+    faceDocumentUrl:
+      data.faceDocumentUrl != null ? String(data.faceDocumentUrl) : null,
   };
   if (role === "citizen") {
     return {
@@ -85,6 +95,10 @@ function mapUser(id: string, data: Record<string, unknown>): UserProfile {
       purok: String(data.purok ?? ""),
       phone: String(data.phone ?? ""),
       householdId: data.householdId != null ? String(data.householdId) : null,
+      idExtractedName:
+        data.idExtractedName != null ? String(data.idExtractedName) : null,
+      officerCalledAt:
+        data.officerCalledAt != null ? String(data.officerCalledAt) : null,
     };
   }
   const historyRaw = Array.isArray(data.employmentHistory)
@@ -245,4 +259,13 @@ export async function approvePendingAccount(
 
 export async function rejectPendingAccount(uid: string): Promise<void> {
   await setAccountStatus(uid, "rejected");
+}
+
+/** Mark that an officer opened a manual call to the registrant. */
+export async function markPendingAccountCalled(uid: string): Promise<void> {
+  await updateDoc(doc(getClientDb(), "users", uid), {
+    officerCalledAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    updatedAtServer: serverTimestamp(),
+  });
 }

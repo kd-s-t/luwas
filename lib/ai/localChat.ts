@@ -16,15 +16,15 @@ type Situation = {
   landslides: LandslideSample[];
   typhoons: TyphoonSample[];
   weatherLabel?: string;
-  /** Tino scenario phase — AI triage only paints in "during". */
+  /** Tino scenario phase — AI triage paints in before + during. */
   phase?: "before" | "during" | "after";
 };
 
-const TRIAGE_DURING_ONLY =
-  "Map triage (flood footprints, evacuate/prepare, escape lines) only runs in the During Tino phase. Switch the scenario bar to During, then ask me again.";
+const TRIAGE_AFTER_ONLY =
+  "Map triage (flood footprints, evacuate/prepare, escape lines) runs in Before and During. Switch the scenario bar out of After, then ask me again.";
 
 function triageAllowed(situation: Situation): boolean {
-  return !situation.phase || situation.phase === "during";
+  return !situation.phase || situation.phase === "before" || situation.phase === "during";
 }
 
 function wantsTriage(message: string): boolean {
@@ -124,7 +124,7 @@ export function runLocalChat(
   if (!trimmed || wantsTriage(trimmed) || wantsAdvice(trimmed)) {
     if (!triageAllowed(situation)) {
       return {
-        reply: TRIAGE_DURING_ONLY,
+        reply: TRIAGE_AFTER_ONLY,
         source: "local",
         assist: null,
       };
@@ -167,7 +167,7 @@ export function runLocalChat(
   if (/\b(typhoon|bagyo|cyclone)\b/i.test(trimmed)) {
     if (!triageAllowed(situation)) {
       return {
-        reply: TRIAGE_DURING_ONLY,
+        reply: TRIAGE_AFTER_ONLY,
         source: "local",
         assist: null,
       };
@@ -185,7 +185,7 @@ export function runLocalChat(
     };
   }
 
-  if (/\b(red|yellow|blue|color|colour|dot|square|legend)\b/i.test(trimmed)) {
+  if (/\b(red|yellow|blue|green|color|colour|dot|square|legend)\b/i.test(trimmed)) {
     return {
       reply: [
         "Sure — here’s the map legend:",

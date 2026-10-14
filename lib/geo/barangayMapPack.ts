@@ -27,6 +27,7 @@ import type { TyphoonSample } from "@/lib/hazards/typhoonSamples";
 import type { Household } from "@/lib/households/types";
 import type { ReportScope } from "@/lib/reports/barangayScope";
 import type { ScenarioBundle, ScenarioReportPin } from "@/lib/scenarios/types";
+import { cebuEeHazardsNear } from "@/lib/geo/cebuEeHazards";
 
 export type BarangayMapPack = {
   areaId: string;
@@ -47,35 +48,42 @@ export type BarangayMapPack = {
 /**
  * Empty hazard pack — still shows command hall + LGU ECs/schools
  * so every barangay has facility pins (no Nangka hazard leak).
+ * Fills nearby EE Cebu hazards when `npm run ee:hazards` cache exists.
  */
 export function emptyPack(area: MapArea): BarangayMapPack {
+  const ee = cebuEeHazardsNear(area, 8);
+  const hasEe =
+    ee.floods.length + ee.landslides.length + ee.fires.length > 0;
   return {
     areaId: area.id,
-    floods: [],
-    landslides: [],
+    floods: ee.floods,
+    landslides: ee.landslides,
     typhoons: [],
-    fires: [],
+    fires: ee.fires,
     reportPins: [],
     safePoints: safePointsForArea(area),
     responders: responderMapPinsNear(area),
     scenarioActions: [],
     scenarioEscapes: [],
-    empty: true,
+    empty: !hasEe,
   };
 }
 
-/** Nangka = full Tino scenario pack; every other brgy = facilities + empty hazards. */
+/** Nangka = full Tino scenario pack; other brgys = facilities + EE hazards. */
 export function getBarangayMapPack(
   area: MapArea,
   scenario: ScenarioBundle,
 ): BarangayMapPack {
   if (!isNangkaOpsArea(area)) return emptyPack(area);
+  const ee = cebuEeHazardsNear(area, 6);
   return {
     areaId: area.id,
-    floods: scenario.floods,
-    landslides: scenario.landslides,
+    floods: scenario.floods.length ? scenario.floods : ee.floods,
+    landslides: scenario.landslides.length
+      ? scenario.landslides
+      : ee.landslides,
     typhoons: scenario.typhoons,
-    fires: scenario.fires,
+    fires: scenario.fires.length ? scenario.fires : ee.fires,
     reportPins: scenario.reportPins,
     safePoints: NANGKA_SAFE_POINTS,
     responders: responderMapPinsNear(area),

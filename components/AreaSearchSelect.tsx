@@ -64,20 +64,19 @@ export function AreaSearchSelect({
     setOpen(false);
     setQuery("");
     try {
-      // Prefer hall pin from barangay onboarding when present.
       const { getOnboardedBarangay } = await import(
         "@/lib/onboarding/storage"
       );
+      const { hasCuratedHallCenter, resolveMapArea, resolveKnownMapArea } =
+        await import("@/lib/geo/mapAreas");
       const onboarded = getOnboardedBarangay(option.id);
+      // Curated hall (e.g. Apas Generoso St) wins over a bad onboard pin.
+      if (hasCuratedHallCenter(option.id)) {
+        onChange(resolveMapArea(option, onboarded));
+        return;
+      }
       if (onboarded) {
-        onChange({
-          id: option.id,
-          barangay: option.barangay,
-          lgu: option.lgu,
-          name: option.name,
-          center: { ...onboarded.center },
-          zoom: onboarded.zoom,
-        });
+        onChange(resolveMapArea(option, onboarded));
         return;
       }
 

@@ -12,9 +12,9 @@ type MapProps = ComponentProps<
 >;
 
 /**
- * Client-only map mount. Imports the leaflet map only after mount, and uses
- * webpackMode eager so shared lib/* factories live in this client graph
- * instead of a broken async split chunk (`undefined.call` in webpack).
+ * Client-only map mount. Imports the Google Maps command map only after mount,
+ * and uses webpackMode eager so shared lib/* factories live in this client
+ * graph instead of a broken async split chunk (`undefined.call` in webpack).
  */
 export function CommandAreaMapMount(props: MapProps) {
   const [Map, setMap] = useState<ComponentType<MapProps> | null>(null);

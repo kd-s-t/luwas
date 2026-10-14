@@ -18,6 +18,11 @@ import {
 import { uploadIdentityMedia } from "@/lib/auth/idUpload";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { verifyIdWithApi } from "@/lib/auth/verifyIdClient";
+import {
+  formatPhMobileInput,
+  toE164PhMobile,
+} from "@/lib/alerts/phones";
+import { notifyAccountDecision } from "@/lib/auth/notifyAccountDecision";
 import { getClientAuth, getClientDb } from "@/lib/firebase/client";
 
 export default function CitizenRegisterPage() {
@@ -25,7 +30,7 @@ export default function CitizenRegisterPage() {
   const router = useRouter();
   const [displayName, setDisplayName] = useState("");
   const [purok, setPurok] = useState("Purok 1");
-  const [phone, setPhone] = useState("");
+  const [phone, setPhone] = useState("+63");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [location, setLocation] = useState<RegisterLocation | null>({
@@ -52,6 +57,11 @@ export default function CitizenRegisterPage() {
       setError("Choose your barangay / location.");
       return;
     }
+    const phoneE164 = toE164PhMobile(phone);
+    if (!phoneE164) {
+      setError("Enter a Philippine mobile number (+63 9XX XXX XXXX).");
+      return;
+    }
     if (!idCapture.idFile || !idCapture.faceFile) {
       setError("Capture both your ID and a face selfie to continue.");
       return;
@@ -70,13 +80,13 @@ export default function CitizenRegisterPage() {
         faceFile: idCapture.faceFile,
       });
 
-      if (!verdict.verified) {
-        throw new Error(
-          verdict.reason || "ID validation failed. Use DL, Passport, or UMID.",
-        );
-      }
-
-      setStatus("Creating citizen account…");
+      // Valid → auto-activate if homeowner match + email.
+      // Invalid (Gemini fail or no match) → pending for officer call + confirm.
+      setStatus(
+        verdict.verified
+          ? "Creating citizen account…"
+          : "Gemini flagged ID — sending to officer review…",
+      );
       let autoValidated = false;
       try {
         const result = await registerCitizen({
@@ -84,12 +94,13 @@ export default function CitizenRegisterPage() {
           password,
           displayName: name,
           purok: purok.trim(),
-          phone: phone.trim(),
+          phone: phoneE164,
           areaId: location.areaId,
           barangay: location.barangay,
           lgu: location.lgu,
+          idExtractedName: verdict.extractedName,
           idProof: {
-            idVerified: true,
+            idVerified: verdict.verified,
             idType: verdict.idType ?? idCapture.idType,
             idConfidence: verdict.confidence,
             idReason: verdict.reason,
@@ -138,7 +149,21 @@ export default function CitizenRegisterPage() {
         }
       }
 
-      router.replace(autoValidated ? "/my-reports" : "/pending");
+      if (autoValidated) {
+        setStatus("Valid — sending approval email…");
+        void notifyAccountDecision({
+          decision: "approved",
+          email: trimmedEmail,
+          name,
+          barangay: location.barangay,
+          lgu: location.lgu,
+          purok: purok.trim(),
+          phone: phoneE164,
+        });
+        router.replace("/my-reports");
+      } else {
+        router.replace("/pending");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");
       setStatus(null);
@@ -151,7 +176,7 @@ export default function CitizenRegisterPage() {
     <AuthGate mode="guest">
       <AuthCard
         title="Register citizen"
-        subtitle="Choose your barangay. Matching house-owner records auto-validate; otherwise an officer reviews."
+        subtitle="Register with ID. Gemini validates; if valid and on the homeowner roster you get an email. Otherwise an officer calls and confirms."
         footer={
           <>
             Already registered?{" "}
@@ -200,13 +225,23 @@ export default function CitizenRegisterPage() {
             />
           </label>
           <label className="block text-sm">
-            <span className="mb-1.5 block text-[var(--muted)]">Phone</span>
+            <span className="mb-1.5 block text-[var(--muted)]">
+              Phone · PH mobile (+63)
+            </span>
             <input
               type="tel"
               required
+              inputMode="tel"
+              autoComplete="tel"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="+63 9…"
+              onChange={(e) => setPhone(formatPhMobileInput(e.target.value))}
+              onBlur={() => {
+                const next = toE164PhMobile(phone);
+                if (next) setPhone(next);
+              }}
+              placeholder="+639XXXXXXXXX"
+              pattern="^\+639\d{9}$"
+              title="Philippine mobile only, e.g. +639605075119"
               className="w-full border border-[var(--border)] bg-[var(--input)] px-3 py-2.5 outline-none focus:border-[var(--accent)]"
             />
           </label>

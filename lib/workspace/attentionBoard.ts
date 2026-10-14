@@ -35,7 +35,6 @@ export type AttentionSummary = {
   shortages: number;
   approvals: number;
   items: AttentionItem[];
-  snapshotAt: string;
 };
 
 const QUEUE = new Set(["queued", "validating", "needs_review", "failed"]);
@@ -259,22 +258,5 @@ export function buildAttentionBoard(reports: HazardReport[]): AttentionSummary {
     shortages: items.filter((i) => i.kind === "resource").length,
     approvals: items.filter((i) => i.kind === "approval").length,
     items,
-    snapshotAt: new Date().toISOString(),
   };
-}
-
-export function formatSnapshotLabel(iso: string): string {
-  try {
-    return new Intl.DateTimeFormat("en-GB", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-      timeZone: "Asia/Manila",
-    }).format(new Date(iso));
-  } catch {
-    return iso;
-  }
 }

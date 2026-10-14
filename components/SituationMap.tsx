@@ -147,19 +147,8 @@ export function SituationMap({
               "@/lib/onboarding/storage"
             );
             const onboarded = getOnboardedBarangay(option.id);
-            if (onboarded) {
-              setMapArea({
-                id: option.id,
-                barangay: option.barangay,
-                lgu: option.lgu,
-                name: option.name,
-                center: { ...onboarded.center },
-                zoom: onboarded.zoom,
-              });
-              return;
-            }
-            const { resolveKnownMapArea } = await import("@/lib/geo/mapAreas");
-            setMapArea(resolveKnownMapArea(option));
+            const { resolveMapArea } = await import("@/lib/geo/mapAreas");
+            setMapArea(resolveMapArea(option, onboarded));
             return;
           }
         }
@@ -172,7 +161,7 @@ export function SituationMap({
     void bootArea();
   }, [defaultArea]);
 
-  const { phase, officerBundle: scenario } = useScenario();
+  const { phase, officerBundle: scenario, simulationOn } = useScenario();
   const pack = useMemo(
     () => getBarangayMapPack(mapArea, scenario),
     [mapArea, scenario],
@@ -206,8 +195,8 @@ export function SituationMap({
     deleteChat,
     patchMessageAudio,
   } = useAiAssist({ officerUid });
-  /** AI triage overlays (floods / red-yellow / escapes) only paint in During. */
-  const triageLive = phase === "during";
+  /** AI triage overlays (floods / red-yellow / escapes) in Before + During. */
+  const triageLive = phase === "before" || phase === "during";
   const hasAiOverlay =
     triageLive && Object.keys(assistPriorities).length > 0;
 
@@ -221,7 +210,7 @@ export function SituationMap({
     });
   }, [officerUid]);
 
-  // During/After: seed curated map reports into Firestore, then live-subscribe.
+  // During/After (simulation): seed curated map reports, then live-subscribe.
   useEffect(() => {
     if (!nangkaOps || (phase !== "during" && phase !== "after")) {
       setDbReports([]);
@@ -230,10 +219,12 @@ export function SituationMap({
     let unsub: (() => void) | undefined;
     let cancelled = false;
     void (async () => {
-      try {
-        await ensureAllMapReportsInDb();
-      } catch (err) {
-        console.warn("Map report seed failed", err);
+      if (simulationOn) {
+        try {
+          await ensureAllMapReportsInDb();
+        } catch (err) {
+          console.warn("Map report seed failed", err);
+        }
       }
       if (cancelled) return;
       unsub = subscribeAllReports(setDbReports);
@@ -242,10 +233,11 @@ export function SituationMap({
       cancelled = true;
       unsub?.();
     };
-  }, [nangkaOps, phase]);
+  }, [nangkaOps, phase, simulationOn]);
 
-  // Old Mabolo / empty / oversized roster → replace with Nangka house-owner seed.
+  // Simulation: empty / oversized roster → Nangka house-owner seed.
   useEffect(() => {
+    if (!simulationOn) return;
     if (!rosterReady || migrateAttempted.current || migrating) return;
     const inOps =
       households.length > 0 && rosterMatchesOpsArea(households);
@@ -259,10 +251,11 @@ export function SituationMap({
         /* keep seed fallback on map */
       })
       .finally(() => setMigrating(false));
-  }, [rosterReady, households, officerUid, migrating]);
+  }, [simulationOn, rosterReady, households, officerUid, migrating]);
 
-  // Add Ken / other curated pins if roster was seeded before they existed.
+  // Simulation: add Ken / curated pins if roster was seeded before they existed.
   useEffect(() => {
+    if (!simulationOn) return;
     if (!rosterReady || migrating || curatedSynced.current) return;
     if (households.length === 0 || !rosterMatchesOpsArea(households)) return;
     curatedSynced.current = true;
@@ -273,7 +266,7 @@ export function SituationMap({
     ).catch(() => {
       curatedSynced.current = false;
     });
-  }, [rosterReady, migrating, households, officerUid]);
+  }, [simulationOn, rosterReady, migrating, households, officerUid]);
 
   const mapHouseholds = useMemo(() => {
     if (!nangkaOps) {
@@ -282,15 +275,15 @@ export function SituationMap({
     if (households.length > 0 && rosterMatchesOpsArea(households)) {
       return households;
     }
-    return seedAsHouseholds();
-  }, [households, nangkaOps, mapArea]);
+    return simulationOn ? seedAsHouseholds() : [];
+  }, [households, nangkaOps, mapArea, simulationOn]);
 
   const scenarioPriorities = useMemo(
     () => resolveScenarioPriorities(pack.scenarioActions, mapHouseholds),
     [pack.scenarioActions, mapHouseholds],
   );
 
-  // During only: auto local triage on the live DB roster (same as homepage).
+  // Before/During: auto local triage on the live DB roster (same as homepage).
   // Chat "run triage" still wins when hasAiOverlay.
   const phaseAssist = useMemo(() => {
     if (!nangkaOps || hasAiOverlay || !triageLive) return null;
@@ -411,7 +404,7 @@ export function SituationMap({
     : {};
   // Escape polylines / chevrons off the map (keep data for triage logic only).
   const mapEscapes = EMPTY_ESCAPES;
-  // During: always rebuild elev-grid blue tiles client-side (never trust
+  // Before/During: rebuild elev-grid blue tiles client-side (never trust
   // slimmed chat/history payloads that drop footprints).
   const mapFloods = useMemo((): FloodSample[] => {
     if (!nangkaOps) return [];

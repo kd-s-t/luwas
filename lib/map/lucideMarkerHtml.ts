@@ -1,4 +1,4 @@
-/** Lucide SVG paths for Leaflet divIcons (HTML strings, no React tree). */
+/** Lucide SVG paths for Google Maps Advanced Marker HTML (no React tree). */
 
 type LucideStrokeIcon = {
   paths: string[];
@@ -122,7 +122,7 @@ export function facilityMarkerHtml(
       ? ' style="color:#57534e;border-color:#57534e;background:#fafaf9;width:28px;height:28px"'
       : ' style="width:28px;height:28px"';
 
-  // BFP: firefighter helmet PNG — transparent (no black chip). Version query busts Leaflet DivIcon cache.
+  // BFP: firefighter helmet PNG — transparent (no black chip). Version query busts marker HTML cache.
   if (kind === "bfp") {
     const px = 28;
     const bfpStyle =

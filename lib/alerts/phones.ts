@@ -35,8 +35,31 @@ export function toE164Ph(raw: string | null | undefined): string | null {
   ) {
     return `+63${digits}`;
   }
-  if (raw.trim().startsWith("+") && digits.length >= 11 && digits.length <= 15) {
+  // PH only — reject other country codes.
+  if (raw.trim().startsWith("+") && digits.startsWith("63") && digits.length >= 11) {
     return `+${digits}`;
   }
   return null;
+}
+
+/** PH mobile only: +639XXXXXXXXX (10 digits after +63, starting with 9). */
+export function toE164PhMobile(raw: string | null | undefined): string | null {
+  const e164 = toE164Ph(raw);
+  if (!e164 || !e164.startsWith("+63")) return null;
+  const local = e164.slice(3);
+  if (local.length === 10 && local.startsWith("9")) return `+63${local}`;
+  return null;
+}
+
+/**
+ * Keep the field locked to +63 while typing.
+ * Accepts 09… / 9… / 63… paste and rewrites to +63…
+ */
+export function formatPhMobileInput(raw: string): string {
+  let digits = raw.replace(/\D/g, "");
+  if (digits.startsWith("63")) digits = digits.slice(2);
+  else if (digits.startsWith("0")) digits = digits.slice(1);
+  digits = digits.slice(0, 10);
+  if (!digits) return "+63";
+  return `+63${digits}`;
 }

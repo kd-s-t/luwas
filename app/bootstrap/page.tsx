@@ -148,7 +148,7 @@ export default function BootstrapKitPage() {
   const [chat, setChat] = useState<{ role: "ai" | "user"; text: string }[]>([
     {
       role: "ai",
-      text: "Kumusta — I’m Mangluluwas. Ask about Tino triage, flood belts, or who to call. Red = evacuate, yellow = prepare, blue = flood footprints.",
+      text: "Kumusta — I’m Mangluluwas. Ask about Tino triage, flood belts, or who to call. Green = house owners, red = evacuate, yellow = prepare, blue = flood footprints.",
     },
   ]);
 
@@ -838,7 +838,7 @@ export default function BootstrapKitPage() {
             <Section
               id="map"
               title="Map chips"
-              hint="Floating weather pill over Leaflet."
+              hint="Floating weather pill over Google Maps."
             >
               <div className="inline-flex items-baseline gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-raised)]/90 px-3 py-1.5 font-mono text-[11px] shadow-md backdrop-blur-md">
                 <span className="font-[family-name:var(--font-display)] text-base font-semibold tabular-nums">

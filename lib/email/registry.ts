@@ -5,6 +5,8 @@ export type EmailTemplateCategory = "auth" | "alerts" | "reports" | "staff";
 export type EmailTemplateId =
   | "register"
   | "verified"
+  | "account_approved"
+  | "account_rejected"
   | "welcome"
   | "officer_add_existing"
   | "officer_add_new"
@@ -47,6 +49,21 @@ export const EMAIL_TEMPLATES: EmailTemplateMeta[] = [
     name: "Verified",
     description: "Sent after the citizen confirms their email address.",
     event: "verified",
+  },
+  {
+    id: "account_approved",
+    category: "auth",
+    name: "Account approved",
+    description:
+      "Sent when a registration is approved (homeowner match or officer).",
+    event: "account_approved",
+  },
+  {
+    id: "account_rejected",
+    category: "auth",
+    name: "Account rejected",
+    description: "Sent when barangay staff rejects a registration.",
+    event: "account_rejected",
   },
   {
     id: "welcome",

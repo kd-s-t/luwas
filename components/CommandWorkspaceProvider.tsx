@@ -95,9 +95,14 @@ export function CommandWorkspaceProvider({
     let cancelled = false;
     void (async () => {
       try {
+        const { isSimulationOn } = await import("@/lib/config/simulation");
         await Promise.all([
-          ensureAllMapReportsInDb(),
-          ensureSampleSupportTickets(),
+          isSimulationOn()
+            ? ensureAllMapReportsInDb()
+            : Promise.resolve(),
+          isSimulationOn()
+            ? ensureSampleSupportTickets()
+            : Promise.resolve(),
         ]);
       } catch (err) {
         console.warn("Command workspace seed failed", err);

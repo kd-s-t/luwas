@@ -8,13 +8,13 @@ import {
   useState,
   type MutableRefObject,
 } from "react";
-import { MapContainer } from "react-leaflet/MapContainer";
-import { Marker } from "react-leaflet/Marker";
-import { Polyline } from "react-leaflet/Polyline";
-import { Popup } from "react-leaflet/Popup";
-import { TileLayer } from "react-leaflet/TileLayer";
-import { useMap } from "react-leaflet/hooks";
-import L from "leaflet";
+import {
+  AdvancedMarkerAnchorPoint,
+  APIProvider,
+  Map,
+  Polyline,
+  useMap,
+} from "@vis.gl/react-google-maps";
 import { Crosshair, Loader2, LocateFixed, Tornado } from "lucide-react";
 import type { AssistEscapeRoute, AssistPriority } from "@/lib/ai/assistTypes";
 import { distKm } from "@/lib/geo/bearing";
@@ -41,7 +41,13 @@ import { typhoonCategoryLabel } from "@/lib/hazards/typhoonSamples";
 import type { QuakeEvent } from "@/lib/hazards/usgsEarthquakes";
 import { FloodTilesLayer } from "@/components/FloodTilesLayer";
 import { HouseholdPinsLayer } from "@/components/HouseholdPinsLayer";
+import { MapHtmlMarker } from "@/components/MapHtmlMarker";
 import type { Household } from "@/lib/households/types";
+import {
+  googleMapsApiKey,
+  googleMapsMapId,
+  hasGoogleMapsApiKey,
+} from "@/lib/map/googleMapsConfig";
 import {
   facilityMarkerHtml,
   lucideLandslideMarkerHtml,
@@ -59,7 +65,6 @@ import type {
   ScenarioReportPin,
 } from "@/lib/scenarios/types";
 import { cn } from "@/lib/utils";
-import "leaflet/dist/leaflet.css";
 
 /** True when flood wash tiles are painted (AI elev footprints present). */
 function floodWashOn(floods: FloodSample[]): boolean {
@@ -70,8 +75,7 @@ function floodWashOn(floods: FloodSample[]): boolean {
 
 /**
  * True when a facility sits in / under the blue flood wash.
- * Matches FloodTilesLayer (bbox of each ring), not only point-in-polygon —
- * pins on blue cells were staying green when the lat/lng sat just outside a quad.
+ * Matches FloodTilesLayer (bbox of each ring), not only point-in-polygon.
  */
 function facilityInFlood(
   lat: number,
@@ -107,7 +111,6 @@ function facilityInFlood(
       }
       cLat /= ring.length;
       cLng /= ring.length;
-      // Same bbox paint as FloodTilesLayer cells.
       if (lat >= minLat && lat <= maxLat && lng >= minLng && lng <= maxLng) {
         return true;
       }
@@ -117,7 +120,6 @@ function facilityInFlood(
     if (distKm(pt, { lat: fl.lat, lng: fl.lng }) * 1000 <= radiusM) return true;
   }
 
-  // Low elev under an active wash = inundated (Consolacion ECs ~4 m).
   if (hasTiles && estimateElevM(lat, lng) <= 13) return true;
   return false;
 }
@@ -128,14 +130,16 @@ type MapFitFn = () => void;
 function typhoonFitPoints(
   area: MapArea,
   typhoons: TyphoonSample[],
-): { points: [number, number][]; eyeNear: boolean } {
-  const points: [number, number][] = [[area.center.lat, area.center.lng]];
+): { points: google.maps.LatLngLiteral[]; eyeNear: boolean } {
+  const points: google.maps.LatLngLiteral[] = [
+    { lat: area.center.lat, lng: area.center.lng },
+  ];
   const eyeNear = typhoons.some((t) => t.distanceKm < 60);
   for (const ty of typhoons) {
-    points.push([ty.lat, ty.lng]);
+    points.push({ lat: ty.lat, lng: ty.lng });
     if (!eyeNear) {
       for (const p of ty.track ?? []) {
-        points.push([p.lat, p.lng]);
+        points.push({ lat: p.lat, lng: p.lng });
       }
     }
   }
@@ -143,77 +147,61 @@ function typhoonFitPoints(
 }
 
 function fitBrgyAndTyphoon(
-  map: L.Map,
+  map: google.maps.Map,
   area: MapArea,
   typhoons: TyphoonSample[],
 ) {
   if (typhoons.length === 0) return;
   const { points, eyeNear } = typhoonFitPoints(area, typhoons);
   if (points.length < 2) return;
-  map.fitBounds(L.latLngBounds(points).pad(eyeNear ? 0.45 : 0.18), {
-    animate: true,
-    maxZoom: eyeNear ? 13 : 9,
+  const bounds = new google.maps.LatLngBounds();
+  for (const p of points) bounds.extend(p);
+  map.fitBounds(bounds, eyeNear ? 80 : 40);
+  const maxZoom = eyeNear ? 13 : 9;
+  const listener = google.maps.event.addListenerOnce(map, "idle", () => {
+    const z = map.getZoom();
+    if (z != null && z > maxZoom) map.setZoom(maxZoom);
   });
+  void listener;
 }
 
-function facilityIcon(kind: FacilityMarkerKind, flooded = false) {
-  return L.divIcon({
-    // Unique className so Leaflet / HMR cannot reuse a green EC DivIcon.
-    className: `dro-map-marker dro-map-marker-fac${flooded ? "-flood" : ""}-${kind}`,
-    html: facilityMarkerHtml(kind, 28, { flooded }),
-    iconSize: [28, 28],
-    iconAnchor: [14, 14],
-  });
+function facilityHtml(kind: FacilityMarkerKind, flooded = false) {
+  return facilityMarkerHtml(kind, 28, { flooded });
 }
 
-const hallIcon = facilityIcon("hall");
+const hallHtml = facilityHtml("hall");
 
-function quakeIcon(mag: number | null) {
+function quakeHtml(mag: number | null) {
   const m = mag ?? 0;
   const size = m >= 5 ? 18 : m >= 4 ? 15 : 12;
-  return L.divIcon({
-    className: "dro-map-marker",
-    html: `<span class="dro-map-marker-dot dro-map-marker-dot-quake" style="width:${size}px;height:${size}px"></span>`,
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
-  });
+  return `<span class="dro-map-marker-dot dro-map-marker-dot-quake" style="width:${size}px;height:${size}px"></span>`;
 }
 
-function landslideIcon(severity: LandslideSample["severity"]) {
-  return L.divIcon({
-    className: "dro-map-marker",
-    html: lucideLandslideMarkerHtml(severity, 22),
-    iconSize: [22, 22],
-    iconAnchor: [11, 11],
-  });
+function landslideHtml(severity: LandslideSample["severity"]) {
+  return lucideLandslideMarkerHtml(severity, 22);
 }
 
-function floodIcon(severity: FloodSample["severity"]) {
-  return L.divIcon({
-    className: "dro-map-marker",
-    html: `<span class="dro-map-marker-flood dro-map-marker-flood-${severity}"></span>`,
-    iconSize: [14, 14],
-    iconAnchor: [7, 7],
-  });
+function floodHtml(severity: FloodSample["severity"]) {
+  return `<span class="dro-map-marker-flood dro-map-marker-flood-${severity}"></span>`;
 }
 
-/** Chip sits above (or below) the track point so it never covers the eye. */
-function trackEtaIcon(
-  text: string,
-  emphasize = false,
-  side: "above" | "below" = "above",
-) {
-  const w = 92;
-  const h = 22;
-  // Anchor at the track point → label floats clear of the icon / line.
-  const iconAnchor: [number, number] =
-    side === "above" ? [w / 2, h + 10] : [w / 2, -10];
-  return L.divIcon({
-    className: "dro-map-marker dro-map-track-eta-wrap",
-    html: `<span class="dro-map-track-eta${emphasize ? " dro-map-track-eta-strong" : ""}">${text}</span>`,
-    iconSize: [w, h],
-    iconAnchor,
-  });
+function trackEtaHtml(text: string, emphasize = false) {
+  return `<span class="dro-map-track-eta${emphasize ? " dro-map-track-eta-strong" : ""}">${text}</span>`;
+}
+
+function typhoonHtml() {
+  return lucideTyphoonMarkerHtml(28);
+}
+
+const youHtml =
+  "<span class='dro-map-marker-dot dro-map-marker-dot-you'></span>";
+
+function fireHtml(severity: FireSample["severity"]) {
+  return `<span class="dro-map-marker-fire dro-map-marker-fire-${severity}"></span>`;
+}
+
+function reportHtml(kind: ScenarioReportPin["kind"]) {
+  return reportPinMarkerHtml(kind);
 }
 
 /**
@@ -236,7 +224,6 @@ function trackEtaSamples(
       hour === 12;
     if (!keep) continue;
     if (out.length && out[out.length - 1]!.at === p.at) continue;
-    // Never place a time chip on the live eye position.
     if (eye) {
       if (eye.at && p.at === eye.at) continue;
       const dLat = Math.abs(p.lat - eye.lat);
@@ -248,103 +235,6 @@ function trackEtaSamples(
   return out;
 }
 
-/** Red spiral PNG — typhoon eye marker (slow CSS spin). Keep tiny — PNG is 434px. */
-function typhoonIcon() {
-  return L.divIcon({
-    className: "dro-map-marker dro-map-marker-typhoon",
-    html: lucideTyphoonMarkerHtml(28),
-    iconSize: [28, 28],
-    iconAnchor: [14, 14],
-  });
-}
-
-const youIcon = L.divIcon({
-  className: "dro-map-marker",
-  html: "<span class='dro-map-marker-dot dro-map-marker-dot-you'></span>",
-  iconSize: [16, 16],
-  iconAnchor: [8, 8],
-});
-
-function fireIcon(severity: FireSample["severity"]) {
-  return L.divIcon({
-    className: "dro-map-marker",
-    html: `<span class="dro-map-marker-fire dro-map-marker-fire-${severity}"></span>`,
-    iconSize: [14, 14],
-    iconAnchor: [7, 10],
-  });
-}
-
-function reportIcon(kind: ScenarioReportPin["kind"]) {
-  return L.divIcon({
-    className: "dro-map-marker",
-    html: reportPinMarkerHtml(kind),
-    iconSize: [22, 22],
-    iconAnchor: [11, 11],
-  });
-}
-
-/**
- * Keep trackpad / touch gestures on the map, otherwise Chrome/Safari
- * pinch-zoom or two-finger-scroll the page instead of Leaflet.
- * When scrollWheelZoom is off (homepage), page scroll passes through and
- * Leaflet wheel zoom is force-disabled (prop alone can miss after remount).
- */
-function MapTouchGuard({ scrollWheelZoom }: { scrollWheelZoom: boolean }) {
-  const map = useMap();
-  useEffect(() => {
-    if (scrollWheelZoom) {
-      map.scrollWheelZoom.enable();
-    } else {
-      map.scrollWheelZoom.disable();
-    }
-
-    const el = map.getContainer();
-    el.style.touchAction = scrollWheelZoom ? "none" : "pan-y";
-    el.style.setProperty(
-      "-ms-touch-action",
-      scrollWheelZoom ? "none" : "pan-y",
-    );
-
-    const block = (e: Event) => {
-      e.preventDefault();
-    };
-
-    const onWheel = (e: WheelEvent) => {
-      if (!scrollWheelZoom) {
-        // Block trackpad pinch (ctrl+wheel) so the map never zooms while scrolling.
-        if (e.ctrlKey || e.metaKey) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-        return;
-      }
-      e.preventDefault();
-    };
-
-    // Multi-touch pan/pinch on tablets / phones
-    const onTouchMove = (e: TouchEvent) => {
-      if (e.touches.length >= 2) e.preventDefault();
-    };
-
-    el.addEventListener("wheel", onWheel, { passive: false, capture: true });
-    el.addEventListener("touchmove", onTouchMove, { passive: false });
-    if (scrollWheelZoom) {
-      el.addEventListener("gesturestart", block, { passive: false });
-      el.addEventListener("gesturechange", block, { passive: false });
-      el.addEventListener("gestureend", block, { passive: false });
-    }
-
-    return () => {
-      el.removeEventListener("wheel", onWheel, true);
-      el.removeEventListener("touchmove", onTouchMove);
-      el.removeEventListener("gesturestart", block);
-      el.removeEventListener("gesturechange", block);
-      el.removeEventListener("gestureend", block);
-    };
-  }, [map, scrollWheelZoom]);
-  return null;
-}
-
 function RecenterOnArea({
   area,
   userLocation,
@@ -354,17 +244,19 @@ function RecenterOnArea({
   area: MapArea;
   userLocation?: { lat: number; lng: number } | null;
   skip?: boolean;
-  /** Officer ops: always frame the barangay, never GPS. */
   lockToArea?: boolean;
 }) {
   const map = useMap();
   useEffect(() => {
-    if (skip) return;
+    if (!map || skip) return;
     const followUser = Boolean(userLocation) && !lockToArea;
     const lat = followUser ? userLocation!.lat : area.center.lat;
     const lng = followUser ? userLocation!.lng : area.center.lng;
     const zoom = followUser ? Math.max(area.zoom, 16) : area.zoom;
-    map.flyTo([lat, lng], zoom, { duration: 0.85 });
+    map.panTo({ lat, lng });
+    map.setZoom(zoom);
+    // Intentionally key off lat/lng fields — parent may pass a new object each render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- userLocation object identity
   }, [
     skip,
     lockToArea,
@@ -379,7 +271,6 @@ function RecenterOnArea({
   return null;
 }
 
-/** Re-fly when the locate control fires again (same coords). */
 function FlyToFocus({
   target,
   nonce,
@@ -389,8 +280,9 @@ function FlyToFocus({
 }) {
   const map = useMap();
   useEffect(() => {
-    if (!target || nonce === 0) return;
-    map.flyTo([target.lat, target.lng], 16, { duration: 0.85 });
+    if (!map || !target || nonce === 0) return;
+    map.panTo({ lat: target.lat, lng: target.lng });
+    map.setZoom(16);
   }, [target, nonce, map]);
   return null;
 }
@@ -408,8 +300,10 @@ function MapFlyBridge({
 }) {
   const map = useMap();
   useEffect(() => {
+    if (!map) return;
     flyRef.current = (lat, lng, zoom = 16) => {
-      map.flyTo([lat, lng], zoom, { duration: 0.85 });
+      map.panTo({ lat, lng });
+      map.setZoom(zoom);
     };
     fitTyphoonRef.current = () => fitBrgyAndTyphoon(map, area, typhoons);
     return () => {
@@ -484,9 +378,7 @@ function LocateMeButton({
   knownLocation: { lat: number; lng: number } | null;
   flyRef: MutableRefObject<MapFlyFn | null>;
   onLocated: (lat: number, lng: number) => void;
-  /** Drop a pin without flying the camera (command / officer ops). */
   pinOnly?: boolean;
-  /** When set, show a “zoom to my barangay” control above locate. */
   area?: MapArea;
 }) {
   const [status, setStatus] = useState<"idle" | "locating" | "error">("idle");
@@ -572,7 +464,7 @@ function FitTyphoonTrack({
 }) {
   const map = useMap();
   useEffect(() => {
-    if (!enabled) return;
+    if (!map || !enabled) return;
     fitBrgyAndTyphoon(map, area, typhoons);
   }, [typhoons, area, enabled, map]);
   return null;
@@ -587,9 +479,7 @@ function FitHouseholds({
 }: {
   area: MapArea;
   households: Household[];
-  /** Stable string of priority ids (not a fresh array each render). */
   highlightKey: string;
-  /** Stable string of escape destination ids / path lengths. */
   escapeKey: string;
   escapeRoutes: AssistEscapeRoute[];
 }) {
@@ -602,6 +492,7 @@ function FitHouseholds({
   escapeRoutesRef.current = escapeRoutes;
 
   useEffect(() => {
+    if (!map) return;
     if (lastAreaIdRef.current !== area.id) {
       lastAreaIdRef.current = area.id;
       didFitEmptyRef.current = false;
@@ -612,20 +503,19 @@ function FitHouseholds({
     const highlightIds = highlightKey ? highlightKey.split("|") : [];
     const hasTriage = highlightIds.length > 0 || routes.length > 0;
 
-    // Idle roster: fit once per area, not on every parent re-render.
     if (!hasTriage) {
       if (didFitEmptyRef.current) return;
       didFitEmptyRef.current = true;
       const mapped = rows.filter((h) => h.lat != null && h.lng != null);
       if (mapped.length === 0) {
-        map.setView([area.center.lat, area.center.lng], area.zoom);
+        map.setCenter({ lat: area.center.lat, lng: area.center.lng });
+        map.setZoom(area.zoom);
         return;
       }
-      const points: [number, number][] = [
-        [area.center.lat, area.center.lng],
-        ...mapped.map((h) => [h.lat!, h.lng!] as [number, number]),
-      ];
-      map.fitBounds(L.latLngBounds(points).pad(0.35));
+      const bounds = new google.maps.LatLngBounds();
+      bounds.extend({ lat: area.center.lat, lng: area.center.lng });
+      for (const h of mapped) bounds.extend({ lat: h.lat!, lng: h.lng! });
+      map.fitBounds(bounds, 60);
       return;
     }
 
@@ -635,43 +525,42 @@ function FitHouseholds({
       (h) => idSet.has(h.id) && h.lat != null && h.lng != null,
     );
 
-    const points: [number, number][] = [[area.center.lat, area.center.lng]];
-    // Cap focus points - fitting thousands of evacuate pins is expensive.
+    const bounds = new google.maps.LatLngBounds();
+    bounds.extend({ lat: area.center.lat, lng: area.center.lng });
     const focusCap = focus.slice(0, 200);
     for (const h of focusCap) {
-      points.push([h.lat!, h.lng!]);
+      bounds.extend({ lat: h.lat!, lng: h.lng! });
     }
     for (const r of routes) {
-      // Prefer endpoints over full OSRM path for camera framing.
-      points.push([r.from.lat, r.from.lng], [r.to.lat, r.to.lng]);
+      bounds.extend({ lat: r.from.lat, lng: r.from.lng });
+      bounds.extend({ lat: r.to.lat, lng: r.to.lng });
     }
 
-    if (points.length <= 1) {
-      map.setView([area.center.lat, area.center.lng], area.zoom);
+    if (focusCap.length === 0 && routes.length === 0) {
+      map.setCenter({ lat: area.center.lat, lng: area.center.lng });
+      map.setZoom(area.zoom);
       return;
     }
 
-    map.fitBounds(L.latLngBounds(points).pad(0.55));
+    map.fitBounds(bounds, 90);
   }, [area, highlightKey, escapeKey, map]);
 
   return null;
 }
 
+function MissingMapsKey() {
+  return (
+    <div className="flex h-full min-h-[200px] items-center justify-center bg-[var(--surface)] px-4 text-center font-mono text-xs text-[var(--muted)]">
+      Set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY for Google Maps
+    </div>
+  );
+}
+
 type CommandAreaMapProps = {
   area?: MapArea;
-  /** Visitor GPS pin — map flies here when set (unless lockCameraToArea) */
   userLocation?: { lat: number; lng: number } | null;
-  /** Called when the in-map locate control gets a fix */
   onUserLocationChange?: (loc: { lat: number; lng: number }) => void;
-  /**
-   * Officer command: keep the camera on the barangay ops area even if the
-   * officer’s device GPS is elsewhere (e.g. working from IT Park).
-   */
   lockCameraToArea?: boolean;
-  /**
-   * @deprecated Parent should pass only this barangay’s pack layers.
-   * Kept for call-site compatibility; ignored.
-   */
   forceLayers?: boolean;
   households: Household[];
   quakes: QuakeEvent[];
@@ -680,23 +569,15 @@ type CommandAreaMapProps = {
   typhoons: TyphoonSample[];
   fires?: FireSample[];
   reportPins?: ScenarioReportPin[];
-  /** Safe / EC pins for this barangay pack (not global Nangka). */
   safePoints?: SafePoint[];
-  /** BFP + hospitals (own LGU + nearby) with phone numbers. */
   responders?: ResponderMapPin[];
-  /** householdId → AI priority — updates marker style + map focus */
   assistPriorities?: Record<string, AssistPriority>;
   escapeRoutes?: AssistEscapeRoute[];
-  /** Tino phase — During shows flood warning on inundated ECs. */
   scenarioPhase?: DrrmScenarioPhase;
-  /**
-   * Wheel / trackpad zoom. Off on the homepage so page scroll is not stolen.
-   * Command map keeps this on (default).
-   */
   scrollWheelZoom?: boolean;
 };
 
-export default function CommandAreaMap({
+function CommandAreaMapInner({
   area = DEFAULT_MAP_AREA,
   userLocation = null,
   onUserLocationChange,
@@ -725,9 +606,7 @@ export default function CommandAreaMap({
   } | null>(null);
   const [focusNonce, setFocusNonce] = useState(0);
   const effectiveUser = userLocation ?? localUser;
-  // Command ops: never show officer GPS — camera + pins stay on selected brgy.
   const showUserPin = Boolean(effectiveUser) && !lockCameraToArea;
-  // Parent scopes layers per barangay pack — paint whatever is passed.
   const mapped = useMemo(
     () => households.filter((h) => h.lat != null && h.lng != null),
     [households],
@@ -752,14 +631,12 @@ export default function CommandAreaMap({
   const layerTyphoons = typhoons;
   const layerFires = fires;
   const layerReports = reportPins;
-  // Escape polylines / chevrons intentionally omitted from the map.
   const layerEscapes = escapeRoutes;
   const layerSafePoints = safePoints;
   const layerResponders = responders;
   const activeEvacIds = new Set(layerEscapes.map((r) => r.destinationId));
   const hasTyphoon = layerTyphoons.length > 0;
   const hasForecastTrack = layerTyphoons.some((t) => (t.track?.length ?? 0) > 1);
-  /** GPS may drop a pin, but camera framing stays on the barangay. */
   const cameraFollowsUser = showUserPin;
 
   function handleLocated(lat: number, lng: number) {
@@ -769,28 +646,8 @@ export default function CommandAreaMap({
     onUserLocationChange?.({ lat, lng });
   }
 
-  return (
-    <div
-      className={`relative h-full w-full overscroll-none ${
-        scrollWheelZoom ? "touch-none" : ""
-      }`}
-    >
-    <MapContainer
-      key={scrollWheelZoom ? "swz-on" : "swz-off"}
-      center={[area.center.lat, area.center.lng]}
-      zoom={area.zoom}
-      className={`h-full w-full [&_.leaflet-control-attribution]:text-[9px] ${
-        scrollWheelZoom ? "touch-none" : ""
-      }`}
-      scrollWheelZoom={scrollWheelZoom}
-      touchZoom
-      bounceAtZoomLimits={false}
-    >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-      <MapTouchGuard scrollWheelZoom={scrollWheelZoom} />
+  const mapChrome = (
+    <>
       <MapFlyBridge
         flyRef={flyRef}
         fitTyphoonRef={fitTyphoonRef}
@@ -801,9 +658,7 @@ export default function CommandAreaMap({
         area={area}
         userLocation={showUserPin ? effectiveUser : null}
         lockToArea={lockCameraToArea}
-        skip={
-          hasForecastTrack && !cameraFollowsUser && !lockCameraToArea
-        }
+        skip={hasForecastTrack && !cameraFollowsUser && !lockCameraToArea}
       />
       <FlyToFocus
         target={cameraFollowsUser ? effectiveUser : null}
@@ -817,30 +672,26 @@ export default function CommandAreaMap({
         }
       />
       {layerSafePoints.length === 0 && !showUserPin ? (
-        <Marker
-          position={[area.center.lat, area.center.lng]}
-          icon={hallIcon}
-          zIndexOffset={750}
+        <MapHtmlMarker
+          position={{ lat: area.center.lat, lng: area.center.lng }}
+          html={hallHtml}
+          zIndex={750}
         >
-          <Popup>
-            <strong>Command center · Brgy. {area.barangay} Hall</strong>
-            <br />
-            {area.name}
-          </Popup>
-        </Marker>
+          <strong>Command center · Brgy. {area.barangay} Hall</strong>
+          <br />
+          {area.name}
+        </MapHtmlMarker>
       ) : null}
       {showUserPin && effectiveUser ? (
-        <Marker
-          position={[effectiveUser.lat, effectiveUser.lng]}
-          icon={youIcon}
-          zIndexOffset={1000}
+        <MapHtmlMarker
+          position={{ lat: effectiveUser.lat, lng: effectiveUser.lng }}
+          html={youHtml}
+          zIndex={1000}
         >
-          <Popup>
-            <strong>You are here</strong>
-            <br />
-            {area.name}
-          </Popup>
-        </Marker>
+          <strong>You are here</strong>
+          <br />
+          {area.name}
+        </MapHtmlMarker>
       ) : null}
       {mapped.length > 0 ? (
         <HouseholdPinsLayer
@@ -849,52 +700,226 @@ export default function CommandAreaMap({
         />
       ) : null}
       {quakes.map((q) => (
-        <Marker key={q.id} position={[q.lat, q.lng]} icon={quakeIcon(q.mag)}>
-          <Popup>
-            <strong>M{q.mag?.toFixed(1) ?? "?"} · earthquake</strong>
-            <br />
-            {q.place}
-            <br />
-            {Math.round(q.distanceKm)} km from ops area
-            <br />
-            {new Date(q.time).toLocaleString("en-PH", {
-              timeZone: "Asia/Manila",
-            })}
-            {q.url ? (
-              <>
-                <br />
-                <a href={q.url} target="_blank" rel="noreferrer">
-                  USGS detail
-                </a>
-              </>
-            ) : null}
-          </Popup>
-        </Marker>
+        <MapHtmlMarker
+          key={q.id}
+          position={{ lat: q.lat, lng: q.lng }}
+          html={quakeHtml(q.mag)}
+        >
+          <strong>M{q.mag?.toFixed(1) ?? "?"} · earthquake</strong>
+          <br />
+          {q.place}
+          <br />
+          {Math.round(q.distanceKm)} km from ops area
+          <br />
+          {new Date(q.time).toLocaleString("en-PH", {
+            timeZone: "Asia/Manila",
+          })}
+          {q.url ? (
+            <>
+              <br />
+              <a href={q.url} target="_blank" rel="noreferrer">
+                USGS detail
+              </a>
+            </>
+          ) : null}
+        </MapHtmlMarker>
       ))}
       {layerLandslides.map((ls) => (
-        <Marker
+        <MapHtmlMarker
           key={ls.id}
-          position={[ls.lat, ls.lng]}
-          icon={landslideIcon(ls.severity)}
+          position={{ lat: ls.lat, lng: ls.lng }}
+          html={landslideHtml(ls.severity)}
         >
-          <Popup>
-            <strong>Landslide · {landslideSeverityLabel(ls.severity)}</strong>
+          <strong>Landslide · {landslideSeverityLabel(ls.severity)}</strong>
+          <br />
+          {ls.name}
+          <br />
+          {ls.place} ({ls.purokHint})
+          <br />
+          {ls.notes}
+          {ls.mediaUrl ? (
+            <>
+              <br />
+              <span className="font-mono text-xs uppercase">
+                Image report · live
+              </span>
+              <br />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={ls.mediaUrl}
+                alt=""
+                style={{
+                  marginTop: 6,
+                  maxWidth: 180,
+                  width: "100%",
+                  height: "auto",
+                  display: "block",
+                  border: "1px solid #dbe0e6",
+                }}
+              />
+            </>
+          ) : null}
+        </MapHtmlMarker>
+      ))}
+      <FloodTilesLayer floods={layerFloods} />
+      {layerFloods
+        .filter((fl) => !(fl.footprints?.length || fl.footprint?.length))
+        .map((fl) => (
+          <MapHtmlMarker
+            key={fl.id}
+            position={{ lat: fl.lat, lng: fl.lng }}
+            html={floodHtml(fl.severity)}
+            zIndex={650}
+          >
+            <strong>Flood · {floodSeverityLabel(fl.severity)}</strong>
             <br />
-            {ls.name}
+            {fl.name}
             <br />
-            {ls.place} ({ls.purokHint})
+            {fl.place} ({fl.purokHint})
             <br />
-            {ls.notes}
-            {ls.mediaUrl ? (
-              <>
+            Depth ~{fl.depthCm} cm
+            <br />
+            {fl.notes}
+          </MapHtmlMarker>
+        ))}
+      {layerTyphoons.map((ty) =>
+        ty.track && ty.track.length > 1 ? (
+          <Fragment key={`${ty.id}-track`}>
+            <Polyline
+              path={ty.track.map((p) => ({ lat: p.lat, lng: p.lng }))}
+              strokeColor="#1d4ed8"
+              strokeWeight={3}
+              strokeOpacity={0}
+              icons={[
+                {
+                  icon: {
+                    path: "M 0,-1 0,1",
+                    strokeOpacity: 0.85,
+                    strokeColor: "#1d4ed8",
+                    scale: 3,
+                  },
+                  offset: "0",
+                  repeat: "18px",
+                },
+              ]}
+            />
+            {trackEtaSamples(ty.track, {
+              lat: ty.lat,
+              lng: ty.lng,
+              at: ty.reportedAt,
+            }).map((p, i) => (
+              <MapHtmlMarker
+                key={`${ty.id}-eta-${p.at}`}
+                position={{ lat: p.lat, lng: p.lng }}
+                html={trackEtaHtml(
+                  formatTinoTrackChip(p.at!),
+                  p.at === TINO_CEBU_LANDFALL_ISO ||
+                    (p.at != null &&
+                      Math.abs(
+                        new Date(p.at).getTime() -
+                          new Date(TINO_CEBU_LANDFALL_ISO).getTime(),
+                      ) <
+                        4 * 3_600_000),
+                )}
+                zIndex={720}
+                anchorPoint={
+                  i % 2 === 0
+                    ? AdvancedMarkerAnchorPoint.BOTTOM_CENTER
+                    : AdvancedMarkerAnchorPoint.TOP_CENTER
+                }
+              >
+                <strong>Track · {formatTinoTrackChip(p.at!)} PHT</strong>
                 <br />
-                <span className="font-mono text-xs uppercase">
-                  Image report · live
-                </span>
+                {p.label ?? ty.name}
+                <br />
+                Cebu landfall ETA ·{" "}
+                {formatTinoTrackChip(TINO_CEBU_LANDFALL_ISO)} PHT
+              </MapHtmlMarker>
+            ))}
+          </Fragment>
+        ) : null,
+      )}
+      {layerTyphoons.map((ty) => (
+        <MapHtmlMarker
+          key={`${ty.id}-eye`}
+          position={{ lat: ty.lat, lng: ty.lng }}
+          html={typhoonHtml()}
+          zIndex={960}
+        >
+          <strong>{ty.name}</strong>
+          <br />
+          Eye · {typhoonCategoryLabel(ty.category)} · {ty.maxWindsKmh} km/h
+          <br />
+          {ty.movement}
+          <br />
+          {Math.round(ty.distanceKm)} km from Nangka
+          <br />
+          <strong>{ty.etaNote}</strong>
+          <br />
+          {ty.notes}
+        </MapHtmlMarker>
+      ))}
+      {layerFires.map((fi) => (
+        <MapHtmlMarker
+          key={fi.id}
+          position={{ lat: fi.lat, lng: fi.lng }}
+          html={fireHtml(fi.severity)}
+          zIndex={850}
+        >
+          <strong>Fire · {fireSeverityLabel(fi.severity)}</strong>
+          <br />
+          {fi.name}
+          <br />
+          {fi.place} ({fi.purokHint})
+          <br />
+          {fi.notes}
+        </MapHtmlMarker>
+      ))}
+      {layerReports.map((rp) => {
+        const href = rp.href ?? (rp.mediaUrl ? `/reports/${rp.id}` : null);
+        return (
+          <MapHtmlMarker
+            key={rp.id}
+            position={{ lat: rp.lat, lng: rp.lng }}
+            html={reportHtml(rp.kind)}
+            zIndex={860}
+          >
+            <strong>{rp.title}</strong>
+            <br />
+            {href ? (
+              <a
+                href={href}
+                target="_blank"
+                rel="noreferrer"
+                className="font-mono text-xs uppercase underline"
+              >
+                {rp.sourceLabel}
+              </a>
+            ) : (
+              <span className="font-mono text-xs uppercase">
+                {rp.sourceLabel}
+              </span>
+            )}
+            <br />
+            {rp.kind === "evac_status" &&
+            typeof rp.occupancy === "number" &&
+            typeof rp.capacity === "number" ? (
+              <>
+                <strong>
+                  {rp.occupancy} / {rp.capacity} people
+                </strong>
+                <br />
+              </>
+            ) : null}
+            {rp.purokHint}
+            <br />
+            {rp.notes}
+            {rp.mediaUrl ? (
+              <>
                 <br />
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={ls.mediaUrl}
+                  src={rp.mediaUrl}
                   alt=""
                   style={{
                     marginTop: 6,
@@ -907,187 +932,7 @@ export default function CommandAreaMap({
                 />
               </>
             ) : null}
-          </Popup>
-        </Marker>
-      ))}
-      <FloodTilesLayer floods={layerFloods} />
-      {/* Pin only when there are no elev tiles yet — tiles already tell the story. */}
-      {layerFloods
-        .filter(
-          (fl) =>
-            !(fl.footprints?.length || fl.footprint?.length),
-        )
-        .map((fl) => (
-          <Marker
-            key={fl.id}
-            position={[fl.lat, fl.lng]}
-            icon={floodIcon(fl.severity)}
-            zIndexOffset={650}
-          >
-            <Popup>
-              <strong>Flood · {floodSeverityLabel(fl.severity)}</strong>
-              <br />
-              {fl.name}
-              <br />
-              {fl.place} ({fl.purokHint})
-              <br />
-              Depth ~{fl.depthCm} cm
-              <br />
-              {fl.notes}
-            </Popup>
-          </Marker>
-        ))}
-      {layerTyphoons.map((ty) =>
-        ty.track && ty.track.length > 1 ? (
-          <Fragment key={`${ty.id}-track`}>
-            <Polyline
-              positions={ty.track.map(
-                (p) => [p.lat, p.lng] as [number, number],
-              )}
-              pathOptions={{
-                color: "#1d4ed8",
-                weight: 3,
-                opacity: 0.85,
-                dashArray: "8 10",
-              }}
-            />
-            {trackEtaSamples(ty.track, {
-              lat: ty.lat,
-              lng: ty.lng,
-              at: ty.reportedAt,
-            }).map((p, i) => (
-              <Marker
-                key={`${ty.id}-eta-${p.at}`}
-                position={[p.lat, p.lng]}
-                icon={trackEtaIcon(
-                  formatTinoTrackChip(p.at!),
-                  p.at === TINO_CEBU_LANDFALL_ISO ||
-                    (p.at != null &&
-                      Math.abs(
-                        new Date(p.at).getTime() -
-                          new Date(TINO_CEBU_LANDFALL_ISO).getTime(),
-                      ) <
-                        4 * 3_600_000),
-                  i % 2 === 0 ? "above" : "below",
-                )}
-                zIndexOffset={720}
-              >
-                <Popup>
-                  <strong>Track · {formatTinoTrackChip(p.at!)} PHT</strong>
-                  <br />
-                  {p.label ?? ty.name}
-                  <br />
-                  Cebu landfall ETA ·{" "}
-                  {formatTinoTrackChip(TINO_CEBU_LANDFALL_ISO)} PHT
-                </Popup>
-              </Marker>
-            ))}
-          </Fragment>
-        ) : null,
-      )}
-      {layerTyphoons.map((ty) => (
-        <Fragment key={`${ty.id}-eye`}>
-          <Marker
-            position={[ty.lat, ty.lng]}
-            icon={typhoonIcon()}
-            zIndexOffset={960}
-          >
-            <Popup>
-              <strong>{ty.name}</strong>
-              <br />
-              Eye · {typhoonCategoryLabel(ty.category)} · {ty.maxWindsKmh} km/h
-              <br />
-              {ty.movement}
-              <br />
-              {Math.round(ty.distanceKm)} km from Nangka
-              <br />
-              <strong>{ty.etaNote}</strong>
-              <br />
-              {ty.notes}
-            </Popup>
-          </Marker>
-          {/* Wind-radius discs omitted — even stroke-only rings read as a blue
-              wash at barangay zoom when the eye is near Cebu. */}
-        </Fragment>
-      ))}
-      {layerFires.map((fi) => (
-        <Marker
-          key={fi.id}
-          position={[fi.lat, fi.lng]}
-          icon={fireIcon(fi.severity)}
-          zIndexOffset={850}
-        >
-          <Popup>
-            <strong>Fire · {fireSeverityLabel(fi.severity)}</strong>
-            <br />
-            {fi.name}
-            <br />
-            {fi.place} ({fi.purokHint})
-            <br />
-            {fi.notes}
-          </Popup>
-        </Marker>
-      ))}
-      {layerReports.map((rp) => {
-        const href = rp.href ?? (rp.mediaUrl ? `/reports/${rp.id}` : null);
-        return (
-          <Marker
-            key={rp.id}
-            position={[rp.lat, rp.lng]}
-            icon={reportIcon(rp.kind)}
-            zIndexOffset={860}
-          >
-            <Popup>
-              <strong>{rp.title}</strong>
-              <br />
-              {href ? (
-                <a
-                  href={href}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-mono text-xs uppercase underline"
-                >
-                  {rp.sourceLabel}
-                </a>
-              ) : (
-                <span className="font-mono text-xs uppercase">
-                  {rp.sourceLabel}
-                </span>
-              )}
-              <br />
-              {rp.kind === "evac_status" &&
-              typeof rp.occupancy === "number" &&
-              typeof rp.capacity === "number" ? (
-                <>
-                  <strong>
-                    {rp.occupancy} / {rp.capacity} people
-                  </strong>
-                  <br />
-                </>
-              ) : null}
-              {rp.purokHint}
-              <br />
-              {rp.notes}
-              {rp.mediaUrl ? (
-                <>
-                  <br />
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={rp.mediaUrl}
-                    alt=""
-                    style={{
-                      marginTop: 6,
-                      maxWidth: 180,
-                      width: "100%",
-                      height: "auto",
-                      display: "block",
-                      border: "1px solid #dbe0e6",
-                    }}
-                  />
-                </>
-              ) : null}
-            </Popup>
-          </Marker>
+          </MapHtmlMarker>
         );
       })}
       {layerSafePoints.map((sp) => {
@@ -1099,15 +944,12 @@ export default function CommandAreaMap({
           (sp.kind === "school" && sp.isEvacCenter);
         const washOn = floodWashOn(layerFloods);
         const inFlood = facilityInFlood(sp.lat, sp.lng, layerFloods);
-        // DURING: every shelter is amber. Also amber when wash/flood hit.
-        // No elev gates — Consolacion ECs kept reading green on blue tiles.
         const floodedPin =
           Boolean(isShelter) &&
           (scenarioPhase === "during" ||
             washOn ||
             inFlood ||
             layerFloods.length > 0);
-        // Shelter pins use house glyph; force flooded house look even for school ECs.
         const iconKind: FacilityMarkerKind =
           floodedPin && isShelter ? "evac_center" : sp.kind;
         const z =
@@ -1121,102 +963,95 @@ export default function CommandAreaMap({
                   ? 710
                   : 690;
         return (
-          <Marker
+          <MapHtmlMarker
             key={`${sp.id}-ecv5-${floodedPin ? "flood" : "dry"}-${iconKind}`}
-            position={[sp.lat, sp.lng]}
-            icon={facilityIcon(iconKind, floodedPin)}
-            zIndexOffset={z}
+            position={{ lat: sp.lat, lng: sp.lng }}
+            html={facilityHtml(iconKind, floodedPin)}
+            zIndex={z}
           >
-            <Popup>
-              <strong>{sp.name}</strong>
-              {floodedPin ? (
-                <>
-                  <br />
-                  <span style={{ fontWeight: 700, color: "#b45309" }}>
-                    Warning · this area is flooded
-                  </span>
-                  <br />
-                  <span style={{ color: "#9a3412", opacity: 0.95 }}>
-                    During Tino · approaches may be impassable · redirect to
-                    dry high ground / alternate EC
-                  </span>
-                </>
-              ) : pop ? (
-                <>
-                  <br />
-                  <span style={{ fontWeight: 700 }}>
-                    {formatEvacPopulationLine(pop)}
-                  </span>
-                  <br />
-                  {pop.notes}
-                  <br />
-                  <span style={{ opacity: 0.75 }}>
-                    {pop.sourceLabel} · {evacFillLabel(pop.fill)}
-                    {pop.href ? (
-                      <>
-                        {" · "}
-                        <a href={pop.href}>Field report</a>
-                      </>
-                    ) : null}
-                  </span>
-                </>
-              ) : sp.isEvacCenter ? (
-                <>
-                  <br />
-                  <span style={{ opacity: 0.75 }}>
-                    No population report yet · EC staff can upload a field
-                    report
-                  </span>
-                </>
-              ) : null}
-            </Popup>
-          </Marker>
+            <strong>{sp.name}</strong>
+            {floodedPin ? (
+              <>
+                <br />
+                <span style={{ fontWeight: 700, color: "#b45309" }}>
+                  Warning · this area is flooded
+                </span>
+                <br />
+                <span style={{ color: "#9a3412", opacity: 0.95 }}>
+                  During Tino · approaches may be impassable · redirect to dry
+                  high ground / alternate EC
+                </span>
+              </>
+            ) : pop ? (
+              <>
+                <br />
+                <span style={{ fontWeight: 700 }}>
+                  {formatEvacPopulationLine(pop)}
+                </span>
+                <br />
+                {pop.notes}
+                <br />
+                <span style={{ opacity: 0.75 }}>
+                  {pop.sourceLabel} · {evacFillLabel(pop.fill)}
+                  {pop.href ? (
+                    <>
+                      {" · "}
+                      <a href={pop.href}>Field report</a>
+                    </>
+                  ) : null}
+                </span>
+              </>
+            ) : sp.isEvacCenter ? (
+              <>
+                <br />
+                <span style={{ opacity: 0.75 }}>
+                  No population report yet · EC staff can upload a field report
+                </span>
+              </>
+            ) : null}
+          </MapHtmlMarker>
         );
       })}
       {layerResponders.map((r) => {
         const role = r.kind === "bfp" ? "Fire station (BFP)" : "Hospital";
-        // Versioned key remounts DivIcon — HMR left the old Lucide flame stuck.
         const markerKey =
           r.kind === "bfp" ? `${r.id}-helmet-v5` : `${r.id}-v1`;
         return (
-          <Marker
+          <MapHtmlMarker
             key={markerKey}
-            position={[r.lat, r.lng]}
-            icon={facilityIcon(r.kind)}
-            zIndexOffset={r.kind === "bfp" ? 730 : 725}
+            position={{ lat: r.lat, lng: r.lng }}
+            html={facilityHtml(r.kind)}
+            zIndex={r.kind === "bfp" ? 730 : 725}
           >
-            <Popup>
-              <strong>
-                {role} · {r.name}
-              </strong>
-              <br />
-              {r.seat}
-              {r.covers ? (
-                <>
-                  <br />
-                  Covers: {r.covers}
-                </>
-              ) : null}
-              {r.notes ? (
-                <>
-                  <br />
-                  {r.notes}
-                </>
-              ) : null}
-              <br />
-              Call:{" "}
-              {r.phones.map((p, i) => (
-                <span key={p}>
-                  {i > 0 ? " · " : null}
-                  <a href={phoneToTelHref(p)}>{p}</a>
-                </span>
-              ))}
-            </Popup>
-          </Marker>
+            <strong>
+              {role} · {r.name}
+            </strong>
+            <br />
+            {r.seat}
+            {r.covers ? (
+              <>
+                <br />
+                Covers: {r.covers}
+              </>
+            ) : null}
+            {r.notes ? (
+              <>
+                <br />
+                {r.notes}
+              </>
+            ) : null}
+            <br />
+            Call:{" "}
+            {r.phones.map((p, i) => (
+              <span key={p}>
+                {i > 0 ? " · " : null}
+                <a href={phoneToTelHref(p)}>{p}</a>
+              </span>
+            ))}
+          </MapHtmlMarker>
         );
       })}
-      {!cameraFollowsUser &&
-      (!hasForecastTrack || lockCameraToArea) ? (
+      {!cameraFollowsUser && (!hasForecastTrack || lockCameraToArea) ? (
         <FitHouseholds
           area={area}
           households={mapped}
@@ -1225,29 +1060,64 @@ export default function CommandAreaMap({
           escapeRoutes={layerEscapes}
         />
       ) : null}
-    </MapContainer>
-    {lockCameraToArea ? (
-      <div className="pointer-events-none absolute top-14 right-2.5 z-[1000] flex flex-col items-end gap-1">
-        <ShowBrgyAndTyphoonButton
-          fitTyphoonRef={fitTyphoonRef}
-          hasTyphoon={hasTyphoon}
-        />
-        <ZoomToBarangayButton area={area} flyRef={flyRef} />
-      </div>
-    ) : (
-      <div className="pointer-events-none absolute top-14 right-2.5 z-[1000] flex flex-col items-end gap-1">
-        <ShowBrgyAndTyphoonButton
-          fitTyphoonRef={fitTyphoonRef}
-          hasTyphoon={hasTyphoon}
-        />
-        <LocateMeButton
-          knownLocation={effectiveUser}
-          flyRef={flyRef}
-          onLocated={handleLocated}
-          area={undefined}
-        />
-      </div>
-    )}
+    </>
+  );
+
+  return (
+    <div
+      className={`relative h-full w-full overscroll-none ${
+        scrollWheelZoom ? "touch-none" : ""
+      }`}
+    >
+      <Map
+        className={`dro-gmap-root h-full w-full ${scrollWheelZoom ? "touch-none" : ""}`}
+        defaultCenter={{ lat: area.center.lat, lng: area.center.lng }}
+        defaultZoom={area.zoom}
+        mapId={googleMapsMapId()}
+        gestureHandling={scrollWheelZoom ? "greedy" : "cooperative"}
+        disableDefaultUI={false}
+        mapTypeControl={false}
+        streetViewControl={false}
+        fullscreenControl={false}
+        clickableIcons={false}
+        style={{ width: "100%", height: "100%" }}
+      >
+        {mapChrome}
+      </Map>
+      {lockCameraToArea ? (
+        <div className="pointer-events-none absolute top-14 right-2.5 z-[1000] flex flex-col items-end gap-1">
+          <ShowBrgyAndTyphoonButton
+            fitTyphoonRef={fitTyphoonRef}
+            hasTyphoon={hasTyphoon}
+          />
+          <ZoomToBarangayButton area={area} flyRef={flyRef} />
+        </div>
+      ) : (
+        <div className="pointer-events-none absolute top-14 right-2.5 z-[1000] flex flex-col items-end gap-1">
+          <ShowBrgyAndTyphoonButton
+            fitTyphoonRef={fitTyphoonRef}
+            hasTyphoon={hasTyphoon}
+          />
+          <LocateMeButton
+            knownLocation={effectiveUser}
+            flyRef={flyRef}
+            onLocated={handleLocated}
+            area={undefined}
+          />
+        </div>
+      )}
     </div>
+  );
+}
+
+export default function CommandAreaMap(props: CommandAreaMapProps) {
+  if (!hasGoogleMapsApiKey()) {
+    return <MissingMapsKey />;
+  }
+
+  return (
+    <APIProvider apiKey={googleMapsApiKey()} libraries={["marker"]}>
+      <CommandAreaMapInner {...props} />
+    </APIProvider>
   );
 }
