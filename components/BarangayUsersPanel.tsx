@@ -255,31 +255,6 @@ function OfficerCard({
           {officer.firedReason}
         </p>
       ) : null}
-      {officer.employmentHistory && officer.employmentHistory.length > 0 ? (
-        <details
-          className="nodrag nopan nowheel mt-1 text-left"
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <summary
-            className="nodrag nopan cursor-pointer font-mono text-[9px] tracking-wider text-[var(--muted)] uppercase"
-            onPointerDown={(e) => e.stopPropagation()}
-          >
-            History
-          </summary>
-          <ul className="mt-1 space-y-0.5 text-[10px] text-[var(--muted)]">
-            {[...officer.employmentHistory]
-              .sort((a, b) => b.at.localeCompare(a.at))
-              .map((ev, i) => (
-                <li key={`${ev.at}-${i}`}>
-                  {ev.action === "hired" ? "Hired" : "Fired"}
-                  {ev.title ? ` · ${ev.title}` : ""}
-                  {ev.byName ? ` · ${ev.byName}` : ""}
-                </li>
-              ))}
-          </ul>
-        </details>
-      ) : null}
       {confirmFire && showFire ? (
         <div className="nodrag nopan mt-2 space-y-1.5 pt-2 text-left">
           <p className="text-[10px] text-[var(--muted)]">
