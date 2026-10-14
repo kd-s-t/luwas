@@ -256,8 +256,15 @@ function OfficerCard({
         </p>
       ) : null}
       {officer.employmentHistory && officer.employmentHistory.length > 0 ? (
-        <details className="mt-1 text-left">
-          <summary className="cursor-pointer font-mono text-[9px] tracking-wider text-[var(--muted)] uppercase">
+        <details
+          className="nodrag nopan nowheel mt-1 text-left"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <summary
+            className="nodrag nopan cursor-pointer font-mono text-[9px] tracking-wider text-[var(--muted)] uppercase"
+            onPointerDown={(e) => e.stopPropagation()}
+          >
             History
           </summary>
           <ul className="mt-1 space-y-0.5 text-[10px] text-[var(--muted)]">
