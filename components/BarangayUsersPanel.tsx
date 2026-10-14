@@ -163,15 +163,17 @@ function OfficerCard({
     >
       <div
         ref={menuRef}
-        className="nodrag nopan absolute top-1.5 right-1 z-20"
+        className="nodrag nopan nowheel absolute top-1.5 right-1 z-30"
       >
         <button
           type="button"
           aria-label="Officer actions"
           aria-haspopup="menu"
           aria-expanded={menuOpen}
-          className="flex h-7 w-7 items-center justify-center text-[var(--muted)] transition hover:bg-[var(--surface-panel)] hover:text-[var(--foreground)]"
-          onClick={() => {
+          className="nodrag nopan flex h-7 w-7 items-center justify-center text-[var(--muted)] transition hover:bg-[var(--surface-panel)] hover:text-[var(--foreground)]"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
             setMenuOpen((v) => !v);
             setConfirmFire(false);
           }}
@@ -621,7 +623,8 @@ function OfficersPyramid({
             id: o.uid,
             type: "officer",
             position: { x: startX + i * (w + GAP_X), y: rowY },
-            style: { width: w, height: NODE_H },
+            // RF sets pointer-events:none when nodes aren't selectable/draggable.
+            style: { width: w, height: NODE_H, pointerEvents: "all" },
             data: {
               officer: o,
               tier: t.tier,

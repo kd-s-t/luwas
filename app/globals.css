@@ -525,6 +525,12 @@ body {
   box-shadow: none !important;
   background: transparent !important;
   padding: 0 !important;
+  /* Allow ⋮ / History inside nodes even when RF disables selection/drag. */
+  pointer-events: all !important;
+}
+
+.officer-hierarchy-flow .react-flow__edges {
+  pointer-events: none;
 }
 
 .officer-hierarchy-flow .react-flow__handle {
