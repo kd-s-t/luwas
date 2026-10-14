@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useCommandWorkspace } from "@/components/CommandWorkspaceProvider";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import {
   approvePendingAccount,
   officerScopeBarangay,
   rejectPendingAccount,
-  subscribePendingAccounts,
   type PendingAccount,
 } from "@/lib/auth/accountValidation";
 import { ensurePendingSampleAccounts } from "@/lib/auth/ensurePendingSampleAccounts";
@@ -21,34 +21,24 @@ export function AccountValidationPanel({
   roleFilter?: "citizen" | "officer";
 } = {}) {
   const { profile } = useAuth();
+  const { pendingAccounts } = useCommandWorkspace();
   const barangay = isOfficer(profile)
     ? officerScopeBarangay(profile)
     : "Nangka";
-  const areaId = isOfficer(profile)
-    ? profile.areaId ?? profile.activeBarangayId
-    : null;
 
-  const [rows, setRows] = useState<PendingAccount[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const samplesSeeded = useRef(false);
 
   useEffect(() => {
     if (!isOfficer(profile) || !isAccountActive(profile)) return;
-    if (!samplesSeeded.current) {
-      samplesSeeded.current = true;
-      void ensurePendingSampleAccounts().catch((err) => {
-        samplesSeeded.current = false;
-        console.error("[pending samples]", err);
-      });
-    }
-    return subscribePendingAccounts(
-      barangay,
-      setRows,
-      (err) => setError(err.message),
-      areaId,
-    );
-  }, [profile, barangay, areaId]);
+    if (samplesSeeded.current) return;
+    samplesSeeded.current = true;
+    void ensurePendingSampleAccounts().catch((err) => {
+      samplesSeeded.current = false;
+      console.error("[pending samples]", err);
+    });
+  }, [profile]);
 
   const canModerate = useMemo(
     () => isOfficer(profile) && isAccountActive(profile),
@@ -57,8 +47,10 @@ export function AccountValidationPanel({
 
   const visible = useMemo(
     () =>
-      roleFilter ? rows.filter((r) => r.role === roleFilter) : rows,
-    [rows, roleFilter],
+      roleFilter
+        ? pendingAccounts.filter((r) => r.role === roleFilter)
+        : pendingAccounts,
+    [pendingAccounts, roleFilter],
   );
 
   if (!canModerate) {

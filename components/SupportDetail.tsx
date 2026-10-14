@@ -1,31 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useCommandWorkspace } from "@/components/CommandWorkspaceProvider";
 import { CommandContentSkeleton } from "@/components/PageLoadSkeleton";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  officerScopeBarangay,
-  subscribeBarangayUsers,
-} from "@/lib/auth/accountValidation";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import {
   isAccountActive,
   isOfficer,
-  type OfficerProfile,
 } from "@/lib/auth/types";
 import {
   addSupportTicketMessage,
   assignSupportTicket,
   LUWAS_DEVELOPERS_ASSIGNEE,
-  subscribeSupportTickets,
   updateSupportTicketStatus,
   type SupportTicket,
   type SupportTicketStatus,
 } from "@/lib/support/api";
-import { ensureSampleSupportTickets } from "@/lib/support/ensureSampleSupportTickets";
 
 function statusVariant(
   status: SupportTicketStatus,
@@ -137,66 +131,15 @@ function TicketChat({
 
 export function SupportDetail({ ticketId }: { ticketId: string }) {
   const { profile } = useAuth();
-  const [rows, setRows] = useState<SupportTicket[]>([]);
-  const [officers, setOfficers] = useState<OfficerProfile[]>([]);
+  const { supportTickets, activeOfficers, seedReady } = useCommandWorkspace();
+  const officers = activeOfficers;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [ready, setReady] = useState(false);
-
-  const barangay = isOfficer(profile) ? officerScopeBarangay(profile) : "";
-  const areaId = isOfficer(profile)
-    ? profile.areaId ?? profile.activeBarangayId
-    : null;
-
-  useEffect(() => {
-    if (!isOfficer(profile) || !isAccountActive(profile)) return;
-    let unsub: (() => void) | undefined;
-    let cancelled = false;
-    void (async () => {
-      try {
-        await ensureSampleSupportTickets();
-      } catch (err) {
-        console.warn("Support sample seed failed", err);
-      }
-      if (cancelled) return;
-      unsub = subscribeSupportTickets((next) => {
-        setRows(next);
-        setReady(true);
-      }, (err) => {
-        setError(err.message);
-        setReady(true);
-      });
-    })();
-    return () => {
-      cancelled = true;
-      unsub?.();
-    };
-  }, [profile]);
-
-  useEffect(() => {
-    if (!isOfficer(profile) || !isAccountActive(profile) || !barangay) {
-      setOfficers([]);
-      return;
-    }
-    return subscribeBarangayUsers(
-      barangay,
-      (users) => {
-        const active = users.filter(
-          (u): u is OfficerProfile => isOfficer(u) && isAccountActive(u),
-        );
-        active.sort((a, b) =>
-          (a.displayName || a.email).localeCompare(b.displayName || b.email),
-        );
-        setOfficers(active);
-      },
-      (err) => setError(err.message),
-      areaId,
-    );
-  }, [profile, barangay, areaId]);
+  const ready = seedReady;
 
   const selected = useMemo(
-    () => rows.find((t) => t.id === ticketId) ?? null,
-    [rows, ticketId],
+    () => supportTickets.find((t) => t.id === ticketId) ?? null,
+    [supportTickets, ticketId],
   );
 
   async function setStatus(status: SupportTicketStatus) {

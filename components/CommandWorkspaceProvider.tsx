@@ -31,6 +31,7 @@ import { ensureAllMapReportsInDb } from "@/lib/reports/seedMapReport";
 import type { HazardReport } from "@/lib/reports/types";
 import { subscribeSupportTickets } from "@/lib/support/api";
 import type { SupportTicket } from "@/lib/support/api";
+import { ensureSampleSupportTickets } from "@/lib/support/ensureSampleSupportTickets";
 import { fetchCebuWeather, isHazardousWeather } from "@/lib/weather/openMeteo";
 
 const QUEUE_STATUSES = new Set([
@@ -94,9 +95,12 @@ export function CommandWorkspaceProvider({
     let cancelled = false;
     void (async () => {
       try {
-        await ensureAllMapReportsInDb();
+        await Promise.all([
+          ensureAllMapReportsInDb(),
+          ensureSampleSupportTickets(),
+        ]);
       } catch (err) {
-        console.warn("Map report seed failed", err);
+        console.warn("Command workspace seed failed", err);
       } finally {
         if (!cancelled) setSeedReady(true);
       }

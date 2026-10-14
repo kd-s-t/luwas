@@ -21,10 +21,8 @@ import {
 import "@xyflow/react/dist/style.css";
 import { MoreVertical } from "lucide-react";
 import { motion } from "framer-motion";
-import {
-  officerScopeBarangay,
-  subscribeBarangayUsers,
-} from "@/lib/auth/accountValidation";
+import { useCommandWorkspace } from "@/components/CommandWorkspaceProvider";
+import { officerScopeBarangay } from "@/lib/auth/accountValidation";
 import { ensureKenHouseholdCitizens } from "@/lib/auth/ensureKenHouseholdCitizens";
 import { ensureNangkaOfficers } from "@/lib/auth/ensureNangkaOfficers";
 import {
@@ -1155,15 +1153,13 @@ export function BarangayUsersPanel({
   mode?: BarangayUsersPanelMode;
 }) {
   const { profile } = useAuth();
+  const { barangayUsers } = useCommandWorkspace();
   const barangay = isOfficer(profile) ? officerScopeBarangay(profile) : "";
-  const areaId = isOfficer(profile)
-    ? profile.areaId ?? profile.activeBarangayId
-    : null;
   const captain = isBarangayCaptain(profile) ? profile : null;
   const showOfficers = mode === "officers";
   const showCitizens = mode === "citizens";
 
-  const [rows, setRows] = useState<UserProfile[]>([]);
+  const rows = barangayUsers;
   const [households, setHouseholds] = useState<Household[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1177,45 +1173,19 @@ export function BarangayUsersPanel({
     partialError: string | null;
   }> | null>(null);
 
-  // Load users + finish staff seed before painting the org flow (no 1-by-1 remounts).
+  // Finish staff seed before painting the org flow (users come from workspace).
   useEffect(() => {
     if (!isOfficer(profile) || !barangay) {
-      setRows([]);
       setLoading(false);
       return;
     }
 
     let cancelled = false;
-    let gotUsers = false;
-    let seedDone = false;
     setLoading(true);
-
-    const maybeReady = () => {
-      if (!cancelled && gotUsers && seedDone) setLoading(false);
-    };
-
-    const unsub = subscribeBarangayUsers(
-      barangay,
-      (next) => {
-        if (cancelled) return;
-        setRows(next);
-        gotUsers = true;
-        maybeReady();
-      },
-      (err) => {
-        if (cancelled) return;
-        setError(err.message);
-        gotUsers = true;
-        seedDone = true;
-        setLoading(false);
-      },
-      areaId,
-    );
 
     void (async () => {
       if (!isAccountActive(profile)) {
-        seedDone = true;
-        maybeReady();
+        if (!cancelled) setLoading(false);
         return;
       }
 
@@ -1258,16 +1228,14 @@ export function BarangayUsersPanel({
           setError(err instanceof Error ? err.message : "Staff seed failed");
         }
       } finally {
-        seedDone = true;
-        maybeReady();
+        if (!cancelled) setLoading(false);
       }
     })();
 
     return () => {
       cancelled = true;
-      unsub();
     };
-  }, [profile, barangay, areaId]);
+  }, [profile, barangay]);
 
   const officers = useMemo(
     () =>
