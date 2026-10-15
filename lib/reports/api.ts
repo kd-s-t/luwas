@@ -35,6 +35,7 @@ import type {
 import { sanitizeGuestReporterPhone } from "@/lib/auth/demoAccount";
 import type { UserProfile } from "@/lib/auth/types";
 import { isCitizen, isOfficer } from "@/lib/auth/types";
+import { isStockReportMediaUrl } from "@/lib/reports/stockMedia";
 
 const COL = "reports";
 const GUEST_UID = "web-guest";
@@ -210,7 +211,8 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
   };
 }
 
-const DRAFT_PLACEHOLDER_MEDIA = "/reports/flood-road-chapel.png";
+/** Drafts have no evidence yet. Never use a stock scene as placeholder media. */
+const DRAFT_PLACEHOLDER_MEDIA = "draft://pending-photo";
 
 /** Start a draft incident on step 1 — returns LUW-* (guest) or uuid (signed-in). */
 export async function startIncidentDraft(input: {
@@ -406,6 +408,9 @@ export async function createGuestHazardReport(input: {
     aiConfidence,
     aiVerdict,
   });
+  if (isStockReportMediaUrl(input.mediaUrl)) {
+    throw new Error("A real scene photo is required before submitting.");
+  }
   const place =
     placeFromCoords(input.lat, input.lng) ?? {
       barangay: DEFAULT_REPORT_BARANGAY,

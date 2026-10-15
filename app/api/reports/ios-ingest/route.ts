@@ -90,48 +90,6 @@ function hazardFromText(text: string, category?: string): ReportHazardHint {
   return "other";
 }
 
-/** Reuse assets already shipped under public/reports/. */
-function mediaForHazard(hazard: ReportHazardHint): {
-  mediaUrl: string;
-  mediaMime: string;
-} {
-  switch (hazard) {
-    case "flood":
-    case "typhoon":
-      return {
-        mediaUrl: "/reports/flood-road-chapel.png",
-        mediaMime: "image/png",
-      };
-    case "landslide":
-      return {
-        mediaUrl: "/reports/landslide-bank-failure.png",
-        mediaMime: "image/png",
-      };
-    case "evac":
-      return {
-        mediaUrl: "/reports/ec-consolacion-1.jpg",
-        mediaMime: "image/jpeg",
-      };
-    case "fire":
-      return {
-        mediaUrl: "/reports/fallen-tree-access-road.webp",
-        mediaMime: "image/webp",
-      };
-    case "blockage":
-    case "crime":
-    case "accident":
-      return {
-        mediaUrl: "/reports/road-block-access-east.jpg",
-        mediaMime: "image/jpeg",
-      };
-    default:
-      return {
-        mediaUrl: "/reports/road-block-access-east.jpg",
-        mediaMime: "image/jpeg",
-      };
-  }
-}
-
 function projectId(): string {
   return process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim() || "demo-dro";
 }
@@ -310,7 +268,17 @@ export async function POST(req: Request) {
   const rawB64 =
     typeof body.mediaBase64 === "string" ? body.mediaBase64.trim() : "";
   const useEmuFs = Boolean(firestoreEmulatorHost());
-  if (rawB64 && source === "web") {
+  // Never substitute bundled demo scenes for missing citizen photos.
+  if (!rawB64) {
+    return NextResponse.json(
+      {
+        error:
+          "Photo required. Send mediaBase64 with the report (do not use stock demo images).",
+      },
+      { status: 400 },
+    );
+  }
+  {
     const ext =
       mediaMimeRaw.includes("png")
         ? "png"
@@ -320,6 +288,12 @@ export async function POST(req: Request) {
             ? "gif"
             : "jpg";
     const bytes = Buffer.from(rawB64, "base64");
+    if (bytes.length < 32) {
+      return NextResponse.json(
+        { error: "Photo data is empty or invalid" },
+        { status: 400 },
+      );
+    }
     if (useEmuFs) {
       const relDir = path.join("reports", "guest");
       const fileName = `${reference}.${ext}`;
@@ -341,17 +315,17 @@ export async function POST(req: Request) {
         mediaMime = mediaMimeRaw;
       } catch (err) {
         console.error("[ios-ingest] guest photo upload failed", err);
-        const stock = mediaForHazard(hazardHint);
-        mediaUrl = stock.mediaUrl;
-        mediaMime = stock.mediaMime;
-        mediaPath = mediaUrl;
+        return NextResponse.json(
+          {
+            error:
+              err instanceof Error
+                ? err.message
+                : "Failed to upload report photo",
+          },
+          { status: 502 },
+        );
       }
     }
-  } else {
-    const stock = mediaForHazard(hazardHint);
-    mediaUrl = stock.mediaUrl;
-    mediaMime = stock.mediaMime;
-    mediaPath = mediaUrl;
   }
 
   let voiceUrl: string | null = null;

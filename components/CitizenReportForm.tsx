@@ -73,6 +73,7 @@ import {
 } from "@/lib/reports/types";
 import { saveGuestReportId } from "@/lib/reports/guestReportStore";
 import { takePendingReportMedia } from "@/lib/reports/pendingMedia";
+import { isStockReportMediaUrl } from "@/lib/reports/stockMedia";
 import { fileToBase64, uploadReportMedia } from "@/lib/reports/upload";
 import {
   distanceKm,
@@ -771,12 +772,6 @@ export function CitizenReportForm({
   }
 
   function validateSituation(): boolean {
-    const hasPhoto =
-      photos.length > 0 || Boolean(editMode && existingMediaUrl);
-    if (!hasPhoto) {
-      setError(t(language, "errors.photoRequired"));
-      return false;
-    }
     setError(null);
     return true;
   }
@@ -846,9 +841,13 @@ export function CitizenReportForm({
     };
     if (file) {
       const up = await uploadGuestFile("photo", file);
-      if (!up) throw new Error(t(language, "errors.photoRequired"));
+      if (!up) throw new Error(t(language, "errors.submitFailed"));
       uploaded = up;
-    } else if (existingMediaUrl && existingMediaPath) {
+    } else if (
+      existingMediaUrl &&
+      existingMediaPath &&
+      !isStockReportMediaUrl(existingMediaUrl)
+    ) {
       uploaded = {
         mediaPath: existingMediaPath,
         mediaUrl: existingMediaUrl,
@@ -987,18 +986,13 @@ export function CitizenReportForm({
 
     try {
       const file: File | null = photos[0]?.file ?? null;
-      if (!file && !(editMode && existingMediaUrl)) {
-        throw new Error(t(language, "errors.photoRequired"));
-      }
 
       if (isGuest || !author) {
         await submitGuestReport(file);
         return;
       }
-      if (!file) throw new Error(t(language, "errors.photoRequired"));
 
       const reportId = draftId ?? crypto.randomUUID();
-      const mediaType = file.type.startsWith("video/") ? "video" : "photo";
       const hazardHint = inferHazard(situation);
       const title = titleFromSituation(situation, intent, reportFor);
 
@@ -1012,11 +1006,27 @@ export function CitizenReportForm({
       const captured = meta ?? (await captureReportMeta().catch(() => null));
       if (captured) setMeta(captured);
 
-      const uploaded = await uploadReportMedia({
-        citizenUid: author.uid,
-        reportId,
-        file,
-      });
+      const mediaType =
+        file && file.type.startsWith("video/") ? "video" : "photo";
+      const uploaded = file
+        ? await uploadReportMedia({
+            citizenUid: author.uid,
+            reportId,
+            file,
+          })
+        : editMode &&
+            existingMediaUrl &&
+            existingMediaPath &&
+            !isStockReportMediaUrl(existingMediaUrl)
+          ? {
+              mediaPath: existingMediaPath,
+              mediaUrl: existingMediaUrl,
+              mediaMime: existingMediaMime || "image/jpeg",
+            }
+          : null;
+      if (!uploaded) {
+        throw new Error(t(language, "errors.photoRequired"));
+      }
 
       let voicePath: string | null = null;
       let voiceUrl: string | null = null;
