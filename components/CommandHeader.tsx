@@ -142,7 +142,7 @@ export function CommandHeader() {
 
   async function onLogout() {
     await logout();
-    router.replace("/login");
+    router.replace("/login/officer");
   }
 
   return (

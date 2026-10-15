@@ -131,7 +131,7 @@ function CommandShellInner({ children, fill = false }: CommandShellProps) {
 
   async function onLogout() {
     await logout();
-    router.replace("/login");
+    router.replace("/login/officer");
   }
 
   const displayName = profile?.displayName ?? user?.email ?? "Officer";

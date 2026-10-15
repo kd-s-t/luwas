@@ -167,9 +167,8 @@ function CitizenLoginForm() {
               Register with ID
             </Link>
             {" · "}
-            Officer?{" "}
             <Link href="/login" className="text-[var(--accent)] hover:underline">
-              Command login
+              Change role
             </Link>
           </>
         }

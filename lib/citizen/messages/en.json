@@ -19,7 +19,7 @@
     "saving": "Saving to LUWAS…"
   },
   "errors": {
-    "situationShort": "Describe what’s happening (at least 20 characters).",
+    "situationShort": "Describe what’s happening (optional).",
     "photoRequired": "Add at least one photo.",
     "placeRequired": "Choose or search a place.",
     "gpsFailed": "Could not get GPS. Pick a place below.",
@@ -86,7 +86,7 @@
     "gettingGps": "Getting GPS…",
     "searchLabel": "Search barangay or city",
     "searchPlaceholder": "Brgy. Nangka, Consolacion",
-    "mapHint": "Drag the pin or tap the map to set the spot. Hall chips use real Consolacion coordinates.",
+    "mapHint": "Tap the map to place the pin. Hall chips use real Consolacion coordinates.",
     "landmark": "Nearby landmark (optional)",
     "landmarkPlaceholder": "Near barangay hall",
     "approximate": "This is an approximate location",

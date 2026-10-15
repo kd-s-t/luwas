@@ -33,14 +33,14 @@ export function HomeNav({ overlay = false }: HomeNavProps) {
 
   const onReports =
     pathname === "/reports" || pathname.startsWith("/reports/");
-  const onBarangays =
-    pathname === "/barangays" || pathname.startsWith("/barangays/");
+  const onTrackReport =
+    pathname === "/track-report" || pathname.startsWith("/track-report/");
   const onOverview = pathname.startsWith("/admin");
   const onReportIncident =
     pathname === "/report-incident" ||
     pathname.startsWith("/report-incident/");
-  const onLoginOfficer = pathname === "/login";
-  const onLoginCitizen = pathname === "/login/citizen";
+  const onLogin =
+    pathname === "/login" || pathname.startsWith("/login/");
   const onRegister =
     pathname === "/register" || pathname.startsWith("/register/");
 
@@ -81,28 +81,12 @@ export function HomeNav({ overlay = false }: HomeNavProps) {
     </>
   ) : (
     <>
-      {overlay ? (
-        <a
-          href="#live-map"
-          className="text-[var(--muted)] transition hover:text-[var(--foreground)]"
-          onClick={() => setMenuOpen(false)}
-        >
-          Live map
-        </a>
-      ) : null}
       <Link
         href="/login"
-        className={navLinkClass(onLoginOfficer)}
+        className={navLinkClass(onLogin)}
         onClick={() => setMenuOpen(false)}
       >
-        Officer
-      </Link>
-      <Link
-        href="/login/citizen"
-        className={navLinkClass(onLoginCitizen)}
-        onClick={() => setMenuOpen(false)}
-      >
-        Citizen
+        Login
       </Link>
       <Link
         href="/register"
@@ -150,8 +134,8 @@ export function HomeNav({ overlay = false }: HomeNavProps) {
           <Link href="/reports" className={navLinkClass(onReports)}>
             Reports
           </Link>
-          <Link href="/barangays" className={navLinkClass(onBarangays)}>
-            Barangays
+          <Link href="/track-report" className={navLinkClass(onTrackReport)}>
+            Track report
           </Link>
           {authLinks}
         </nav>
@@ -215,11 +199,11 @@ export function HomeNav({ overlay = false }: HomeNavProps) {
               Reports
             </Link>
             <Link
-              href="/barangays"
-              className={navLinkClass(onBarangays)}
+              href="/track-report"
+              className={navLinkClass(onTrackReport)}
               onClick={() => setMenuOpen(false)}
             >
-              Barangays
+              Track report
             </Link>
             {authLinks}
           </nav>

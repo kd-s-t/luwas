@@ -19,7 +19,7 @@
     "saving": "Gina-save sa LUWAS…"
   },
   "errors": {
-    "situationShort": "Ihulagway ang nahitabo (labing menos 20 ka karakter).",
+    "situationShort": "Ihulagway ang nahitabo (opsyonal).",
     "photoRequired": "Pagdugang og labing menos usa ka litrato.",
     "placeRequired": "Pagpili o pangita og lugar.",
     "gpsFailed": "Dili makuha ang GPS. Pagpili og lugar sa ubos.",
@@ -86,7 +86,7 @@
     "gettingGps": "Nakuha ang GPS…",
     "searchLabel": "Pangita og barangay o lungsod",
     "searchPlaceholder": "Brgy. Nangka, Consolacion",
-    "mapHint": "I-drag ang pin o i-tap ang mapa aron itakda ang lugar. Ang chips kay tinuod nga hall coordinates sa Consolacion.",
+    "mapHint": "I-tap ang mapa aron ibutang ang pin. Ang chips kay tinuod nga hall coordinates sa Consolacion.",
     "landmark": "Duol nga landmark (opsyonal)",
     "landmarkPlaceholder": "Duol sa barangay hall",
     "approximate": "Kini usa ka gibana-bana nga lokasyon",

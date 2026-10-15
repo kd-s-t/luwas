@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import {
   APIProvider,
   AdvancedMarker,
@@ -86,24 +86,8 @@ function PinInteractions({
     };
   }, [map]);
 
-  const onDragEnd = useCallback(
-    (e: google.maps.MapMouseEvent) => {
-      const ll = e.latLng;
-      if (!ll || !map) return;
-      onChangeRef.current({
-        center: { lat: ll.lat(), lng: ll.lng() },
-        zoom: map.getZoom() ?? 14,
-      });
-    },
-    [map],
-  );
-
   return (
-    <AdvancedMarker
-      position={{ lat: center.lat, lng: center.lng }}
-      draggable
-      onDragEnd={onDragEnd}
-    >
+    <AdvancedMarker position={{ lat: center.lat, lng: center.lng }}>
       <span
         className="dro-map-marker-dot"
         style={{
@@ -143,13 +127,13 @@ function HallPinMapInner({ center, zoom, onChange, className }: Props) {
         <PinInteractions center={center} onChange={onChange} />
       </Map>
       <p className="pointer-events-none absolute bottom-2 left-2 z-[1000] border border-[var(--border)] bg-[var(--surface)]/95 px-2 py-1 font-mono text-[9px] tracking-wider text-[var(--muted)] uppercase shadow-sm">
-        Drag pin · or click map
+        Click map to place pin
       </p>
     </div>
   );
 }
 
-/** Click or drag the pin to set a location on the map. */
+/** Click the map to place the pin. */
 export default function HallPinMap(props: Props) {
   if (!hasGoogleMapsApiKey()) {
     return (

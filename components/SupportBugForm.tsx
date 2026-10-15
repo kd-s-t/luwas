@@ -8,7 +8,6 @@ import { submitSupportTicket } from "@/lib/support/api";
 export function SupportBugForm() {
   const { user } = useAuth();
   const [email, setEmail] = useState("");
-  const [pageUrl, setPageUrl] = useState("");
   const [summary, setSummary] = useState("");
   const [details, setDetails] = useState("");
   const [busy, setBusy] = useState(false);
@@ -19,28 +18,19 @@ export function SupportBugForm() {
     if (user?.email) setEmail(user.email);
   }, [user?.email]);
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setPageUrl(document.referrer || window.location.origin);
-    }
-  }, []);
-
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!user) {
-      setError("Sign in to send a bug report.");
-      return;
-    }
     setBusy(true);
     setError(null);
     setDone(false);
     try {
       await submitSupportTicket({
-        email: email || user.email || "",
-        pageUrl,
+        email: email || user?.email || "",
+        pageUrl:
+          typeof window !== "undefined" ? window.location.href.slice(0, 500) : "",
         summary,
         details,
-        uid: user.uid,
+        uid: user?.uid || "guest",
       });
       setDone(true);
       setSummary("");
@@ -72,24 +62,6 @@ export function SupportBugForm() {
           disabled={busy}
           placeholder="so we can follow up"
           className="mt-1.5 w-full border border-[var(--border)] bg-[var(--input)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
-        />
-      </div>
-
-      <div>
-        <label
-          htmlFor="support-url"
-          className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase"
-        >
-          Page URL
-        </label>
-        <input
-          id="support-url"
-          type="url"
-          value={pageUrl}
-          onChange={(e) => setPageUrl(e.target.value)}
-          disabled={busy}
-          placeholder="https://…"
-          className="mt-1.5 w-full border border-[var(--border)] bg-[var(--input)] px-3 py-2 font-mono text-xs outline-none focus:border-[var(--accent)]"
         />
       </div>
 
@@ -138,7 +110,7 @@ export function SupportBugForm() {
       ) : null}
       {done ? (
         <p className="text-sm text-[var(--accent)]" role="status">
-          Thanks — your bug report was sent.
+          Thanks. Your bug report was sent.
         </p>
       ) : null}
 

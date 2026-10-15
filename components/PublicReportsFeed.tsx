@@ -6,12 +6,17 @@ import { PublicReportCard } from "@/components/PublicReportCard";
 import { FadeIn } from "@/components/motion/primitives";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import type { LatLng } from "@/lib/geo/cebu";
+import { listMapAreaOptions, resolveKnownMapArea } from "@/lib/geo/mapAreas";
 import {
+  DEFAULT_REPORT_BARANGAY,
+  DEFAULT_REPORT_LGU,
   reportInScope,
+  resolveReportPlace,
   scopeAnchor,
   scopeForProfile,
   scopeLabel,
   sortReportsByDistance,
+  type ReportScope,
 } from "@/lib/reports/barangayScope";
 import { captureReportMeta } from "@/lib/reports/captureMeta";
 import { ensureAllMapReportsInDb } from "@/lib/reports/seedMapReport";
@@ -60,6 +65,34 @@ function matchesSearch(report: HazardReport, q: string): boolean {
   return hay.includes(q);
 }
 
+function scopeKey(scope: ReportScope): string {
+  if (scope.mode === "lgu") return `lgu::${scope.lgu}`;
+  return `brgy::${scope.lgu}::${scope.barangay}`;
+}
+
+function parseScopeKey(raw: string): ReportScope | "all" {
+  if (raw === "all") return "all";
+  if (raw.startsWith("lgu::")) {
+    return { mode: "lgu", lgu: raw.slice(5) };
+  }
+  if (raw.startsWith("brgy::")) {
+    const rest = raw.slice(6);
+    const i = rest.indexOf("::");
+    if (i > 0) {
+      return {
+        mode: "barangay",
+        lgu: rest.slice(0, i),
+        barangay: rest.slice(i + 2),
+      };
+    }
+  }
+  return {
+    mode: "barangay",
+    barangay: DEFAULT_REPORT_BARANGAY,
+    lgu: DEFAULT_REPORT_LGU,
+  };
+}
+
 export function PublicReportsFeed() {
   const { profile } = useAuth();
   const [rows, setRows] = useState<HazardReport[] | null>(null);
@@ -68,9 +101,27 @@ export function PublicReportsFeed() {
   const [category, setCategory] = useState<"all" | ReportHazardHint>("all");
   const [search, setSearch] = useState("");
   const [here, setHere] = useState<LatLng | null>(null);
+  const profileScope = useMemo(() => scopeForProfile(profile), [profile]);
+  const [scopePick, setScopePick] = useState<string | null>(null);
 
-  const scope = useMemo(() => scopeForProfile(profile), [profile]);
-  const anchor = useMemo(() => here ?? scopeAnchor(scope), [here, scope]);
+  const scope: ReportScope | "all" = useMemo(() => {
+    if (scopePick == null) return profileScope;
+    return parseScopeKey(scopePick);
+  }, [scopePick, profileScope]);
+
+  const anchor = useMemo(() => {
+    if (here) return here;
+    if (scope === "all") return scopeAnchor(profileScope);
+    if (scope.mode === "barangay") {
+      const opt = listMapAreaOptions().find(
+        (o) =>
+          o.barangay.toLowerCase() === scope.barangay.toLowerCase() &&
+          o.lgu.toLowerCase() === scope.lgu.toLowerCase(),
+      );
+      if (opt) return resolveKnownMapArea(opt).center;
+    }
+    return scopeAnchor(scope);
+  }, [here, scope, profileScope]);
 
   useEffect(() => {
     setError(null);
@@ -103,8 +154,39 @@ export function PublicReportsFeed() {
     };
   }, [profile]);
 
+  const brgyOptions = useMemo(() => {
+    const map = new Map<string, ReportScope>();
+    map.set(scopeKey(profileScope), profileScope);
+    map.set(
+      scopeKey({
+        mode: "barangay",
+        barangay: DEFAULT_REPORT_BARANGAY,
+        lgu: DEFAULT_REPORT_LGU,
+      }),
+      {
+        mode: "barangay",
+        barangay: DEFAULT_REPORT_BARANGAY,
+        lgu: DEFAULT_REPORT_LGU,
+      },
+    );
+    for (const r of rows ?? []) {
+      const place = resolveReportPlace(r);
+      if (place.barangay === "Unknown") continue;
+      const s: ReportScope = {
+        mode: "barangay",
+        barangay: place.barangay,
+        lgu: place.lgu,
+      };
+      map.set(scopeKey(s), s);
+    }
+    return [...map.values()].sort((a, b) =>
+      scopeLabel(a).localeCompare(scopeLabel(b)),
+    );
+  }, [rows, profileScope]);
+
   const scoped = useMemo(() => {
     if (!rows) return null;
+    if (scope === "all") return rows;
     return rows.filter((r) => reportInScope(r, scope));
   }, [rows, scope]);
 
@@ -150,7 +232,15 @@ export function PublicReportsFeed() {
   }
 
   const filtersActive =
-    year !== "all" || category !== "all" || search.trim().length > 0;
+    year !== "all" ||
+    category !== "all" ||
+    search.trim().length > 0 ||
+    (scopePick != null && scopePick !== scopeKey(profileScope));
+
+  const scopeSelectValue =
+    scopePick ?? (scope === "all" ? "all" : scopeKey(scope));
+  const scopeStatusLabel =
+    scope === "all" ? "All barangays" : scopeLabel(scope);
 
   return (
     <div className="space-y-5">
@@ -169,6 +259,24 @@ export function PublicReportsFeed() {
         </label>
 
         <div className="flex flex-wrap items-end gap-3">
+          <label className="min-w-[11rem] flex-[2] sm:flex-none">
+            <span className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+              Barangay
+            </span>
+            <select
+              value={scopeSelectValue}
+              onChange={(e) => setScopePick(e.target.value)}
+              className="mt-1.5 w-full border border-[var(--border)] bg-[var(--input)] px-3 py-2 font-mono text-xs outline-none focus:border-[var(--accent)]"
+            >
+              <option value="all">All barangays</option>
+              {brgyOptions.map((s) => (
+                <option key={scopeKey(s)} value={scopeKey(s)}>
+                  {scopeLabel(s)}
+                </option>
+              ))}
+            </select>
+          </label>
+
           <label className="min-w-[7rem] flex-1 sm:flex-none">
             <span className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
               Year
@@ -216,6 +324,7 @@ export function PublicReportsFeed() {
                 setYear("all");
                 setCategory("all");
                 setSearch("");
+                setScopePick(null);
               }}
               className="border border-[var(--border)] px-3 py-2 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase transition hover:border-[var(--accent)] hover:text-[var(--foreground)]"
             >
@@ -229,7 +338,7 @@ export function PublicReportsFeed() {
             "font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase",
           )}
         >
-          {scopeLabel(scope)} · nearest first · showing {filtered.length} of{" "}
+          {scopeStatusLabel} · nearest first · showing {filtered.length} of{" "}
           {scoped.length}
         </p>
       </div>
@@ -240,7 +349,7 @@ export function PublicReportsFeed() {
             No reports yet
           </p>
           <p className="mx-auto mt-2 max-w-sm text-sm text-[var(--muted)]">
-            When residents post field photos in {scopeLabel(scope)}, they show
+            When residents post field photos in {scopeStatusLabel}, they show
             up here.
           </p>
           <div className="mt-5 flex justify-center">
@@ -253,7 +362,7 @@ export function PublicReportsFeed() {
             No reports match
           </p>
           <p className="mt-1 text-sm text-[var(--muted)]">
-            Try another year, category, or search term.
+            Try another barangay, year, category, or search term.
           </p>
         </div>
       ) : (

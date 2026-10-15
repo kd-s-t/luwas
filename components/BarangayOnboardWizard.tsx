@@ -496,7 +496,7 @@ export function BarangayOnboardWizard({ defaultOrgName = "" }: Props) {
             Hall pin · {draft.barangay}
           </h2>
           <p className="mt-1 text-sm text-[var(--muted)]">
-            Drag the pin or click the map to set the barangay hall. Geocode runs
+            Click the map to set the barangay hall pin. Geocode runs
             automatically when you pick an area
             {draft.resolvingHall ? " — resolving…" : "."}
           </p>

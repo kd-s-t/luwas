@@ -167,7 +167,7 @@ export default function OfficerRegisterPage() {
         footer={
           <>
             Already registered?{" "}
-            <Link href="/login" className="text-[var(--accent)] hover:underline">
+            <Link href="/login/officer" className="text-[var(--accent)] hover:underline">
               Officer login
             </Link>
             {" · "}

@@ -53,6 +53,7 @@ export type SupportTicketInput = {
   pageUrl: string;
   summary: string;
   details: string;
+  /** Auth uid, or `"guest"` when not signed in. */
   uid: string;
 };
 
@@ -114,12 +115,12 @@ function mapMessages(raw: unknown): SupportMessage[] {
 }
 
 export async function submitSupportTicket(input: SupportTicketInput) {
-  if (!input.uid) throw new Error("Sign in to send a bug report.");
   const summary = input.summary.trim();
   const details = input.details.trim();
   if (!summary) throw new Error("Describe the bug in a short summary.");
   if (summary.length > 200) throw new Error("Summary is too long.");
   if (details.length > 4000) throw new Error("Details are too long.");
+  const uid = (input.uid.trim() || "guest").slice(0, 128);
 
   await addDoc(collection(getClientDb(), "supportTickets"), {
     kind: "bug",
@@ -127,7 +128,7 @@ export async function submitSupportTicket(input: SupportTicketInput) {
     pageUrl: input.pageUrl.trim().slice(0, 500),
     summary,
     details,
-    uid: input.uid,
+    uid,
     status: "open" satisfies SupportTicketStatus,
     userAgent:
       typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 400) : "",

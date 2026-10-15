@@ -44,7 +44,7 @@ export function AuthGate({
   useEffect(() => {
     if (!mounted || loading) return;
     if (mode === "protected" && !user) {
-      router.replace(role === "citizen" ? "/login/citizen" : "/login");
+      router.replace(role === "citizen" ? "/login/citizen" : "/login/officer");
       return;
     }
     if (mode === "guest" && user) {

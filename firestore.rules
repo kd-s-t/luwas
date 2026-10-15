@@ -283,18 +283,25 @@ service cloud.firestore {
       }
     }
 
-    // Website bug reports — signed-in users only; officers can read.
+    // Website bug reports — guests + signed-in; officers can read.
     match /supportTickets/{ticketId} {
       allow read: if isOfficer();
-      allow create: if (signedIn()
-          && request.resource.data.uid == request.auth.uid
-          && request.resource.data.kind == "bug"
+      allow create: if (
+          request.resource.data.kind == "bug"
           && request.resource.data.summary is string
           && request.resource.data.summary.size() > 0
           && request.resource.data.summary.size() <= 200
           && request.resource.data.details is string
           && request.resource.data.details.size() <= 4000
-          && request.resource.data.status == "open")
+          && request.resource.data.status == "open"
+          && request.resource.data.uid is string
+          && request.resource.data.uid.size() > 0
+          && request.resource.data.uid.size() <= 128
+          && (
+            request.resource.data.uid == "guest"
+            || (signedIn() && request.resource.data.uid == request.auth.uid)
+          )
+        )
         // Demo seed rows (Command → Support sample inbox).
         || (isActiveOfficer()
           && ticketId.matches('sup-sample-[0-9]{3}')

@@ -13,7 +13,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   Activity,
   AlertTriangle,
-  CheckCircle2,
   Loader2,
   LocateFixed,
   Mic,
@@ -91,7 +90,7 @@ const HallPinMap = dynamic(() => import("@/components/HallPinMap"), {
   ),
 });
 
-type Step = "intent" | "situation" | "location" | "review" | "confirm";
+type Step = "intent" | "situation" | "location" | "review";
 type Intent = "needHelp" | "reportHazard";
 
 type CitizenReportFormProps = {
@@ -222,14 +221,13 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
-  const [referenceId, setReferenceId] = useState<string | null>(null);
-  const [confirmVerdict, setConfirmVerdict] = useState<string | null>(null);
   const [meta, setMeta] = useState<ReportCaptureMeta | null>(null);
   const [mobileCapture, setMobileCapture] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [sampleLoading, setSampleLoading] = useState(false);
   const [recording, setRecording] = useState(false);
   const [voiceBusy, setVoiceBusy] = useState(false);
+  /** Guest last-report id — null until mount (localStorage). */
+  const [savedGuestId, setSavedGuestId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const voiceChunksRef = useRef<Blob[]>([]);
@@ -333,6 +331,7 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
 
   useEffect(() => {
     setMobileCapture(isMobileClient());
+    setSavedGuestId(latestGuestReportId());
     const pending = takePendingReportMedia();
     if (pending) {
       setPhotos([
@@ -416,7 +415,6 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
     setFromGps(false);
     setError(null);
     setStatus(null);
-    setCopied(false);
   }
 
   function applyMapPoint(nextLat: number, nextLng: number, zoom?: number) {
@@ -657,11 +655,6 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
   }
 
   function validateSituation(): boolean {
-    const text = situation.trim();
-    if (text.length < 20) {
-      setError(t(language, "errors.situationShort"));
-      return false;
-    }
     if (photos.length < 1) {
       setError(t(language, "errors.photoRequired"));
       return false;
@@ -780,10 +773,9 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
       aiVerdict?: string;
     };
     saveGuestReportId(data.id);
-    setReferenceId(data.id);
-    setConfirmVerdict(data.aiVerdict ?? aiVerdict ?? null);
-    setStep("confirm");
+    setSavedGuestId(data.id);
     setStatus(null);
+    router.push(`/report-incident/received/${encodeURIComponent(data.id)}`);
   }
 
   async function submitReport() {
@@ -984,10 +976,10 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
         });
       }
 
-      setReferenceId(id);
-      setConfirmVerdict(data.verdict);
-      setStep("confirm");
+      saveGuestReportId(id);
+      setSavedGuestId(id);
       setStatus(null);
+      router.push(`/report-incident/received/${encodeURIComponent(id)}`);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : t(language, "errors.submitFailed"),
@@ -1009,125 +1001,11 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
         if (step === "situation") setStep("intent");
         else if (step === "location") setStep("situation");
         else if (step === "review") setStep("location");
-        else if (step === "confirm") setStep("intent");
       }}
     />
   );
 
-  if (step === "confirm" && referenceId) {
-    return (
-      <motion.div
-        className="space-y-[18px]"
-        initial={motionSafe ? { opacity: 0, y: 18 } : false}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: easeOut }}
-      >
-        <CitizenHeader
-          language={language}
-          onLanguageChange={setLanguage}
-          showHomeLink
-        />
-        <div className="space-y-2">
-          <motion.div
-            initial={motionSafe ? { scale: 0.6, opacity: 0 } : false}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{
-              type: "spring",
-              stiffness: 320,
-              damping: 18,
-              delay: 0.05,
-            }}
-          >
-            <CheckCircle2
-              className="size-11 text-[var(--success)]"
-              aria-hidden
-            />
-          </motion.div>
-          <FadeIn delay={0.1} y={10}>
-            <h2 className="text-2xl font-bold text-[var(--foreground)]">
-              {t(language, "confirm.title")}
-            </h2>
-            <p className="mt-2 text-sm text-[var(--muted)]">
-              {t(language, "confirm.body")}
-            </p>
-            {confirmVerdict ? (
-              <p className="mt-1 text-xs text-[var(--muted)]">
-                AI · {confirmVerdict.replace("_", " ")}
-              </p>
-            ) : null}
-          </FadeIn>
-        </div>
-
-        <FadeIn delay={0.18} y={12}>
-          <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
-            <p className="text-[11px] font-semibold tracking-wide text-[var(--muted)] uppercase">
-              {t(language, "confirm.reference")}
-            </p>
-            <p className="mt-2 font-mono text-[28px] font-bold tracking-tight text-[var(--foreground)]">
-              {referenceId}
-            </p>
-            <button
-              type="button"
-              className="mt-3 w-full rounded-[10px] bg-[var(--surface-raised)] py-3 text-sm font-semibold"
-              onClick={() => {
-                void navigator.clipboard?.writeText(referenceId);
-                setCopied(true);
-              }}
-            >
-              {copied
-                ? t(language, "common.copied")
-                : t(language, "confirm.copy")}
-            </button>
-          </div>
-        </FadeIn>
-
-        <FadeIn delay={0.26} y={10}>
-          <div className="flex items-start gap-2.5 rounded-xl border border-[var(--warn)]/40 bg-[var(--warn)]/15 p-3.5">
-            <AlertTriangle
-              className="mt-0.5 size-4 shrink-0 text-[var(--warn)]"
-              aria-hidden
-            />
-            <p className="text-sm text-[var(--foreground)]">
-              {t(language, "confirm.noResponder")}
-            </p>
-          </div>
-        </FadeIn>
-
-        <FadeIn delay={0.32} y={10} className="space-y-3">
-          <SolidAction
-            title={t(language, "confirm.track")}
-            style="dark"
-            onClick={() => {
-              const id = referenceId;
-              resetDraft();
-              setReferenceId(null);
-              setConfirmVerdict(null);
-              setStep("intent");
-              if (isGuest && id) {
-                router.push(`/reports/${id}`);
-                return;
-              }
-              router.push(isGuest ? "/reports" : "/my-reports");
-            }}
-          />
-          <SolidAction
-            title={t(language, "confirm.home")}
-            style="outline"
-            onClick={() => {
-              resetDraft();
-              setReferenceId(null);
-              setConfirmVerdict(null);
-              setStep("intent");
-            }}
-          />
-        </FadeIn>
-        <CitizenFooter language={language} />
-      </motion.div>
-    );
-  }
-
   if (step === "intent") {
-    const savedGuestId = isGuest ? latestGuestReportId() : null;
     return (
       <Stagger className="space-y-5">
         <FadeItem>
@@ -1216,7 +1094,9 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
                   return;
                 }
                 router.push(
-                  savedGuestId ? `/reports/${savedGuestId}` : "/reports",
+                  savedGuestId
+                    ? `/report-incident/received/${encodeURIComponent(savedGuestId)}`
+                    : "/reports",
                 );
               }}
             />
@@ -1225,9 +1105,17 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
 
         {savedGuestId ? (
           <FadeItem>
-            <p className="text-center font-mono text-[11px] text-[var(--muted)]">
+            <button
+              type="button"
+              className="mx-auto block max-w-full truncate text-center font-mono text-[11px] text-[var(--muted)] underline-offset-2 hover:underline"
+              onClick={() =>
+                router.push(
+                  `/report-incident/received/${encodeURIComponent(savedGuestId)}`,
+                )
+              }
+            >
               Last report · {savedGuestId}
-            </p>
+            </button>
           </FadeItem>
         ) : null}
 
@@ -1683,8 +1571,8 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
             {t(language, "review.title")}
           </h2>
 
-          <div className="space-y-3">
-            <div className="rounded-[14px] border border-[var(--border)] bg-[var(--surface)] p-3.5">
+          <div className="min-w-0 space-y-3">
+            <div className="min-w-0 rounded-[14px] border border-[var(--border)] bg-[var(--surface)] p-3.5">
               <div className="flex items-center justify-between">
                 <p className="font-semibold">
                   {t(language, "review.situation")}
@@ -1710,9 +1598,7 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
                 </p>
                 <p className="font-semibold">
                   {t(language, "review.verdict", {
-                    value:
-                      confirmVerdict?.replace("_", " ") ??
-                      t(language, "common.pending"),
+                    value: t(language, "common.pending"),
                   })}
                 </p>
                 <p>
@@ -1756,26 +1642,30 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
               ) : null}
             </div>
 
-            <div className="rounded-[14px] border border-[var(--border)] bg-[var(--surface)] p-3.5">
-              <div className="flex items-center justify-between">
+            <div className="min-w-0 rounded-[14px] border border-[var(--border)] bg-[var(--surface)] p-3.5">
+              <div className="flex items-center justify-between gap-2">
                 <p className="font-semibold">
                   {t(language, "review.attachments")}
                 </p>
                 <button
                   type="button"
-                  className="text-sm font-semibold"
+                  className="shrink-0 text-sm font-semibold"
                   onClick={() => setStep("situation")}
                 >
                   {t(language, "common.edit")}
                 </button>
               </div>
               {photos.map((p) => (
-                <p key={p.id} className="mt-1 text-sm">
+                <p
+                  key={p.id}
+                  className="mt-1 truncate text-sm"
+                  title={p.file.name}
+                >
                   {p.file.name}
                 </p>
               ))}
               {voiceNoteLabel ? (
-                <p className="mt-1 text-sm">{voiceNoteLabel}</p>
+                <p className="mt-1 truncate text-sm">{voiceNoteLabel}</p>
               ) : null}
               {voiceTranscribing ? (
                 <p className="mt-1 text-sm text-[var(--muted)]">

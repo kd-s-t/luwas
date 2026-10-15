@@ -1,3 +1,4 @@
+/** Device-local report reference ids (guest + signed-in). */
 const STORAGE_KEY = "luwas.guestReportIds";
 const MAX_IDS = 20;
 
@@ -19,7 +20,7 @@ function writeIds(ids: string[]) {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(ids.slice(0, MAX_IDS)));
 }
 
-/** Persist a guest report reference (newest first). */
+/** Persist a report reference on this device (newest first). */
 export function saveGuestReportId(reportId: string) {
   const id = reportId.trim();
   if (!id) return;
