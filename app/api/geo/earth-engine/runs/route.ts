@@ -10,6 +10,7 @@ import {
 } from "@/lib/geo/eeRunHistory";
 import type { EeRunJob } from "@/lib/geo/eeRunTypes";
 import { isEeRunBusy, runEarthEngineJob } from "@/lib/geo/eeRunJobs";
+import { mediaStorageBucket } from "@/lib/storage/gcsAdmin";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -29,13 +30,19 @@ export async function GET() {
     error = probe.error ?? null;
   }
 
+  const [activeFiles, runs] = await Promise.all([
+    listActiveEeCacheFiles(),
+    listEeRuns(),
+  ]);
+
   return NextResponse.json({
     ready,
     busy: isEeRunBusy(),
     projectId,
     error,
-    activeFiles: listActiveEeCacheFiles(),
-    runs: listEeRuns(),
+    storageBucket: mediaStorageBucket(),
+    activeFiles,
+    runs,
   });
 }
 

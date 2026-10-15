@@ -11,6 +11,8 @@ type ActiveFile = {
   name: string;
   bytes: number;
   mtime: string | null;
+  storagePath?: string;
+  bucket?: string;
 };
 
 type RunsResponse = {
@@ -18,19 +20,20 @@ type RunsResponse = {
   busy: boolean;
   projectId: string | null;
   error: string | null;
+  storageBucket?: string | null;
   activeFiles: ActiveFile[];
   runs: EeRunMeta[];
 };
 
 function formatBytes(n: number): string {
-  if (!n) return "—";
+  if (!n) return "-";
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function formatWhen(iso: string | null): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleString("en-PH", {
@@ -126,8 +129,9 @@ export function EarthEngineAdminPanel() {
           Earth Engine
         </h2>
         <p className="mt-1 max-w-2xl text-sm text-[var(--muted)]">
-          Manual Cebu DEM / hazard pull. Not automated — run when you need fresh
-          cache. Files are downloadable; each run is kept in history.
+          Manual Cebu DEM / hazard pull. Not automated. Run when you need a
+          fresh cache. Active files and run history live in Firebase Storage
+          ({data?.storageBucket || "ee-cache/"}).
         </p>
       </div>
 

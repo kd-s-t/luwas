@@ -12,6 +12,13 @@ import type {
   EeRunJob,
   EeRunMeta,
 } from "@/lib/geo/eeRunTypes";
+import {
+  gcsGetJson,
+  gcsGetObject,
+  gcsObjectMeta,
+  gcsPutJson,
+  mediaStorageBucket,
+} from "@/lib/storage/gcsAdmin";
 
 export type {
   EeRunFileMeta,
@@ -26,6 +33,14 @@ const ALLOWED_FILES = new Set([
   "cebu-ee-hazards.json",
   "meta.json",
 ]);
+
+const ACTIVE_NAMES = [
+  "cebu-ee-dem.json",
+  "nangka-ee-dem.json",
+  "cebu-ee-hazards.json",
+] as const;
+
+const EE_PREFIX = "ee-cache";
 
 export function eeDataRoot(): string {
   return join(process.cwd(), "data");
@@ -43,47 +58,85 @@ export function isAllowedEeFileName(name: string): boolean {
   return ALLOWED_FILES.has(name) && !name.includes("..") && !name.includes("/");
 }
 
+export function eeActiveObjectPath(fileName: string): string {
+  return `${EE_PREFIX}/active/${fileName}`;
+}
+
+export function eeRunObjectPath(runId: string, fileName: string): string {
+  return `${EE_PREFIX}/runs/${runId}/${fileName}`;
+}
+
+function eeIndexObjectPath(): string {
+  return `${EE_PREFIX}/runs/index.json`;
+}
+
+function useLocalDiskOnly(): boolean {
+  return process.env.NEXT_PUBLIC_USE_EMULATORS === "true";
+}
+
 function ensureRunsRoot() {
   const root = eeRunsRoot();
   if (!existsSync(root)) mkdirSync(root, { recursive: true });
   return root;
 }
 
-function indexPath(): string {
+function localIndexPath(): string {
   return join(eeRunsRoot(), "index.json");
 }
 
-function readIndex(): EeRunMeta[] {
-  const path = indexPath();
+function readLocalIndex(): EeRunMeta[] {
+  const path = localIndexPath();
   if (!existsSync(path)) return [];
   try {
     const raw = JSON.parse(readFileSync(path, "utf8")) as unknown;
     if (!Array.isArray(raw)) return [];
     return raw.filter(
       (row): row is EeRunMeta =>
-        Boolean(row && typeof row === "object" && typeof (row as EeRunMeta).id === "string"),
+        Boolean(
+          row &&
+            typeof row === "object" &&
+            typeof (row as EeRunMeta).id === "string",
+        ),
     );
   } catch {
     return [];
   }
 }
 
-function writeIndex(rows: EeRunMeta[]) {
+function writeLocalIndex(rows: EeRunMeta[]) {
   ensureRunsRoot();
-  writeFileSync(indexPath(), `${JSON.stringify(rows, null, 2)}\n`, "utf8");
+  writeFileSync(localIndexPath(), `${JSON.stringify(rows, null, 2)}\n`, "utf8");
 }
 
-/** Newest first. */
-export function listEeRuns(): EeRunMeta[] {
+function writeLocalFile(absPath: string, body: string) {
+  const dir = absPath.slice(0, absPath.lastIndexOf("/"));
+  if (dir && !existsSync(dir)) mkdirSync(dir, { recursive: true });
+  writeFileSync(absPath, body, "utf8");
+}
+
+/** Newest first. Prefers Firebase Storage index. */
+export async function listEeRuns(): Promise<EeRunMeta[]> {
+  if (!useLocalDiskOnly()) {
+    try {
+      const remote = await gcsGetJson<EeRunMeta[]>(eeIndexObjectPath());
+      if (Array.isArray(remote) && remote.length > 0) {
+        return [...remote].sort((a, b) =>
+          (b.startedAt || "").localeCompare(a.startedAt || ""),
+        );
+      }
+    } catch (err) {
+      console.warn("[ee] listEeRuns storage", err);
+    }
+  }
+
   ensureRunsRoot();
-  const fromIndex = readIndex();
+  const fromIndex = readLocalIndex();
   if (fromIndex.length > 0) {
     return [...fromIndex].sort((a, b) =>
       (b.startedAt || "").localeCompare(a.startedAt || ""),
     );
   }
 
-  // Rebuild from folders if index missing.
   const root = eeRunsRoot();
   const dirs = readdirSync(root).filter((name) => {
     try {
@@ -103,15 +156,28 @@ export function listEeRuns(): EeRunMeta[] {
     }
   }
   rebuilt.sort((a, b) => (b.startedAt || "").localeCompare(a.startedAt || ""));
-  if (rebuilt.length) writeIndex(rebuilt);
+  if (rebuilt.length) writeLocalIndex(rebuilt);
   return rebuilt;
 }
 
-export function getEeRun(runId: string): EeRunMeta | null {
+export async function getEeRun(runId: string): Promise<EeRunMeta | null> {
   if (!runId || runId.includes("..") || runId.includes("/")) return null;
+
+  if (!useLocalDiskOnly()) {
+    try {
+      const remote = await gcsGetJson<EeRunMeta>(
+        eeRunObjectPath(runId, "meta.json"),
+      );
+      if (remote?.id) return remote;
+    } catch (err) {
+      console.warn("[ee] getEeRun storage", err);
+    }
+  }
+
   const metaPath = join(eeRunDir(runId), "meta.json");
   if (!existsSync(metaPath)) {
-    return listEeRuns().find((r) => r.id === runId) ?? null;
+    const rows = await listEeRuns();
+    return rows.find((r) => r.id === runId) ?? null;
   }
   try {
     return JSON.parse(readFileSync(metaPath, "utf8")) as EeRunMeta;
@@ -120,10 +186,20 @@ export function getEeRun(runId: string): EeRunMeta | null {
   }
 }
 
-export function createEeRunStub(input: {
+async function persistIndex(rows: EeRunMeta[]) {
+  writeLocalIndex(rows);
+  if (useLocalDiskOnly()) return;
+  try {
+    await gcsPutJson(eeIndexObjectPath(), rows);
+  } catch (err) {
+    console.warn("[ee] persistIndex storage", err);
+  }
+}
+
+export async function createEeRunStub(input: {
   job: EeRunJob;
   triggeredBy?: string | null;
-}): EeRunMeta {
+}): Promise<EeRunMeta> {
   ensureRunsRoot();
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   const id = `${stamp}_${input.job}`;
@@ -141,14 +217,22 @@ export function createEeRunStub(input: {
     triggeredBy: input.triggeredBy ?? null,
     files: [],
   };
-  writeFileSync(join(dir, "meta.json"), `${JSON.stringify(meta, null, 2)}\n`, "utf8");
-  const rows = listEeRuns().filter((r) => r.id !== id);
+  const body = `${JSON.stringify(meta, null, 2)}\n`;
+  writeLocalFile(join(dir, "meta.json"), body);
+  if (!useLocalDiskOnly()) {
+    try {
+      await gcsPutJson(eeRunObjectPath(id, "meta.json"), meta);
+    } catch (err) {
+      console.warn("[ee] createEeRunStub storage", err);
+    }
+  }
+  const rows = (await listEeRuns()).filter((r) => r.id !== id);
   rows.unshift(meta);
-  writeIndex(rows);
+  await persistIndex(rows);
   return meta;
 }
 
-export function finalizeEeRun(
+export async function finalizeEeRun(
   runId: string,
   patch: Partial<
     Pick<
@@ -162,9 +246,8 @@ export function finalizeEeRun(
       | "counts"
     >
   >,
-): EeRunMeta {
-  const dir = eeRunDir(runId);
-  const prev = getEeRun(runId);
+): Promise<EeRunMeta> {
+  const prev = await getEeRun(runId);
   if (!prev) {
     throw new Error(`Unknown Earth Engine run: ${runId}`);
   }
@@ -173,34 +256,62 @@ export function finalizeEeRun(
     ...patch,
     finishedAt: patch.finishedAt ?? new Date().toISOString(),
   };
-  writeFileSync(join(dir, "meta.json"), `${JSON.stringify(next, null, 2)}\n`, "utf8");
-  const rows = listEeRuns().map((r) => (r.id === runId ? next : r));
-  writeIndex(rows);
+  const body = `${JSON.stringify(next, null, 2)}\n`;
+  writeLocalFile(join(eeRunDir(runId), "meta.json"), body);
+  if (!useLocalDiskOnly()) {
+    try {
+      await gcsPutJson(eeRunObjectPath(runId, "meta.json"), next);
+    } catch (err) {
+      console.warn("[ee] finalizeEeRun storage", err);
+    }
+  }
+  const rows = (await listEeRuns()).map((r) => (r.id === runId ? next : r));
+  await persistIndex(rows);
   return next;
 }
 
-export function writeEeRunFile(
+export async function writeEeRunFile(
   runId: string,
   fileName: string,
   json: unknown,
-): EeRunFileMeta {
+): Promise<EeRunFileMeta> {
   if (!isAllowedEeFileName(fileName) || fileName === "meta.json") {
     throw new Error(`Disallowed file: ${fileName}`);
   }
-  const dir = eeRunDir(runId);
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
   const body = `${JSON.stringify(json, null, 2)}\n`;
-  const path = join(dir, fileName);
-  writeFileSync(path, body, "utf8");
-  return { name: fileName, bytes: Buffer.byteLength(body, "utf8") };
+  const bytes = Buffer.byteLength(body, "utf8");
+  writeLocalFile(join(eeRunDir(runId), fileName), body);
+  if (!useLocalDiskOnly()) {
+    try {
+      await gcsPutJson(eeRunObjectPath(runId, fileName), json);
+    } catch (err) {
+      console.warn("[ee] writeEeRunFile storage", err);
+    }
+  }
+  return { name: fileName, bytes };
 }
 
-export function readEeRunFile(
+export async function readEeRunFile(
   runId: string,
   fileName: string,
-): { body: Buffer; contentType: string } | null {
+): Promise<{ body: Buffer; contentType: string } | null> {
   if (!runId || runId.includes("..") || runId.includes("/")) return null;
   if (!isAllowedEeFileName(fileName) || fileName === "meta.json") return null;
+
+  if (!useLocalDiskOnly()) {
+    try {
+      const remote = await gcsGetObject(eeRunObjectPath(runId, fileName));
+      if (remote) {
+        return {
+          body: remote.bytes,
+          contentType: "application/json; charset=utf-8",
+        };
+      }
+    } catch (err) {
+      console.warn("[ee] readEeRunFile storage", err);
+    }
+  }
+
   const path = join(eeRunDir(runId), fileName);
   if (!existsSync(path)) return null;
   return {
@@ -209,40 +320,98 @@ export function readEeRunFile(
   };
 }
 
-/** Live active cache files under `data/` (not a history run). */
-export function listActiveEeCacheFiles(): {
-  name: string;
-  bytes: number;
-  mtime: string | null;
-}[] {
-  const root = eeDataRoot();
-  const names = [
-    "cebu-ee-dem.json",
-    "nangka-ee-dem.json",
-    "cebu-ee-hazards.json",
-  ] as const;
-  return names.map((name) => {
-    const path = join(root, name);
+/** Live active cache: Firebase Storage `ee-cache/active/` (local fallback). */
+export async function listActiveEeCacheFiles(): Promise<
+  {
+    name: string;
+    bytes: number;
+    mtime: string | null;
+    storagePath?: string;
+    bucket?: string;
+  }[]
+> {
+  const bucket = mediaStorageBucket();
+  const out: {
+    name: string;
+    bytes: number;
+    mtime: string | null;
+    storagePath?: string;
+    bucket?: string;
+  }[] = [];
+
+  for (const name of ACTIVE_NAMES) {
+    const storagePath = eeActiveObjectPath(name);
+    if (!useLocalDiskOnly()) {
+      try {
+        const meta = await gcsObjectMeta(storagePath);
+        if (meta && meta.size > 0) {
+          out.push({
+            name,
+            bytes: meta.size,
+            mtime: meta.updated,
+            storagePath,
+            bucket,
+          });
+          continue;
+        }
+      } catch (err) {
+        console.warn("[ee] listActiveEeCacheFiles storage", err);
+      }
+    }
+    const path = join(eeDataRoot(), name);
     if (!existsSync(path)) {
-      return { name, bytes: 0, mtime: null };
+      out.push({ name, bytes: 0, mtime: null, storagePath, bucket });
+      continue;
     }
     const st = statSync(path);
-    return {
+    out.push({
       name,
       bytes: st.size,
       mtime: st.mtime.toISOString(),
-    };
-  });
+      storagePath,
+      bucket,
+    });
+  }
+  return out;
 }
 
-export function readActiveEeCacheFile(
+export async function readActiveEeCacheFile(
   fileName: string,
-): { body: Buffer; contentType: string } | null {
+): Promise<{ body: Buffer; contentType: string } | null> {
   if (!isAllowedEeFileName(fileName) || fileName === "meta.json") return null;
+
+  if (!useLocalDiskOnly()) {
+    try {
+      const remote = await gcsGetObject(eeActiveObjectPath(fileName));
+      if (remote) {
+        return {
+          body: remote.bytes,
+          contentType: "application/json; charset=utf-8",
+        };
+      }
+    } catch (err) {
+      console.warn("[ee] readActiveEeCacheFile storage", err);
+    }
+  }
+
   const path = join(eeDataRoot(), fileName);
   if (!existsSync(path)) return null;
   return {
     body: readFileSync(path),
     contentType: "application/json; charset=utf-8",
   };
+}
+
+/** Write active cache to Storage + local disk. */
+export async function writeActiveEeCacheFile(
+  fileName: string,
+  json: unknown,
+): Promise<void> {
+  if (!isAllowedEeFileName(fileName) || fileName === "meta.json") {
+    throw new Error(`Disallowed file: ${fileName}`);
+  }
+  const body = `${JSON.stringify(json, null, 2)}\n`;
+  writeLocalFile(join(eeDataRoot(), fileName), body);
+  if (useLocalDiskOnly()) return;
+  await gcsPutJson(eeActiveObjectPath(fileName), json);
 }

@@ -5,10 +5,10 @@ export const runtime = "nodejs";
 
 type Params = { params: Promise<{ fileName: string }> };
 
-/** Download the live active cache file under data/. */
+/** Download the live active EE cache (Firebase Storage, local fallback). */
 export async function GET(_req: Request, { params }: Params) {
   const { fileName } = await params;
-  const file = readActiveEeCacheFile(fileName);
+  const file = await readActiveEeCacheFile(fileName);
   if (!file) {
     return NextResponse.json({ error: "File not found" }, { status: 404 });
   }

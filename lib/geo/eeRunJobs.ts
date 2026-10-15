@@ -1,11 +1,10 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
 import { hazardsFromCebuDem } from "@/lib/geo/cebuEeHazards";
 import { distKm } from "@/lib/geo/bearing";
 import {
   createEeRunStub,
-  eeDataRoot,
   finalizeEeRun,
+  readActiveEeCacheFile,
+  writeActiveEeCacheFile,
   writeEeRunFile,
 } from "@/lib/geo/eeRunHistory";
 import type { EeRunJob, EeRunMeta } from "@/lib/geo/eeRunTypes";
@@ -32,16 +31,11 @@ function thinFires(fires: FireSample[], minKm: number): FireSample[] {
   return kept;
 }
 
-function writeActive(fileName: string, json: unknown) {
-  const path = join(eeDataRoot(), fileName);
-  writeFileSync(path, `${JSON.stringify(json, null, 2)}\n`, "utf8");
-}
-
 async function runDemJob(runId: string): Promise<{
   projectId: string;
   provider: string;
   counts: Record<string, number>;
-  files: ReturnType<typeof writeEeRunFile>[];
+  files: Awaited<ReturnType<typeof writeEeRunFile>>[];
 }> {
   const result = await sampleCebuDem();
   const nangkaSamples = filterNangkaSamples(result.samples);
@@ -58,12 +52,12 @@ async function runDemJob(runId: string): Promise<{
     samples: nangkaSamples,
   };
 
-  writeActive("cebu-ee-dem.json", result);
-  writeActive("nangka-ee-dem.json", nangka);
+  await writeActiveEeCacheFile("cebu-ee-dem.json", result);
+  await writeActiveEeCacheFile("nangka-ee-dem.json", nangka);
 
   const files = [
-    writeEeRunFile(runId, "cebu-ee-dem.json", result),
-    writeEeRunFile(runId, "nangka-ee-dem.json", nangka),
+    await writeEeRunFile(runId, "cebu-ee-dem.json", result),
+    await writeEeRunFile(runId, "nangka-ee-dem.json", nangka),
   ];
 
   return {
@@ -81,19 +75,19 @@ async function runHazardsJob(runId: string): Promise<{
   projectId: string | null;
   provider: string;
   counts: Record<string, number>;
-  files: ReturnType<typeof writeEeRunFile>[];
+  files: Awaited<ReturnType<typeof writeEeRunFile>>[];
 }> {
-  const demPath = join(eeDataRoot(), "cebu-ee-dem.json");
-  if (!existsSync(demPath)) {
-    throw new Error("Missing data/cebu-ee-dem.json — run DEM first.");
+  const demFile = await readActiveEeCacheFile("cebu-ee-dem.json");
+  if (!demFile) {
+    throw new Error("Missing cebu-ee-dem.json in Storage / data. Run DEM first.");
   }
-  const dem = JSON.parse(readFileSync(demPath, "utf8")) as {
+  const dem = JSON.parse(demFile.body.toString("utf8")) as {
     samples?: ElevSample[];
     projectId?: string;
     provider?: string;
   };
   if (!dem.samples?.length) {
-    throw new Error("cebu-ee-dem.json has no samples — run DEM first.");
+    throw new Error("cebu-ee-dem.json has no samples. Run DEM first.");
   }
 
   const { floods, landslides } = hazardsFromCebuDem(dem.samples);
@@ -128,8 +122,8 @@ async function runHazardsJob(runId: string): Promise<{
     fires,
   };
 
-  writeActive("cebu-ee-hazards.json", out);
-  const files = [writeEeRunFile(runId, "cebu-ee-hazards.json", out)];
+  await writeActiveEeCacheFile("cebu-ee-hazards.json", out);
+  const files = [await writeEeRunFile(runId, "cebu-ee-hazards.json", out)];
 
   return {
     projectId: out.projectId,
@@ -151,13 +145,13 @@ export async function runEarthEngineJob(input: {
     throw new Error("An Earth Engine run is already in progress.");
   }
   busy = true;
-  const stub = createEeRunStub({
+  const stub = await createEeRunStub({
     job: input.job,
     triggeredBy: input.triggeredBy,
   });
 
   try {
-    const files: ReturnType<typeof writeEeRunFile>[] = [];
+    const files: Awaited<ReturnType<typeof writeEeRunFile>>[] = [];
     let projectId: string | null = null;
     let provider: string | null = null;
     const counts: Record<string, number> = {};

@@ -17,7 +17,7 @@ Non-Google (Twilio, ElevenLabs, Open-Meteo, OSRM) is out of scope here.
 | **Vertex AI** | Photo class before Gemini (optional) | `VERTEX_PROJECT_ID`, `VERTEX_LOCATION`, `VERTEX_ENDPOINT_ID`, ADC/SA |
 | **Maps JavaScript** | Situation / command map tiles | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` |
 | **Maps Platform** | Weather (+ Elevation API as elev fallback) | `GOOGLE_WEATHER_API_KEY` |
-| **Earth Engine** | Offline SRTM DEM + Cebu hazard cache (flood / triage heights) | `EARTH_ENGINE_PROJECT_ID`, `GOOGLE_APPLICATION_CREDENTIALS` |
+| **Earth Engine** | SRTM DEM + Cebu hazard cache (admin pull → Firebase Storage `ee-cache/`) | `EARTH_ENGINE_PROJECT_ID`, ADC, `FIREBASE_STORAGE_BUCKET` |
 
 ## Earth Engine (offline)
 
