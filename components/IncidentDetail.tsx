@@ -19,6 +19,7 @@ const HallPinMap = dynamic(() => import("@/components/HallPinMap"), {
   ),
 });
 import { triggerAutoResponderCall } from "@/lib/alerts/autoResponderCall";
+import { triggerInvestigatorNotify } from "@/lib/alerts/notifyInvestigator";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import {
   isOfficer,
@@ -30,6 +31,8 @@ import {
   updateReportStatus,
   updateReportValidation,
 } from "@/lib/reports/api";
+import { APAS_STAFF_SEED } from "@/lib/staff/apasStaff";
+import { NANGKA_STAFF_SEED } from "@/lib/staff/nangkaStaff";
 import { reportInScope } from "@/lib/reports/barangayScope";
 import { syncHazardReportToBigQuery } from "@/lib/reports/bigquerySync";
 import {
@@ -123,6 +126,25 @@ export function IncidentDetail({ reportId }: IncidentDetailProps) {
         investigatorUid,
         investigatorName,
       });
+      if (investigatorUid && investigatorName) {
+        const officer = officers.find((o) => o.uid === investigatorUid);
+        const staff =
+          APAS_STAFF_SEED.find((s) => s.id === officer?.staffId) ||
+          NANGKA_STAFF_SEED.find((s) => s.id === officer?.staffId) ||
+          [...APAS_STAFF_SEED, ...NANGKA_STAFF_SEED].find(
+            (s) =>
+              s.displayName.toLowerCase() ===
+              investigatorName.trim().toLowerCase(),
+          );
+        void triggerInvestigatorNotify({
+          report: selected,
+          investigatorUid,
+          investigatorName,
+          phone: staff?.phone ?? null,
+          staffId: officer?.staffId ?? staff?.id ?? null,
+          email: officer?.email ?? staff?.email ?? null,
+        });
+      }
     } finally {
       setBusy(false);
     }

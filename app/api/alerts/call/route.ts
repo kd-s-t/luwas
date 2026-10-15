@@ -3,6 +3,7 @@ import type { AssistPriority } from "@/lib/ai/assistTypes";
 import {
   buildEvacCallScript,
   buildIncidentAlertCallScript,
+  buildInvestigatorAssignCallScript,
   buildResponderCallScript,
 } from "@/lib/alerts/callCopy";
 import { toE164Ph } from "@/lib/alerts/phones";
@@ -40,12 +41,13 @@ type Body = {
   kinds?: string[];
   reason?: string;
   /** Brief auto incident script (<1 min) after AI legit fire/crime/accident. */
-  script?: "default" | "fire_alert" | "incident_alert";
+  script?: "default" | "fire_alert" | "incident_alert" | "investigator_assign";
   alertLabel?: string | null;
   nearLat?: number | null;
   nearLng?: number | null;
   purok?: string | null;
   title?: string | null;
+  hazardHint?: string | null;
   recipients?: HouseholdRecipient[];
 };
 
@@ -247,14 +249,24 @@ async function postHouseholdCalls(body: Body) {
       continue;
     }
 
+    const say =
+      body.script === "investigator_assign"
+        ? buildInvestigatorAssignCallScript({
+            ownerName: r.ownerName ?? "Officer",
+            barangay: body.barangay,
+            title: body.title,
+            hazardHint: body.hazardHint,
+          })
+        : buildEvacCallScript({
+            ownerName: r.ownerName ?? "Resident",
+            purok: r.purok,
+            priority,
+            barangay: body.barangay,
+          });
+
     callPayloads.push({
       to: e164,
-      body: buildEvacCallScript({
-        ownerName: r.ownerName ?? "Resident",
-        purok: r.purok,
-        priority,
-        barangay: body.barangay,
-      }),
+      body: say,
       meta: {
         householdId: r.householdId,
         ownerName: r.ownerName,

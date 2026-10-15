@@ -87,6 +87,7 @@ function staffSyncPatch(s: StaffMemberInput) {
     idReason: "Apas staff seed",
     idSource: DEMO_ID_PROOF.idSource,
     idVerifiedAt: now,
+    phone: s.phone || "",
     photoURL:
       demoPortraitAbsoluteUrl({
         email: loginEmail(s),

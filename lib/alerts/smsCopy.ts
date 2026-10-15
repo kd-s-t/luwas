@@ -29,6 +29,25 @@ export function buildEvacSmsBody(input: {
   );
 }
 
+/** SMS when an investigator is assigned to a report. */
+export function buildInvestigatorAssignSmsBody(input: {
+  ownerName: string;
+  barangay?: string;
+  title?: string | null;
+  hazardHint?: string | null;
+  reportId?: string | null;
+}): string {
+  const brgy = input.barangay ?? "barangay";
+  const name = input.ownerName.trim() || "Officer";
+  const hazard = (input.hazardHint ?? "hazard").replace(/_/g, " ");
+  const title = (input.title ?? "citizen report").trim().slice(0, 50);
+  const ref = input.reportId?.trim() ? ` Ref ${input.reportId.trim()}.` : "";
+  return (
+    `LUWAS · ${brgy}: ${name}, you are ASSIGNED investigator for ${hazard}: ${title}.${ref} ` +
+    `Open Incidents in LUWAS. Tino simulation.`
+  );
+}
+
 /** Brief SMS for auto fire / crime / accident dispatch to responders. */
 export function buildIncidentAlertSmsBody(input: {
   alertLabel: string;

@@ -6,7 +6,10 @@ import {
 } from "@/lib/alerts/emailCopy";
 import { emailProviderStatus, sendEmailBatch } from "@/lib/alerts/sendEmail";
 import { toE164Ph } from "@/lib/alerts/phones";
-import { buildEvacSmsBody } from "@/lib/alerts/smsCopy";
+import {
+  buildEvacSmsBody,
+  buildInvestigatorAssignSmsBody,
+} from "@/lib/alerts/smsCopy";
 import { sendSmsBatch, smsProviderStatus } from "@/lib/alerts/sendSms";
 
 export const runtime = "nodejs";
@@ -14,6 +17,11 @@ export const runtime = "nodejs";
 type Body = {
   priority?: "evacuate" | "prepare" | "evacuate_and_prepare";
   barangay?: string;
+  /** When set, uses investigator-assign SMS copy instead of evac/prepare. */
+  kind?: "default" | "investigator_assign";
+  title?: string | null;
+  hazardHint?: string | null;
+  reportId?: string | null;
   recipients?: {
     householdId?: string;
     ownerName?: string;
@@ -83,9 +91,19 @@ export async function POST(req: Request) {
     }
 
     if (e164) {
+      const smsBody =
+        body.kind === "investigator_assign"
+          ? buildInvestigatorAssignSmsBody({
+              ownerName: r.ownerName ?? "Officer",
+              barangay: body.barangay,
+              title: body.title,
+              hazardHint: body.hazardHint,
+              reportId: body.reportId,
+            })
+          : buildEvacSmsBody(copy);
       smsPayloads.push({
         to: e164,
-        body: buildEvacSmsBody(copy),
+        body: smsBody,
         meta: {
           householdId: r.householdId,
           ownerName: r.ownerName,
