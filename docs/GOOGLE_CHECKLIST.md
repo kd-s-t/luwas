@@ -52,6 +52,9 @@ Non-Google (Twilio, ElevenLabs, Open-Meteo, OSRM) is out of scope here.
 - [ ] Dataset / table env set (`BIGQUERY_PROJECT_ID`, `BIGQUERY_DATASET`, `BIGQUERY_TABLE` or defaults)
 - [ ] ADC / SA can write BigQuery on `nice-pen-181017`
 - [ ] After verify / reject / needs_review, row lands in BQ (ops stay in Firestore)
+- [ ] `CRON_SECRET` + `FIREBASE_STORAGE_BUCKET` on runtime for monthly Vertex labels export
+- [ ] Cloud Scheduler (1st of month) → `POST https://luwasph.com/api/cron/vertex-ingest-export` (Bearer `CRON_SECRET`)
+- [ ] Check `gs://luwas-media-nice-pen-181017/luwas-vision-ingest/latest/labels.csv`
 
 ## Maps / Weather
 

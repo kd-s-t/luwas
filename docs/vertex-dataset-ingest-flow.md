@@ -30,6 +30,20 @@ flowchart LR
 |---|---|
 | First setup | Full dataset → train → deploy |
 | Officers labeled +50–100 / class | Append to GCS + CSV → re-import → retrain → new endpoint |
-| Live citizen submit | **Do not** auto-ingest; predict only |
+| Monthly schedule (1st, 02:00 Asia/Manila) | BigQuery → GCS `labels.csv` (paths already in bucket) |
+| Live citizen submit | **Do not** auto-ingest photos; predict only |
+
+### Scheduled BigQuery → GCS (labels index)
+
+After each verdict, rows land in BigQuery with `gcs_uri` + `label`. A monthly job exports:
+
+`gs://luwas-media-nice-pen-181017/luwas-vision-ingest/latest/labels.csv`  
+(also dated: `…/YYYY-MM-DD/labels.csv`)
+
+- Manual: `npm run bq:vertex-ingest`
+- HTTP: `POST /api/cron/vertex-ingest-export` with `Authorization: Bearer $CRON_SECRET`
+- Cloud Scheduler: monthly hit on that route (prod)
+
+Import that CSV into dataset **luwas-vision-v1** when you are ready to retrain. Photos are not re-copied; only the labeled index is refreshed.
 
 Live path stays: `queue → Vertex predict → Gemini → verdict`.

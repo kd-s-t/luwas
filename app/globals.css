@@ -18,6 +18,13 @@
   --input: #ffffff;
 }
 
+/* Admin / command workspace — blue accent (mocks); citizen stays red. */
+.command-workspace {
+  --accent: #1d4ed8;
+  --accent-dim: #1e40af;
+  --on-accent: #ffffff;
+}
+
 @theme inline {
   --color-background: var(--surface);
   --color-foreground: var(--foreground);
