@@ -53,6 +53,7 @@ Home area: Brgy. Nangka, Consolacion, Cebu. Other barangays can be added (e.g. B
 - Firebase for login, live data, and photo storage
 - App hosted at luwasph.com
 - Optional BigQuery copy of finished reports
+- Monthly BigQuery → GCS Vertex labels CSV (`luwas-vision-ingest/`)
 
 ---
 

@@ -45,9 +45,17 @@ export function CitizenHeader({
   }
 
   if (variant === "brand") {
+    const fullBleed = {
+      width: "100vw",
+      maxWidth: "100vw",
+      marginLeft: "calc(50% - 50vw)",
+    } as const;
     return (
-      <div className="-mx-4 space-y-0 sm:-mx-5">
-        <div className="flex items-center bg-[var(--danger)] px-4 py-3.5 sm:px-5">
+      <div className="space-y-0">
+        <div
+          style={fullBleed}
+          className="box-border flex items-center bg-[var(--danger)] px-4 py-3.5 sm:px-5"
+        >
           <Link
             href="/"
             className="inline-flex transition hover:opacity-90"
@@ -69,7 +77,10 @@ export function CitizenHeader({
           </a>
         </div>
         {onLanguageChange ? (
-          <div className="flex flex-wrap items-center gap-2 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 sm:px-5">
+          <div
+            style={fullBleed}
+            className="box-border flex flex-wrap items-center justify-end gap-2 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 sm:px-5"
+          >
             <Globe
               className="size-4 shrink-0 text-[#1d4ed8]"
               strokeWidth={2}
@@ -96,7 +107,7 @@ export function CitizenHeader({
           </div>
         ) : null}
         {showBack ? (
-          <div className="bg-[var(--surface)] px-4 pt-3 sm:px-5">
+          <div className="bg-[var(--surface)] px-0 pt-3">
             <button
               type="button"
               onClick={onBack}
@@ -220,25 +231,6 @@ export function Danger911Banner({
   );
 }
 
-const CITIZEN_APP_DOWNLOADS = [
-  {
-    name: "App Store",
-    label: "Download on the App Store",
-    src: "/brands/app-store.svg",
-    href: process.env.NEXT_PUBLIC_IOS_APP_URL?.trim() || undefined,
-    width: 120,
-    height: 40,
-  },
-  {
-    name: "Google Play",
-    label: "Get it on Google Play",
-    src: "/brands/google-play.svg",
-    href: process.env.NEXT_PUBLIC_ANDROID_APP_URL?.trim() || undefined,
-    width: 135,
-    height: 40,
-  },
-] as const;
-
 export function CitizenFooter({
   language,
   tight,
@@ -261,43 +253,6 @@ export function CitizenFooter({
       )}
     >
       <div className="mx-auto w-full max-w-md space-y-3 px-4 sm:px-5">
-        <ul className="flex flex-wrap items-center justify-center gap-2.5">
-          {CITIZEN_APP_DOWNLOADS.map(
-            ({ name, label, src, href, width, height }) => (
-              <li key={name}>
-                {href ? (
-                  <a
-                    href={href}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-block transition hover:opacity-90"
-                    aria-label={label}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={src}
-                      alt={label}
-                      width={width}
-                      height={height}
-                      className="h-9 w-auto"
-                    />
-                  </a>
-                ) : (
-                  <span className="inline-block opacity-80" aria-label={label}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={src}
-                      alt={label}
-                      width={width}
-                      height={height}
-                      className="h-9 w-auto"
-                    />
-                  </span>
-                )}
-              </li>
-            ),
-          )}
-        </ul>
         <p className="text-xs text-[var(--muted)]">
           {t(language, "footer.tagline")}
         </p>

@@ -284,7 +284,7 @@ function CommandShellInner({ children, fill = false }: CommandShellProps) {
   return (
     <div
       className={cn(
-        "flex bg-[#eef1f5]",
+        "command-workspace flex bg-[#eef1f5]",
         fill
           ? "h-dvh max-h-dvh min-h-dvh overflow-hidden"
           : "min-h-dvh",
