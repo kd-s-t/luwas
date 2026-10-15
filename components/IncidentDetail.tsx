@@ -26,8 +26,10 @@ import {
 } from "@/lib/auth/types";
 import {
   assignReportInvestigator,
+  subscribeHazardReportById,
   updateReportValidation,
 } from "@/lib/reports/api";
+import { reportInScope } from "@/lib/reports/barangayScope";
 import { syncHazardReportToBigQuery } from "@/lib/reports/bigquerySync";
 import {
   hazardHintLabel,
@@ -62,20 +64,37 @@ type IncidentDetailProps = {
 export function IncidentDetail({ reportId }: IncidentDetailProps) {
   const { profile } = useAuth();
   const {
+    reportScope,
     scopedReports,
     activeOfficers,
-    seedReady,
   } = useCommandWorkspace();
   const [busy, setBusy] = useState(false);
   const [activityOpen, setActivityOpen] = useState(true);
   const [plan, setPlan] = useState<PlanState>({ notes: "", recordedAt: null });
   const [planDraft, setPlanDraft] = useState("");
+  const [directReport, setDirectReport] = useState<HazardReport | null>(null);
+  const [directReady, setDirectReady] = useState(false);
 
-  const ready = seedReady;
   const scoped = scopedReports;
   const officers = activeOfficers;
 
-  const selected = scoped.find((r) => r.id === reportId) ?? null;
+  useEffect(() => {
+    setDirectReady(false);
+    setDirectReport(null);
+    return subscribeHazardReportById(reportId, (row) => {
+      setDirectReport(row);
+      setDirectReady(true);
+    });
+  }, [reportId]);
+
+  const fromList = useMemo(
+    () => scoped.find((r) => r.id === reportId) ?? null,
+    [scoped, reportId],
+  );
+  const candidate = fromList ?? directReport;
+  const selected =
+    candidate && reportInScope(candidate, reportScope) ? candidate : null;
+  const loading = !selected && !directReady;
 
   useEffect(() => {
     if (!selected) {
@@ -173,7 +192,7 @@ export function IncidentDetail({ reportId }: IncidentDetailProps) {
     });
   }
 
-  if (!ready) {
+  if (loading) {
     return <CommandContentSkeleton fill />;
   }
 
@@ -255,9 +274,6 @@ export function IncidentDetail({ reportId }: IncidentDetailProps) {
           <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-wide">
             Original report
           </h2>
-          <p className="mt-0.5 text-xs text-[var(--muted)]">
-            Citizen media and text as submitted — not yet an ops fact.
-          </p>
 
           <div className="mt-3 aspect-video overflow-hidden border border-[var(--border)] bg-[var(--surface-panel)]">
             {selected.mediaType === "photo" ? (

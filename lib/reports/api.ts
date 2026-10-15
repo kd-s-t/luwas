@@ -356,6 +356,25 @@ export async function getHazardReportById(
   return mapReport(snap.id, snap.data() as Record<string, unknown>);
 }
 
+/** Live single-report feed for admin incident detail (skip all-reports wait). */
+export function subscribeHazardReportById(
+  reportId: string,
+  onChange: (row: HazardReport | null) => void,
+): Unsubscribe {
+  const id = reportId.trim();
+  if (!id) {
+    onChange(null);
+    return () => {};
+  }
+  return onSnapshot(doc(getClientDb(), COL, id), (snap) => {
+    if (!snap.exists()) {
+      onChange(null);
+      return;
+    }
+    onChange(mapReport(snap.id, snap.data() as Record<string, unknown>));
+  });
+}
+
 /** Guest web report id — must match Firestore rules `LUW-YYMMDD-####`. */
 export function newGuestReportId(): string {
   const day = new Date().toISOString().slice(2, 10).replace(/-/g, "");
