@@ -1,8 +1,8 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
+import { validateHazardReport } from "@/lib/ai/validateHazardReport";
 import { upsertHazardReportToBigQuery } from "@/lib/bigquery/hazardReports";
-import { runLocalValidate } from "@/lib/reports/localValidate";
 import {
   DEFAULT_REPORT_BARANGAY,
   DEFAULT_REPORT_LGU,
@@ -204,61 +204,6 @@ export async function POST(req: Request) {
     typeof body.mediaMime === "string" && body.mediaMime.trim()
       ? body.mediaMime.trim()
       : "image/jpeg";
-  const local = runLocalValidate({
-    title,
-    notes,
-    hazardHint,
-    mediaType: "photo",
-    mediaMime: mediaMimeRaw,
-    fileName: photoNames[0] ?? `${source}-photo.jpg`,
-  });
-
-  let aiVerdict: "legit" | "rejected" | "needs_review" = local.verdict;
-  let aiConfidence = local.confidence;
-  const aiReason = body.aiReason?.trim() || local.reason;
-  const vertexClass =
-    typeof body.vertexClass === "string" && body.vertexClass.trim()
-      ? body.vertexClass.trim()
-      : null;
-  const vertexConfidence =
-    typeof body.vertexConfidence === "number"
-      ? Math.max(0, Math.min(1, body.vertexConfidence))
-      : null;
-
-  const rawVerdict = body.aiVerdict;
-  if (
-    rawVerdict === "legit" ||
-    rawVerdict === "rejected" ||
-    rawVerdict === "needs_review" ||
-    rawVerdict === "needsReview"
-  ) {
-    aiVerdict = rawVerdict === "needsReview" ? "needs_review" : rawVerdict;
-    if (typeof body.aiConfidence === "number") {
-      aiConfidence = Math.max(0, Math.min(1, body.aiConfidence));
-    }
-  }
-
-  // Officer QUEUE tab: queued | validating | needs_review | failed
-  const status: ReportStatus =
-    aiVerdict === "rejected"
-      ? "rejected"
-      : aiVerdict === "needs_review"
-        ? "needs_review"
-        : "queued";
-
-  const trust = computeReportTrust({
-    registered: false,
-    idVerified: false,
-    email: null,
-    phone: phone || null,
-    emailVerified: false,
-    mediaSource: "mobile-camera",
-    lat,
-    lng,
-    locationAccuracyM: body.approximateLocation ? 120 : 35,
-    aiConfidence,
-    aiVerdict,
-  });
 
   const now = new Date().toISOString();
   let mediaUrl = "";
@@ -363,6 +308,46 @@ export async function POST(req: Request) {
 
   const place = resolvedPlace;
 
+  // Prod: Gemini (photo bytes when present). Local rules only if Gemini fails / key missing.
+  const ai = await validateHazardReport({
+    title,
+    notes,
+    hazardHint,
+    mediaType: "photo",
+    mediaMime: mediaMime || mediaMimeRaw,
+    mediaBase64: rawB64 || undefined,
+    fileName: photoNames[0] ?? `${source}-photo.jpg`,
+  });
+  const aiVerdict = ai.verdict;
+  const aiConfidence = ai.confidence;
+  const aiReason = `[${source}] ${ai.reason}`;
+  const aiSource = ai.source;
+  const aiModel = ai.model ?? `${source}-${ai.source}`;
+  const vertexClass = ai.vertexClass;
+  const vertexConfidence = ai.vertexConfidence;
+
+  // Officer QUEUE tab: queued | validating | needs_review | failed
+  const status: ReportStatus =
+    aiVerdict === "rejected"
+      ? "rejected"
+      : aiVerdict === "needs_review"
+        ? "needs_review"
+        : "queued";
+
+  const trust = computeReportTrust({
+    registered: false,
+    idVerified: false,
+    email: null,
+    phone: phone || null,
+    emailVerified: false,
+    mediaSource: "mobile-camera",
+    lat,
+    lng,
+    locationAccuracyM: body.approximateLocation ? 120 : 35,
+    aiConfidence,
+    aiVerdict,
+  });
+
   const payload: Record<string, unknown> = {
     citizenUid,
     citizenName,
@@ -404,9 +389,9 @@ export async function POST(req: Request) {
     status,
     aiVerdict,
     aiConfidence,
-    aiReason: `[${source}] ${aiReason}`,
-    aiSource: "local",
-    aiModel: `${source}-local-rules`,
+    aiReason,
+    aiSource,
+    aiModel,
     vertexClass,
     vertexConfidence,
     validatedAt: now,
@@ -467,7 +452,7 @@ export async function POST(req: Request) {
     aiVerdict,
     aiConfidence,
     aiReason: String(payload.aiReason ?? ""),
-    aiSource: "local",
+    aiSource,
     aiModel: String(payload.aiModel ?? ""),
     vertexClass,
     vertexConfidence,
