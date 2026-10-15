@@ -45,17 +45,30 @@ export function hazardHintLabel(hint: ReportHazardHint): string {
 }
 
 /**
- * Queue-first statuses for high upload volume.
- * draft → queued → validating → legit | rejected | needs_review | failed
+ * Ops pipeline:
+ * queue → assigned → verified (legit) → dispatched → done
+ * Side paths: needs_review / validating / failed / rejected
  */
 export type ReportStatus =
   | "draft"
   | "queued"
   | "validating"
+  | "assigned"
   | "legit"
+  | "dispatched"
+  | "done"
   | "rejected"
   | "needs_review"
   | "failed";
+
+/** Happy-path pipeline after intake. */
+export const REPORT_PIPELINE: ReportStatus[] = [
+  "queued",
+  "assigned",
+  "legit",
+  "dispatched",
+  "done",
+];
 
 /** In-progress citizen wizard step persisted on draft reports. */
 export type ReportDraftStep = "situation" | "location" | "review";

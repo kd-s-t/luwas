@@ -686,19 +686,62 @@ export async function createHazardReport(input: {
   return id;
 }
 
+const QUEUE_FOR_ASSIGN = new Set<ReportStatus>([
+  "queued",
+  "validating",
+  "needs_review",
+  "failed",
+]);
+
 /** Assign (or clear) the officer who will investigate this incident. */
 export async function assignReportInvestigator(input: {
   reportId: string;
   investigatorUid: string | null;
   investigatorName: string | null;
+  /** When true (default), move queue → assigned on first assign. */
+  advanceStatus?: boolean;
 }): Promise<void> {
   const now = new Date().toISOString();
-  await updateDoc(doc(getClientDb(), COL, input.reportId), {
+  const ref = doc(getClientDb(), COL, input.reportId);
+  const patch: Record<string, unknown> = {
     investigatorUid: input.investigatorUid,
     investigatorName: input.investigatorName?.trim().slice(0, 120) || null,
     investigatedAt: input.investigatorUid ? now : null,
     updatedAt: now,
     updatedAtServer: serverTimestamp(),
+  };
+
+  if (input.advanceStatus !== false && input.investigatorUid) {
+    const snap = await getDoc(ref);
+    const cur = (snap.data()?.status as ReportStatus | undefined) ?? "queued";
+    if (QUEUE_FOR_ASSIGN.has(cur)) {
+      patch.status = "assigned";
+    }
+  }
+  if (!input.investigatorUid) {
+    const snap = await getDoc(ref);
+    const cur = (snap.data()?.status as ReportStatus | undefined) ?? null;
+    if (cur === "assigned") {
+      patch.status = "queued";
+    }
+  }
+
+  await updateDoc(ref, patch);
+}
+
+/** Advance ops pipeline: assigned → legit → dispatched → done (or set any allowed status). */
+export async function updateReportStatus(
+  reportId: string,
+  status: ReportStatus,
+): Promise<void> {
+  const now = new Date().toISOString();
+  await updateDoc(doc(getClientDb(), COL, reportId), {
+    status,
+    updatedAt: now,
+    updatedAtServer: serverTimestamp(),
+    ...(status === "legit" || status === "dispatched" || status === "done"
+      ? { validatedAt: now }
+      : {}),
   });
 }
 
