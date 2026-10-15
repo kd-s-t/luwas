@@ -19,6 +19,7 @@ import {
   resolveReportPlace,
 } from "@/lib/reports/barangayScope";
 import { mapDispatchLog } from "@/lib/reports/dispatchLog";
+import { resolveReportMediaUrl } from "@/lib/reports/mediaUrl";
 import { EMPTY_REACTION_COUNTS } from "@/lib/reports/socialTypes";
 import {
   computeReportTrust,
@@ -135,13 +136,16 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
     hazardHint: (data.hazardHint as ReportHazardHint) ?? "other",
     mediaType: (data.mediaType as ReportMediaType) ?? "photo",
     mediaPath: String(data.mediaPath ?? ""),
-    mediaUrl: String(data.mediaUrl ?? ""),
+    mediaUrl: resolveReportMediaUrl(String(data.mediaUrl ?? "")),
     mediaMime: String(data.mediaMime ?? ""),
     mediaSource,
     voiceNoteLabel:
       data.voiceNoteLabel != null ? String(data.voiceNoteLabel) : null,
     voicePath: data.voicePath != null ? String(data.voicePath) : null,
-    voiceUrl: data.voiceUrl != null ? String(data.voiceUrl) : null,
+    voiceUrl:
+      data.voiceUrl != null
+        ? resolveReportMediaUrl(String(data.voiceUrl))
+        : null,
     voiceMime: data.voiceMime != null ? String(data.voiceMime) : null,
     voiceTranscript:
       data.voiceTranscript != null ? String(data.voiceTranscript) : null,
