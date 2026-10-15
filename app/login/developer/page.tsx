@@ -3,14 +3,19 @@
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import {
+  createUserWithEmailAndPassword,
+  updateProfile,
+} from "firebase/auth";
+import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { AuthCard } from "@/components/AuthCard";
 import { AuthGate } from "@/components/AuthGate";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { doc, getDoc } from "firebase/firestore";
 import { getClientAuth, getClientDb } from "@/lib/firebase/client";
 
 const DEFAULT_EMAIL = "developer@luwas.demo";
 const DEFAULT_PASSWORD = "demo1234";
+const DISPLAY_NAME = "LUWAS Developer";
 
 export default function DeveloperLoginPage() {
   const { login } = useAuth();
@@ -20,12 +25,68 @@ export default function DeveloperLoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  async function ensureDeveloperProfile(uid: string, mail: string) {
+    const ref = doc(getClientDb(), "users", uid);
+    const snap = await getDoc(ref);
+    const now = new Date().toISOString();
+    if (snap.exists()) {
+      const role = (snap.data() as { role?: string }).role;
+      if (role === "developer") return;
+      throw new Error("This account is not a developer.");
+    }
+    await setDoc(ref, {
+      uid,
+      email: mail,
+      displayName: DISPLAY_NAME,
+      role: "developer",
+      accountStatus: "active",
+      orgName: "LUWAS Developers",
+      idVerified: true,
+      createdAt: now,
+      updatedAt: now,
+      updatedAtServer: serverTimestamp(),
+    });
+  }
+
+  async function ensureDeveloperAuth(mail: string, pass: string) {
+    try {
+      await login(mail, pass);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      const missing =
+        /user-not-found|invalid-credential|INVALID_LOGIN_CREDENTIALS/i.test(
+          message,
+        );
+      if (!missing) throw err;
+      try {
+        const cred = await createUserWithEmailAndPassword(
+          getClientAuth(),
+          mail,
+          pass,
+        );
+        await updateProfile(cred.user, { displayName: DISPLAY_NAME });
+      } catch (createErr) {
+        const createMsg =
+          createErr instanceof Error ? createErr.message : String(createErr);
+        if (/email-already-in-use/i.test(createMsg)) {
+          await login(mail, pass);
+        } else {
+          throw createErr;
+        }
+      }
+    }
+    const uid = getClientAuth().currentUser?.uid;
+    if (!uid) throw new Error("Sign-in failed.");
+    await ensureDeveloperProfile(uid, mail);
+  }
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
     setSubmitting(true);
     try {
-      await login(email.trim(), password);
+      const mail = email.trim().toLowerCase();
+      await ensureDeveloperAuth(mail, password);
       const uid = getClientAuth().currentUser?.uid;
       if (!uid) throw new Error("Sign-in failed.");
       const snap = await getDoc(doc(getClientDb(), "users", uid));
@@ -52,6 +113,10 @@ export default function DeveloperLoginPage() {
             <Link href="/login" className="text-[var(--accent)] hover:underline">
               Other logins
             </Link>
+            <span className="mt-2 block text-[11px] text-[var(--muted)]">
+              Demo · {DEFAULT_EMAIL} / {DEFAULT_PASSWORD} · auto-creates on
+              first sign-in
+            </span>
           </>
         }
       >
