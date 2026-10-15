@@ -25,7 +25,19 @@ const CHEVRONS = [
 ];
 const MARK_EVENODD = `${SHIELD}${CHEVRONS.map((d) => ` ${d}`).join("")}`;
 
-/** Shield + chevrons. Brand colors are hardcoded so local never inherits gray. */
+const isLocal = process.env.NEXT_PUBLIC_USE_EMULATORS === "true";
+
+function LocalGrayOverlay() {
+  if (!isLocal) return null;
+  return (
+    <span
+      aria-hidden
+      className="pointer-events-none absolute inset-0 rounded-[3px] bg-neutral-500/50 mix-blend-saturation"
+    />
+  );
+}
+
+/** Shield + chevrons. Local (emulators) gets a gray overlay. */
 export function BrandMark({
   className,
   size = 28,
@@ -43,25 +55,31 @@ export function BrandMark({
         : "#c72929";
 
   return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 512 512"
-      width={size}
-      height={size}
-      className={cn("shrink-0", className)}
-      aria-hidden
+    <span
+      className={cn("relative inline-flex shrink-0", className)}
+      style={{ width: size, height: size }}
     >
-      {tone === "inverse" ? (
-        <path fill={fill} fillRule="evenodd" d={MARK_EVENODD} />
-      ) : (
-        <>
-          <path fill={fill} d={SHIELD} />
-          {CHEVRONS.map((d) => (
-            <path key={d} fill="#ffffff" d={d} />
-          ))}
-        </>
-      )}
-    </svg>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 512 512"
+        width={size}
+        height={size}
+        className={cn("shrink-0", isLocal && "grayscale")}
+        aria-hidden
+      >
+        {tone === "inverse" ? (
+          <path fill={fill} fillRule="evenodd" d={MARK_EVENODD} />
+        ) : (
+          <>
+            <path fill={fill} d={SHIELD} />
+            {CHEVRONS.map((d) => (
+              <path key={d} fill="#ffffff" d={d} />
+            ))}
+          </>
+        )}
+      </svg>
+      <LocalGrayOverlay />
+    </span>
   );
 }
 
@@ -84,6 +102,7 @@ export function BrandLogo({
               : tone === "blue"
                 ? "text-[#1d4ed8]"
                 : "text-[var(--foreground)]",
+            isLocal && "text-neutral-500",
             wordmarkClassName,
           )}
         >
@@ -103,23 +122,30 @@ export function BrandLogoOnDark({
 }: Omit<BrandLogoProps, "tone">) {
   return (
     <span className={cn("inline-flex items-center gap-2", className)}>
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 512 512"
-        width={size}
-        height={size}
-        className="shrink-0"
-        aria-hidden
+      <span
+        className="relative inline-flex shrink-0"
+        style={{ width: size, height: size }}
       >
-        <path fill={BLUE_ON_DARK} d={SHIELD} />
-        {CHEVRONS.map((d) => (
-          <path key={d} fill="#0f1b2d" d={d} />
-        ))}
-      </svg>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 512 512"
+          width={size}
+          height={size}
+          className={cn("shrink-0", isLocal && "grayscale")}
+          aria-hidden
+        >
+          <path fill={BLUE_ON_DARK} d={SHIELD} />
+          {CHEVRONS.map((d) => (
+            <path key={d} fill="#0f1b2d" d={d} />
+          ))}
+        </svg>
+        <LocalGrayOverlay />
+      </span>
       {wordmark ? (
         <span
           className={cn(
             "font-[family-name:var(--font-display)] font-semibold tracking-[0.08em] text-white",
+            isLocal && "text-neutral-400",
             wordmarkClassName,
           )}
         >
