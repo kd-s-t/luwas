@@ -346,20 +346,24 @@ export function IncidentDetail({
             Original report
           </h2>
 
-          <div className="mt-3 aspect-video overflow-hidden border border-[var(--border)] bg-[var(--surface-panel)]">
-            {selected.mediaType === "photo" ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={selected.mediaUrl}
-                alt=""
-                className="size-full object-cover"
-              />
+          <div className="mt-3 flex aspect-video items-center justify-center overflow-hidden border border-[var(--border)] bg-[var(--surface-panel)]">
+            {selected.mediaUrl?.trim() ? (
+              selected.mediaType === "photo" ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={selected.mediaUrl}
+                  alt=""
+                  className="size-full object-cover"
+                />
+              ) : (
+                <video
+                  src={selected.mediaUrl}
+                  className="size-full object-cover"
+                  controls
+                />
+              )
             ) : (
-              <video
-                src={selected.mediaUrl}
-                className="size-full object-cover"
-                controls
-              />
+              <p className="text-sm font-medium text-[var(--muted)]">No image</p>
             )}
           </div>
 

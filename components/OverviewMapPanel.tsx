@@ -109,20 +109,25 @@ export function OverviewMapPanel({ items, fill = false }: OverviewMapPanelProps)
           : "overflow-hidden rounded-2xl border border-[var(--border)] bg-white shadow-sm"
       }
     >
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-3 sm:px-5">
-        <div className="flex min-w-0 flex-wrap items-center gap-2.5">
-          <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-wide text-[var(--foreground)]">
-            Situation map
-          </h2>
-          {simulationOn ? (
-            <ScenarioSwitcher phase={phase} onChange={setPhase} />
-          ) : null}
+      <div className="flex shrink-0 flex-wrap items-start justify-between gap-2 border-b border-[var(--border)] px-4 py-3 sm:px-5">
+        <div className="min-w-0">
+          <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+            <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-wide text-[var(--foreground)]">
+              Situation map
+            </h2>
+            {simulationOn ? (
+              <ScenarioSwitcher phase={phase} onChange={setPhase} />
+            ) : null}
+          </div>
+          <p className="mt-0.5 text-[12px] text-[var(--muted)]">
+            View incident locations and resource needs
+          </p>
         </div>
         <Link
           href="/admin/full"
           target="_blank"
           rel="noreferrer"
-          className="text-sm font-medium text-[#2f5f9e] transition hover:underline"
+          className="shrink-0 text-sm font-medium text-[#2f5f9e] transition hover:underline"
         >
           Open full map →
         </Link>
