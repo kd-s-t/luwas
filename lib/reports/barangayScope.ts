@@ -1,7 +1,7 @@
 import { isOfficer, type UserProfile } from "@/lib/auth/types";
 import { distKm } from "@/lib/geo/bearing";
 import { CEBU_AREA, isNearOpsArea, type LatLng } from "@/lib/geo/cebu";
-import { DEFAULT_MAP_AREA } from "@/lib/geo/mapAreas";
+import { DEFAULT_MAP_AREA, nearestKnownMapArea } from "@/lib/geo/mapAreas";
 import type { HazardReport } from "@/lib/reports/types";
 
 export const DEFAULT_REPORT_BARANGAY = "Nangka";
@@ -11,11 +11,26 @@ export type ReportScope =
   | { mode: "barangay"; barangay: string; lgu: string }
   | { mode: "lgu"; lgu: string };
 
-/** Resolve barangay/LGU from stored fields or Nangka ops heuristics. */
+/** Place from GPS via nearest curated hall (Apas, Nangka, …). */
+export function placeFromCoords(
+  lat: number | null | undefined,
+  lng: number | null | undefined,
+  maxKm = 3,
+): { barangay: string; lgu: string } | null {
+  if (lat == null || lng == null) return null;
+  const near = nearestKnownMapArea(lat, lng, maxKm);
+  if (!near) return null;
+  return { barangay: near.barangay, lgu: near.lgu };
+}
+
+/** Resolve barangay/LGU: GPS nearest hall wins, then stored fields, then Nangka. */
 export function resolveReportPlace(report: Pick<
   HazardReport,
   "barangay" | "lgu" | "lat" | "lng" | "citizenPurok"
 >): { barangay: string; lgu: string } {
+  const fromGps = placeFromCoords(report.lat, report.lng);
+  if (fromGps) return fromGps;
+
   const barangay = report.barangay?.trim();
   const lgu = report.lgu?.trim();
   if (barangay) {
@@ -46,10 +61,13 @@ export function resolveReportPlace(report: Pick<
   };
 }
 
-/**
- * Officer org → which reports they see.
- * "Brgy. Nangka …" → Nangka only; "Consolacion MDRRMO" → whole LGU.
- */
+/** Org suffix that is a title, not an LGU name. */
+function isOrgTitleNotLgu(value: string): boolean {
+  return /^(punong|captain|kagawad|secretary|treasurer|mdrrmo|drrm|focal|officer)\b/i.test(
+    value.trim(),
+  );
+}
+
 export function officerReportScope(
   orgName: string,
   profileLgu?: string | null,
@@ -59,11 +77,13 @@ export function officerReportScope(
     /\b(?:brgy\.?|barangay)\s+([A-Za-z0-9][\w\s'-]*?)(?:\s*[·|,]|\s+MDRRMO|\s+DRRM|\s*$)/i,
   );
   if (brgy?.[1]) {
-    const fromOrg = raw.split(/[·|,]/)[1]?.trim();
+    const fromOrg = raw.split(/[·|,]/)[1]?.trim() || "";
+    const fromOrgLgu =
+      fromOrg && !/^mdrrmo/i.test(fromOrg) && !isOrgTitleNotLgu(fromOrg)
+        ? fromOrg
+        : "";
     const lgu =
-      profileLgu?.trim() ||
-      (fromOrg && !/^mdrrmo/i.test(fromOrg) ? fromOrg : "") ||
-      DEFAULT_REPORT_LGU;
+      profileLgu?.trim() || fromOrgLgu || DEFAULT_REPORT_LGU;
     return {
       mode: "barangay",
       barangay: brgy[1].trim(),
@@ -83,6 +103,11 @@ export function officerReportScope(
 
 export function scopeForProfile(profile: UserProfile | null): ReportScope {
   if (isOfficer(profile)) {
+    const barangay = profile.barangay?.trim();
+    const lgu = profile.lgu?.trim();
+    if (barangay && lgu) {
+      return { mode: "barangay", barangay, lgu };
+    }
     return officerReportScope(profile.orgName, profile.lgu);
   }
   return {

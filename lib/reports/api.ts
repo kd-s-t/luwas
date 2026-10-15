@@ -15,6 +15,7 @@ import { getClientDb } from "@/lib/firebase/client";
 import {
   DEFAULT_REPORT_BARANGAY,
   DEFAULT_REPORT_LGU,
+  placeFromCoords,
   resolveReportPlace,
 } from "@/lib/reports/barangayScope";
 import { mapDispatchLog } from "@/lib/reports/dispatchLog";
@@ -405,12 +406,17 @@ export async function createGuestHazardReport(input: {
     aiConfidence,
     aiVerdict,
   });
+  const place =
+    placeFromCoords(input.lat, input.lng) ?? {
+      barangay: DEFAULT_REPORT_BARANGAY,
+      lgu: DEFAULT_REPORT_LGU,
+    };
   await setDoc(doc(getClientDb(), COL, id), {
     citizenUid: GUEST_UID,
     citizenName: "Guest",
     citizenPurok: "Demo · no login",
-    barangay: DEFAULT_REPORT_BARANGAY,
-    lgu: DEFAULT_REPORT_LGU,
+    barangay: place.barangay,
+    lgu: place.lgu,
     citizenPhotoURL: null,
     title: input.title,
     notes: input.notes,
@@ -599,10 +605,15 @@ export async function createHazardReport(input: {
     aiConfidence: null,
     aiVerdict: null,
   });
+  const place =
+    placeFromCoords(input.lat, input.lng) ?? {
+      barangay: input.barangay?.trim() || DEFAULT_REPORT_BARANGAY,
+      lgu: input.lgu?.trim() || DEFAULT_REPORT_LGU,
+    };
   await setDoc(doc(getClientDb(), COL, id), {
     ...fields,
-    barangay: input.barangay?.trim() || DEFAULT_REPORT_BARANGAY,
-    lgu: input.lgu?.trim() || DEFAULT_REPORT_LGU,
+    barangay: place.barangay,
+    lgu: place.lgu,
     citizenPhotoURL: input.citizenPhotoURL ?? null,
     mediaSource: input.mediaSource ?? null,
     voiceNoteLabel: input.voiceNoteLabel?.trim() || null,

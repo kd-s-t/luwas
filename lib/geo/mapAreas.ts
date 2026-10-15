@@ -1,3 +1,4 @@
+import { distKm } from "@/lib/geo/bearing";
 import { CEBU_AREA } from "@/lib/geo/cebu";
 import { CEBU_BARANGAY_INDEX, slugify } from "@/lib/geo/cebuBarangays";
 
@@ -151,6 +152,32 @@ export function resolveMapArea(
     };
   }
   return resolveKnownMapArea(option);
+}
+
+/**
+ * Nearest curated hall pin within `maxKm` (guest report place for officer scope).
+ */
+export function nearestKnownMapArea(
+  lat: number,
+  lng: number,
+  maxKm = 3,
+): MapArea | null {
+  let best: MapArea | null = null;
+  let bestKm = maxKm;
+  for (const option of listMapAreaOptions()) {
+    const known = KNOWN_CENTERS[option.id];
+    if (!known) continue;
+    const km = distKm({ lat, lng }, { lat: known.lat, lng: known.lng });
+    if (km <= bestKm) {
+      bestKm = km;
+      best = {
+        ...option,
+        center: { lat: known.lat, lng: known.lng },
+        zoom: known.zoom ?? 15,
+      };
+    }
+  }
+  return best;
 }
 
 export function filterMapAreaOptions(

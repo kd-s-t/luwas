@@ -42,7 +42,8 @@ import {
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { sanitizeGuestReporterPhone } from "@/lib/auth/demoAccount";
 import { isCitizen, isOfficer, type UserProfile } from "@/lib/auth/types";
-import { t, type CitizenLang } from "@/lib/citizen/i18n";
+import { t } from "@/lib/citizen/i18n";
+import { useCitizenLanguage } from "@/lib/citizen/languagePreference";
 import { getClientAuth } from "@/lib/firebase/client";
 import {
   captureReportMeta,
@@ -62,6 +63,7 @@ import { triggerAutoResponderCall } from "@/lib/alerts/autoResponderCall";
 import {
   DEFAULT_REPORT_BARANGAY,
   DEFAULT_REPORT_LGU,
+  placeFromCoords,
 } from "@/lib/reports/barangayScope";
 import { syncHazardReportToBigQuery } from "@/lib/reports/bigquerySync";
 import {
@@ -231,7 +233,7 @@ export function CitizenReportForm({
   const { logout } = useAuth();
   const motionSafe = useMotionSafe();
   const isGuest = !author;
-  const [language, setLanguage] = useState<CitizenLang>("en");
+  const [language, setLanguage] = useCitizenLanguage();
   const [draftId, setDraftId] = useState<string | null>(draft?.id ?? null);
   const [step, setStep] = useState<Step>(() => {
     if (editMode && draft) return "situation";
@@ -769,6 +771,12 @@ export function CitizenReportForm({
   }
 
   function validateSituation(): boolean {
+    const hasPhoto =
+      photos.length > 0 || Boolean(editMode && existingMediaUrl);
+    if (!hasPhoto) {
+      setError(t(language, "errors.photoRequired"));
+      return false;
+    }
     setError(null);
     return true;
   }
@@ -837,13 +845,9 @@ export function CitizenReportForm({
       mediaMime: string;
     };
     if (file) {
-      uploaded =
-        (await uploadGuestFile("photo", file)) ??
-        ({
-          mediaPath: "/reports/flood-road-chapel.png",
-          mediaUrl: "/reports/flood-road-chapel.png",
-          mediaMime: "image/png",
-        } as const);
+      const up = await uploadGuestFile("photo", file);
+      if (!up) throw new Error(t(language, "errors.photoRequired"));
+      uploaded = up;
     } else if (existingMediaUrl && existingMediaPath) {
       uploaded = {
         mediaPath: existingMediaPath,
@@ -851,11 +855,7 @@ export function CitizenReportForm({
         mediaMime: existingMediaMime || "image/jpeg",
       };
     } else {
-      uploaded = {
-        mediaPath: "/reports/flood-road-chapel.png",
-        mediaUrl: "/reports/flood-road-chapel.png",
-        mediaMime: "image/png",
-      };
+      throw new Error(t(language, "errors.photoRequired"));
     }
 
     let voicePath: string | null = draft?.voicePath ?? null;
@@ -986,14 +986,9 @@ export function CitizenReportForm({
     setStatus(t(language, "common.saving"));
 
     try {
-      let file: File | null = photos[0]?.file ?? null;
+      const file: File | null = photos[0]?.file ?? null;
       if (!file && !(editMode && existingMediaUrl)) {
-        const res = await fetch("/reports/flood-road-chapel.png");
-        if (!res.ok) throw new Error(t(language, "errors.photoRequired"));
-        const blob = await res.blob();
-        file = new File([blob], "scene.png", {
-          type: blob.type || "image/png",
-        });
+        throw new Error(t(language, "errors.photoRequired"));
       }
 
       if (isGuest || !author) {
@@ -1043,14 +1038,19 @@ export function CitizenReportForm({
       const emailVerified = Boolean(
         getClientAuth().currentUser?.emailVerified || author.idVerified,
       );
+      const place =
+        placeFromCoords(lat, lng) ?? {
+          barangay: DEFAULT_REPORT_BARANGAY,
+          lgu: DEFAULT_REPORT_LGU,
+        };
 
       const id = await createHazardReport({
         id: reportId,
         citizenUid: author.uid,
         citizenName: author.displayName,
         citizenPurok: authorPlace(author),
-        barangay: DEFAULT_REPORT_BARANGAY,
-        lgu: DEFAULT_REPORT_LGU,
+        barangay: place.barangay,
+        lgu: place.lgu,
         citizenPhotoURL: author.photoURL ?? null,
         title,
         notes,
@@ -1145,8 +1145,8 @@ export function CitizenReportForm({
         citizenUid: author.uid,
         citizenName: author.displayName || "Citizen",
         citizenPurok: authorPlace(author),
-        barangay: DEFAULT_REPORT_BARANGAY,
-        lgu: DEFAULT_REPORT_LGU,
+        barangay: place.barangay,
+        lgu: place.lgu,
         title,
         notes,
         hazardHint,
@@ -1175,8 +1175,8 @@ export function CitizenReportForm({
           id,
           hazardHint,
           status: "legit",
-          barangay: DEFAULT_REPORT_BARANGAY,
-          lgu: DEFAULT_REPORT_LGU,
+          barangay: place.barangay,
+          lgu: place.lgu,
           lat,
           lng,
           title,

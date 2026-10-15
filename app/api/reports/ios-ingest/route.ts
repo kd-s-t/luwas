@@ -6,6 +6,7 @@ import { runLocalValidate } from "@/lib/reports/localValidate";
 import {
   DEFAULT_REPORT_BARANGAY,
   DEFAULT_REPORT_LGU,
+  placeFromCoords,
 } from "@/lib/reports/barangayScope";
 import {
   firestoreEmulatorHost,
@@ -13,6 +14,7 @@ import {
   uploadGuestMediaBytes,
 } from "@/lib/reports/serverGuestWrite";
 import { EMPTY_REACTION_COUNTS } from "@/lib/reports/socialTypes";
+import { sanitizeGuestReporterPhone } from "@/lib/auth/demoAccount";
 import { computeReportTrust } from "@/lib/reports/trustScore";
 import type {
   HazardReport,
@@ -155,16 +157,23 @@ export async function POST(req: Request) {
         return `LUW-${day}-${suffix}`;
       })();
 
+  const lat = typeof body.latitude === "number" ? body.latitude : null;
+  const lng = typeof body.longitude === "number" ? body.longitude : null;
+  const resolvedPlace =
+    placeFromCoords(lat, lng) ?? {
+      barangay: DEFAULT_REPORT_BARANGAY,
+      lgu: DEFAULT_REPORT_LGU,
+    };
   const placeLabel =
     typeof body.placeLabel === "string" && body.placeLabel.trim()
       ? body.placeLabel.trim()
-      : `Brgy. ${DEFAULT_REPORT_BARANGAY}, ${DEFAULT_REPORT_LGU}`;
+      : `Brgy. ${resolvedPlace.barangay}, ${resolvedPlace.lgu}`;
   const landmark =
     typeof body.landmark === "string" ? body.landmark.trim() : "";
-  const lat = typeof body.latitude === "number" ? body.latitude : null;
-  const lng = typeof body.longitude === "number" ? body.longitude : null;
   const phone =
-    typeof body.mobileNumber === "string" ? body.mobileNumber.trim() : "";
+    sanitizeGuestReporterPhone(
+      typeof body.mobileNumber === "string" ? body.mobileNumber.trim() : "",
+    ) ?? "";
   const photoNames = Array.isArray(body.photoNames)
     ? body.photoNames.map(String).filter(Boolean)
     : [];
@@ -387,12 +396,14 @@ export async function POST(req: Request) {
     }
   }
 
+  const place = resolvedPlace;
+
   const payload: Record<string, unknown> = {
     citizenUid,
     citizenName,
     citizenPurok,
-    barangay: DEFAULT_REPORT_BARANGAY,
-    lgu: DEFAULT_REPORT_LGU,
+    barangay: place.barangay,
+    lgu: place.lgu,
     citizenPhotoURL: null,
     title,
     notes,
@@ -465,8 +476,8 @@ export async function POST(req: Request) {
     citizenUid: String(payload.citizenUid ?? ""),
     citizenName: String(payload.citizenName ?? ""),
     citizenPurok: String(payload.citizenPurok ?? ""),
-    barangay: DEFAULT_REPORT_BARANGAY,
-    lgu: DEFAULT_REPORT_LGU,
+    barangay: place.barangay,
+    lgu: place.lgu,
     citizenPhotoURL: null,
     title,
     notes,
