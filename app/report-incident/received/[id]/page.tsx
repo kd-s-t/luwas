@@ -1,6 +1,7 @@
 "use client";
 
 import { use } from "react";
+import Link from "next/link";
 import { ReportReceived } from "@/components/ReportReceived";
 import { PublicShell } from "@/components/PublicShell";
 import { useAuth } from "@/lib/auth/AuthProvider";
@@ -26,12 +27,12 @@ export default function ReportReceivedPage({ params }: PageProps) {
         <div className="min-h-screen bg-[var(--surface-raised)]">
           <main className="mx-auto max-w-md px-4 pt-10 pb-10 text-center sm:px-5">
             <p className="text-sm text-[var(--muted)]">Missing reference.</p>
-            <a
+            <Link
               href="/report-incident"
               className="mt-4 inline-block text-sm font-semibold text-[var(--foreground)]"
             >
               Back to report
-            </a>
+            </Link>
           </main>
         </div>
       </PublicShell>
