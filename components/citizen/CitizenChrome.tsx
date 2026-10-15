@@ -257,9 +257,6 @@ export function CitizenFooter({
           {t(language, "footer.tagline")}
         </p>
         <div className="flex items-center justify-center gap-4 text-[11px] font-medium text-[#2563eb]">
-          <Link href="/support" className="hover:underline">
-            Support
-          </Link>
           <Link href="/privacy" className="hover:underline">
             {t(language, "footer.privacy")}
           </Link>

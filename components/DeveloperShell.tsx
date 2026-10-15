@@ -18,6 +18,8 @@ const NAV: { href: string; label: string; exact?: boolean }[] = [
   { href: "/dev/support", label: "Support" },
   { href: "/dev/roles", label: "Roles" },
   { href: "/dev/earth-engine", label: "Earth Engine" },
+  { href: "/dev/references", label: "References" },
+  { href: "/dev/profile", label: "Profile" },
 ];
 
 export function DeveloperShell({
@@ -110,15 +112,24 @@ export function DeveloperShell({
 
       <div className="mt-auto shrink-0 border-t border-white/10 px-3 py-3">
         <div className="flex items-center gap-2.5 rounded-lg px-2 py-2">
-          <ProfileAvatar name={displayName} size="sm" />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-white">
-              {displayName}
-            </p>
-            <p className="truncate text-[11px] text-white/45">
-              {profile?.email ?? "Developer"}
-            </p>
-          </div>
+          <Link
+            href="/dev/profile"
+            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-md transition hover:bg-white/8"
+          >
+            <ProfileAvatar
+              name={displayName}
+              photoURL={isDeveloper(profile) ? profile.photoURL : null}
+              size="sm"
+            />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-white">
+                {displayName}
+              </p>
+              <p className="truncate text-[11px] text-white/45">
+                {profile?.email ?? "Developer"}
+              </p>
+            </div>
+          </Link>
           <button
             type="button"
             onClick={() => void onLogout()}

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { officerScopeBarangay } from "@/lib/auth/accountValidation";
@@ -269,15 +268,6 @@ export function CommandBarangaySwitcher({
                 ))}
               </ul>
             )}
-            <div className="shrink-0 border-t border-[var(--border)] bg-[var(--surface)]">
-              <Link
-                href="/admin/onboard"
-                onClick={() => setOpen(false)}
-                className="block px-3 py-2 font-mono text-[10px] tracking-wider text-[var(--accent)] uppercase hover:bg-[var(--surface-panel)]/60"
-              >
-                + Add barangay
-              </Link>
-            </div>
           </div>
         </>
       ) : null}
