@@ -5,10 +5,15 @@ function projectId(): string {
   return process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim() || "demo-dro";
 }
 
+/**
+ * Server uploads must use a runtime env (not NEXT_PUBLIC_*), because Next
+ * inlines NEXT_PUBLIC_* at build time and Cloud Run env updates would be ignored.
+ */
 function storageBucket(): string {
   return (
+    process.env.FIREBASE_STORAGE_BUCKET?.trim() ||
     process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim() ||
-    `${projectId()}.appspot.com`
+    "luwas-media-nice-pen-181017"
   );
 }
 
