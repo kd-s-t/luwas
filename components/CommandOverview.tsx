@@ -134,11 +134,11 @@ export function CommandOverview() {
   const orgHint = isOfficer(profile) ? profile.orgName : null;
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-      <FadeIn y={8}>
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden px-4 py-4 sm:px-6 sm:py-5 lg:px-8">
+      <FadeIn y={8} className="shrink-0">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-wide text-[var(--foreground)] sm:text-[2.15rem]">
+            <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-wide text-[var(--foreground)] sm:text-[2rem]">
               What needs attention?
             </h1>
             <p className="mt-1 text-sm text-[var(--muted)]">
@@ -166,7 +166,7 @@ export function CommandOverview() {
         </div>
       </FadeIn>
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-3">
+      <div className="mt-4 grid shrink-0 gap-3 sm:grid-cols-3">
         {(
           [
             {
@@ -190,10 +190,10 @@ export function CommandOverview() {
           ] as const
         ).map((card, i) => (
           <FadeIn key={card.label} delay={0.04 + i * 0.04} y={8}>
-            <div className="flex items-center justify-between rounded-2xl border border-[var(--border)] bg-white px-4 py-4 shadow-sm">
+            <div className="flex items-center justify-between rounded-2xl border border-[var(--border)] bg-white px-4 py-3.5 shadow-sm">
               <div>
                 <p className="text-sm text-[var(--muted)]">{card.label}</p>
-                <p className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tabular-nums tracking-wide">
+                <p className="mt-0.5 font-[family-name:var(--font-display)] text-3xl font-semibold tabular-nums tracking-wide">
                   {card.value}
                 </p>
               </div>
@@ -206,49 +206,44 @@ export function CommandOverview() {
         ))}
       </div>
 
-      <section className="mt-8">
-        <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-wide">
-          Needs your attention
-        </h2>
-        <div className="mt-3 space-y-3">
-          {board.items.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-[var(--border)] bg-white/70 px-5 py-10 text-center">
-              <p className="font-medium text-[var(--foreground)]">
-                No urgent actions in scope
-              </p>
-              <p className="mt-1 text-sm text-[var(--muted)]">
-                When field reports need review, supply confirmation, or plan
-                approval, they appear here.
-              </p>
-              <Link
-                href="/admin/incidents"
-                className="mt-4 inline-flex text-sm font-medium text-[#2f5f9e] hover:underline"
-              >
-                Open incidents board →
-              </Link>
-            </div>
-          ) : (
-            board.items.map((item, index) => (
-              <AttentionCard key={item.id} item={item} index={index} />
-            ))
-          )}
+      <div className="mt-4 grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
+        <section className="flex min-h-0 flex-col overflow-hidden">
+          <div className="mb-3 flex shrink-0 items-center justify-between gap-2">
+            <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-wide">
+              Needs your attention
+            </h2>
+            <Link
+              href="/admin/incidents"
+              className="text-sm font-medium text-[#2f5f9e] hover:underline"
+            >
+              Open board →
+            </Link>
+          </div>
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-0.5">
+            {board.items.length === 0 ? (
+              <div className="flex h-full min-h-[12rem] flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--border)] bg-white/70 px-5 py-10 text-center">
+                <p className="font-medium text-[var(--foreground)]">
+                  No urgent actions in scope
+                </p>
+                <p className="mt-1 max-w-sm text-sm text-[var(--muted)]">
+                  When field reports need review, supply confirmation, or plan
+                  approval, they appear here.
+                </p>
+              </div>
+            ) : (
+              board.items.map((item, index) => (
+                <AttentionCard key={item.id} item={item} index={index} />
+              ))
+            )}
+          </div>
+          <p className="mt-3 shrink-0 text-[11px] text-[var(--muted)]">
+            Conceptual exercise data · Not a live emergency feed.
+          </p>
+        </section>
+
+        <div className="flex min-h-[280px] flex-1 flex-col lg:min-h-0">
+          <OverviewMapPanel items={board.items} fill />
         </div>
-      </section>
-
-      <div className="mt-8">
-        <OverviewMapPanel items={board.items} />
-      </div>
-
-      <div className="mt-6 flex flex-col gap-2 border-t border-[var(--border)] pt-5 pb-2 sm:flex-row sm:items-center sm:justify-between">
-        <Link
-          href="/admin/incidents"
-          className="text-sm font-medium text-[#2f5f9e] hover:underline"
-        >
-          Open incidents board →
-        </Link>
-        <p className="text-[11px] text-[var(--muted)]">
-          Conceptual exercise data · Not a live emergency feed.
-        </p>
       </div>
     </div>
   );

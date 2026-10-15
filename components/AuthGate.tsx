@@ -23,6 +23,7 @@ type AuthGateProps = {
 
 function homeForRole(role: UserRole | undefined) {
   if (role === "citizen") return "/my-reports";
+  if (role === "developer") return "/dev";
   return "/admin/overview";
 }
 
@@ -44,7 +45,13 @@ export function AuthGate({
   useEffect(() => {
     if (!mounted || loading) return;
     if (mode === "protected" && !user) {
-      router.replace(role === "citizen" ? "/login/citizen" : "/login/officer");
+      router.replace(
+        role === "citizen"
+          ? "/login/citizen"
+          : role === "developer"
+            ? "/login/developer"
+            : "/login/officer",
+      );
       return;
     }
     if (mode === "guest" && user) {

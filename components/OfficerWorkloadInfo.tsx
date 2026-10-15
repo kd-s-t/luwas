@@ -51,15 +51,14 @@ function activeIncident(r: HazardReport): boolean {
 
 export function OfficerWorkloadInfo({
   className,
+  supportTickets: tickets = [],
 }: {
   className?: string;
+  /** Support ticket load (developer Support board passes these). */
+  supportTickets?: SupportTicket[];
 }) {
-  const {
-    activeOfficers,
-    supportTickets: tickets,
-    scopedReports,
-    reportScope,
-  } = useCommandWorkspace();
+  const { activeOfficers, scopedReports, reportScope } =
+    useCommandWorkspace();
   const [open, setOpen] = useState(false);
 
   const place = scopeLabel(reportScope);

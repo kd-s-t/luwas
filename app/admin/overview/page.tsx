@@ -44,7 +44,7 @@ function CommandPageInner() {
     }
   }, [panel, reportId, router]);
 
-  const fill = panel === "map";
+  const fill = panel === "map" || panel === "overview";
 
   if (panel === "workspace") {
     return (

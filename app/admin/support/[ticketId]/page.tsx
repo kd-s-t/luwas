@@ -1,23 +1,19 @@
 "use client";
 
-import { use } from "react";
-import { AuthGate } from "@/components/AuthGate";
-import { CommandShell } from "@/components/CommandShell";
-import { SupportDetail } from "@/components/SupportDetail";
+import { use, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 type PageProps = {
   params: Promise<{ ticketId: string }>;
 };
 
-export default function CommandSupportDetailPage({ params }: PageProps) {
+/** Support moved to developer console. */
+export default function CommandSupportDetailRedirect({ params }: PageProps) {
   const { ticketId: rawId } = use(params);
   const ticketId = decodeURIComponent(rawId);
-
-  return (
-    <AuthGate mode="protected" role="officer">
-      <CommandShell>
-        <SupportDetail ticketId={ticketId} />
-      </CommandShell>
-    </AuthGate>
-  );
+  const router = useRouter();
+  useEffect(() => {
+    router.replace(`/dev/support/${encodeURIComponent(ticketId)}`);
+  }, [router, ticketId]);
+  return null;
 }

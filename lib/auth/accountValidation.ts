@@ -66,7 +66,13 @@ export function userMatchesBarangay(
 }
 
 function mapUser(id: string, data: Record<string, unknown>): UserProfile {
-  const role = data.role === "citizen" ? "citizen" : "officer";
+  const roleRaw = String(data.role ?? "officer");
+  const role =
+    roleRaw === "citizen"
+      ? "citizen"
+      : roleRaw === "developer"
+        ? "developer"
+        : "officer";
   const base = {
     uid: String(data.uid ?? id),
     email: String(data.email ?? ""),
@@ -88,6 +94,14 @@ function mapUser(id: string, data: Record<string, unknown>): UserProfile {
     faceDocumentUrl:
       data.faceDocumentUrl != null ? String(data.faceDocumentUrl) : null,
   };
+  if (role === "developer") {
+    return {
+      ...base,
+      role: "developer",
+      orgName:
+        data.orgName != null ? String(data.orgName) : "LUWAS Developers",
+    };
+  }
   if (role === "citizen") {
     return {
       ...base,

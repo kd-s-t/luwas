@@ -48,9 +48,15 @@ const KNOWN_CENTERS: Record<string, { lat: number; lng: number; zoom?: number }>
     "consolacion/tolotolo": { lat: 10.3338, lng: 123.9658, zoom: 15 },
     "consolacion/lanipga": { lat: 10.4055, lng: 123.9712, zoom: 15 },
     "cebu-city/mabolo": { lat: 10.3275, lng: 123.9158, zoom: 15 },
-    /** Apas Barangay Hall · Generoso St (OSM) — not IT Park / Sugbo Mercado. */
+    /** Apas Barangay Hall · Generoso St (OSM) - not IT Park / Sugbo Mercado. */
     "cebu-city/apas": { lat: 10.337229, lng: 123.90484, zoom: 16 },
     "cebu-city/lahug": { lat: 10.3356, lng: 123.8942, zoom: 15 },
+    /** Pardo plaza / hall area (approx). */
+    "cebu-city/pardo": { lat: 10.2945, lng: 123.8552, zoom: 15 },
+    /** Talamban · near PS8 / barangay hall corridor (approx). */
+    "cebu-city/talamban": { lat: 10.3702, lng: 123.9148, zoom: 15 },
+    /** Talisay · Poblacion / city hall corridor. */
+    "talisay/poblacion": { lat: 10.2447, lng: 123.8494, zoom: 15 },
     "mandaue-city/tipolo": { lat: 10.3331, lng: 123.9354, zoom: 15 },
   };
 
@@ -60,6 +66,7 @@ const LGU_FALLBACK: Record<string, { lat: number; lng: number }> = {
   "cebu-city": { lat: 10.3157, lng: 123.8854 },
   "mandaue-city": { lat: 10.3231, lng: 123.9223 },
   "lapu-lapu-city": { lat: 10.3103, lng: 123.9494 },
+  talisay: { lat: 10.2447, lng: 123.8494 },
   "talisay-city": { lat: 10.2447, lng: 123.8494 },
   "city-of-naga": { lat: 10.2089, lng: 123.7581 },
   carcar: { lat: 10.1061, lng: 123.6402 },

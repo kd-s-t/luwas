@@ -1,15 +1,13 @@
 "use client";
 
-import { AuthGate } from "@/components/AuthGate";
-import { CommandShell } from "@/components/CommandShell";
-import { SupportBoard } from "@/components/SupportBoard";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
-export default function CommandSupportPage() {
-  return (
-    <AuthGate mode="protected" role="officer">
-      <CommandShell fill>
-        <SupportBoard />
-      </CommandShell>
-    </AuthGate>
-  );
+/** Support moved to developer console. */
+export default function CommandSupportRedirect() {
+  const router = useRouter();
+  useEffect(() => {
+    router.replace("/dev/support");
+  }, [router]);
+  return null;
 }

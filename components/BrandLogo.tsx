@@ -1,15 +1,20 @@
 import { cn } from "@/lib/utils";
 
+type BrandTone = "default" | "inverse" | "blue";
+
 type BrandLogoProps = {
   className?: string;
   /** Mark size in px (height). */
   size?: number;
   /** Show LUWAS wordmark beside the mark. */
   wordmark?: boolean;
-  /** `default` = brand red. `inverse` = white (dark / accent bars). */
-  tone?: "default" | "inverse";
+  /** `default` = brand red. `inverse` = white. `blue` = admin / developer. */
+  tone?: BrandTone;
   wordmarkClassName?: string;
 };
+
+const BLUE = "#1d4ed8";
+const BLUE_ON_DARK = "#60a5fa";
 
 const SHIELD =
   "M236 65h40c8 0 16 3 22 9l122 122c7 7 11 16 11 26v128c0 50-27 95-71 126l-80 53c-12 8-28 8-40 0l-80-53c-44-31-71-76-71-126V222c0-10 4-19 11-26L214 74c6-6 14-9 22-9z";
@@ -20,7 +25,7 @@ const CHEVRONS = [
 ];
 const MARK_EVENODD = `${SHIELD}${CHEVRONS.map((d) => ` ${d}`).join("")}`;
 
-/** Shield + chevrons. Brand red is hardcoded so local never inherits gray. */
+/** Shield + chevrons. Brand colors are hardcoded so local never inherits gray. */
 export function BrandMark({
   className,
   size = 28,
@@ -28,8 +33,15 @@ export function BrandMark({
 }: {
   className?: string;
   size?: number;
-  tone?: "default" | "inverse";
+  tone?: BrandTone;
 }) {
+  const fill =
+    tone === "inverse"
+      ? "#ffffff"
+      : tone === "blue"
+        ? BLUE
+        : "#c72929";
+
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -40,10 +52,10 @@ export function BrandMark({
       aria-hidden
     >
       {tone === "inverse" ? (
-        <path fill="#ffffff" fillRule="evenodd" d={MARK_EVENODD} />
+        <path fill={fill} fillRule="evenodd" d={MARK_EVENODD} />
       ) : (
         <>
-          <path fill="#c72929" d={SHIELD} />
+          <path fill={fill} d={SHIELD} />
           {CHEVRONS.map((d) => (
             <path key={d} fill="#ffffff" d={d} />
           ))}
@@ -67,7 +79,47 @@ export function BrandLogo({
         <span
           className={cn(
             "font-[family-name:var(--font-display)] font-semibold tracking-[0.08em]",
-            tone === "inverse" ? "text-white" : "text-[var(--foreground)]",
+            tone === "inverse"
+              ? "text-white"
+              : tone === "blue"
+                ? "text-[#1d4ed8]"
+                : "text-[var(--foreground)]",
+            wordmarkClassName,
+          )}
+        >
+          LUWAS
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+/** Blue mark + light wordmark for dark admin / developer chrome. */
+export function BrandLogoOnDark({
+  className,
+  size = 28,
+  wordmark = true,
+  wordmarkClassName,
+}: Omit<BrandLogoProps, "tone">) {
+  return (
+    <span className={cn("inline-flex items-center gap-2", className)}>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 512 512"
+        width={size}
+        height={size}
+        className="shrink-0"
+        aria-hidden
+      >
+        <path fill={BLUE_ON_DARK} d={SHIELD} />
+        {CHEVRONS.map((d) => (
+          <path key={d} fill="#0f1b2d" d={d} />
+        ))}
+      </svg>
+      {wordmark ? (
+        <span
+          className={cn(
+            "font-[family-name:var(--font-display)] font-semibold tracking-[0.08em] text-white",
             wordmarkClassName,
           )}
         >

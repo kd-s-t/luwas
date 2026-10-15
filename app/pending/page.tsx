@@ -11,6 +11,7 @@ import {
   isAccountFired,
   isAccountPending,
   isCitizen,
+  isDeveloper,
   isOfficer,
 } from "@/lib/auth/types";
 
@@ -25,7 +26,13 @@ export default function PendingValidationPage() {
       return;
     }
     if (isAccountActive(profile)) {
-      router.replace(isCitizen(profile) ? "/my-reports" : "/admin/overview");
+      router.replace(
+        isCitizen(profile)
+          ? "/my-reports"
+          : isDeveloper(profile)
+            ? "/dev"
+            : "/admin/overview",
+      );
     }
   }, [loading, user, profile, router]);
 

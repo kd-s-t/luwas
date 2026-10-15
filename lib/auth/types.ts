@@ -1,6 +1,6 @@
 import type { AcceptedIdType } from "@/lib/auth/idTypes";
 
-export type UserRole = "officer" | "citizen";
+export type UserRole = "officer" | "citizen" | "developer";
 
 /** pending = awaits officer validation; fired = removed by captain (history kept). */
 export type AccountStatus = "pending" | "active" | "rejected" | "fired";
@@ -86,7 +86,17 @@ export type CitizenProfile = {
 } & IdFields &
   PlaceFields;
 
-export type UserProfile = OfficerProfile | CitizenProfile;
+export type DeveloperProfile = {
+  uid: string;
+  email: string;
+  displayName: string;
+  role: "developer";
+  createdAt: string;
+  orgName?: string;
+} & IdFields &
+  PlaceFields;
+
+export type UserProfile = OfficerProfile | CitizenProfile | DeveloperProfile;
 
 export function isOfficer(
   profile: UserProfile | null | undefined,
@@ -98,6 +108,12 @@ export function isCitizen(
   profile: UserProfile | null | undefined,
 ): profile is CitizenProfile {
   return profile?.role === "citizen";
+}
+
+export function isDeveloper(
+  profile: UserProfile | null | undefined,
+): profile is DeveloperProfile {
+  return profile?.role === "developer";
 }
 
 /** Legacy profiles without accountStatus are treated as active. */
