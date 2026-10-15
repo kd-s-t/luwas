@@ -261,24 +261,15 @@ export async function POST(req: Request) {
   });
 
   const now = new Date().toISOString();
-  let mediaUrl: string;
-  let mediaMime: string;
-  let mediaPath: string;
+  let mediaUrl = "";
+  let mediaMime = "";
+  let mediaPath = "";
 
   const rawB64 =
     typeof body.mediaBase64 === "string" ? body.mediaBase64.trim() : "";
   const useEmuFs = Boolean(firestoreEmulatorHost());
-  // Never substitute bundled demo scenes for missing citizen photos.
-  if (!rawB64) {
-    return NextResponse.json(
-      {
-        error:
-          "Photo required. Send mediaBase64 with the report (do not use stock demo images).",
-      },
-      { status: 400 },
-    );
-  }
-  {
+  // Photo is optional. Never substitute bundled demo scenes for missing photos.
+  if (rawB64) {
     const ext =
       mediaMimeRaw.includes("png")
         ? "png"
@@ -337,7 +328,7 @@ export async function POST(req: Request) {
     typeof body.voiceMime === "string" && body.voiceMime.trim()
       ? body.voiceMime.trim()
       : "audio/webm";
-  if (voiceB64 && source === "web") {
+  if (voiceB64) {
     const ext =
       voiceMimeRaw.includes("mp4") || voiceMimeRaw.includes("aac")
         ? "m4a"
