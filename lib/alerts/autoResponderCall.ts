@@ -21,7 +21,7 @@ export function hasRescueUrgency(
   notes?: string | null,
 ): boolean {
   const t = `${title ?? ""} ${notes ?? ""}`.toLowerCase();
-  return /roof|bubong|stranded|trapped|nate|stuck|drowning|nalunod|cannot leave|can'?t leave|need rescue|sos|on the (roof|second|2nd)|family on|people on|bata .*tubig|senior .*tubig/.test(
+  return /roof|bubong|stranded|\btrap(ped|ping)?\b|stuck|drowning|nalunod|cannot leave|can'?t leave|need rescue|sos|collaps(e|ed|ing)|rubble|buried|on the (roof|second|2nd)|family on|people on|bata .*tubig|senior .*tubig/.test(
     t,
   );
 }
@@ -62,7 +62,9 @@ export function autoResponderRouteForHazard(
         ? { kinds: ["tanod", "pnp"], alertLabel: "storm rescue" }
         : null;
     default:
-      return null;
+      return rescue
+        ? { kinds: ["tanod", "pnp"], alertLabel: "rescue" }
+        : null;
   }
 }
 

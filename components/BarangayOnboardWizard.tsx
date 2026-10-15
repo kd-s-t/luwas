@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth/AuthProvider";
+import { isOfficer } from "@/lib/auth/types";
 
 const HallPinMap = dynamic(() => import("@/components/HallPinMap"), {
   ssr: false,
@@ -266,8 +267,9 @@ export function BarangayOnboardWizard({ defaultOrgName = "" }: Props) {
             barangay: homeArea.barangay,
             lgu: homeArea.lgu,
             name: homeArea.name,
-            orgName:
-              profile?.orgName?.trim() || `Brgy. ${homeArea.barangay}`,
+            orgName: isOfficer(profile)
+              ? profile.orgName.trim() || `Brgy. ${homeArea.barangay}`
+              : `Brgy. ${homeArea.barangay}`,
             hallAddress: `Brgy. ${homeArea.barangay} Hall, ${homeArea.lgu}`,
             hotline: "",
             email: profile?.email ?? "",
