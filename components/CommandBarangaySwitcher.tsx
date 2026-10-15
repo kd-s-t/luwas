@@ -6,7 +6,11 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { officerScopeBarangay } from "@/lib/auth/accountValidation";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { isOfficer } from "@/lib/auth/types";
-import { CEBU_AREA } from "@/lib/geo/cebu";
+import {
+  DEFAULT_MAP_AREA,
+  listMapAreaOptions,
+  resolveKnownMapArea,
+} from "@/lib/geo/mapAreas";
 import {
   emptyChecklist,
   getPreferredAreaId,
@@ -18,7 +22,7 @@ import { cn } from "@/lib/utils";
 
 type PanelPos = { top?: number; bottom?: number; left: number; width: number; maxHeight: number };
 
-/** Synthetic row from officer profile when onboard list is empty. */
+/** Synthetic row from officer profile area (kept even when other barangays are onboarded). */
 function profileAreaRow(
   profile: NonNullable<ReturnType<typeof useAuth>["profile"]>,
 ): OnboardedBarangay | null {
@@ -27,20 +31,40 @@ function profileAreaRow(
   if (!barangay) return null;
   const lgu = profile.lgu?.trim() || "Consolacion";
   const id =
-    (profile.activeBarangayId ?? profile.areaId)?.trim() ||
+    (profile.areaId ?? profile.activeBarangayId)?.trim() ||
     `${lgu.toLowerCase().replace(/\s+/g, "-")}/${barangay.toLowerCase().replace(/\s+/g, "-")}`;
+  const option =
+    listMapAreaOptions().find((o) => o.id === id) ??
+    (id === DEFAULT_MAP_AREA.id
+      ? {
+          id: DEFAULT_MAP_AREA.id,
+          barangay: DEFAULT_MAP_AREA.barangay,
+          lgu: DEFAULT_MAP_AREA.lgu,
+          name: DEFAULT_MAP_AREA.name,
+          label: `${DEFAULT_MAP_AREA.barangay} · ${DEFAULT_MAP_AREA.lgu}`,
+        }
+      : null);
+  const area = option
+    ? resolveKnownMapArea(option)
+    : {
+        ...DEFAULT_MAP_AREA,
+        id,
+        barangay,
+        lgu,
+        name: `Brgy. ${barangay}, ${lgu}`,
+      };
   const now = profile.createdAt || new Date().toISOString();
   return {
-    id,
-    barangay,
-    lgu,
-    name: `Brgy. ${barangay}, ${lgu}`,
+    id: area.id,
+    barangay: area.barangay,
+    lgu: area.lgu,
+    name: area.name,
     orgName: profile.orgName,
-    hallAddress: `Brgy. ${barangay} Hall, ${lgu}`,
+    hallAddress: `Brgy. ${area.barangay} Hall, ${area.lgu}`,
     hotline: "",
     email: profile.email,
-    center: { lat: CEBU_AREA.center.lat, lng: CEBU_AREA.center.lng },
-    zoom: CEBU_AREA.zoom,
+    center: { ...area.center },
+    zoom: area.zoom,
     checklist: emptyChecklist(),
     activatedAt: now,
     updatedAt: now,
@@ -133,10 +157,18 @@ export function CommandBarangaySwitcher({
     };
   }, [open, openAbove]);
 
+  const list = useMemo(() => {
+    const byId = new Map<string, OnboardedBarangay>();
+    for (const row of rows) byId.set(row.id, row);
+    // Profile home area (e.g. Nangka) must stay visible after onboarding Apas.
+    if (fallback && !byId.has(fallback.id)) byId.set(fallback.id, fallback);
+    return [...byId.values()].sort((a, b) =>
+      b.activatedAt.localeCompare(a.activatedAt),
+    );
+  }, [rows, fallback]);
+
   if (!isOfficer(profile)) return null;
 
-  const list =
-    rows.length > 0 ? rows : fallback ? [fallback] : [];
   const active = list.find((r) => r.id === activeId) ?? list[0] ?? null;
   const label = active
     ? `Brgy. ${active.barangay}`

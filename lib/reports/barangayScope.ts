@@ -50,16 +50,24 @@ export function resolveReportPlace(report: Pick<
  * Officer org → which reports they see.
  * "Brgy. Nangka …" → Nangka only; "Consolacion MDRRMO" → whole LGU.
  */
-export function officerReportScope(orgName: string): ReportScope {
+export function officerReportScope(
+  orgName: string,
+  profileLgu?: string | null,
+): ReportScope {
   const raw = orgName.trim();
   const brgy = raw.match(
     /\b(?:brgy\.?|barangay)\s+([A-Za-z0-9][\w\s'-]*?)(?:\s*[·|,]|\s+MDRRMO|\s+DRRM|\s*$)/i,
   );
   if (brgy?.[1]) {
+    const fromOrg = raw.split(/[·|,]/)[1]?.trim();
+    const lgu =
+      profileLgu?.trim() ||
+      (fromOrg && !/^mdrrmo/i.test(fromOrg) ? fromOrg : "") ||
+      DEFAULT_REPORT_LGU;
     return {
       mode: "barangay",
       barangay: brgy[1].trim(),
-      lgu: DEFAULT_REPORT_LGU,
+      lgu,
     };
   }
   const lgu = raw.match(/^([A-Za-z][\w\s'-]+?)\s+MDRRMO\b/i);
@@ -69,12 +77,14 @@ export function officerReportScope(orgName: string): ReportScope {
   return {
     mode: "barangay",
     barangay: DEFAULT_REPORT_BARANGAY,
-    lgu: DEFAULT_REPORT_LGU,
+    lgu: profileLgu?.trim() || DEFAULT_REPORT_LGU,
   };
 }
 
 export function scopeForProfile(profile: UserProfile | null): ReportScope {
-  if (isOfficer(profile)) return officerReportScope(profile.orgName);
+  if (isOfficer(profile)) {
+    return officerReportScope(profile.orgName, profile.lgu);
+  }
   return {
     mode: "barangay",
     barangay: DEFAULT_REPORT_BARANGAY,

@@ -96,14 +96,27 @@ export function CommandWorkspaceProvider({
     void (async () => {
       try {
         const { isSimulationOn } = await import("@/lib/config/simulation");
+        const sim = isSimulationOn();
         await Promise.all([
-          isSimulationOn()
-            ? ensureAllMapReportsInDb()
-            : Promise.resolve(),
-          isSimulationOn()
-            ? ensureSampleSupportTickets()
-            : Promise.resolve(),
+          sim ? ensureAllMapReportsInDb() : Promise.resolve(),
+          sim ? ensureSampleSupportTickets() : Promise.resolve(),
         ]);
+        // Apas starter roster runs in prod (households + staff only).
+        if (
+          canSync &&
+          profile &&
+          isOfficer(profile) &&
+          (profile.activeBarangayId === "cebu-city/apas" ||
+            profile.areaId === "cebu-city/apas" ||
+            /apas/i.test(profile.barangay ?? ""))
+        ) {
+          const { ensureApasOpsSeed } = await import(
+            "@/lib/onboarding/apasSeed"
+          );
+          await ensureApasOpsSeed(profile.uid, {
+            includeSampleReports: sim,
+          });
+        }
       } catch (err) {
         console.warn("Command workspace seed failed", err);
       } finally {
@@ -113,7 +126,7 @@ export function CommandWorkspaceProvider({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [canSync, profile]);
 
   useEffect(() => {
     if (!canSync) {

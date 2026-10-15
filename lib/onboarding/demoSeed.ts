@@ -1,5 +1,9 @@
-import { seedHouseholds } from "@/lib/households/api";
+import { addHouseholds, seedHouseholds } from "@/lib/households/api";
 import type { HouseholdInput } from "@/lib/households/types";
+import {
+  ensureApasOpsSeed,
+  isApasAreaId,
+} from "@/lib/onboarding/apasSeed";
 import { ensureNangkaStaffSeed, upsertStaffMember } from "@/lib/staff/api";
 import { NANGKA_STAFF_SEED } from "@/lib/staff/nangkaStaff";
 import type { StaffMemberInput } from "@/lib/staff/types";
@@ -76,12 +80,12 @@ function demoStaffForBarangay(
   barangayId: string,
   orgName: string,
 ): StaffMemberInput[] {
+  // Firestore doc ids cannot contain `/` (area ids like cebu-city/apas).
+  const prefix = barangayId.replace(/\//g, "-");
   return NANGKA_STAFF_SEED.slice(0, 8).map((row) => ({
     ...row,
-    id: `${barangayId}__${row.id}`,
-    reportsToId: row.reportsToId
-      ? `${barangayId}__${row.reportsToId}`
-      : null,
+    id: `${prefix}__${row.id}`,
+    reportsToId: row.reportsToId ? `${prefix}__${row.reportsToId}` : null,
     email: row.email.replace(
       "@nangka.consolacion.demo",
       `@${barangayId.replace(/\//g, ".")}.demo`,
@@ -107,12 +111,14 @@ export async function seedDemoBarangayOps(input: {
   orgName: string;
   center: { lat: number; lng: number };
 }): Promise<{ households: number; staff: number }> {
-  const households = buildDemoHouseholds(input.center, input.barangay, 24);
-  const hhCount = await seedHouseholds(
-    input.officerUid,
-    input.orgName,
-    households,
-  );
+  // Apas production starter: households + staff (sample reports only in sim).
+  if (isApasAreaId(input.areaId)) {
+    const { isSimulationOn } = await import("@/lib/config/simulation");
+    const result = await ensureApasOpsSeed(input.officerUid, {
+      includeSampleReports: isSimulationOn(),
+    });
+    return { households: result.households, staff: result.staff };
+  }
 
   // Prefer remapped staff for non-Nangka; for Nangka use canonical seed.
   if (
@@ -120,13 +126,27 @@ export async function seedDemoBarangayOps(input: {
     input.areaId === "consolacion/nangka" ||
     /nangka/i.test(input.areaId)
   ) {
+    const households = buildDemoHouseholds(input.center, input.barangay, 24);
+    const hhCount = await seedHouseholds(
+      input.officerUid,
+      input.orgName,
+      households,
+    );
     const { written } = await ensureNangkaStaffSeed();
     return { households: hhCount, staff: written };
   }
 
+  // Other barangays: append households (do not wipe Nangka roster) + remap staff.
+  const households = buildDemoHouseholds(input.center, input.barangay, 24);
+  const hhCount = await addHouseholds(
+    input.officerUid,
+    input.orgName,
+    households,
+  );
   const staff = demoStaffForBarangay(input.areaId, input.orgName);
+  const staffBarangayId = input.areaId.replace(/\//g, "-");
   for (const member of staff) {
-    await upsertStaffMember(input.areaId, input.orgName, member);
+    await upsertStaffMember(staffBarangayId, input.orgName, member);
   }
   return { households: hhCount, staff: staff.length };
 }

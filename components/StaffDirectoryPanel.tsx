@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useAuth } from "@/lib/auth/AuthProvider";
+import { isOfficer } from "@/lib/auth/types";
 import {
   ensureNangkaStaffSeed,
   subscribeBarangayStaff,
@@ -11,6 +13,10 @@ import {
   sortStaff,
   type StaffTreeNode,
 } from "@/lib/staff/hierarchy";
+import {
+  APAS_BARANGAY_DOC_ID,
+  APAS_ORG_NAME,
+} from "@/lib/staff/apasStaff";
 import { NANGKA_BARANGAY_ID, NANGKA_ORG_NAME } from "@/lib/staff/nangkaStaff";
 import {
   staffRankLabel,
@@ -66,6 +72,7 @@ function HierarchyBranch({
 }
 
 export function StaffDirectoryPanel() {
+  const { profile } = useAuth();
   const [rows, setRows] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -73,10 +80,20 @@ export function StaffDirectoryPanel() {
   const [scope, setScope] = useState<"all" | StaffScope>("all");
   const seeded = useRef(false);
 
+  const areaKey = isOfficer(profile)
+    ? (profile.activeBarangayId ?? profile.areaId ?? "").trim()
+    : "";
+  const isApas = areaKey === "cebu-city/apas" || /apas/i.test(
+    isOfficer(profile) ? profile.barangay ?? "" : "",
+  );
+  const barangayId = isApas ? APAS_BARANGAY_DOC_ID : NANGKA_BARANGAY_ID;
+  const orgLabel = isApas ? APAS_ORG_NAME : NANGKA_ORG_NAME;
+
   useEffect(() => {
     setLoading(true);
+    seeded.current = false;
     const unsub = subscribeBarangayStaff(
-      NANGKA_BARANGAY_ID,
+      barangayId,
       (next) => {
         setRows(next);
         setLoading(false);
@@ -87,18 +104,28 @@ export function StaffDirectoryPanel() {
       },
     );
     return () => unsub();
-  }, []);
+  }, [barangayId]);
 
   useEffect(() => {
     if (seeded.current || loading) return;
     seeded.current = true;
-    void import("@/lib/config/simulation").then(({ isSimulationOn }) => {
-      if (!isSimulationOn()) return;
-      return ensureNangkaStaffSeed().catch(() => {
+    void (async () => {
+      try {
+        if (isApas && profile && isOfficer(profile)) {
+          const { ensureApasOpsSeed } = await import(
+            "@/lib/onboarding/apasSeed"
+          );
+          await ensureApasOpsSeed(profile.uid);
+          return;
+        }
+        const { isSimulationOn } = await import("@/lib/config/simulation");
+        if (!isSimulationOn()) return;
+        await ensureNangkaStaffSeed();
+      } catch {
         seeded.current = false;
-      });
-    });
-  }, [loading, rows.length]);
+      }
+    })();
+  }, [loading, rows.length, isApas, profile]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -147,7 +174,7 @@ export function StaffDirectoryPanel() {
               Users &amp; hierarchy
             </h2>
             <p className="mt-1 text-sm text-[var(--muted)]">
-              {NANGKA_ORG_NAME} — who works this barangay
+              {orgLabel} — who works this barangay
             </p>
           </div>
           <p className="font-mono text-xs text-[var(--muted)]">
@@ -173,15 +200,23 @@ export function StaffDirectoryPanel() {
               className="mt-4"
               onClick={() => {
                 seeded.current = false;
-                void import("@/lib/config/simulation").then(
-                  ({ isSimulationOn }) => {
-                    if (!isSimulationOn()) return;
-                    void ensureNangkaStaffSeed();
-                  },
-                );
+                void (async () => {
+                  if (isApas && profile && isOfficer(profile)) {
+                    const { ensureApasOpsSeed } = await import(
+                      "@/lib/onboarding/apasSeed"
+                    );
+                    await ensureApasOpsSeed(profile.uid);
+                    return;
+                  }
+                  const { isSimulationOn } = await import(
+                    "@/lib/config/simulation"
+                  );
+                  if (!isSimulationOn()) return;
+                  await ensureNangkaStaffSeed();
+                })();
               }}
             >
-              Seed Nangka staff
+              {isApas ? "Seed Apas staff" : "Seed Nangka staff"}
             </Button>
           </div>
         ) : (

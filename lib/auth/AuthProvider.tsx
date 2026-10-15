@@ -419,17 +419,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const auth = getClientAuth();
       const u = auth.currentUser;
       if (!u) throw new Error("Not signed in");
+      const { listMapAreaOptions } = await import("@/lib/geo/mapAreas");
+      const option = listMapAreaOptions().find((o) => o.id === areaId);
       const payload: Record<string, unknown> = {
         activeBarangayId: areaId,
       };
       if (orgName?.trim()) payload.orgName = orgName.trim();
+      if (option) {
+        payload.barangay = option.barangay;
+        payload.lgu = option.lgu;
+        if (!orgName?.trim()) {
+          payload.orgName = `Brgy. ${option.barangay} · ${option.lgu}`;
+        }
+      }
       await setDoc(doc(getClientDb(), "users", u.uid), payload, { merge: true });
       setProfile((prev) => {
         if (!prev || prev.role !== "officer") return prev;
         return {
           ...prev,
           activeBarangayId: areaId,
-          ...(orgName?.trim() ? { orgName: orgName.trim() } : {}),
+          ...(orgName?.trim()
+            ? { orgName: orgName.trim() }
+            : option
+              ? { orgName: `Brgy. ${option.barangay} · ${option.lgu}` }
+              : {}),
+          ...(option
+            ? { barangay: option.barangay, lgu: option.lgu }
+            : {}),
         };
       });
     },

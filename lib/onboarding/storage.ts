@@ -65,8 +65,16 @@ export async function hydrateOnboardedBarangays(): Promise<OnboardedBarangay[]> 
   try {
     const remote = await fetchOnboardedBarangays();
     if (remote.length > 0) {
-      writeCache(remote);
-      return remote;
+      // Merge: keep local-only rows (e.g. profile/demo Nangka) so a new
+      // activate does not wipe areas never written to Firestore.
+      const byId = new Map<string, OnboardedBarangay>();
+      for (const row of readCache()) byId.set(row.id, row);
+      for (const row of remote) byId.set(row.id, row);
+      const merged = [...byId.values()].sort((a, b) =>
+        b.activatedAt.localeCompare(a.activatedAt),
+      );
+      writeCache(merged);
+      return merged;
     }
   } catch (err) {
     console.warn("[onboarding] Firestore hydrate failed; using cache", err);

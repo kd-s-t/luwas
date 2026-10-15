@@ -1,7 +1,22 @@
 import { DEMO_ID_PROOF, DEMO_OFFICER } from "@/lib/auth/demoAccount";
 
-/** Officer demo logins (captain, MDRRMO focal, LGU). */
-export const DEMO_OFFICERS = [
+export type DemoOfficer = {
+  id: string;
+  label: string;
+  displayName: string;
+  orgName: string;
+  email: string;
+  password: string;
+  staffTitle: string;
+  areaId: string;
+  barangay: string;
+  lgu: string;
+  /** Punong Barangay / hire-fire captain stamp. */
+  officerRank?: "captain" | "officer";
+};
+
+/** Officer demo logins (Nangka + Apas + LGU). */
+export const DEMO_OFFICERS: DemoOfficer[] = [
   {
     id: "captain",
     label: "Barangay Captain",
@@ -10,6 +25,23 @@ export const DEMO_OFFICERS = [
     email: "captain@nangka.consolacion.demo",
     password: "demo1234",
     staffTitle: "Punong Barangay",
+    areaId: "consolacion/nangka",
+    barangay: "Nangka",
+    lgu: "Consolacion",
+    officerRank: "captain",
+  },
+  {
+    id: "apas-captain",
+    label: "Brgy. Apas Captain",
+    displayName: "Hon. Liza Padilla",
+    orgName: "Brgy. Apas · Punong Barangay",
+    email: "captain@apas.cebu.demo",
+    password: "demo1234",
+    staffTitle: "Punong Barangay",
+    areaId: "cebu-city/apas",
+    barangay: "Apas",
+    lgu: "Cebu City",
+    officerRank: "captain",
   },
   {
     id: "mdrrmo",
@@ -19,6 +51,10 @@ export const DEMO_OFFICERS = [
     email: DEMO_OFFICER.email,
     password: DEMO_OFFICER.password,
     staffTitle: "BDRRMC Coordinator · MDRRMO Focal",
+    areaId: "consolacion/nangka",
+    barangay: "Nangka",
+    lgu: "Consolacion",
+    officerRank: "officer",
   },
   {
     id: "lgu",
@@ -28,10 +64,12 @@ export const DEMO_OFFICERS = [
     email: "lgu@consolacion.demo",
     password: "demo1234",
     staffTitle: "Municipal MDRRMO Officer",
+    areaId: "consolacion/nangka",
+    barangay: "Nangka",
+    lgu: "Consolacion",
+    officerRank: "officer",
   },
-] as const;
-
-export type DemoOfficer = (typeof DEMO_OFFICERS)[number];
+];
 
 export function findDemoOfficer(email: string, password: string) {
   const normalized = email.trim().toLowerCase();

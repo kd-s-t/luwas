@@ -12,27 +12,24 @@ import {
   type DemoOfficer,
 } from "@/lib/auth/demoOfficers";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { isSimulationOn } from "@/lib/config/simulation";
 import { useEmulators } from "@/lib/firebase/client";
 import { doc, getDoc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { getClientAuth, getClientDb } from "@/lib/firebase/client";
 import type { UserProfile } from "@/lib/auth/types";
 
-const CAPTAIN = DEMO_OFFICERS.find((o) => o.id === "captain") ?? DEMO_OFFICERS[0]!;
-const SIM = isSimulationOn();
+const CAPTAIN =
+  DEMO_OFFICERS.find((o) => o.id === "captain") ?? DEMO_OFFICERS[0]!;
 
 export default function LoginPage() {
   const { login, register } = useAuth();
   const router = useRouter();
-  const [email, setEmail] = useState<string>(SIM ? CAPTAIN.email : "");
-  const [password, setPassword] = useState<string>(SIM ? CAPTAIN.password : "");
-  const [selectedDemoId, setSelectedDemoId] = useState<string>(
-    SIM ? CAPTAIN.id : "",
-  );
+  const [email, setEmail] = useState<string>(CAPTAIN.email);
+  const [password, setPassword] = useState<string>(CAPTAIN.password);
+  const [selectedDemoId, setSelectedDemoId] = useState<string>(CAPTAIN.id);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  async function ensureDemoOfficer(officer: DemoOfficer) {
+  async function ensureBootstrapOfficer(officer: DemoOfficer) {
     try {
       await login(officer.email, officer.password);
     } catch (err) {
@@ -48,9 +45,9 @@ export default function LoginPage() {
           password: officer.password,
           displayName: officer.displayName,
           orgName: officer.orgName,
-          areaId: "consolacion/nangka",
-          barangay: "Nangka",
-          lgu: "Consolacion",
+          areaId: officer.areaId,
+          barangay: officer.barangay,
+          lgu: officer.lgu,
           idProof: DEMO_ID_PROOF,
         });
       } catch (regErr) {
@@ -63,24 +60,73 @@ export default function LoginPage() {
         }
       }
     }
-    // Stamp captain rank on demo Punong so hire/fire rules work.
-    if (officer.id === "captain") {
-      const uid = getClientAuth().currentUser?.uid;
-      if (uid) {
-        try {
-          await updateDoc(doc(getClientDb(), "users", uid), {
-            officerRank: "captain",
-            officerTitle: "Punong Barangay",
-            barangay: "Nangka",
-            lgu: "Consolacion",
-            areaId: "consolacion/nangka",
-            accountStatus: "active",
-            updatedAt: new Date().toISOString(),
-            updatedAtServer: serverTimestamp(),
-          });
-        } catch {
-          /* rules may block partial fields on older docs — org/email still match */
+    const uid = getClientAuth().currentUser?.uid;
+    if (uid) {
+      try {
+        await updateDoc(doc(getClientDb(), "users", uid), {
+          ...(officer.officerRank === "captain"
+            ? {
+                officerRank: "captain",
+                officerTitle: officer.staffTitle,
+              }
+            : {
+                officerTitle: officer.staffTitle,
+              }),
+          barangay: officer.barangay,
+          lgu: officer.lgu,
+          areaId: officer.areaId,
+          activeBarangayId: officer.areaId,
+          orgName: officer.orgName,
+          accountStatus: "active",
+          updatedAt: new Date().toISOString(),
+          updatedAtServer: serverTimestamp(),
+        });
+      } catch {
+        /* rules may block partial fields on older docs */
+      }
+    }
+
+    // Apas: ensure area is onboarded + starter roster in prod Auth/Firestore.
+    if (officer.areaId === "cebu-city/apas" && uid) {
+      try {
+        const { listMapAreaOptions, resolveKnownMapArea } = await import(
+          "@/lib/geo/mapAreas"
+        );
+        const {
+          emptyChecklist,
+          setPreferredAreaId,
+        } = await import("@/lib/onboarding/types");
+        const { getOnboardedBarangay, saveOnboardedBarangay } = await import(
+          "@/lib/onboarding/storage"
+        );
+        const { ensureApasOpsSeed } = await import("@/lib/onboarding/apasSeed");
+        if (!getOnboardedBarangay(officer.areaId)) {
+          const opt = listMapAreaOptions().find((o) => o.id === officer.areaId);
+          if (opt) {
+            const area = resolveKnownMapArea(opt);
+            const now = new Date().toISOString();
+            await saveOnboardedBarangay({
+              id: area.id,
+              barangay: area.barangay,
+              lgu: area.lgu,
+              name: area.name,
+              orgName: officer.orgName,
+              hallAddress: `Brgy. ${area.barangay} Hall, ${area.lgu}`,
+              hotline: "",
+              email: officer.email,
+              center: { ...area.center },
+              zoom: area.zoom,
+              checklist: emptyChecklist(),
+              activatedAt: now,
+              updatedAt: now,
+              activatedBy: uid,
+            });
+          }
         }
+        setPreferredAreaId(officer.areaId);
+        await ensureApasOpsSeed(uid);
+      } catch (seedErr) {
+        console.warn("[login] Apas onboard/seed failed", seedErr);
       }
     }
   }
@@ -92,7 +138,7 @@ export default function LoginPage() {
     setError(null);
     setSubmitting(true);
     try {
-      await ensureDemoOfficer(officer);
+      await ensureBootstrapOfficer(officer);
       await redirectForCurrentUser();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
@@ -109,7 +155,9 @@ export default function LoginPage() {
     }
     const snap = await getDoc(doc(getClientDb(), "users", uid));
     const profile = snap.exists() ? (snap.data() as UserProfile) : null;
-    router.replace(profile?.role === "citizen" ? "/my-reports" : "/admin/overview");
+    router.replace(
+      profile?.role === "citizen" ? "/my-reports" : "/admin/overview",
+    );
   }
 
   async function onSubmit(e: FormEvent) {
@@ -118,9 +166,9 @@ export default function LoginPage() {
     setSubmitting(true);
     const trimmedEmail = email.trim();
     try {
-      const demo = SIM ? findDemoOfficer(trimmedEmail, password) : undefined;
-      if (demo) {
-        await ensureDemoOfficer(demo);
+      const bootstrap = findDemoOfficer(trimmedEmail, password);
+      if (bootstrap) {
+        await ensureBootstrapOfficer(bootstrap);
       } else {
         await login(trimmedEmail, password);
       }
@@ -141,7 +189,7 @@ export default function LoginPage() {
     <AuthGate mode="guest">
       <AuthCard
         title="Officer login"
-        subtitle="Captain, MDRRMO, or LGU — sign in to LUWAS command."
+        subtitle="Nangka, Apas, MDRRMO, or LGU — sign in to LUWAS command."
         footer={
           <>
             <Link href="/login" className="text-[var(--accent)] hover:underline">
@@ -149,80 +197,85 @@ export default function LoginPage() {
             </Link>
             {" · "}
             No officer account?{" "}
-            <Link href="/register" className="text-[var(--accent)] hover:underline">
+            <Link
+              href="/register"
+              className="text-[var(--accent)] hover:underline"
+            >
               Register
             </Link>
           </>
         }
       >
         <form onSubmit={onSubmit} className="space-y-5">
-          {SIM ? (
-            <div className="space-y-2">
-              <p className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
-                Demo roles · password demo1234
-              </p>
-              <ul className="divide-y divide-[var(--border)] border border-[var(--border)]">
-                {DEMO_OFFICERS.map((o) => {
-                  const selected = selectedDemoId === o.id;
-                  return (
-                    <li key={o.id}>
-                      <button
-                        type="button"
-                        onClick={() => void loginAs(o)}
-                        disabled={submitting}
-                        className={`flex w-full items-center gap-3 px-3 py-2.5 text-left transition disabled:opacity-60 ${
+          <div className="space-y-2">
+            <p className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+              Officer roles · password demo1234
+            </p>
+            <ul className="divide-y divide-[var(--border)] border border-[var(--border)]">
+              {DEMO_OFFICERS.map((o) => {
+                const selected = selectedDemoId === o.id;
+                return (
+                  <li key={o.id}>
+                    <button
+                      type="button"
+                      onClick={() => void loginAs(o)}
+                      disabled={submitting}
+                      className={`flex w-full items-center gap-3 px-3 py-2.5 text-left transition disabled:opacity-60 ${
+                        selected
+                          ? "bg-[var(--accent)]/5"
+                          : "hover:bg-[var(--surface-raised)]"
+                      }`}
+                    >
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-medium text-[var(--foreground)]">
+                          {o.label}
+                          {o.id === "captain" ? (
+                            <span className="font-normal text-[var(--muted)]">
+                              {" "}
+                              · Nangka
+                            </span>
+                          ) : null}
+                          {o.id === "apas-captain" ? (
+                            <span className="font-normal text-[var(--muted)]">
+                              {" "}
+                              · Cebu City
+                            </span>
+                          ) : null}
+                        </span>
+                        <span className="mt-0.5 block truncate font-mono text-[10px] text-[var(--muted)]">
+                          {o.displayName}
+                        </span>
+                      </span>
+                      <span
+                        className={`shrink-0 font-mono text-[10px] tracking-wider uppercase ${
                           selected
-                            ? "bg-[var(--accent)]/5"
-                            : "hover:bg-[var(--surface-raised)]"
+                            ? "text-[var(--accent)]"
+                            : "text-[var(--muted)]"
                         }`}
                       >
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-sm font-medium text-[var(--foreground)]">
-                            {o.label}
-                            {o.id === "captain" ? (
-                              <span className="font-normal text-[var(--muted)]">
-                                {" "}
-                                · recommended
-                              </span>
-                            ) : null}
-                          </span>
-                          <span className="mt-0.5 block truncate font-mono text-[10px] text-[var(--muted)]">
-                            {o.displayName}
-                          </span>
-                        </span>
-                        <span
-                          className={`shrink-0 font-mono text-[10px] tracking-wider uppercase ${
-                            selected
-                              ? "text-[var(--accent)]"
-                              : "text-[var(--muted)]"
-                          }`}
-                        >
-                          {submitting && selected ? "…" : "Enter"}
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-              <p className="text-[11px] text-[var(--muted)]">
-                {useEmulators
-                  ? "Local emulators · accounts auto-create on first Enter."
-                  : "Prod demo · tap Captain to open command as Punong Barangay."}
-              </p>
-            </div>
-          ) : null}
+                        {submitting && selected ? "…" : "Enter"}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            <p className="text-[11px] text-[var(--muted)]">
+              {useEmulators
+                ? "Local emulators · accounts auto-create on first Enter."
+                : "Prod · tap Apas or Nangka Captain to open that barangay command."}
+            </p>
+          </div>
 
-          {SIM ? (
-            <div className="relative">
-              <div
-                className="absolute inset-x-0 top-1/2 border-t border-[var(--border)]"
-                aria-hidden
-              />
-              <p className="relative mx-auto w-fit bg-[var(--surface)] px-2 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
-                Or email
-              </p>
-            </div>
-          ) : null}
+          <div className="relative">
+            <div
+              className="absolute inset-x-0 top-1/2 border-t border-[var(--border)]"
+              aria-hidden
+            />
+            <p className="relative mx-auto w-fit bg-[var(--surface)] px-2 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+              Or email
+            </p>
+          </div>
 
           <div className="space-y-3">
             <label className="block text-sm">

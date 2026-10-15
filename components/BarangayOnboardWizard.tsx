@@ -23,6 +23,7 @@ import {
 } from "@/lib/geo/mapAreas";
 import { seedDemoBarangayOps } from "@/lib/onboarding/demoSeed";
 import {
+  emptyChecklist,
   emptyDraft,
   setPreferredAreaId,
   type OnboardChecklist,
@@ -107,7 +108,7 @@ type Props = {
 export function BarangayOnboardWizard({ defaultOrgName = "" }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, setActiveBarangay } = useAuth();
+  const { user, profile, setActiveBarangay } = useAuth();
   const [draft, setDraft] = useState<OnboardDraft>(() => emptyDraft());
   const [activated, setActivated] = useState<OnboardedBarangay[]>([]);
   const [pickQuery, setPickQuery] = useState("");
@@ -252,6 +253,34 @@ export function BarangayOnboardWizard({ defaultOrgName = "" }: Props) {
     };
 
     try {
+      // Keep the officer's home area (e.g. Nangka) in the switcher when
+      // activating a second barangay like Apas.
+      const homeId = String(profile?.areaId ?? "").trim();
+      if (homeId && homeId !== row.id && !getOnboardedBarangay(homeId)) {
+        const homeOpt = listMapAreaOptions().find((o) => o.id === homeId);
+        if (homeOpt) {
+          const homeArea = resolveKnownMapArea(homeOpt);
+          const nowHome = new Date().toISOString();
+          await saveOnboardedBarangay({
+            id: homeArea.id,
+            barangay: homeArea.barangay,
+            lgu: homeArea.lgu,
+            name: homeArea.name,
+            orgName:
+              profile?.orgName?.trim() || `Brgy. ${homeArea.barangay}`,
+            hallAddress: `Brgy. ${homeArea.barangay} Hall, ${homeArea.lgu}`,
+            hotline: "",
+            email: profile?.email ?? "",
+            center: { ...homeArea.center },
+            zoom: homeArea.zoom,
+            checklist: emptyChecklist(),
+            activatedAt: nowHome,
+            updatedAt: nowHome,
+            activatedBy: user?.uid,
+          });
+        }
+      }
+
       await saveOnboardedBarangay(row);
       setPreferredAreaId(row.id);
       if (user?.uid) {
