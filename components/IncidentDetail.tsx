@@ -12,6 +12,7 @@ import { isOfficer } from "@/lib/auth/types";
 import {
   assignReportInvestigator,
   subscribeHazardReportById,
+  updateReportStatus,
   updateReportValidation,
 } from "@/lib/reports/api";
 import { reportInScope } from "@/lib/reports/barangayScope";
@@ -23,7 +24,9 @@ import {
 import {
   hazardHintLabel,
   type HazardReport,
+  type ReportStatus,
 } from "@/lib/reports/types";
+import { ReportStatusBadge } from "@/components/ReportStatusBadge";
 import { cn } from "@/lib/utils";
 import {
   proposalsForReport,
@@ -73,15 +76,43 @@ function mediaFileLabel(report: HazardReport): string {
 }
 
 function statusHeadline(report: HazardReport): string {
+  if (report.status === "done") return "Done · Closed";
+  if (report.status === "dispatched") {
+    return report.investigatorName
+      ? `Dispatched · ${report.investigatorName}`
+      : "Dispatched · No responder named";
+  }
   if (report.status === "legit") {
     return report.investigatorName
       ? "Verified · Assigned"
       : "Verified · Not assigned";
   }
+  if (report.status === "assigned") {
+    return report.investigatorName
+      ? `Assigned · ${report.investigatorName}`
+      : "Assigned · Needs officer name";
+  }
   if (report.status === "rejected") return "Rejected · Closed";
   if (report.status === "validating") return "Validating · Hold";
-  if (report.investigatorName) return "Under review · Assigned";
-  return "Under review · Not assigned";
+  if (report.investigatorName) return "Queue · Assigned";
+  return "Queue · Not assigned";
+}
+
+function nextPipelineStep(
+  status: ReportStatus,
+): { status: ReportStatus; label: string } | null {
+  if (
+    status === "queued" ||
+    status === "validating" ||
+    status === "needs_review" ||
+    status === "failed"
+  ) {
+    return { status: "assigned", label: "Move to Assigned" };
+  }
+  if (status === "assigned") return { status: "legit", label: "Mark verified" };
+  if (status === "legit") return { status: "dispatched", label: "Dispatch" };
+  if (status === "dispatched") return { status: "done", label: "Mark done" };
+  return null;
 }
 
 function proposalTitle(report: HazardReport): string {
@@ -216,6 +247,33 @@ export function IncidentDetail({ reportId }: IncidentDetailProps) {
     }
   }
 
+  async function advancePipeline(next: ReportStatus) {
+    if (!selected) return;
+    setBusy(true);
+    try {
+      if (next === "assigned") {
+        if (isOfficer(profile) && !selected.investigatorUid) {
+          await assignInvestigator(
+            profile.uid,
+            profile.displayName || profile.email,
+          );
+          return;
+        }
+        await updateReportStatus(selected.id, "assigned");
+        return;
+      }
+      if (next === "legit") {
+        await override("legit");
+        return;
+      }
+      await updateReportStatus(selected.id, next);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const pipelineNext = selected ? nextPipelineStep(selected.status) : null;
+
   if (loading) {
     return <CommandContentSkeleton fill />;
   }
@@ -253,7 +311,8 @@ export function IncidentDetail({ reportId }: IncidentDetailProps) {
     selected.status === "queued" ||
     selected.status === "validating" ||
     selected.status === "needs_review" ||
-    selected.status === "failed";
+    selected.status === "failed" ||
+    selected.status === "assigned";
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-[var(--surface-raised)]">
@@ -281,6 +340,7 @@ export function IncidentDetail({ reportId }: IncidentDetailProps) {
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
+          <ReportStatusBadge status={selected.status} />
           <span className="inline-flex border border-[#c45c12]/30 bg-[#f3e6d8] px-2.5 py-1 text-xs font-medium text-[#8a4b1a]">
             {statusHeadline(selected)}
           </span>
@@ -500,23 +560,29 @@ export function IncidentDetail({ reportId }: IncidentDetailProps) {
             ) : null}
 
             <div className="mt-5 flex flex-col gap-2">
+              {pipelineNext ? (
+                <Button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void advancePipeline(pipelineNext.status)}
+                >
+                  {pipelineNext.label}
+                </Button>
+              ) : null}
               {requestDetailsHref ? (
-                <Button asChild disabled={busy}>
+                <Button asChild variant="outline" disabled={busy}>
                   <a href={requestDetailsHref}>Request details</a>
                 </Button>
               ) : (
-                <Button type="button" disabled={busy} onClick={() => setWhyOpen(true)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => setWhyOpen(true)}
+                >
                   Request details
                 </Button>
               )}
-              <Button
-                type="button"
-                variant="outline"
-                disabled={busy || selected.status === "legit"}
-                onClick={() => void override("legit")}
-              >
-                Link to Incident
-              </Button>
               <Button
                 type="button"
                 variant="outline"
@@ -528,7 +594,7 @@ export function IncidentDetail({ reportId }: IncidentDetailProps) {
               <Button
                 type="button"
                 variant="ghost"
-                disabled={busy || selected.status === "rejected"}
+                disabled={busy || selected.status === "rejected" || selected.status === "done"}
                 onClick={() => void override("rejected")}
                 className="text-[var(--muted)]"
               >

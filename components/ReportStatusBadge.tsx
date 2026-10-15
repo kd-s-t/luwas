@@ -6,16 +6,28 @@ import { cn } from "@/lib/utils";
 function statusVariant(
   status: ReportStatus,
 ): "default" | "outline" | "warn" | "danger" {
-  if (status === "legit") return "default";
+  if (status === "legit" || status === "dispatched" || status === "done") {
+    return "default";
+  }
   if (status === "rejected" || status === "failed") return "danger";
-  if (status === "needs_review" || status === "validating" || status === "queued")
+  if (
+    status === "needs_review" ||
+    status === "validating" ||
+    status === "queued" ||
+    status === "assigned"
+  ) {
     return "warn";
+  }
   return "outline";
 }
 
-function statusLabel(status: ReportStatus): string {
+export function statusLabel(status: ReportStatus): string {
   if (status === "legit") return "Verified";
   if (status === "needs_review") return "Needs review";
+  if (status === "assigned") return "Assigned";
+  if (status === "dispatched") return "Dispatched";
+  if (status === "done") return "Done";
+  if (status === "queued") return "Queue";
   return status.replace(/_/g, " ");
 }
 
@@ -24,7 +36,7 @@ type ReportStatusBadgeProps = {
   className?: string;
 };
 
-/** Shows Gemini + Verified for legit AI checks; other statuses as plain badges. */
+/** Pipeline + AI statuses for boards and detail. */
 export function ReportStatusBadge({ status, className }: ReportStatusBadgeProps) {
   if (status === "legit") {
     return (
@@ -42,6 +54,32 @@ export function ReportStatusBadge({ status, className }: ReportStatusBadgeProps)
           className="size-3.5 shrink-0 object-contain"
         />
         Verified
+      </span>
+    );
+  }
+
+  if (status === "dispatched") {
+    return (
+      <span
+        className={cn(
+          "inline-flex border border-transparent bg-[var(--accent)] px-2 py-0.5 font-mono text-[10px] tracking-wider text-[var(--on-accent)] uppercase",
+          className,
+        )}
+      >
+        Dispatched
+      </span>
+    );
+  }
+
+  if (status === "done") {
+    return (
+      <span
+        className={cn(
+          "inline-flex border border-[var(--border)] bg-[var(--surface-panel)] px-2 py-0.5 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase",
+          className,
+        )}
+      >
+        Done
       </span>
     );
   }

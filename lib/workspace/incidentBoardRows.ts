@@ -26,6 +26,7 @@ const REVIEW = new Set<ReportStatus>([
   "validating",
   "needs_review",
   "failed",
+  "assigned",
 ]);
 
 const URGENT_HAZARDS = new Set(["flood", "landslide", "fire", "typhoon"]);
