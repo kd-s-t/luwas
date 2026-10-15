@@ -30,6 +30,9 @@
   "home": {
     "tagline": "Isang mas ligtas na hakbang, magkasama.",
     "blurb": "Mag-ulat ng panganib o humingi ng tulong. Hindi kailangan ng perpektong ulat - ipadala ang alam mo.",
+    "reportFor": "Para kanino ito?",
+    "forMyself": "Para sa akin",
+    "forSomeoneElse": "Para sa iba",
     "needHelp": "Kailangan Ko ng Tulong",
     "reportHazard": "Mag-ulat ng Panganib",
     "checkReport": "Tingnan ang Aking Ulat",

@@ -48,8 +48,10 @@ import {
   type ReportCaptureMeta,
 } from "@/lib/reports/captureMeta";
 import {
+  createGuestHazardReport,
   createHazardReport,
   markReportValidating,
+  newGuestReportId,
   updateReportValidation,
 } from "@/lib/reports/api";
 import { triggerAutoResponderCall } from "@/lib/alerts/autoResponderCall";
@@ -92,6 +94,7 @@ const HallPinMap = dynamic(() => import("@/components/HallPinMap"), {
 
 type Step = "intent" | "situation" | "location" | "review";
 type Intent = "needHelp" | "reportHazard";
+type ReportFor = "myself" | "someoneElse";
 
 type CitizenReportFormProps = {
   /** Null/undefined = guest (no login), same as iOS. */
@@ -145,10 +148,21 @@ function inferHazard(situation: string): ReportHazardHint {
   return "other";
 }
 
-function titleFromSituation(situation: string, intent: Intent): string {
+function titleFromSituation(
+  situation: string,
+  intent: Intent,
+  reportFor: ReportFor,
+): string {
   const line = situation.trim().split(/\n/)[0]?.trim() ?? "";
   if (line.length >= 8) return line.slice(0, 80);
-  return intent === "needHelp" ? "I need help" : "Hazard report";
+  if (intent === "needHelp") {
+    return reportFor === "someoneElse"
+      ? "Someone else needs help"
+      : "I need help";
+  }
+  return reportFor === "someoneElse"
+    ? "Hazard report for someone else"
+    : "Hazard report";
 }
 
 function SolidAction({
@@ -196,6 +210,7 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
   const [language, setLanguage] = useState<CitizenLang>("en");
   const [step, setStep] = useState<Step>("intent");
   const [intent, setIntent] = useState<Intent>("needHelp");
+  const [reportFor, setReportFor] = useState<ReportFor>("myself");
   const [situation, setSituation] = useState("");
   const [voiceNoteLabel, setVoiceNoteLabel] = useState<string | null>(null);
   const [voiceFile, setVoiceFile] = useState<File | null>(null);
@@ -233,6 +248,7 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
   const voiceChunksRef = useRef<Blob[]>([]);
   const voiceStreamRef = useRef<MediaStream | null>(null);
   const voiceKeepRef = useRef(true);
+  const gpsAutoForStepRef = useRef(false);
   const coordsRef = useRef<{ lat: number; lng: number }>({
     lat: NANGKA_HALL.lat,
     lng: NANGKA_HALL.lng,
@@ -273,6 +289,9 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
       transcript ? `Transcript: ${transcript}` : "",
       approximate ? "Approximate location" : "",
       intent === "needHelp" ? "Intent: I need help" : "Intent: Report a hazard",
+      reportFor === "someoneElse"
+        ? "Report for: someone else"
+        : "Report for: myself",
     ]
       .filter(Boolean)
       .join("\n");
@@ -366,6 +385,17 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
       setVoicePreviewUrl(null);
     };
   }, [voiceFile]);
+
+  useEffect(() => {
+    if (step !== "location") {
+      gpsAutoForStepRef.current = false;
+      return;
+    }
+    if (gpsAutoForStepRef.current) return;
+    gpsAutoForStepRef.current = true;
+    void captureGps();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- auto GPS once per location step visit
+  }, [step]);
 
   function clearSavedVoice() {
     setVoiceNoteLabel(null);
@@ -674,108 +704,168 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
 
   async function submitGuestReport(file: File) {
     setStatus(t(language, "common.saving"));
+    const reportId = newGuestReportId();
     const hazardHint = inferHazard(situation);
-    const title = titleFromSituation(situation, intent);
+    const title = titleFromSituation(situation, intent, reportFor);
+    const mediaType = file.type.startsWith("video/") ? "video" : "photo";
 
-    const canInline =
-      !file.type.startsWith("video/") && file.size <= 3.5 * 1024 * 1024;
-    const mediaBase64 = canInline ? await fileToBase64(file) : undefined;
-
-    let voiceBase64: string | undefined;
-    let voiceMime: string | undefined;
     let transcript = voiceTranscript?.trim() || "";
-    if (voiceFile && voiceFile.size <= 3.5 * 1024 * 1024) {
-      voiceBase64 = await fileToBase64(voiceFile);
-      voiceMime = voiceFile.type || "audio/webm";
-      if (!transcript) {
-        transcript = await transcribeVoiceFile(voiceFile);
-        if (transcript) setVoiceTranscript(transcript);
-      }
+    if (voiceFile && !transcript) {
+      transcript = await transcribeVoiceFile(voiceFile);
+      if (transcript) setVoiceTranscript(transcript);
     }
-
     const notes = buildReportNotes(transcript || null);
 
-    let aiVerdict: "legit" | "rejected" | "needs_review" | undefined;
-    let aiConfidence: number | undefined;
-    let aiReason: string | undefined;
-    let vertexClass: string | undefined;
-    let vertexConfidence: number | undefined;
-    if (mediaBase64) {
-      const res = await fetch("/api/ai/validate-report", {
+    const captured = meta ?? (await captureReportMeta().catch(() => null));
+    if (captured) setMeta(captured);
+
+    async function uploadGuestFile(
+      kind: "photo" | "voice",
+      media: File,
+    ): Promise<{ mediaPath: string; mediaUrl: string; mediaMime: string } | null> {
+      const body = new FormData();
+      body.set("reportId", reportId);
+      body.set("kind", kind);
+      body.set("file", media, media.name || `${kind}.bin`);
+      const res = await fetch("/api/reports/guest-upload", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title,
-          notes,
-          hazardHint,
-          mediaType: "photo",
-          mediaMime: file.type || "image/jpeg",
-          mediaBase64,
-          fileName: file.name,
-        }),
+        body,
       });
-      if (res.ok) {
-        const data = (await res.json()) as {
-          verdict: "legit" | "rejected" | "needs_review";
-          confidence: number;
-          reason: string;
-          vertexClass?: string | null;
-          vertexConfidence?: number | null;
-        };
-        aiVerdict = data.verdict;
-        aiConfidence = data.confidence;
-        aiReason = data.reason;
-        if (data.vertexClass) vertexClass = data.vertexClass;
-        if (typeof data.vertexConfidence === "number") {
-          vertexConfidence = data.vertexConfidence;
-        }
+      if (!res.ok) return null;
+      const data = (await res.json()) as {
+        mediaPath?: string;
+        mediaUrl?: string;
+        mediaMime?: string;
+      };
+      if (!data.mediaUrl || !data.mediaPath) return null;
+      return {
+        mediaPath: data.mediaPath,
+        mediaUrl: data.mediaUrl,
+        mediaMime: data.mediaMime || media.type || "application/octet-stream",
+      };
+    }
+
+    const uploaded =
+      (await uploadGuestFile("photo", file)) ??
+      ({
+        mediaPath: "/reports/flood-road-chapel.png",
+        mediaUrl: "/reports/flood-road-chapel.png",
+        mediaMime: "image/png",
+      } as const);
+
+    let voicePath: string | null = null;
+    let voiceUrl: string | null = null;
+    let voiceMime: string | null = null;
+    if (voiceFile) {
+      const voiceUploaded = await uploadGuestFile("voice", voiceFile);
+      if (voiceUploaded) {
+        voicePath = voiceUploaded.mediaPath;
+        voiceUrl = voiceUploaded.mediaUrl;
+        voiceMime = voiceUploaded.mediaMime;
       }
     }
 
-    const ingest = await fetch("/api/reports/ios-ingest", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        source: "web",
-        situation: situation.trim(),
-        placeLabel: placeQuery.trim(),
-        landmark: landmark.trim(),
-        latitude: lat,
-        longitude: lng,
-        approximateLocation: approximate,
-        mobileNumber: mobileNumber.trim(),
-        photoNames: photos.map((p) => p.file.name),
-        intent,
-        citizenName: "Guest",
-        citizenPurok: "Demo · no login",
-        mediaBase64,
-        mediaMime: file.type || "image/jpeg",
-        voiceNoteLabel: voiceNoteLabel ?? undefined,
-        voiceBase64,
-        voiceMime,
-        voiceTranscript: transcript || undefined,
-        aiVerdict,
-        aiConfidence,
-        aiReason,
-        vertexClass,
-        vertexConfidence,
-      }),
+    const mediaSource = mobileCapture ? "mobile-camera" : "desktop-file";
+    const id = await createGuestHazardReport({
+      id: reportId,
+      title,
+      notes,
+      hazardHint,
+      mediaType,
+      mediaPath: uploaded.mediaPath,
+      mediaUrl: uploaded.mediaUrl,
+      mediaMime: uploaded.mediaMime,
+      mediaSource,
+      voiceNoteLabel: voiceNoteLabel ?? null,
+      voicePath,
+      voiceUrl,
+      voiceMime,
+      voiceTranscript: transcript || null,
+      lat,
+      lng,
+      locationAccuracyM: fromGps
+        ? (captured?.locationAccuracyM ?? null)
+        : null,
+      locationLabel: placeQuery.trim(),
+      device: captured?.device ?? "web-luwas-citizen",
+      reporterPhone: mobileNumber.trim() || null,
+      status: "queued",
     });
-    if (!ingest.ok) {
-      const text = await ingest.text();
-      throw new Error(
-        text.slice(0, 180) ||
-          `Could not submit guest report (${ingest.status})`,
-      );
+
+    // AI after save — guest update rules allow it without login.
+    const canInline =
+      mediaType === "photo" && file.size <= 3.5 * 1024 * 1024;
+    if (canInline) {
+      void (async () => {
+        try {
+          const mediaBase64 = await fileToBase64(file);
+          const res = await fetch("/api/ai/validate-report", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title,
+              notes,
+              hazardHint,
+              mediaType: "photo",
+              mediaMime: uploaded.mediaMime,
+              mediaBase64,
+              fileName: file.name,
+            }),
+          });
+          if (!res.ok) return;
+          const data = (await res.json()) as {
+            status: "legit" | "rejected" | "needs_review";
+            verdict: "legit" | "rejected" | "needs_review";
+            confidence: number;
+            reason: string;
+            source: "gemini" | "local";
+            model?: string;
+            vertexClass?: string | null;
+            vertexConfidence?: number | null;
+          };
+          const status =
+            data.verdict === "rejected"
+              ? "rejected"
+              : data.verdict === "needs_review"
+                ? "needs_review"
+                : "queued";
+          await updateReportValidation(id, {
+            status,
+            aiVerdict: data.verdict,
+            aiConfidence: data.confidence,
+            aiReason: data.reason,
+            aiSource: data.source,
+            aiModel: data.model ?? null,
+            vertexClass: data.vertexClass ?? null,
+            vertexConfidence:
+              typeof data.vertexConfidence === "number"
+                ? data.vertexConfidence
+                : null,
+            validatedAt: new Date().toISOString(),
+            trustInput: {
+              registered: false,
+              idVerified: false,
+              email: null,
+              phone: mobileNumber.trim() || null,
+              emailVerified: false,
+              mediaSource,
+              lat,
+              lng,
+              locationAccuracyM: fromGps
+                ? (captured?.locationAccuracyM ?? null)
+                : null,
+            },
+          });
+        } catch {
+          // ignore — report already queued
+        }
+      })();
     }
-    const data = (await ingest.json()) as {
-      id: string;
-      aiVerdict?: string;
-    };
-    saveGuestReportId(data.id);
-    setSavedGuestId(data.id);
+
+    saveGuestReportId(id);
+    setSavedGuestId(id);
     setStatus(null);
-    router.push(`/report-incident/received/${encodeURIComponent(data.id)}`);
+    router.push(`/report-incident/received/${encodeURIComponent(id)}`);
   }
 
   async function submitReport() {
@@ -795,7 +885,7 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
       const reportId = crypto.randomUUID();
       const mediaType = file.type.startsWith("video/") ? "video" : "photo";
       const hazardHint = inferHazard(situation);
-      const title = titleFromSituation(situation, intent);
+      const title = titleFromSituation(situation, intent, reportFor);
 
       let transcript = voiceTranscript?.trim() || "";
       if (voiceFile && !transcript) {
@@ -1059,6 +1149,37 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
 
         <FadeItem>
           <div className="space-y-3">
+            <div className="space-y-2">
+              <p className="text-sm font-semibold text-[var(--foreground)]">
+                {t(language, "home.reportFor")}
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  className={cn(
+                    "min-h-12 rounded-[14px] border-[1.5px] px-3 text-sm font-semibold transition",
+                    reportFor === "myself"
+                      ? "border-[var(--foreground)] bg-[var(--foreground)] text-white"
+                      : "border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)]",
+                  )}
+                  onClick={() => setReportFor("myself")}
+                >
+                  {t(language, "home.forMyself")}
+                </button>
+                <button
+                  type="button"
+                  className={cn(
+                    "min-h-12 rounded-[14px] border-[1.5px] px-3 text-sm font-semibold transition",
+                    reportFor === "someoneElse"
+                      ? "border-[var(--foreground)] bg-[var(--foreground)] text-white"
+                      : "border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)]",
+                  )}
+                  onClick={() => setReportFor("someoneElse")}
+                >
+                  {t(language, "home.forSomeoneElse")}
+                </button>
+              </div>
+            </div>
             <SolidAction
               title={t(language, "home.needHelp")}
               style="danger"
@@ -1589,6 +1710,10 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
                 {intent === "needHelp"
                   ? t(language, "intent.needHelp")
                   : t(language, "intent.reportHazard")}
+                {" · "}
+                {reportFor === "someoneElse"
+                  ? t(language, "home.forSomeoneElse")
+                  : t(language, "home.forMyself")}
               </p>
               <p className="mt-1 whitespace-pre-wrap text-sm">{situation}</p>
               <div className="mt-2.5 space-y-1 rounded-[10px] bg-[#1a73d1]/[0.08] p-2.5 text-xs text-[#1a73d1]">

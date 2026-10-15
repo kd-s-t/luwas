@@ -7,6 +7,11 @@ import {
   DEFAULT_REPORT_BARANGAY,
   DEFAULT_REPORT_LGU,
 } from "@/lib/reports/barangayScope";
+import {
+  firestoreEmulatorHost,
+  putGuestReportDoc,
+  uploadGuestMediaBytes,
+} from "@/lib/reports/serverGuestWrite";
 import { EMPTY_REACTION_COUNTS } from "@/lib/reports/socialTypes";
 import { computeReportTrust } from "@/lib/reports/trustScore";
 import type {
@@ -125,87 +130,8 @@ function mediaForHazard(hazard: ReportHazardHint): {
   }
 }
 
-function firestoreHost(): string {
-  const useEmu = process.env.NEXT_PUBLIC_USE_EMULATORS === "true";
-  return (
-    process.env.FIRESTORE_EMULATOR_HOST?.trim() ||
-    (useEmu ? "127.0.0.1:8080" : "")
-  );
-}
-
 function projectId(): string {
   return process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim() || "demo-dro";
-}
-
-/** Write a document via Firestore REST — works on emulator and bypasses Auth. */
-async function putReportDoc(
-  id: string,
-  fields: Record<string, unknown>,
-): Promise<void> {
-  const host = firestoreHost();
-  if (!host) {
-    throw new Error(
-      "Firestore emulator not configured (set NEXT_PUBLIC_USE_EMULATORS=true)",
-    );
-  }
-
-  const url =
-    `http://${host}/v1/projects/${projectId()}/databases/(default)/documents/reports/` +
-    encodeURIComponent(id);
-
-  // Emulator: Bearer owner bypasses security rules so iOS ingest always persists.
-  const res = await fetch(url, {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: "Bearer owner",
-    },
-    body: JSON.stringify({ fields: encodeFields(fields) }),
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Firestore write ${res.status}: ${text.slice(0, 400)}`);
-  }
-
-  // Verify the doc is readable from the database.
-  const check = await fetch(url);
-  if (!check.ok) {
-    throw new Error(`Firestore verify failed after write (${check.status})`);
-  }
-}
-
-function encodeValue(value: unknown): Record<string, unknown> {
-  if (value === null || value === undefined) {
-    return { nullValue: null };
-  }
-  if (typeof value === "string") return { stringValue: value };
-  if (typeof value === "boolean") return { booleanValue: value };
-  if (typeof value === "number") {
-    if (Number.isInteger(value)) return { integerValue: String(value) };
-    return { doubleValue: value };
-  }
-  if (Array.isArray(value)) {
-    return {
-      arrayValue: {
-        values: value.map((v) => encodeValue(v)),
-      },
-    };
-  }
-  if (typeof value === "object") {
-    return { mapValue: { fields: encodeFields(value as Record<string, unknown>) } };
-  }
-  return { stringValue: String(value) };
-}
-
-function encodeFields(
-  fields: Record<string, unknown>,
-): Record<string, Record<string, unknown>> {
-  const out: Record<string, Record<string, unknown>> = {};
-  for (const [k, v] of Object.entries(fields)) {
-    out[k] = encodeValue(v);
-  }
-  return out;
 }
 
 export async function POST(req: Request) {
@@ -216,14 +142,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const situation =
+  const situationRaw =
     typeof body.situation === "string" ? body.situation.trim() : "";
-  if (situation.length < 12) {
-    return NextResponse.json(
-      { error: "situation required (min 12 chars)" },
-      { status: 400 },
-    );
-  }
 
   const referenceRaw =
     typeof body.reference === "string" ? body.reference.trim().toUpperCase() : "";
@@ -263,19 +183,44 @@ export async function POST(req: Request) {
         ? "No login"
         : "Field";
 
-  const hazardHint = hazardFromText(situation, body.aiCategory);
-  const title =
-    body.intent === "needHelp"
-      ? `Help needed · ${placeLabel}`
-      : `Hazard · ${placeLabel}`;
   const voiceNoteLabel =
     typeof body.voiceNoteLabel === "string" ? body.voiceNoteLabel.trim() : "";
   const voiceTranscript =
     typeof body.voiceTranscript === "string"
       ? body.voiceTranscript.trim()
       : "";
+
+  // Situation text is optional on web; pad from place / voice / intent.
+  const situation =
+    situationRaw.length >= 12
+      ? situationRaw
+      : [
+          situationRaw,
+          voiceTranscript ? `Voice: ${voiceTranscript}` : "",
+          body.intent === "needHelp" ? "I need help" : "Hazard report",
+          `Near ${placeLabel}`,
+        ]
+          .filter(Boolean)
+          .join(". ")
+          .trim();
+
+  if (situation.length < 12) {
+    return NextResponse.json(
+      { error: "situation or place required" },
+      { status: 400 },
+    );
+  }
+
+  const hazardHint = hazardFromText(
+    `${situation} ${voiceTranscript}`,
+    body.aiCategory,
+  );
+  const title =
+    body.intent === "needHelp"
+      ? `Help needed · ${placeLabel}`
+      : `Hazard · ${placeLabel}`;
   const notes = [
-    situation,
+    situationRaw || situation,
     landmark ? `Landmark: ${landmark}` : "",
     voiceNoteLabel ? `Voice: ${voiceNoteLabel}` : "",
     voiceTranscript ? `Transcript: ${voiceTranscript}` : "",
@@ -355,6 +300,7 @@ export async function POST(req: Request) {
 
   const rawB64 =
     typeof body.mediaBase64 === "string" ? body.mediaBase64.trim() : "";
+  const useEmuFs = Boolean(firestoreEmulatorHost());
   if (rawB64 && source === "web") {
     const ext =
       mediaMimeRaw.includes("png")
@@ -364,14 +310,34 @@ export async function POST(req: Request) {
           : mediaMimeRaw.includes("gif")
             ? "gif"
             : "jpg";
-    const relDir = path.join("reports", "guest");
-    const fileName = `${reference}.${ext}`;
-    const absDir = path.join(process.cwd(), "public", relDir);
-    await mkdir(absDir, { recursive: true });
-    await writeFile(path.join(absDir, fileName), Buffer.from(rawB64, "base64"));
-    mediaUrl = `/${relDir}/${fileName}`;
-    mediaMime = mediaMimeRaw;
-    mediaPath = mediaUrl;
+    const bytes = Buffer.from(rawB64, "base64");
+    if (useEmuFs) {
+      const relDir = path.join("reports", "guest");
+      const fileName = `${reference}.${ext}`;
+      const absDir = path.join(process.cwd(), "public", relDir);
+      await mkdir(absDir, { recursive: true });
+      await writeFile(path.join(absDir, fileName), bytes);
+      mediaUrl = `/${relDir}/${fileName}`;
+      mediaMime = mediaMimeRaw;
+      mediaPath = mediaUrl;
+    } else {
+      try {
+        const uploaded = await uploadGuestMediaBytes({
+          objectPath: `reports/web-guest/${reference}/photo.${ext}`,
+          bytes,
+          contentType: mediaMimeRaw,
+        });
+        mediaUrl = uploaded.mediaUrl;
+        mediaPath = uploaded.mediaPath;
+        mediaMime = mediaMimeRaw;
+      } catch (err) {
+        console.error("[ios-ingest] guest photo upload failed", err);
+        const stock = mediaForHazard(hazardHint);
+        mediaUrl = stock.mediaUrl;
+        mediaMime = stock.mediaMime;
+        mediaPath = mediaUrl;
+      }
+    }
   } else {
     const stock = mediaForHazard(hazardHint);
     mediaUrl = stock.mediaUrl;
@@ -395,14 +361,30 @@ export async function POST(req: Request) {
         : voiceMimeRaw.includes("ogg")
           ? "ogg"
           : "webm";
-    const relDir = path.join("reports", "guest");
-    const fileName = `${reference}-voice.${ext}`;
-    const absDir = path.join(process.cwd(), "public", relDir);
-    await mkdir(absDir, { recursive: true });
-    await writeFile(path.join(absDir, fileName), Buffer.from(voiceB64, "base64"));
-    voiceUrl = `/${relDir}/${fileName}`;
-    voicePath = voiceUrl;
-    voiceMimeOut = voiceMimeRaw;
+    const bytes = Buffer.from(voiceB64, "base64");
+    if (useEmuFs) {
+      const relDir = path.join("reports", "guest");
+      const fileName = `${reference}-voice.${ext}`;
+      const absDir = path.join(process.cwd(), "public", relDir);
+      await mkdir(absDir, { recursive: true });
+      await writeFile(path.join(absDir, fileName), bytes);
+      voiceUrl = `/${relDir}/${fileName}`;
+      voicePath = voiceUrl;
+      voiceMimeOut = voiceMimeRaw;
+    } else {
+      try {
+        const uploaded = await uploadGuestMediaBytes({
+          objectPath: `reports/web-guest/${reference}/voice.${ext}`,
+          bytes,
+          contentType: voiceMimeRaw,
+        });
+        voiceUrl = uploaded.mediaUrl;
+        voicePath = uploaded.mediaPath;
+        voiceMimeOut = voiceMimeRaw;
+      } catch (err) {
+        console.error("[ios-ingest] guest voice upload failed", err);
+      }
+    }
   }
 
   const payload: Record<string, unknown> = {
@@ -463,7 +445,7 @@ export async function POST(req: Request) {
   };
 
   try {
-    await putReportDoc(reference, payload);
+    await putGuestReportDoc(reference, payload);
   } catch (err) {
     console.error("[ios-ingest] Firestore write failed", err);
     return NextResponse.json(

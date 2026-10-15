@@ -192,6 +192,119 @@ export async function getHazardReportById(
   return mapReport(snap.id, snap.data() as Record<string, unknown>);
 }
 
+/** Guest web report id — must match Firestore rules `LUW-YYMMDD-####`. */
+export function newGuestReportId(): string {
+  const day = new Date().toISOString().slice(2, 10).replace(/-/g, "");
+  const suffix = String(Math.floor(1000 + Math.random() * 9000));
+  return `LUW-${day}-${suffix}`;
+}
+
+/** Unauthenticated guest create — rules allow LUW-* + citizenUid web-guest. */
+export async function createGuestHazardReport(input: {
+  id?: string;
+  title: string;
+  notes: string;
+  hazardHint: ReportHazardHint;
+  mediaType: ReportMediaType;
+  mediaPath: string;
+  mediaUrl: string;
+  mediaMime: string;
+  mediaSource?: ReportMediaSource | null;
+  voiceNoteLabel?: string | null;
+  voicePath?: string | null;
+  voiceUrl?: string | null;
+  voiceMime?: string | null;
+  voiceTranscript?: string | null;
+  lat: number | null;
+  lng: number | null;
+  locationAccuracyM?: number | null;
+  locationLabel?: string | null;
+  device?: string | null;
+  reporterPhone?: string | null;
+  status?: Extract<ReportStatus, "queued" | "needs_review" | "rejected">;
+  aiVerdict?: HazardReport["aiVerdict"];
+  aiConfidence?: number | null;
+  aiReason?: string | null;
+  vertexClass?: string | null;
+  vertexConfidence?: number | null;
+}): Promise<string> {
+  const now = new Date().toISOString();
+  const id = input.id ?? newGuestReportId();
+  const status = input.status ?? "queued";
+  const aiVerdict = input.aiVerdict ?? null;
+  const aiConfidence =
+    typeof input.aiConfidence === "number" ? input.aiConfidence : null;
+  const trust = computeReportTrust({
+    registered: false,
+    idVerified: false,
+    email: null,
+    phone: input.reporterPhone ?? null,
+    emailVerified: false,
+    mediaSource: input.mediaSource ?? "desktop-file",
+    lat: input.lat,
+    lng: input.lng,
+    locationAccuracyM: input.locationAccuracyM ?? null,
+    aiConfidence,
+    aiVerdict,
+  });
+  await setDoc(doc(getClientDb(), COL, id), {
+    citizenUid: "web-guest",
+    citizenName: "Guest",
+    citizenPurok: "Demo · no login",
+    barangay: DEFAULT_REPORT_BARANGAY,
+    lgu: DEFAULT_REPORT_LGU,
+    citizenPhotoURL: null,
+    title: input.title,
+    notes: input.notes,
+    hazardHint: input.hazardHint,
+    mediaType: input.mediaType,
+    mediaPath: input.mediaPath,
+    mediaUrl: input.mediaUrl,
+    mediaMime: input.mediaMime,
+    mediaSource: input.mediaSource ?? "desktop-file",
+    voiceNoteLabel: input.voiceNoteLabel?.trim() || null,
+    voicePath: input.voicePath ?? null,
+    voiceUrl: input.voiceUrl ?? null,
+    voiceMime: input.voiceMime ?? null,
+    voiceTranscript: input.voiceTranscript?.trim() || null,
+    lat: input.lat,
+    lng: input.lng,
+    locationAccuracyM: input.locationAccuracyM ?? null,
+    locationLabel: input.locationLabel ?? null,
+    device: input.device ?? "web-luwas-citizen",
+    ipAddress: null,
+    reporterIdVerified: false,
+    reporterEmail: null,
+    reporterPhone: input.reporterPhone?.trim() || null,
+    reporterEmailVerified: false,
+    trustScore: trust.total,
+    trustBreakdown: trust,
+    status,
+    aiVerdict,
+    aiConfidence,
+    aiReason: input.aiReason?.trim() || null,
+    aiSource: aiVerdict ? "gemini" : "local",
+    aiModel: null,
+    vertexClass: input.vertexClass ?? null,
+    vertexConfidence: input.vertexConfidence ?? null,
+    validatedAt: aiVerdict ? now : null,
+    investigatorUid: null,
+    investigatorName: null,
+    investigatedAt: null,
+    autoResponderCallAt: null,
+    dispatchLog: null,
+    reactionCounts: { ...EMPTY_REACTION_COUNTS },
+    commentCount: 0,
+    source: "web",
+    iosReference: id,
+    createdAt: now,
+    updatedAt: now,
+    createdAtServer: serverTimestamp(),
+    updatedAtServer: serverTimestamp(),
+  });
+  return id;
+}
+
 export async function createHazardReport(input: {
   id?: string;
   citizenUid: string;

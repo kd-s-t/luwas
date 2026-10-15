@@ -30,6 +30,9 @@
   "home": {
     "tagline": "A safer next step, together.",
     "blurb": "Report danger or ask for help. No perfect report needed - send what you know.",
+    "reportFor": "Who is this for?",
+    "forMyself": "Myself",
+    "forSomeoneElse": "Someone else",
     "needHelp": "I Need Help",
     "reportHazard": "Report a Hazard",
     "checkReport": "Check My Report",

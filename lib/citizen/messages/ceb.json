@@ -30,6 +30,9 @@
   "home": {
     "tagline": "Usa ka luwas nga sunod nga lakang, magkauban.",
     "blurb": "Ireport ang peligro o mangayo og tabang. Dili kinahanglan og perpekto nga report - ipadala ang imong nahibaloan.",
+    "reportFor": "Kinsa ni?",
+    "forMyself": "Para nako",
+    "forSomeoneElse": "Para sa lain",
     "needHelp": "Nagkinahanglan Ko og Tabang",
     "reportHazard": "Ireport ang Peligro",
     "checkReport": "Tan-awa ang Akong Report",
