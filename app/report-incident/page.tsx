@@ -13,8 +13,8 @@ export default function ReportIncidentPage() {
 
   return (
     <PublicShell hideFooter hideNav>
-      <div className="min-h-screen bg-[var(--surface-raised)]">
-        <main className="mx-auto max-w-md px-4 pt-3 pb-10 sm:px-5">
+      <div className="min-h-screen bg-[var(--surface)]">
+        <main className="mx-auto max-w-md px-4 pt-0 pb-10 sm:px-5">
           <CitizenReportForm
             key={author?.uid ?? "guest"}
             author={loading ? null : author}

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Check, ChevronLeft, Phone } from "lucide-react";
+import { Check, ChevronLeft, Globe, Phone } from "lucide-react";
 import { useMotionSafe } from "@/components/motion/primitives";
 import { t, type CitizenLang } from "@/lib/citizen/i18n";
 import { cn } from "@/lib/utils";
@@ -22,6 +22,7 @@ export function CitizenHeader({
   showBack,
   onBack,
   showHomeLink,
+  variant = "default",
 }: {
   language: CitizenLang;
   onLanguageChange?: (lang: CitizenLang) => void;
@@ -29,6 +30,8 @@ export function CitizenHeader({
   onBack?: () => void;
   /** History back (falls back to site home if no prior page). */
   showHomeLink?: boolean;
+  /** `brand` = red LUWAS bar (citizen home). */
+  variant?: "default" | "brand";
 }) {
   const router = useRouter();
 
@@ -38,6 +41,69 @@ export function CitizenHeader({
       return;
     }
     router.push("/");
+  }
+
+  if (variant === "brand") {
+    return (
+      <div className="-mx-4 space-y-0 sm:-mx-5">
+        <div className="flex items-center bg-[var(--danger)] px-4 py-3.5 sm:px-5">
+          <Link
+            href="/"
+            className="text-[20px] font-bold tracking-[0.04em] text-white uppercase"
+          >
+            LUWAS
+          </Link>
+          <div className="flex-1" />
+          <a
+            href="tel:911"
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-white"
+          >
+            <Phone className="size-3.5 fill-current" aria-hidden />
+            911
+          </a>
+        </div>
+        {onLanguageChange ? (
+          <div className="flex flex-wrap items-center gap-2 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 sm:px-5">
+            <Globe
+              className="size-4 shrink-0 text-[#1d4ed8]"
+              strokeWidth={2}
+              aria-hidden
+            />
+            {(Object.keys(LANG_LABEL) as CitizenLang[]).map((lang) => (
+              <button
+                key={lang}
+                type="button"
+                onClick={() => onLanguageChange(lang)}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-semibold transition",
+                  language === lang
+                    ? "bg-[#dbeafe] text-[#1d4ed8]"
+                    : "bg-transparent text-[var(--muted)]",
+                )}
+              >
+                {language === lang ? (
+                  <Check className="size-3" strokeWidth={3} aria-hidden />
+                ) : null}
+                {LANG_LABEL[lang]}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        {showBack ? (
+          <div className="bg-[var(--surface)] px-4 pt-3 sm:px-5">
+            <button
+              type="button"
+              onClick={onBack}
+              className="inline-flex items-center gap-1 text-sm font-semibold text-[var(--foreground)]"
+              aria-label={t(language, "common.back")}
+            >
+              <ChevronLeft className="size-4" strokeWidth={2.5} aria-hidden />
+              {t(language, "common.back")}
+            </button>
+          </div>
+        ) : null}
+      </div>
+    );
   }
 
   return (
@@ -102,7 +168,33 @@ export function CitizenHeader({
   );
 }
 
-export function Danger911Banner({ language }: { language: CitizenLang }) {
+export function Danger911Banner({
+  language,
+  variant = "solid",
+}: {
+  language: CitizenLang;
+  variant?: "solid" | "soft";
+}) {
+  if (variant === "soft") {
+    return (
+      <div className="rounded-2xl border border-[var(--danger)]/20 bg-[#fce8ea] p-4">
+        <p className="text-base font-semibold text-[var(--foreground)]">
+          {t(language, "danger.immediate")}
+        </p>
+        <p className="mt-1 text-sm leading-relaxed text-[var(--muted)]">
+          {t(language, "danger.immediateBody")}
+        </p>
+        <a
+          href="tel:911"
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--danger)] py-3.5 text-base font-semibold text-white transition hover:bg-[var(--danger)]/92"
+        >
+          <Phone className="size-4 fill-current" aria-hidden />
+          {t(language, "danger.call911")}
+        </a>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-2xl bg-[var(--danger)] p-4">
       <p className="text-sm font-semibold text-white">
@@ -118,20 +210,53 @@ export function Danger911Banner({ language }: { language: CitizenLang }) {
   );
 }
 
-export function CitizenFooter({ language }: { language: CitizenLang }) {
+export function CitizenFooter({
+  language,
+  tight,
+}: {
+  language: CitizenLang;
+  /** Less top pad when stacked under the 911 card. */
+  tight?: boolean;
+}) {
   return (
-    <div className="space-y-1.5 py-4 text-center">
+    <div
+      className={cn(
+        "space-y-1.5 border-t border-[var(--border)] text-center",
+        tight ? "pt-3 pb-2" : "py-4",
+      )}
+    >
       <p className="text-xs text-[var(--muted)]">
         {t(language, "footer.tagline")}
       </p>
-      <div className="flex items-center justify-center gap-4 text-[11px] font-medium text-[var(--muted)]">
-        <Link href="/support" className="hover:text-[var(--foreground)]">
+      <div className="flex items-center justify-center gap-4 text-[11px] font-medium text-[#2563eb]">
+        <Link href="/support" className="hover:underline">
           {t(language, "footer.accessibility")}
         </Link>
-        <Link href="/privacy" className="hover:text-[var(--foreground)]">
+        <Link href="/privacy" className="hover:underline">
           {t(language, "footer.privacy")}
         </Link>
       </div>
+    </div>
+  );
+}
+
+export function HomeFloodTip({ language }: { language: CitizenLang }) {
+  return (
+    <div className="space-y-2">
+      <p className="text-base font-semibold text-[var(--foreground)]">
+        {t(language, "home.staySafe")}
+      </p>
+      <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
+        <p className="text-sm font-semibold text-[var(--foreground)]">
+          {t(language, "home.avoidFloodTitle")}
+        </p>
+        <p className="mt-1 text-sm leading-relaxed text-[var(--muted)]">
+          {t(language, "home.avoidFloodBody")}
+        </p>
+      </div>
+      <p className="text-xs leading-relaxed text-[var(--muted)]">
+        {t(language, "home.disclaimer")}
+      </p>
     </div>
   );
 }
@@ -140,23 +265,36 @@ export function StepProgress({
   step,
   title,
   language,
+  variant = "default",
 }: {
   step: number;
   title: string;
   language: CitizenLang;
+  variant?: "default" | "brand";
 }) {
   const motionSafe = useMotionSafe();
+  const brand = variant === "brand";
   return (
     <div>
-      <p className="text-[11px] font-semibold tracking-[0.08em] text-[var(--muted)] uppercase">
+      <p
+        className={cn(
+          "text-[12px] font-semibold",
+          brand
+            ? "text-[#1d4ed8]"
+            : "tracking-[0.08em] text-[var(--muted)] uppercase",
+        )}
+      >
         {t(language, "step.progress", {
           step: String(step),
           title,
         })}
       </p>
-      <div className="mt-2 h-1 overflow-hidden rounded-full bg-[var(--border)]">
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--border)]">
         <motion.div
-          className="h-full rounded-full bg-[var(--foreground)]"
+          className={cn(
+            "h-full rounded-full",
+            brand ? "bg-[#2563eb]" : "bg-[var(--foreground)]",
+          )}
           initial={false}
           animate={{ width: `${(step / 3) * 100}%` }}
           transition={

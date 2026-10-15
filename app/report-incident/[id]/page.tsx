@@ -65,8 +65,8 @@ export default function ReportIncidentDraftPage() {
 
   return (
     <PublicShell hideFooter hideNav>
-      <div className="min-h-screen bg-[var(--surface-raised)]">
-        <main className="mx-auto max-w-md px-4 pt-3 pb-10 sm:px-5">
+      <div className="min-h-screen bg-[var(--surface)]">
+        <main className="mx-auto max-w-md px-4 pt-0 pb-10 sm:px-5">
           {loading || authLoading ? (
             <p className="py-16 text-center text-sm text-[var(--muted)]">
               Loading report…

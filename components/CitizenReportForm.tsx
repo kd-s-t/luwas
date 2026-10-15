@@ -11,14 +11,14 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  Activity,
   AlertTriangle,
+  Check,
   Loader2,
   LocateFixed,
   Mic,
   Plus,
   Search,
-  Sparkles,
+  Shield,
   Square,
   Upload,
 } from "lucide-react";
@@ -26,6 +26,7 @@ import {
   CitizenFooter,
   CitizenHeader,
   Danger911Banner,
+  HomeFloodTip,
   StaySafeCard,
   StepProgress,
 } from "@/components/citizen/CitizenChrome";
@@ -56,18 +57,18 @@ import {
   updateIncidentDraft,
   updateReportValidation,
 } from "@/lib/reports/api";
-import type { HazardReport } from "@/lib/reports/types";
 import { triggerAutoResponderCall } from "@/lib/alerts/autoResponderCall";
 import {
   DEFAULT_REPORT_BARANGAY,
   DEFAULT_REPORT_LGU,
 } from "@/lib/reports/barangayScope";
 import { syncHazardReportToBigQuery } from "@/lib/reports/bigquerySync";
-import type { ReportHazardHint } from "@/lib/reports/types";
 import {
-  latestGuestReportId,
-  saveGuestReportId,
-} from "@/lib/reports/guestReportStore";
+  hazardHintLabel,
+  type HazardReport,
+  type ReportHazardHint,
+} from "@/lib/reports/types";
+import { saveGuestReportId } from "@/lib/reports/guestReportStore";
 import { takePendingReportMedia } from "@/lib/reports/pendingMedia";
 import { fileToBase64, uploadReportMedia } from "@/lib/reports/upload";
 import {
@@ -123,6 +124,17 @@ function authorPlace(profile: UserProfile | null | undefined): string {
   if (isCitizen(profile)) return profile.purok;
   if (isOfficer(profile)) return profile.orgName;
   return "Field";
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function reviewHazardLabel(hint: ReportHazardHint): string {
+  if (hint === "flood") return "Flooding";
+  return hazardHintLabel(hint);
 }
 
 function inferHazard(situation: string): ReportHazardHint {
@@ -280,8 +292,6 @@ export function CitizenReportForm({
   const [sampleLoading, setSampleLoading] = useState(false);
   const [recording, setRecording] = useState(false);
   const [voiceBusy, setVoiceBusy] = useState(false);
-  /** Guest last-report id — null until mount (localStorage). */
-  const [savedGuestId, setSavedGuestId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const voiceChunksRef = useRef<Blob[]>([]);
@@ -389,7 +399,6 @@ export function CitizenReportForm({
 
   useEffect(() => {
     setMobileCapture(isMobileClient());
-    setSavedGuestId(latestGuestReportId());
     const pending = takePendingReportMedia();
     if (pending) {
       setPhotos([
@@ -469,7 +478,6 @@ export function CitizenReportForm({
       });
       setDraftId(id);
       saveGuestReportId(id);
-      setSavedGuestId(id);
       router.push(`/report-incident/${encodeURIComponent(id)}`);
     } catch (err) {
       setError(
@@ -767,10 +775,6 @@ export function CitizenReportForm({
   }
 
   function validateSituation(): boolean {
-    if (photos.length < 1) {
-      setError(t(language, "errors.photoRequired"));
-      return false;
-    }
     setError(null);
     return true;
   }
@@ -945,20 +949,27 @@ export function CitizenReportForm({
     }
 
     saveGuestReportId(id);
-    setSavedGuestId(id);
     setStatus(null);
     router.push(`/report-incident/received/${encodeURIComponent(id)}`);
   }
 
   async function submitReport() {
-    if (submitting || photos.length === 0) return;
+    if (submitting) return;
     setError(null);
     setSubmitting(true);
     setStatus(t(language, "common.saving"));
 
-    const file = photos[0]!.file;
-
     try {
+      let file = photos[0]?.file;
+      if (!file) {
+        const res = await fetch("/reports/flood-road-chapel.png");
+        if (!res.ok) throw new Error(t(language, "errors.photoRequired"));
+        const blob = await res.blob();
+        file = new File([blob], "scene.png", {
+          type: blob.type || "image/png",
+        });
+      }
+
       if (isGuest || !author) {
         await submitGuestReport(file);
         return;
@@ -1149,7 +1160,6 @@ export function CitizenReportForm({
       }
 
       saveGuestReportId(id);
-      setSavedGuestId(id);
       setStatus(null);
       router.push(`/report-incident/received/${encodeURIComponent(id)}`);
     } catch (err) {
@@ -1166,6 +1176,7 @@ export function CitizenReportForm({
     <CitizenHeader
       language={language}
       onLanguageChange={setLanguage}
+      variant="brand"
       showBack
       onBack={() => {
         setError(null);
@@ -1179,74 +1190,80 @@ export function CitizenReportForm({
     />
   );
 
+  function formatPhotoSize(bytes: number): string {
+    if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
   if (step === "intent") {
     return (
-      <Stagger className="space-y-5">
+      <div>
+        <CitizenHeader
+          language={language}
+          onLanguageChange={setLanguage}
+          variant="brand"
+        />
+      <Stagger className="space-y-5 pt-3">
         <FadeItem>
-          <CitizenHeader
-            language={language}
-            onLanguageChange={setLanguage}
-            showHomeLink
-          />
-        </FadeItem>
-
-        <FadeItem>
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-[var(--foreground)]">
-                {citizenName}
-              </p>
-              <p className="text-xs text-[var(--muted)]">{citizenPurok}</p>
-            </div>
-            {isGuest ? (
-              <button
-                type="button"
-                className="shrink-0 text-xs font-semibold text-[var(--foreground)]"
-                onClick={() =>
-                  router.push("/login/citizen?next=/report-incident")
-                }
-              >
-                {t(language, "common.logIn")}
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="shrink-0 text-xs font-semibold text-[var(--danger)]"
-                onClick={() => void logout()}
-              >
-                {t(language, "common.logOut")}
-              </button>
-            )}
-          </div>
-        </FadeItem>
-
-        <FadeItem>
-          <div className="space-y-2.5">
+          <div className="space-y-3">
+            <p className="inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.08em] text-[#1d4ed8] uppercase">
+              <Shield className="size-3.5 fill-[#1d4ed8] text-[#1d4ed8]" aria-hidden />
+              {t(language, "home.badge")}
+            </p>
             <h1 className="text-[30px] leading-[1.15] font-bold tracking-tight text-[var(--foreground)]">
               {t(language, "home.tagline")}
             </h1>
             <p className="text-[15px] leading-relaxed text-[var(--muted)]">
               {t(language, "home.blurb")}
             </p>
+            <p className="flex items-center gap-2 text-sm font-medium text-[var(--foreground)]">
+              <span
+                className="flex size-5 shrink-0 items-center justify-center rounded-full bg-[var(--success)] text-white"
+                aria-hidden
+              >
+                <Check className="size-3" strokeWidth={3} />
+              </span>
+              {t(language, "home.noLoginNeeded")}
+            </p>
+            {!isGuest ? (
+              <div className="flex items-center justify-between gap-3 pt-1">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-[var(--foreground)]">
+                    {citizenName}
+                  </p>
+                  <p className="text-xs text-[var(--muted)]">{citizenPurok}</p>
+                </div>
+                <button
+                  type="button"
+                  className="shrink-0 text-xs font-semibold text-[var(--danger)]"
+                  onClick={() => void logout()}
+                >
+                  {t(language, "common.logOut")}
+                </button>
+              </div>
+            ) : null}
           </div>
         </FadeItem>
 
         <FadeItem>
           <div className="space-y-3">
+            <p className="text-base font-semibold text-[var(--foreground)]">
+              {t(language, "home.whatToDo")}
+            </p>
             {starting ? (
               <p className="text-center text-sm text-[var(--muted)]">
                 {t(language, "common.saving")}
               </p>
             ) : null}
             <div className="space-y-2">
-              <p className="text-sm font-semibold text-[var(--foreground)]">
+              <p className="text-sm font-semibold text-[var(--muted)]">
                 {t(language, "home.reportFor")}
               </p>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   className={cn(
-                    "min-h-12 rounded-[14px] border-[1.5px] px-3 text-sm font-semibold transition",
+                    "min-h-11 rounded-[12px] border-[1.5px] px-3 text-sm font-semibold transition",
                     reportFor === "myself"
                       ? "border-[var(--foreground)] bg-[var(--foreground)] text-white"
                       : "border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)]",
@@ -1258,7 +1275,7 @@ export function CitizenReportForm({
                 <button
                   type="button"
                   className={cn(
-                    "min-h-12 rounded-[14px] border-[1.5px] px-3 text-sm font-semibold transition",
+                    "min-h-11 rounded-[12px] border-[1.5px] px-3 text-sm font-semibold transition",
                     reportFor === "someoneElse"
                       ? "border-[var(--foreground)] bg-[var(--foreground)] text-white"
                       : "border-[var(--border)] bg-[var(--surface)] text-[var(--foreground)]",
@@ -1269,65 +1286,62 @@ export function CitizenReportForm({
                 </button>
               </div>
             </div>
-            <SolidAction
-              title={t(language, "home.needHelp")}
-              style="danger"
-              icon={
-                <AlertTriangle
-                  className="size-[18px] fill-white text-white"
-                  aria-hidden
-                />
-              }
-              disabled={starting}
-              onClick={() => void beginReport("needHelp")}
-            />
-            <SolidAction
-              title={t(language, "home.reportHazard")}
-              style="outline"
-              icon={<Activity className="size-[18px]" aria-hidden />}
-              disabled={starting}
-              onClick={() => void beginReport("reportHazard")}
-            />
-            <SolidAction
-              title={t(language, "home.checkReport")}
-              style="outline"
-              icon={<Search className="size-[18px]" aria-hidden />}
-              onClick={() => {
-                if (!isGuest) {
-                  router.push("/my-reports");
-                  return;
+
+            <div className="space-y-2 rounded-2xl border border-[var(--danger)]/20 bg-[#fce8ea] p-3">
+              <SolidAction
+                title={t(language, "home.needHelp")}
+                style="danger"
+                icon={
+                  <AlertTriangle
+                    className="size-[18px] fill-white text-white"
+                    aria-hidden
+                  />
                 }
-                router.push(
-                  savedGuestId
-                    ? `/report-incident/received/${encodeURIComponent(savedGuestId)}`
-                    : "/reports",
-                );
-              }}
-            />
+                disabled={starting}
+                onClick={() => void beginReport("needHelp")}
+              />
+              <p className="px-1 text-sm text-[var(--muted)]">
+                {t(language, "home.needHelpHint")}
+              </p>
+            </div>
+
+            <div className="space-y-2 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3">
+              <SolidAction
+                title={t(language, "home.reportHazard")}
+                style="outline"
+                icon={<AlertTriangle className="size-[18px]" aria-hidden />}
+                disabled={starting}
+                onClick={() => void beginReport("reportHazard")}
+              />
+              <p className="px-1 text-sm text-[var(--muted)]">
+                {t(language, "home.reportHazardHint")}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <SolidAction
+                title={t(language, "home.checkReport")}
+                style="outline"
+                icon={<Search className="size-[18px]" aria-hidden />}
+                onClick={() => {
+                  router.push("/track-report");
+                }}
+              />
+              <p className="px-1 text-sm text-[var(--muted)]">
+                {t(language, "home.checkReportHint")}
+              </p>
+            </div>
           </div>
         </FadeItem>
 
-        {savedGuestId ? (
-          <FadeItem>
-            <button
-              type="button"
-              className="mx-auto block max-w-full truncate text-center font-mono text-[11px] text-[var(--muted)] underline-offset-2 hover:underline"
-              onClick={() =>
-                router.push(
-                  `/report-incident/received/${encodeURIComponent(savedGuestId)}`,
-                )
-              }
-            >
-              Last report · {savedGuestId}
-            </button>
-          </FadeItem>
-        ) : null}
-
         <FadeItem>
-          <StaySafeCard language={language} />
+          <HomeFloodTip language={language} />
         </FadeItem>
         <FadeItem>
-          <Danger911Banner language={language} />
+          <div className="space-y-3">
+            <Danger911Banner language={language} variant="soft" />
+            <CitizenFooter language={language} tight />
+          </div>
         </FadeItem>
 
         {isCitizen(author) ? (
@@ -1337,23 +1351,20 @@ export function CitizenReportForm({
             </div>
           </FadeItem>
         ) : null}
-
-        <FadeItem>
-          <CitizenFooter language={language} />
-        </FadeItem>
       </Stagger>
+      </div>
     );
   }
 
   return (
-    <div className="space-y-[18px]">
+    <div>
       {wizardHeader}
 
       <AnimatePresence mode="wait" initial={false}>
       {step === "situation" ? (
         <motion.div
           key="situation"
-          className="space-y-[18px]"
+          className="space-y-5 pt-4"
           variants={stepMotion}
           initial={motionSafe ? "initial" : false}
           animate="animate"
@@ -1364,32 +1375,35 @@ export function CitizenReportForm({
             step={1}
             title={t(language, "step.situation")}
             language={language}
+            variant="brand"
           />
-          {draftId ? (
-            <p className="font-mono text-[11px] text-[var(--muted)]">
-              {draftId}
-            </p>
-          ) : null}
 
-          <div className="flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3.5 py-3.5">
-            <div>
-              <p className="text-xs text-[var(--muted)]">
-                {t(language, "situation.type")}
-              </p>
-              <p className="text-base font-semibold text-[var(--foreground)]">
-                {intent === "needHelp"
-                  ? t(language, "intent.needHelp")
-                  : t(language, "intent.reportHazard")}
-              </p>
-            </div>
+          <div className="space-y-1.5">
+            <h2 className="text-[28px] leading-[1.15] font-bold tracking-tight text-[var(--foreground)]">
+              {t(language, "situation.title")}
+            </h2>
+            <p className="text-[15px] leading-relaxed text-[var(--muted)]">
+              {t(language, "situation.subtitle")}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2.5 rounded-xl border border-[var(--danger)]/20 bg-[#fce8ea] px-3.5 py-3">
+            <AlertTriangle
+              className="size-4 shrink-0 text-[var(--danger)]"
+              aria-hidden
+            />
+            <p className="min-w-0 flex-1 text-sm font-semibold text-[var(--foreground)]">
+              {intent === "needHelp"
+                ? t(language, "intent.needHelp")
+                : t(language, "intent.reportHazard")}
+            </p>
             <button
               type="button"
-              className="text-sm font-semibold text-[var(--foreground)]"
-              onClick={() =>
-                setIntent((v) =>
-                  v === "needHelp" ? "reportHazard" : "needHelp",
-                )
-              }
+              className="shrink-0 text-sm font-semibold text-[#2563eb]"
+              onClick={() => {
+                if (draftId) router.push("/report-incident");
+                else setStep("intent");
+              }}
             >
               {t(language, "common.change")}
             </button>
@@ -1400,21 +1414,17 @@ export function CitizenReportForm({
               {t(language, "situation.whatHappening")}
             </span>
             <textarea
-              rows={5}
+              rows={4}
               value={situation}
+              placeholder={t(language, "situation.example")}
               onChange={(e) => {
                 setSituation(e.target.value);
                 setError(null);
               }}
-              className={cn(
-                "w-full resize-y rounded-xl border bg-[var(--surface)] px-3 py-2.5 text-sm outline-none",
-                error
-                  ? "border-[var(--danger)]"
-                  : "border-[var(--border)] focus:border-[var(--foreground)]/40",
-              )}
+              className="w-full resize-y rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm outline-none placeholder:text-[var(--muted)] focus:border-[#2563eb]/40"
             />
             <span className="block text-xs leading-relaxed text-[var(--muted)]">
-              {t(language, "situation.example")}
+              {t(language, "situation.typeOrVoice")}
             </span>
           </label>
 
@@ -1448,30 +1458,37 @@ export function CitizenReportForm({
               </audio>
             </div>
           ) : (
-            <button
-              type="button"
-              disabled={voiceBusy}
-              className={cn(
-                "flex w-full items-center justify-center gap-2 rounded-xl border-[1.5px] bg-[var(--surface)] px-3 py-3.5 text-sm font-semibold disabled:opacity-60",
-                recording
-                  ? "border-[var(--danger)] text-[var(--danger)]"
-                  : "border-[var(--border)]",
-              )}
-              onClick={() => void toggleVoiceRecording()}
-            >
-              {voiceBusy && !recording ? (
-                <Loader2 className="size-4 animate-spin" aria-hidden />
-              ) : recording ? (
-                <Square className="size-3.5 fill-current" aria-hidden />
-              ) : (
-                <Mic className="size-4" aria-hidden />
-              )}
-              {recording
-                ? t(language, "situation.recording")
-                : voiceTranscribing
-                  ? "Transcribing…"
-                  : t(language, "situation.recordVoice")}
-            </button>
+            <div className="space-y-2">
+              <button
+                type="button"
+                disabled={voiceBusy}
+                className={cn(
+                  "flex w-full items-center justify-center gap-2 rounded-xl border-[1.5px] bg-[var(--surface)] px-3 py-3.5 text-sm font-semibold disabled:opacity-60",
+                  recording
+                    ? "border-[var(--danger)] text-[var(--danger)]"
+                    : "border-[var(--border)]",
+                )}
+                onClick={() => void toggleVoiceRecording()}
+              >
+                {voiceBusy && !recording ? (
+                  <Loader2 className="size-4 animate-spin" aria-hidden />
+                ) : recording ? (
+                  <Square className="size-3.5 fill-current" aria-hidden />
+                ) : (
+                  <Mic className="size-4" aria-hidden />
+                )}
+                {recording
+                  ? t(language, "situation.recording")
+                  : voiceTranscribing
+                    ? "Transcribing…"
+                    : t(language, "situation.recordVoice")}
+              </button>
+              {!recording ? (
+                <p className="text-xs text-[var(--muted)]">
+                  {t(language, "situation.recordHint")}
+                </p>
+              ) : null}
+            </div>
           )}
           {voiceTranscript ? (
             <p className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm leading-relaxed">
@@ -1499,22 +1516,30 @@ export function CitizenReportForm({
                       : undefined
                   }
                   transition={{ duration: 0.25, ease: easeOut }}
-                  className="flex items-center gap-2 overflow-hidden rounded-[10px] bg-[var(--surface-raised)] px-3 py-3 text-sm"
+                  className="flex items-center gap-2.5 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-sm"
                 >
                   {p.file.type.startsWith("image/") ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={p.preview}
                       alt=""
-                      className="size-10 rounded object-cover"
+                      className="size-12 rounded-lg object-cover"
                     />
                   ) : (
                     <video
                       src={p.preview}
-                      className="size-10 rounded object-cover"
+                      className="size-12 rounded-lg object-cover"
                     />
                   )}
-                  <span className="min-w-0 flex-1 truncate">{p.file.name}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium">{p.file.name}</p>
+                    <p className="text-xs text-[var(--muted)]">
+                      {t(language, "situation.photoMeta", {
+                        count: String(photos.length),
+                        size: formatPhotoSize(p.file.size),
+                      })}
+                    </p>
+                  </div>
                   <button
                     type="button"
                     className="text-[var(--muted)]"
@@ -1545,49 +1570,36 @@ export function CitizenReportForm({
                 />
                 <button
                   type="button"
-                  className={cn(
-                    "flex w-full items-center justify-center gap-2 rounded-xl border-[1.5px] bg-[var(--surface)] px-3 py-3.5 text-sm font-semibold",
-                    photos.length === 0 && error
-                      ? "border-[var(--danger)]"
-                      : "border-[var(--border)]",
-                  )}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border-[1.5px] border-[var(--border)] bg-[var(--surface)] px-3 py-3.5 text-sm font-semibold"
                   onClick={() => fileInputRef.current?.click()}
                 >
-                  <Plus className="size-4" aria-hidden />
+                  <Upload className="size-4" aria-hidden />
                   {photos.length === 0
                     ? t(language, "situation.addPhotoButton")
                     : t(language, "situation.addAnotherPhoto")}
                 </button>
-                {photos.length === 0 ? (
-                  <button
-                    type="button"
-                    disabled={sampleLoading}
-                    onClick={() => void addSamplePhoto()}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--border)] bg-transparent px-3 py-3 text-sm font-semibold text-[var(--muted)] transition hover:border-[var(--foreground)]/30 hover:text-[var(--foreground)] disabled:opacity-60"
-                  >
-                    {sampleLoading ? (
-                      <Loader2 className="size-4 animate-spin" aria-hidden />
-                    ) : null}
-                    {t(language, "situation.useSamplePhoto")}
-                  </button>
-                ) : null}
               </>
             ) : null}
-            {photos.length === 0 ? (
-              <p className="text-xs text-[var(--muted)]">
-                {t(language, "situation.photoHint")}
-              </p>
-            ) : null}
+            <p className="text-xs text-[var(--muted)]">
+              {t(language, "situation.photoHint")}
+            </p>
           </div>
 
-          <div className="flex items-start gap-2.5 rounded-xl bg-[#1a73d1]/[0.08] px-3 py-3">
-            <Sparkles
-              className="mt-0.5 size-4 shrink-0 text-[#1a73d1]"
+          <div className="flex gap-2.5 rounded-xl border border-[#bfdbfe] bg-[#eff6ff] px-3.5 py-3">
+            <span
+              className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-[#2563eb] text-[11px] font-bold text-white"
               aria-hidden
-            />
-            <p className="text-xs leading-relaxed text-[#1a73d1]">
-              {t(language, "situation.aiNote")}
-            </p>
+            >
+              i
+            </span>
+            <div className="min-w-0 space-y-0.5">
+              <p className="text-sm font-semibold text-[var(--foreground)]">
+                {t(language, "situation.aiTitle")}
+              </p>
+              <p className="text-xs leading-relaxed text-[var(--muted)]">
+                {t(language, "situation.aiNote")}
+              </p>
+            </div>
           </div>
 
           {error ? (
@@ -1596,22 +1608,53 @@ export function CitizenReportForm({
             </p>
           ) : null}
 
-          <SolidAction
-            title={t(language, "situation.nextLocation")}
-            style="dark"
-            onClick={() => {
-              if (validateSituation()) setStep("location");
-            }}
-          />
-          <Danger911Banner language={language} />
-          <CitizenFooter language={language} />
+          <div className="space-y-3">
+            <button
+              type="button"
+              className="flex w-full items-center justify-center rounded-xl bg-[#1e3a5f] px-4 py-[16px] text-[17px] font-semibold text-white transition hover:bg-[#1e3a5f]/92"
+              onClick={() => {
+                if (validateSituation()) setStep("location");
+              }}
+            >
+              {t(language, "situation.nextLocation")}
+            </button>
+            <button
+              type="button"
+              className="mx-auto block text-sm font-semibold text-[#2563eb]"
+              onClick={() => {
+                if (validateSituation()) setStep("location");
+              }}
+            >
+              {t(language, "situation.continuePartial")}
+            </button>
+            <p className="text-center text-xs text-[var(--muted)]">
+              {t(language, "situation.missingOk")}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
+            <p className="text-sm font-semibold text-[var(--foreground)]">
+              {t(language, "situation.startKnowTitle")}
+            </p>
+            <p className="mt-1 text-sm leading-relaxed text-[var(--muted)]">
+              {t(language, "situation.startKnowBody")}
+            </p>
+          </div>
+
+          <Danger911Banner language={language} variant="soft" />
+
+          <p className="text-center text-xs leading-relaxed text-[var(--muted)]">
+            {t(language, "situation.noAccountNote")}
+          </p>
+
+          <CitizenFooter language={language} tight />
         </motion.div>
       ) : null}
 
       {step === "location" ? (
         <motion.div
           key="location"
-          className="space-y-[18px]"
+          className="space-y-5 pt-4"
           variants={stepMotion}
           initial={motionSafe ? "initial" : false}
           animate="animate"
@@ -1622,104 +1665,158 @@ export function CitizenReportForm({
             step={2}
             title={t(language, "step.location")}
             language={language}
+            variant="brand"
           />
-          <h2 className="text-2xl font-bold tracking-tight">
-            {t(language, "location.title")}
-          </h2>
 
-          <button
-            type="button"
-            disabled={gpsLoading}
-            onClick={() => void captureGps()}
-            className={cn(
-              "flex w-full items-center justify-center gap-2 rounded-xl border-[1.5px] bg-[var(--surface)] px-3 py-3.5 text-sm font-semibold disabled:opacity-60",
-              fromGps ? "border-[var(--success)]" : "border-[var(--border)]",
-            )}
-          >
-            {gpsLoading ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden />
-            ) : (
-              <LocateFixed className="size-4" aria-hidden />
-            )}
-            {gpsLoading
-              ? t(language, "location.gettingGps")
-              : t(language, "location.useGps")}
-          </button>
+          <div className="space-y-1.5">
+            <h2 className="text-[28px] leading-[1.15] font-bold tracking-tight text-[var(--foreground)]">
+              {t(language, "location.title")}
+            </h2>
+            <p className="text-[15px] leading-relaxed text-[var(--muted)]">
+              {t(language, "location.subtitle")}
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <button
+              type="button"
+              disabled={gpsLoading}
+              onClick={() => void captureGps()}
+              className={cn(
+                "flex w-full items-center justify-center gap-2 rounded-xl border-[1.5px] bg-[var(--surface)] px-3 py-3.5 text-sm font-semibold disabled:opacity-60",
+                fromGps ? "border-[var(--success)]" : "border-[var(--border)]",
+              )}
+            >
+              {gpsLoading ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+              ) : (
+                <LocateFixed className="size-4" aria-hidden />
+              )}
+              {gpsLoading
+                ? t(language, "location.gettingGps")
+                : t(language, "location.useGps")}
+            </button>
+            <p className="text-xs text-[var(--muted)]">
+              {t(language, "location.gpsHint")}
+            </p>
+          </div>
 
           <div className="space-y-2">
             <label className="block space-y-2">
-              <span className="text-xs text-[var(--muted)]">
+              <span className="text-sm font-semibold text-[var(--foreground)]">
                 {t(language, "location.searchLabel")}
               </span>
-              <input
-                value={placeQuery}
-                onChange={(e) => {
-                  const next = e.target.value;
-                  setPlaceQuery(next);
-                  setFromGps(false);
-                  setError(null);
-                  const hit = filterPlaces(next).find(
-                    (p) =>
-                      placeLabel(p).toLowerCase() === next.trim().toLowerCase(),
-                  );
-                  if (hit) {
-                    setLat(hit.lat);
-                    setLng(hit.lng);
-                    setMapZoom(15);
-                  }
-                }}
-                placeholder={t(language, "location.searchPlaceholder")}
-                className={cn(
-                  "w-full rounded-xl border bg-[var(--surface)] px-3 py-3 text-sm outline-none",
-                  error
-                    ? "border-[var(--danger)]"
-                    : "border-[var(--border)] focus:border-[var(--foreground)]/40",
-                )}
-              />
+              <div className="relative">
+                <Search
+                  className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-[var(--muted)]"
+                  aria-hidden
+                />
+                <input
+                  value={placeQuery}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setPlaceQuery(next);
+                    setFromGps(false);
+                    setError(null);
+                    const hit = filterPlaces(next).find(
+                      (p) =>
+                        placeLabel(p).toLowerCase() ===
+                        next.trim().toLowerCase(),
+                    );
+                    if (hit) {
+                      setLat(hit.lat);
+                      setLng(hit.lng);
+                      setMapZoom(15);
+                    }
+                  }}
+                  placeholder={t(language, "location.searchPlaceholder")}
+                  className={cn(
+                    "w-full rounded-xl border bg-[var(--surface)] py-3 pr-3 pl-10 text-sm outline-none",
+                    error
+                      ? "border-[var(--danger)]"
+                      : "border-[var(--border)] focus:border-[#2563eb]/40",
+                  )}
+                />
+              </div>
             </label>
-            <div className="flex gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {placeHits.map((p) => {
-                const label = placeLabel(p);
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => selectPlace(p)}
-                    className={cn(
-                      "shrink-0 rounded-full border px-2.5 py-1.5 text-xs font-semibold whitespace-nowrap",
-                      placeQuery === label
-                        ? "border-[var(--foreground)] bg-[var(--surface)]"
-                        : "border-[var(--border)] bg-[var(--surface)]",
-                    )}
+            {placeHits.length > 0 ? (
+              <div className="flex gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {placeHits.slice(0, 6).map((p) => {
+                  const label = placeLabel(p);
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => selectPlace(p)}
+                      className={cn(
+                        "shrink-0 rounded-full border px-2.5 py-1.5 text-xs font-semibold whitespace-nowrap",
+                        placeQuery === label
+                          ? "border-[#2563eb] bg-[#eff6ff] text-[#1d4ed8]"
+                          : "border-[var(--border)] bg-[var(--surface)]",
+                      )}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
+            {(() => {
+              const selected =
+                placeHits.find((p) => placeLabel(p) === placeQuery.trim()) ??
+                nearestPlace(lat, lng);
+              if (!placeQuery.trim()) return null;
+              return (
+                <div className="flex items-center gap-3 rounded-xl border border-[#bfdbfe] bg-[#eff6ff] px-3.5 py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-[var(--foreground)]">
+                      {placeQuery.trim()}
+                    </p>
+                    <p className="text-xs text-[var(--muted)]">
+                      {t(language, "location.selectedRegion", {
+                        lgu: selected.lgu,
+                      })}
+                    </p>
+                  </div>
+                  <span
+                    className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#2563eb] text-white"
+                    aria-hidden
                   >
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
+                    <Check className="size-3.5" strokeWidth={3} />
+                  </span>
+                </div>
+              );
+            })()}
           </div>
 
-          <div className="relative">
-            <HallPinMap
-              center={{ lat, lng }}
-              zoom={mapZoom}
-              className="relative h-[260px] w-full overflow-hidden rounded-[14px] border border-[var(--border)]"
-              onChange={({ center, zoom }) =>
-                applyMapPoint(center.lat, center.lng, zoom)
-              }
-            />
-            {fromGps ? (
-              <span className="absolute top-2.5 right-2.5 z-[1000] rounded-full bg-[var(--success)] px-2 py-1 text-[10px] font-bold text-white uppercase">
-                GPS
-              </span>
-            ) : null}
+          <div className="space-y-2">
+            <p className="text-sm font-semibold text-[var(--foreground)]">
+              {t(language, "location.adjustPin")}
+            </p>
+            <div className="relative">
+              <HallPinMap
+                center={{ lat, lng }}
+                zoom={mapZoom}
+                className="relative h-[260px] w-full overflow-hidden rounded-[14px] border border-[var(--border)]"
+                onChange={({ center, zoom }) =>
+                  applyMapPoint(center.lat, center.lng, zoom)
+                }
+              />
+              {fromGps ? (
+                <span className="absolute top-2.5 right-2.5 z-[1000] rounded-full bg-[var(--success)] px-2 py-1 text-[10px] font-bold text-white uppercase">
+                  GPS
+                </span>
+              ) : null}
+            </div>
+            <p className="text-xs text-[var(--muted)]">
+              {t(language, "location.mapHint")}
+            </p>
+            <p className="text-xs text-[var(--muted)]">
+              {t(language, "location.pinNear", {
+                place: placeQuery.trim() || placeLabel(nearestPlace(lat, lng)),
+              })}
+            </p>
           </div>
-          <p className="text-xs leading-relaxed text-[var(--muted)]">
-            {t(language, "location.mapHint")}
-          </p>
-          <p className="font-mono text-xs text-[var(--muted)]">
-            {lat.toFixed(5)}, {lng.toFixed(5)}
-          </p>
 
           <label className="block space-y-2">
             <span className="text-sm font-semibold">
@@ -1729,19 +1826,39 @@ export function CitizenReportForm({
               value={landmark}
               onChange={(e) => setLandmark(e.target.value)}
               placeholder={t(language, "location.landmarkPlaceholder")}
-              className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-sm outline-none focus:border-[var(--foreground)]/40"
+              className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-sm outline-none focus:border-[#2563eb]/40"
             />
+            <span className="block text-xs text-[var(--muted)]">
+              {t(language, "location.landmarkHint")}
+            </span>
           </label>
 
-          <label className="flex items-center justify-between gap-3 text-sm">
-            <span>{t(language, "location.approximate")}</span>
+          <label className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3.5 py-3 text-sm">
             <input
               type="checkbox"
               checked={approximate}
               onChange={(e) => setApproximate(e.target.checked)}
-              className="size-4 accent-[#1a73d1]"
+              className="size-4 accent-[#2563eb]"
             />
+            <span>{t(language, "location.approximate")}</span>
           </label>
+
+          <div className="flex gap-2.5 rounded-xl border border-[#bfdbfe] bg-[#eff6ff] px-3.5 py-3">
+            <span
+              className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-[#2563eb] text-[11px] font-bold text-white"
+              aria-hidden
+            >
+              i
+            </span>
+            <div className="min-w-0 space-y-0.5">
+              <p className="text-sm font-semibold text-[var(--foreground)]">
+                {t(language, "location.unsureTitle")}
+              </p>
+              <p className="text-xs leading-relaxed text-[var(--muted)]">
+                {t(language, "location.unsureBody")}
+              </p>
+            </div>
+          </div>
 
           {error ? (
             <p className="text-sm text-[var(--danger)]" role="alert">
@@ -1749,22 +1866,52 @@ export function CitizenReportForm({
             </p>
           ) : null}
 
-          <SolidAction
-            title={t(language, "location.nextReview")}
-            style="dark"
-            onClick={() => {
-              if (validateLocation()) setStep("review");
-            }}
-          />
-          <Danger911Banner language={language} />
-          <CitizenFooter language={language} />
+          <div className="space-y-3">
+            <button
+              type="button"
+              className="flex w-full items-center justify-center rounded-xl bg-[#1e3a5f] px-4 py-[16px] text-[17px] font-semibold text-white transition hover:bg-[#1e3a5f]/92"
+              onClick={() => {
+                if (validateLocation()) setStep("review");
+              }}
+            >
+              {t(language, "location.nextReview")}
+            </button>
+            <button
+              type="button"
+              className="mx-auto block text-sm font-semibold text-[#2563eb]"
+              onClick={() => {
+                setApproximate(true);
+                setError(null);
+                setStep("review");
+              }}
+            >
+              {t(language, "location.continueNoLocation")}
+            </button>
+          </div>
+
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)] p-4">
+            <p className="text-sm font-semibold text-[var(--foreground)]">
+              {t(language, "location.noGpsTitle")}
+            </p>
+            <p className="mt-1 text-sm leading-relaxed text-[var(--muted)]">
+              {t(language, "location.noGpsBody")}
+            </p>
+          </div>
+
+          <Danger911Banner language={language} variant="soft" />
+
+          <p className="text-center text-xs leading-relaxed text-[var(--muted)]">
+            {t(language, "situation.noAccountNote")}
+          </p>
+
+          <CitizenFooter language={language} tight />
         </motion.div>
       ) : null}
 
       {step === "review" ? (
         <motion.div
           key="review"
-          className="space-y-[18px]"
+          className="space-y-5 pt-4"
           variants={stepMotion}
           initial={motionSafe ? "initial" : false}
           animate="animate"
@@ -1775,111 +1922,139 @@ export function CitizenReportForm({
             step={3}
             title={t(language, "step.review")}
             language={language}
+            variant="brand"
           />
-          <h2 className="text-2xl font-bold tracking-tight">
-            {t(language, "review.title")}
-          </h2>
+
+          <div className="space-y-1.5">
+            <h2 className="text-[28px] leading-[1.15] font-bold tracking-tight text-[var(--foreground)]">
+              {t(language, "review.title")}
+            </h2>
+            <p className="text-[15px] leading-relaxed text-[var(--muted)]">
+              {t(language, "review.subtitle")}
+            </p>
+          </div>
 
           <div className="min-w-0 space-y-3">
             <div className="min-w-0 rounded-[14px] border border-[var(--border)] bg-[var(--surface)] p-3.5">
               <div className="flex items-center justify-between">
-                <p className="font-semibold">
+                <p className="font-semibold text-[var(--foreground)]">
                   {t(language, "review.situation")}
                 </p>
                 <button
                   type="button"
-                  className="text-sm font-semibold"
+                  className="text-sm font-semibold text-[#2563eb]"
                   onClick={() => setStep("situation")}
                 >
                   {t(language, "common.edit")}
                 </button>
               </div>
-              <p className="mt-1 text-xs font-semibold text-[var(--muted)]">
+              <p className="mt-2.5 text-sm font-semibold text-[var(--foreground)]">
                 {intent === "needHelp"
                   ? t(language, "intent.needHelp")
                   : t(language, "intent.reportHazard")}
                 {" · "}
-                {reportFor === "someoneElse"
-                  ? t(language, "home.forSomeoneElse")
-                  : t(language, "home.forMyself")}
+                {reviewHazardLabel(inferHazard(situation))}
               </p>
-              <p className="mt-1 whitespace-pre-wrap text-sm">{situation}</p>
-              <div className="mt-2.5 space-y-1 rounded-[10px] bg-[#1a73d1]/[0.08] p-2.5 text-xs text-[#1a73d1]">
-                <p className="flex items-center gap-1.5 font-semibold">
-                  <Sparkles className="size-3.5" aria-hidden />
-                  {t(language, "review.aiCheck")}
+              <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-[var(--foreground)]">
+                {situation}
+              </p>
+            </div>
+
+            <div className="flex gap-2.5 rounded-xl border border-[#bfdbfe] bg-[#eff6ff] px-3.5 py-3">
+              <span
+                className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-[#2563eb] text-[11px] font-bold text-white"
+                aria-hidden
+              >
+                !
+              </span>
+              <div className="min-w-0 space-y-0.5">
+                <p className="text-sm font-semibold text-[var(--foreground)]">
+                  {t(language, "review.aiSuggestion")}
                 </p>
-                <p className="font-semibold">
-                  {t(language, "review.verdict", {
-                    value: t(language, "common.pending"),
+                <p className="text-xs leading-relaxed text-[var(--muted)]">
+                  {t(language, "review.aiSuggestionBody", {
+                    category: reviewHazardLabel(inferHazard(situation)),
                   })}
                 </p>
-                <p>
-                  {t(language, "review.category", {
-                    value: inferHazard(situation),
-                  })}
-                </p>
-                <p>{t(language, "review.pendingHuman")}</p>
               </div>
             </div>
 
             <div className="rounded-[14px] border border-[var(--border)] bg-[var(--surface)] p-3.5">
               <div className="flex items-center justify-between">
-                <p className="font-semibold">
+                <p className="font-semibold text-[var(--foreground)]">
                   {t(language, "review.location")}
                 </p>
                 <button
                   type="button"
-                  className="text-sm font-semibold"
+                  className="text-sm font-semibold text-[#2563eb]"
                   onClick={() => setStep("location")}
                 >
                   {t(language, "common.edit")}
                 </button>
               </div>
-              <p className="mt-1 text-sm font-semibold">{placeQuery}</p>
-              <p className="font-mono text-xs text-[var(--muted)]">
-                {lat.toFixed(5)}, {lng.toFixed(5)}
+              <p className="mt-2.5 text-sm font-semibold text-[var(--foreground)]">
+                {placeQuery.trim() ||
+                  placeLabel(nearestPlace(lat, lng))}
               </p>
-              {fromGps ? (
-                <p className="text-xs text-[var(--success)]">
-                  {t(language, "location.fromGps")}
-                </p>
-              ) : null}
               {landmark ? (
-                <p className="text-sm text-[var(--muted)]">{landmark}</p>
+                <p className="mt-0.5 text-sm text-[var(--muted)]">{landmark}</p>
               ) : null}
-              {approximate ? (
-                <p className="text-xs text-[var(--warn)]">
-                  {t(language, "review.approxLocation")}
-                </p>
-              ) : null}
+              <p className="mt-2 text-xs text-[var(--muted)]">
+                {t(language, "review.approxPin")}
+              </p>
             </div>
 
             <div className="min-w-0 rounded-[14px] border border-[var(--border)] bg-[var(--surface)] p-3.5">
               <div className="flex items-center justify-between gap-2">
-                <p className="font-semibold">
+                <p className="font-semibold text-[var(--foreground)]">
                   {t(language, "review.attachments")}
                 </p>
                 <button
                   type="button"
-                  className="shrink-0 text-sm font-semibold"
+                  className="shrink-0 text-sm font-semibold text-[#2563eb]"
                   onClick={() => setStep("situation")}
                 >
                   {t(language, "common.edit")}
                 </button>
               </div>
-              {photos.map((p) => (
-                <p
-                  key={p.id}
-                  className="mt-1 truncate text-sm"
-                  title={p.file.name}
-                >
-                  {p.file.name}
-                </p>
-              ))}
-              {voiceNoteLabel ? (
-                <p className="mt-1 truncate text-sm">{voiceNoteLabel}</p>
+              {photos.length > 0 ? (
+                <div className="mt-2.5 space-y-2.5">
+                  {photos.map((p, i) => (
+                    <div key={p.id} className="flex min-w-0 items-center gap-3">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={p.preview}
+                        alt=""
+                        className="size-12 shrink-0 rounded-lg object-cover"
+                      />
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-[var(--foreground)]">
+                          {p.file.name}
+                        </p>
+                        {i === 0 ? (
+                          <p className="text-xs text-[var(--muted)]">
+                            {t(language, "review.photoMeta", {
+                              count: String(photos.length),
+                              size: formatBytes(
+                                photos.reduce((sum, x) => sum + x.file.size, 0),
+                              ),
+                            })}
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               ) : null}
+              {voiceNoteLabel ? (
+                <p className="mt-2 truncate text-sm text-[var(--foreground)]">
+                  {voiceNoteLabel}
+                </p>
+              ) : (
+                <p className="mt-2 text-sm text-[var(--muted)]">
+                  {t(language, "review.noVoice")}
+                </p>
+              )}
               {voiceTranscribing ? (
                 <p className="mt-1 text-sm text-[var(--muted)]">
                   Transcribing voice…
@@ -1895,7 +2070,7 @@ export function CitizenReportForm({
           </div>
 
           <label className="block space-y-2">
-            <span className="text-sm font-semibold">
+            <span className="text-sm font-semibold text-[var(--foreground)]">
               {t(language, "review.mobileOptional")}
             </span>
             <input
@@ -1905,13 +2080,30 @@ export function CitizenReportForm({
                 setMobileNumber(e.target.value);
                 setError(null);
               }}
-              placeholder="09XX XXX XXXX"
-              className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-sm outline-none focus:border-[var(--foreground)]/40"
+              placeholder={t(language, "review.mobilePlaceholder")}
+              className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-sm outline-none focus:border-[#2563eb]/40"
             />
-            <span className="block text-xs text-[var(--muted)]">
+            <span className="block text-xs leading-relaxed text-[var(--muted)]">
               {t(language, "review.mobileHint")}
             </span>
           </label>
+
+          <div className="flex gap-2.5 rounded-xl border border-[#f0d9a8] bg-[#fff8e8] px-3.5 py-3">
+            <span
+              className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-[#8a6a2f] text-[11px] font-bold text-white"
+              aria-hidden
+            >
+              !
+            </span>
+            <div className="min-w-0 space-y-0.5">
+              <p className="text-sm font-semibold text-[#5c4a1f]">
+                {t(language, "review.assistTitle")}
+              </p>
+              <p className="text-xs leading-relaxed text-[#5c4a1f]/90">
+                {t(language, "review.assistBody")}
+              </p>
+            </div>
+          </div>
 
           {error ? (
             <p className="text-sm text-[var(--danger)]" role="alert">
@@ -1924,27 +2116,44 @@ export function CitizenReportForm({
             </p>
           ) : null}
 
-          <SolidAction
-            title={
-              submitting
-                ? t(language, "common.saving")
-                : t(language, "review.submit")
-            }
-            style="danger"
-            disabled={submitting}
-            icon={
-              submitting ? (
+          <div className="space-y-3">
+            <p className="text-sm leading-relaxed text-[var(--muted)]">
+              {t(language, "review.consent")}
+            </p>
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={() => void submitReport()}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--danger)] px-4 py-[16px] text-[17px] font-semibold text-white transition hover:bg-[var(--danger)]/92 disabled:opacity-60"
+            >
+              {submitting ? (
                 <Loader2 className="size-4 animate-spin" aria-hidden />
-              ) : (
-                <Upload className="size-4" aria-hidden />
-              )
-            }
-            onClick={() => void submitReport()}
-          />
-          <p className="text-xs text-[var(--muted)]">
-            {t(language, "review.disclaimer")}
+              ) : null}
+              {submitting
+                ? t(language, "common.saving")
+                : t(language, "review.submit")}
+            </button>
+            <p className="text-center text-xs text-[var(--muted)]">
+              {t(language, "review.submitEvenMissing")}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)] p-4">
+            <p className="text-sm font-semibold text-[var(--foreground)]">
+              {t(language, "review.nextTitle")}
+            </p>
+            <p className="mt-1 text-sm leading-relaxed text-[var(--muted)]">
+              {t(language, "review.nextBody")}
+            </p>
+          </div>
+
+          <Danger911Banner language={language} variant="soft" />
+
+          <p className="text-center text-xs leading-relaxed text-[var(--muted)]">
+            {t(language, "situation.noAccountNote")}
           </p>
-          <CitizenFooter language={language} />
+
+          <CitizenFooter language={language} tight />
         </motion.div>
       ) : null}
       </AnimatePresence>
