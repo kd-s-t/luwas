@@ -23,6 +23,7 @@
 # misc
 .DS_Store
 *.pem
+.gcloud-tmp/
 
 # debug
 npm-debug.log*

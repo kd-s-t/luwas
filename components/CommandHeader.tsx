@@ -53,20 +53,6 @@ const NAV: {
     match: (p) => p.startsWith("/admin/officers"),
     badge: null,
   },
-  {
-    href: "/admin/onboard",
-    label: "Onboard",
-    short: "Onboard",
-    match: (p) => p.startsWith("/admin/onboard"),
-    badge: null,
-  },
-  {
-    href: "/support",
-    label: "Support",
-    short: "Support",
-    match: (p) => p === "/support" || p.startsWith("/support/"),
-    badge: null,
-  },
 ];
 
 function NavCountBadge({
