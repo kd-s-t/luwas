@@ -32,18 +32,27 @@ import { NANGKA_STAFF_SEED } from "@/lib/staff/nangkaStaff";
 import { useScenario } from "@/lib/scenarios";
 import { cn } from "@/lib/utils";
 
+type BoardColumnId =
+  | "queue"
+  | "assigned"
+  | "verified"
+  | "dispatched"
+  | "done"
+  | "rejected";
+
 type BoardColumn = {
-  id: "queue" | "assigned" | "verified" | "dispatched" | "done" | "rejected";
+  id: BoardColumnId;
   label: string;
   match: (r: HazardReport) => boolean;
-  next?: ReportStatus;
-  nextLabel?: string;
+  /** Status written when a card is dropped on this column. */
+  dropStatus: ReportStatus;
 };
 
 const COLUMNS: BoardColumn[] = [
   {
     id: "queue",
     label: "Queue",
+    dropStatus: "queued",
     match: (r) =>
       r.status === "queued" ||
       r.status === "validating" ||
@@ -54,35 +63,36 @@ const COLUMNS: BoardColumn[] = [
   {
     id: "assigned",
     label: "Assigned",
+    dropStatus: "assigned",
     match: (r) => r.status === "assigned",
-    next: "legit",
-    nextLabel: "Mark verified",
   },
   {
     id: "verified",
     label: "Verified",
+    dropStatus: "legit",
     match: (r) => r.status === "legit",
-    next: "dispatched",
-    nextLabel: "Dispatch",
   },
   {
     id: "dispatched",
     label: "Dispatched",
+    dropStatus: "dispatched",
     match: (r) => r.status === "dispatched",
-    next: "done",
-    nextLabel: "Mark done",
   },
   {
     id: "done",
     label: "Done",
+    dropStatus: "done",
     match: (r) => r.status === "done",
   },
   {
     id: "rejected",
     label: "Rejected",
+    dropStatus: "rejected",
     match: (r) => r.status === "rejected",
   },
 ];
+
+const DRAG_MIME = "application/x-luwas-report-id";
 
 export function IncidentBoard() {
   const { profile } = useAuth();
@@ -90,6 +100,8 @@ export function IncidentBoard() {
   const { scopedReports, activeOfficers, reportScope } = useCommandWorkspace();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dropColId, setDropColId] = useState<BoardColumnId | null>(null);
   const [assignMenuId, setAssignMenuId] = useState<string | null>(null);
   const [assignQuery, setAssignQuery] = useState("");
   const [assignPos, setAssignPos] = useState<{
@@ -233,13 +245,26 @@ export function IncidentBoard() {
     }
   }
 
-  async function advance(report: HazardReport, next: ReportStatus) {
+  async function moveToColumn(report: HazardReport, col: BoardColumn) {
+    if (col.match(report)) return;
     setBusyId(report.id);
     setError(null);
     try {
-      await updateReportStatus(report.id, next);
+      if (col.id === "assigned") {
+        if (!report.investigatorUid && isOfficer(profile)) {
+          await assignInvestigator(
+            report,
+            profile.uid,
+            profile.displayName || profile.email,
+          );
+          return;
+        }
+        await updateReportStatus(report.id, "assigned");
+        return;
+      }
+      await updateReportStatus(report.id, col.dropStatus);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Status update failed");
+      setError(err instanceof Error ? err.message : "Move failed");
     } finally {
       setBusyId(null);
     }
@@ -283,8 +308,7 @@ export function IncidentBoard() {
               <OfficerWorkloadInfo />
             </div>
             <p className="text-xs text-[var(--muted)]">
-              {queueCount} in queue · assign moves to Assigned · then Verified →
-              Dispatched → Done
+              {queueCount} in queue · drag cards across columns
               {orgHint ? ` · ${orgHint}` : ""}
             </p>
           </div>
@@ -316,7 +340,32 @@ export function IncidentBoard() {
             return (
               <section
                 key={col.id}
-                className="flex h-full min-h-0 w-[15.5rem] shrink-0 flex-col rounded-lg border border-[var(--border)] bg-[var(--surface-panel)]/40"
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "move";
+                  if (dropColId !== col.id) setDropColId(col.id);
+                }}
+                onDragLeave={(e) => {
+                  if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                    setDropColId((cur) => (cur === col.id ? null : cur));
+                  }
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDropColId(null);
+                  const id =
+                    e.dataTransfer.getData(DRAG_MIME) ||
+                    e.dataTransfer.getData("text/plain");
+                  const report = ranked.find((r) => r.id === id);
+                  setDragId(null);
+                  if (report) void moveToColumn(report, col);
+                }}
+                className={cn(
+                  "flex h-full min-h-0 w-[15.5rem] shrink-0 flex-col rounded-lg border bg-[var(--surface-panel)]/40 transition",
+                  dropColId === col.id
+                    ? "border-[var(--accent)] bg-[var(--accent)]/5"
+                    : "border-[var(--border)]",
+                )}
               >
                 <header className="flex shrink-0 items-baseline justify-between gap-2 border-b border-[var(--border)] px-3 py-2.5">
                   <h2 className="font-mono text-[10px] tracking-[0.16em] text-[var(--muted)] uppercase">
@@ -334,16 +383,28 @@ export function IncidentBoard() {
                 >
                   {cards.length === 0 ? (
                     <li className="px-2 py-6 text-center text-xs text-[var(--muted)]">
-                      No cards
+                      Drop here
                     </li>
                   ) : (
                     cards.map((r) => (
                       <li key={r.id}>
                         <div
+                          draggable={busyId !== r.id}
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData(DRAG_MIME, r.id);
+                            e.dataTransfer.setData("text/plain", r.id);
+                            e.dataTransfer.effectAllowed = "move";
+                            setDragId(r.id);
+                            closeAssignMenu();
+                          }}
+                          onDragEnd={() => {
+                            setDragId(null);
+                            setDropColId(null);
+                          }}
                           className={cn(
-                            "rounded-md border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2.5 transition",
+                            "cursor-grab rounded-md border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2.5 transition active:cursor-grabbing",
                             "hover:border-[var(--accent)]/50 hover:bg-[var(--surface)]",
-                            busyId === r.id && "opacity-60",
+                            (busyId === r.id || dragId === r.id) && "opacity-60",
                           )}
                         >
                           <div className="flex items-start justify-between gap-2">
@@ -356,6 +417,8 @@ export function IncidentBoard() {
                               </p>
                               <Link
                                 href={`/admin/incidents/${encodeURIComponent(r.id)}`}
+                                draggable={false}
+                                onClick={(e) => e.stopPropagation()}
                                 className="mt-0.5 line-clamp-2 block text-sm font-medium leading-snug hover:text-[var(--accent)] hover:underline"
                               >
                                 {r.title}
@@ -374,17 +437,6 @@ export function IncidentBoard() {
                             {new Date(r.createdAt).toLocaleString()}
                           </p>
 
-                          {col.next ? (
-                            <button
-                              type="button"
-                              disabled={busyId === r.id}
-                              onClick={() => void advance(r, col.next!)}
-                              className="mt-2 w-full border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 font-mono text-[10px] tracking-wider text-[var(--accent)] uppercase transition hover:border-[var(--accent)] disabled:opacity-50"
-                            >
-                              {col.nextLabel}
-                            </button>
-                          ) : null}
-
                           <div className="mt-2 border-t border-[var(--border)]/70 pt-2">
                             <button
                               type="button"
@@ -400,6 +452,7 @@ export function IncidentBoard() {
                                 e.stopPropagation();
                                 openAssignMenu(r.id, e.currentTarget);
                               }}
+                              onMouseDown={(e) => e.stopPropagation()}
                               className="flex w-full items-center gap-2 rounded-md text-left transition hover:bg-[var(--surface-panel)]/60 disabled:opacity-50"
                             >
                               {r.investigatorUid || r.investigatorName ? (
