@@ -1,4 +1,4 @@
-/** Curated Consolacion / metro Cebu places — aligned with iOS ServiceAreaPlaces. */
+/** Curated Consolacion / metro Cebu places, aligned with iOS ServiceAreaPlaces. */
 
 export type ServiceAreaPlace = {
   id: string;
@@ -81,6 +81,13 @@ export const SERVICE_AREA_PLACES: ServiceAreaPlace[] = [
     lat: 10.3275,
     lng: 123.9158,
   },
+  {
+    id: "cebu-city/apas",
+    barangay: "Apas",
+    lgu: "Cebu City",
+    lat: 10.337229,
+    lng: 123.90484,
+  },
 ];
 
 export function filterPlaces(query: string): ServiceAreaPlace[] {
@@ -92,7 +99,7 @@ export function filterPlaces(query: string): ServiceAreaPlace[] {
       p.barangay.toLowerCase().includes(q) ||
       p.lgu.toLowerCase().includes(q),
   );
-  return (hits.length ? hits : SERVICE_AREA_PLACES).slice(0, 8);
+  return hits.slice(0, 8);
 }
 
 /** Haversine distance in kilometers. */

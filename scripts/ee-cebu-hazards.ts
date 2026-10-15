@@ -1,18 +1,13 @@
 /**
- * Build Cebu-wide hazard cache:
- * - floods + landslides from data/cebu-ee-dem.json (no EE call)
- * - fires from one FIRMS Earth Engine evaluate
+ * Build Cebu-wide hazard cache from DEM + one FIRMS EE pull.
+ * Also archives under data/ee-runs/ (same as admin UI).
  *
  * Usage: npm run ee:hazards
  */
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { sampleCebuFires } from "../lib/geo/earthEngine";
-import { hazardsFromCebuDem } from "../lib/geo/cebuEeHazards";
-import type { ElevSample } from "../lib/geo/nangkaElevationGrid";
-import type { FireSample } from "../lib/hazards/fireSamples";
-import { distKm } from "../lib/geo/bearing";
+import { runEarthEngineJob } from "../lib/geo/eeRunJobs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -41,69 +36,26 @@ function loadEnvFile(filePath: string) {
 loadEnvFile(join(root, ".env.local"));
 loadEnvFile(join(root, ".env"));
 
-function thinFires(fires: FireSample[], minKm: number): FireSample[] {
-  const kept: FireSample[] = [];
-  for (const f of fires) {
-    if (kept.some((k) => distKm(k, f) < minKm)) continue;
-    kept.push(f);
-  }
-  return kept;
-}
-
 async function main() {
-  const demPath = join(root, "data", "cebu-ee-dem.json");
-  if (!existsSync(demPath)) {
-    throw new Error("Missing data/cebu-ee-dem.json — run npm run ee:dem first.");
+  console.log("Building Cebu hazards (DEM-derived + FIRMS)…");
+  const run = await runEarthEngineJob({
+    job: "hazards",
+    triggeredBy: "cli:ee:hazards",
+  });
+  if (run.status === "failed") {
+    throw new Error(run.error || "Hazards run failed");
   }
-  const dem = JSON.parse(readFileSync(demPath, "utf8")) as {
-    samples?: ElevSample[];
-    projectId?: string;
-    provider?: string;
-  };
-  if (!dem.samples?.length) {
-    throw new Error("cebu-ee-dem.json has no samples — run npm run ee:dem first.");
+  console.log(`Run ${run.id} ok`);
+  for (const f of run.files) {
+    console.log(`  ${f.name} (${f.bytes} bytes)`);
   }
-
-  console.log(`Deriving floods/landslides from ${dem.samples.length} DEM points…`);
-  const { floods, landslides } = hazardsFromCebuDem(dem.samples);
-
-  console.log("Sampling FIRMS fires via Earth Engine…");
-  const { projectId, hotspots, window } = await sampleCebuFires(90);
-  console.log(`FIRMS window: ${window} (${hotspots.length} raw hotspots)`);
-  const firesRaw: FireSample[] = hotspots
-    .sort((a, b) => b.t21 - a.t21)
-    .map((h, i) => {
-      const severity: FireSample["severity"] =
-        h.t21 >= 360 ? "critical" : h.t21 >= 340 ? "warning" : "watch";
-      return {
-        id: `ee-fire-cebu-${i}`,
-        name: `FIRMS hotspot · T21 ${h.t21.toFixed(0)}`,
-        place: `MODIS FIRMS (Earth Engine, ${window})`,
-        purokHint: "Cebu",
-        severity,
-        lat: h.lat,
-        lng: h.lng,
-        reportedAt: new Date().toISOString(),
-        notes: `Brightness T21=${h.t21.toFixed(1)}${
-          h.confidence != null ? ` · confidence ${h.confidence}` : ""
-        }.`,
-      };
-    });
-  const fires = thinFires(firesRaw, 2).slice(0, 100);
-
-  const out = {
-    provider: `DEM:${dem.provider ?? "USGS/SRTMGL1_003"}+FIRMS`,
-    fetchedAt: new Date().toISOString(),
-    projectId: projectId || dem.projectId || null,
-    floods,
-    landslides,
-    fires,
-  };
-  const outPath = join(root, "data", "cebu-ee-hazards.json");
-  writeFileSync(outPath, `${JSON.stringify(out, null, 2)}\n`, "utf8");
-  console.log(
-    `Wrote floods=${floods.length} landslides=${landslides.length} fires=${fires.length} → ${outPath}`,
-  );
+  if (run.counts) {
+    console.log(
+      `Counts: ${Object.entries(run.counts)
+        .map(([k, v]) => `${k}=${v}`)
+        .join(" · ")}`,
+    );
+  }
 }
 
 main().catch((err) => {

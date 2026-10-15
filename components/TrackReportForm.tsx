@@ -9,6 +9,7 @@ import {
   Danger911Banner,
 } from "@/components/citizen/CitizenChrome";
 import { t, type CitizenLang } from "@/lib/citizen/i18n";
+import { useCitizenLanguage } from "@/lib/citizen/languagePreference";
 import { getHazardReportById } from "@/lib/reports/api";
 import {
   hasGuestReportId,
@@ -254,7 +255,7 @@ function statusBanner(report: HazardReport, language: CitizenLang) {
 export function TrackReportForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [language, setLanguage] = useState<CitizenLang>("en");
+  const [language, setLanguage] = useCitizenLanguage();
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<string[]>([]);

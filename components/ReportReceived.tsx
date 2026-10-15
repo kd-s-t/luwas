@@ -36,6 +36,7 @@ import {
   useMotionSafe,
 } from "@/components/motion/primitives";
 import { t, type CitizenLang } from "@/lib/citizen/i18n";
+import { useCitizenLanguage } from "@/lib/citizen/languagePreference";
 import { saveGuestReportId } from "@/lib/reports/guestReportStore";
 import { cn } from "@/lib/utils";
 
@@ -66,7 +67,7 @@ export function ReportReceived({
 }: ReportReceivedProps) {
   const router = useRouter();
   const motionSafe = useMotionSafe();
-  const [language, setLanguage] = useState<CitizenLang>("en");
+  const [language, setLanguage] = useCitizenLanguage();
   const [copied, setCopied] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [now] = useState(() => new Date());

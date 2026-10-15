@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Check, ChevronLeft, Globe, Phone } from "lucide-react";
+import { BrandLogo } from "@/components/BrandLogo";
 import { useMotionSafe } from "@/components/motion/primitives";
 import { t, type CitizenLang } from "@/lib/citizen/i18n";
 import { cn } from "@/lib/utils";
@@ -49,9 +50,14 @@ export function CitizenHeader({
         <div className="flex items-center bg-[var(--danger)] px-4 py-3.5 sm:px-5">
           <Link
             href="/"
-            className="text-[20px] font-bold tracking-[0.04em] text-white uppercase"
+            className="inline-flex transition hover:opacity-90"
+            aria-label="LUWAS home"
           >
-            LUWAS
+            <BrandLogo
+              tone="inverse"
+              size={24}
+              wordmarkClassName="text-[20px] font-bold tracking-[0.04em] uppercase"
+            />
           </Link>
           <div className="flex-1" />
           <a
@@ -131,9 +137,13 @@ export function CitizenHeader({
         ) : null}
         <Link
           href="/"
-          className="text-[22px] font-bold tracking-tight text-[var(--foreground)] transition hover:text-[var(--danger)]"
+          className="inline-flex transition hover:opacity-90"
+          aria-label="LUWAS home"
         >
-          Luwas
+          <BrandLogo
+            size={26}
+            wordmarkClassName="text-[22px] font-bold tracking-tight"
+          />
         </Link>
         <div className="flex-1" />
         <a
@@ -210,6 +220,25 @@ export function Danger911Banner({
   );
 }
 
+const CITIZEN_APP_DOWNLOADS = [
+  {
+    name: "App Store",
+    label: "Download on the App Store",
+    src: "/brands/app-store.svg",
+    href: process.env.NEXT_PUBLIC_IOS_APP_URL?.trim() || undefined,
+    width: 120,
+    height: 40,
+  },
+  {
+    name: "Google Play",
+    label: "Get it on Google Play",
+    src: "/brands/google-play.svg",
+    href: process.env.NEXT_PUBLIC_ANDROID_APP_URL?.trim() || undefined,
+    width: 135,
+    height: 40,
+  },
+] as const;
+
 export function CitizenFooter({
   language,
   tight,
@@ -231,7 +260,44 @@ export function CitizenFooter({
         tight ? "pt-3 pb-6" : "py-5 pb-8",
       )}
     >
-      <div className="mx-auto w-full max-w-md space-y-1.5 px-4 sm:px-5">
+      <div className="mx-auto w-full max-w-md space-y-3 px-4 sm:px-5">
+        <ul className="flex flex-wrap items-center justify-center gap-2.5">
+          {CITIZEN_APP_DOWNLOADS.map(
+            ({ name, label, src, href, width, height }) => (
+              <li key={name}>
+                {href ? (
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-block transition hover:opacity-90"
+                    aria-label={label}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={src}
+                      alt={label}
+                      width={width}
+                      height={height}
+                      className="h-9 w-auto"
+                    />
+                  </a>
+                ) : (
+                  <span className="inline-block opacity-80" aria-label={label}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={src}
+                      alt={label}
+                      width={width}
+                      height={height}
+                      className="h-9 w-auto"
+                    />
+                  </span>
+                )}
+              </li>
+            ),
+          )}
+        </ul>
         <p className="text-xs text-[var(--muted)]">
           {t(language, "footer.tagline")}
         </p>

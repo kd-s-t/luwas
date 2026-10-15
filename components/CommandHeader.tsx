@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { BrandLogo } from "@/components/BrandLogo";
 import { CommandBarangaySwitcher } from "@/components/CommandBarangaySwitcher";
 import { CommandNotifications } from "@/components/CommandNotifications";
 import { FadeIn } from "@/components/motion/primitives";
@@ -151,9 +152,13 @@ export function CommandHeader() {
         <div className="flex min-h-12 items-center gap-2 px-3 sm:gap-4 sm:px-5">
           <Link
             href="/"
-            className="shrink-0 font-[family-name:var(--font-display)] text-xl font-semibold tracking-wide sm:text-2xl"
+            className="shrink-0 transition hover:opacity-90"
+            aria-label="LUWAS home"
           >
-            LUWAS
+            <BrandLogo
+              size={26}
+              wordmarkClassName="text-xl sm:text-2xl"
+            />
           </Link>
 
           <nav className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">

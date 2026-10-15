@@ -58,3 +58,4 @@ ui-debug.log
 
 # Earth Engine / local SA keys
 .secrets/
+/data/ee-runs/

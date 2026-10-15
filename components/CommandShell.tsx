@@ -16,6 +16,7 @@ import {
   LogOut,
   Shield,
 } from "lucide-react";
+import { BrandLogo } from "@/components/BrandLogo";
 import { CommandBarangaySwitcher } from "@/components/CommandBarangaySwitcher";
 import { CommandNotifications } from "@/components/CommandNotifications";
 import {
@@ -96,6 +97,11 @@ const SECONDARY: { href: string; label: string; match: (p: string) => boolean }[
       label: "Onboard",
       match: (p) => p.startsWith("/admin/onboard"),
     },
+    {
+      href: "/admin/earth-engine",
+      label: "Earth Engine",
+      match: (p) => p.startsWith("/admin/earth-engine"),
+    },
   ];
 
 type CommandShellProps = {
@@ -144,9 +150,14 @@ function CommandShellInner({ children, fill = false }: CommandShellProps) {
       <div className="shrink-0 border-b border-white/10 px-5 pt-6 pb-5">
         <Link
           href="/"
-          className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-[0.08em]"
+          className="inline-flex transition hover:opacity-90"
+          aria-label="LUWAS home"
         >
-          LUWAS
+          <BrandLogo
+            tone="inverse"
+            size={28}
+            wordmarkClassName="text-2xl"
+          />
         </Link>
         <p className="mt-2 text-[11px] leading-snug text-white/55">
           {workspaceLine}
@@ -300,9 +311,14 @@ function CommandShellInner({ children, fill = false }: CommandShellProps) {
           </button>
           <Link
             href="/"
-            className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-[0.08em]"
+            className="inline-flex transition hover:opacity-90"
+            aria-label="LUWAS home"
           >
-            LUWAS
+            <BrandLogo
+              tone="inverse"
+              size={24}
+              wordmarkClassName="text-lg"
+            />
           </Link>
           <div className="ml-auto flex items-center gap-2">
             <CommandNotifications />

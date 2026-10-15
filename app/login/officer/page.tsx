@@ -177,7 +177,7 @@ export default function LoginPage() {
       const message = err instanceof Error ? err.message : "Login failed";
       setError(
         /user-not-found|invalid-credential/i.test(message)
-          ? `${message} — open Register to create this officer.`
+          ? `${message}. Open Register to create this officer.`
           : message,
       );
     } finally {
@@ -189,7 +189,7 @@ export default function LoginPage() {
     <AuthGate mode="guest">
       <AuthCard
         title="Officer login"
-        subtitle="Nangka, Apas, MDRRMO, or LGU — sign in to LUWAS command."
+        subtitle="Nangka, Apas, MDRRMO, or LGU: sign in to LUWAS command."
         footer={
           <>
             <Link href="/login" className="text-[var(--accent)] hover:underline">

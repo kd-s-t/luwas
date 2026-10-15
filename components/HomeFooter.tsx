@@ -62,11 +62,69 @@ const FOOTER_LINKS = [
   { href: "/about", label: "About us" },
 ] as const;
 
+const APP_DOWNLOADS = [
+  {
+    name: "App Store",
+    label: "Download on the App Store",
+    src: "/brands/app-store.svg",
+    href: process.env.NEXT_PUBLIC_IOS_APP_URL?.trim() || undefined,
+    width: 120,
+    height: 40,
+  },
+  {
+    name: "Google Play",
+    label: "Get it on Google Play",
+    src: "/brands/google-play.svg",
+    href: process.env.NEXT_PUBLIC_ANDROID_APP_URL?.trim() || undefined,
+    width: 135,
+    height: 40,
+  },
+] as const;
+
 export function HomeFooter() {
   return (
     <footer className="relative z-10 mt-auto border-t border-[var(--border)] bg-[var(--surface)] px-4 py-8 pb-12 sm:px-8 sm:py-10 sm:pb-14">
       <div className="mx-auto flex w-full max-w-3xl flex-col items-center text-center">
         <p className="font-mono text-[10px] tracking-[0.28em] text-[var(--muted)] uppercase">
+          Get the app
+        </p>
+        <ul className="mt-3 flex flex-wrap items-center justify-center gap-3">
+          {APP_DOWNLOADS.map(({ name, label, src, href, width, height }) => (
+            <li key={name}>
+              {href ? (
+                <a
+                  href={href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-block transition hover:opacity-90"
+                  aria-label={label}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={src}
+                    alt={label}
+                    width={width}
+                    height={height}
+                    className="h-10 w-auto"
+                  />
+                </a>
+              ) : (
+                <span className="inline-block opacity-80" aria-label={label}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={src}
+                    alt={label}
+                    width={width}
+                    height={height}
+                    className="h-10 w-auto"
+                  />
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+
+        <p className="mt-8 font-mono text-[10px] tracking-[0.28em] text-[var(--muted)] uppercase">
           Built by
         </p>
         <Link

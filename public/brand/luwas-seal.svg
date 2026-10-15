@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 560" role="img" aria-label="L.U.W.A.S.">
+  <title>L.U.W.A.S.  Logistics and Unified Workflow for Aid and Safety</title>
+  <rect width="512" height="560" fill="#000000"/>
+  <g transform="translate(256 230)">
+    <!-- Rings -->
+    <circle r="188" fill="none" stroke="#c0c0c0" stroke-width="3"/>
+    <circle r="182" fill="#c0c0c0"/>
+    <circle r="152" fill="#000000"/>
+    <circle r="128" fill="#c0c0c0"/>
+    <circle r="118" fill="#000000"/>
+
+    <!-- Rim text -->
+    <defs>
+      <path id="luwas-rim" d="M0,0 m-167,0 a167,167 0 1,1 334,0 a167,167 0 1,1 -334,0" fill="none"/>
+    </defs>
+    <text fill="#000000" font-family="ui-sans-serif, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="700" letter-spacing="2.2">
+      <textPath href="#luwas-rim" startOffset="12%">LOGISTICS AND UNIFIED WORKFLOW FOR AID AND SAFETY</textPath>
+    </text>
+
+    <!-- Center mark: shield + chevrons -->
+    <g transform="translate(0 -6) scale(0.38)">
+      <path
+        fill="#c0c0c0"
+        fill-rule="evenodd"
+        d="M236 65h40c8 0 16 3 22 9l122 122c7 7 11 16 11 26v128c0 50-27 95-71 126l-80 53c-12 8-28 8-40 0l-80-53c-44-31-71-76-71-126V222c0-10 4-19 11-26L214 74c6-6 14-9 22-9zM146 250 256 160l110 90-38 38L256 218l-72 60zm0 60 110-90 110 90-38 38L256 278l-72 60zm0 60 110-90 110 90-38 38L256 338l-72 60z"
+        transform="translate(-256 -256)"
+      />
+    </g>
+  </g>
+
+  <text
+    x="256"
+    y="500"
+    text-anchor="middle"
+    fill="#c0c0c0"
+    font-family="ui-sans-serif, Helvetica, Arial, sans-serif"
+    font-size="42"
+    font-weight="700"
+    letter-spacing="0.28em"
+  >L.U.W.A.S.</text>
+</svg>

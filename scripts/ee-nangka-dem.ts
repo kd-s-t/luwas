@@ -1,21 +1,14 @@
 /**
  * One Earth Engine call: whole-Cebu coarse DEM + fine Nangka grid.
- * Writes:
- *   data/cebu-ee-dem.json   — full pull
- *   data/nangka-ee-dem.json — Nangka bbox slice (flood tiles)
+ * Also archives under data/ee-runs/ (same as admin UI).
  *
  * Usage (from luwas/):
  *   npm run ee:dem
- *
- * Loads KEY=value from .env.local / .env when present.
  */
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-  filterNangkaSamples,
-  sampleCebuDem,
-} from "../lib/geo/earthEngine";
+import { runEarthEngineJob } from "../lib/geo/eeRunJobs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -48,32 +41,24 @@ async function main() {
   console.log(
     "Sampling Cebu DEM via Earth Engine (one evaluate: island coarse + Nangka fine)…",
   );
-  const result = await sampleCebuDem();
-  const cebuPath = join(root, "data", "cebu-ee-dem.json");
-  writeFileSync(cebuPath, `${JSON.stringify(result, null, 2)}\n`, "utf8");
-
-  const nangkaSamples = filterNangkaSamples(result.samples);
-  if (!nangkaSamples.length) {
-    throw new Error(
-      "Cebu pull succeeded but no samples fell inside the Nangka bbox.",
+  const run = await runEarthEngineJob({
+    job: "dem",
+    triggeredBy: "cli:ee:dem",
+  });
+  if (run.status === "failed") {
+    throw new Error(run.error || "DEM run failed");
+  }
+  console.log(`Run ${run.id} ok`);
+  for (const f of run.files) {
+    console.log(`  ${f.name} (${f.bytes} bytes)`);
+  }
+  if (run.counts) {
+    console.log(
+      `Counts: ${Object.entries(run.counts)
+        .map(([k, v]) => `${k}=${v}`)
+        .join(" · ")}`,
     );
   }
-  const nangka = {
-    provider: result.provider,
-    fetchedAt: result.fetchedAt,
-    projectId: result.projectId,
-    scope: "nangka" as const,
-    samples: nangkaSamples,
-  };
-  const nangkaPath = join(root, "data", "nangka-ee-dem.json");
-  writeFileSync(nangkaPath, `${JSON.stringify(nangka, null, 2)}\n`, "utf8");
-
-  console.log(
-    `Wrote ${result.samples.length} Cebu samples → ${cebuPath}`,
-  );
-  console.log(
-    `Wrote ${nangkaSamples.length} Nangka samples → ${nangkaPath} (${result.provider})`,
-  );
 }
 
 main().catch((err) => {

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="LUWAS">
+  <title>LUWAS</title>
+  <path
+    fill="#c72929"
+    d="M236 65h40c8 0 16 3 22 9l122 122c7 7 11 16 11 26v128c0 50-27 95-71 126l-80 53c-12 8-28 8-40 0l-80-53c-44-31-71-76-71-126V222c0-10 4-19 11-26L214 74c6-6 14-9 22-9z"
+  />
+  <path fill="#ffffff" d="M146 250 256 160l110 90-38 38L256 218l-72 60z"/>
+  <path fill="#ffffff" d="M146 310 256 220l110 90-38 38L256 278l-72 60z"/>
+  <path fill="#ffffff" d="M146 370 256 280l110 90-38 38L256 338l-72 60z"/>
+</svg>

@@ -31,7 +31,7 @@ export default function LoginChoosePage() {
               Officer
             </span>
             <span className="mt-1 block text-sm text-[var(--muted)]">
-              Captain, MDRRMO, or LGU — command center
+              Captain, MDRRMO, or LGU: command center
             </span>
           </Link>
           <Link

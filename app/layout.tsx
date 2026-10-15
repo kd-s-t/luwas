@@ -28,6 +28,14 @@ export const metadata: Metadata = {
   title: "LUWAS",
   description:
     "LUWAS — Logistics & Unified Workflow for Aid & Safety. Barangay DRRM command center.",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/brand/luwas-logo.png", type: "image/png", sizes: "512x512" },
+      { url: "/brand/luwas-logo.svg", type: "image/svg+xml" },
+    ],
+    apple: [{ url: "/brand/apple-touch-icon.png", sizes: "180x180" }],
+  },
 };
 
 export default function RootLayout({

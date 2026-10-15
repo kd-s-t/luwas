@@ -26,7 +26,7 @@ const TEAM = [
     slug: "jeanilou-labajo",
     name: "Jeanilou Labajo",
     short: "Jean",
-    role: "Quality Assurance",
+    role: "System Analyst",
     focus: "Quality and field checks",
     bio: "Runs quality passes across citizen and officer paths: registration and login, guest and signed-in reporting, triage and map layers, and regression checks before a release so demo and ops scenarios stay trustworthy.",
   },
@@ -34,9 +34,9 @@ const TEAM = [
     slug: "patricia-abrenica",
     name: "Patricia Abrenica",
     short: "Pat",
-    role: "IT Application Support",
+    role: "Application Support Analyst",
     focus: "Support and acceptance",
-    bio: "IT application support for LUWAS: validates edge cases and acceptance flows, household linking, pending accounts, report status, support tickets, and cross-device checks so what ships on luwasph.com matches what the team promised in the walkthrough.",
+    bio: "An Accenture Custom Software Engineer designs, codes, tests, and enhances custom software solutions and applications using modern frameworks and agile methodologies.",
   },
 ] as const;
 

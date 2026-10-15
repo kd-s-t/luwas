@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useId, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { easeOut } from "@/components/motion/primitives";
+import { BrandLogo } from "@/components/BrandLogo";
 import { PostReportButton } from "@/components/PostReportButton";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { cn } from "@/lib/utils";
@@ -118,9 +119,10 @@ export function HomeNav({ overlay = false }: HomeNavProps) {
       <div className="flex items-center gap-2">
         <Link
           href="/"
-          className="relative z-10 shrink-0 font-[family-name:var(--font-display)] text-xl font-semibold tracking-wide text-[var(--foreground)] transition hover:text-[var(--accent)]"
+          className="relative z-10 shrink-0 transition hover:opacity-90"
+          aria-label="LUWAS home"
         >
-          LUWAS
+          <BrandLogo size={26} wordmarkClassName="text-xl" />
         </Link>
 
         {/* Desktop: centered CTA */}
