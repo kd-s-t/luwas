@@ -1,5 +1,5 @@
-import { randomUUID } from "node:crypto";
 import { GoogleAuth } from "google-auth-library";
+import { guestMediaProxyUrl } from "@/lib/reports/mediaUrl";
 
 function projectId(): string {
   return process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim() || "demo-dro";
@@ -122,7 +122,7 @@ export async function putGuestReportDoc(
   }
 }
 
-/** Upload guest media to Firebase Storage; returns a download URL. */
+/** Upload guest media to GCS; returns a same-origin proxy URL (bucket is not Firebase-token capable). */
 export async function uploadGuestMediaBytes(input: {
   objectPath: string;
   bytes: Buffer;
@@ -130,7 +130,6 @@ export async function uploadGuestMediaBytes(input: {
 }): Promise<{ mediaPath: string; mediaUrl: string }> {
   const bucket = storageBucket();
   const token = await googleAccessToken();
-  const downloadToken = randomUUID();
   const encodedName = encodeURIComponent(input.objectPath);
 
   const upload = await fetch(
@@ -149,26 +148,8 @@ export async function uploadGuestMediaBytes(input: {
     throw new Error(`Storage upload ${upload.status}: ${text.slice(0, 300)}`);
   }
 
-  const meta = await fetch(
-    `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(bucket)}/o/${encodedName}`,
-    {
-      method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        metadata: { firebaseStorageDownloadTokens: downloadToken },
-      }),
-    },
-  );
-  if (!meta.ok) {
-    const text = await meta.text();
-    throw new Error(`Storage token ${meta.status}: ${text.slice(0, 300)}`);
-  }
-
   return {
     mediaPath: input.objectPath,
-    mediaUrl: `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodedName}?alt=media&token=${downloadToken}`,
+    mediaUrl: guestMediaProxyUrl(input.objectPath),
   };
 }

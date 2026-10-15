@@ -204,6 +204,13 @@ export function ReportReceived({
         </button>
         <button
           type="button"
+          className="flex w-full items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-[14px] text-[15px] font-semibold text-[var(--foreground)]"
+          onClick={() => router.push("/report-incident")}
+        >
+          {t(language, "confirm.newReport")}
+        </button>
+        <button
+          type="button"
           className="mx-auto block text-sm font-semibold text-[#2563eb]"
           onClick={() => void copyTrackLink()}
         >
@@ -240,16 +247,6 @@ export function ReportReceived({
       </FadeIn>
 
       <FadeIn delay={0.34} y={10}>
-        <button
-          type="button"
-          className="flex w-full items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-[14px] text-[15px] font-semibold text-[var(--foreground)]"
-          onClick={() => router.push("/report-incident")}
-        >
-          {t(language, "confirm.home")}
-        </button>
-      </FadeIn>
-
-      <FadeIn delay={0.38} y={10}>
         <div className="rounded-[14px] border border-[var(--border)] bg-[var(--surface)] p-4">
           <p className="text-sm font-semibold text-[var(--foreground)]">
             {t(language, "confirm.keepTitle")}
