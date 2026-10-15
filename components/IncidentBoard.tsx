@@ -310,13 +310,13 @@ export function IncidentBoard() {
           </p>
         </div>
       ) : (
-        <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-x-auto px-3 py-3 sm:grid-cols-3 lg:grid-cols-6 sm:px-4 sm:py-4">
+        <div className="flex min-h-0 flex-1 items-stretch gap-3 overflow-x-auto px-3 py-3 sm:px-4 sm:py-4">
           {COLUMNS.map((col) => {
             const cards = ranked.filter(col.match);
             return (
               <section
                 key={col.id}
-                className="flex min-h-0 min-w-[12rem] flex-col rounded-lg border border-[var(--border)] bg-[var(--surface-panel)]/40"
+                className="flex h-full min-h-0 w-[15.5rem] shrink-0 flex-col rounded-lg border border-[var(--border)] bg-[var(--surface-panel)]/40"
               >
                 <header className="flex shrink-0 items-baseline justify-between gap-2 border-b border-[var(--border)] px-3 py-2.5">
                   <h2 className="font-mono text-[10px] tracking-[0.16em] text-[var(--muted)] uppercase">
