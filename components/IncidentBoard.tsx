@@ -413,7 +413,7 @@ export function IncidentBoard() {
                                 className="font-mono text-[10px] tracking-wide text-[var(--muted)] tabular-nums"
                                 title={r.id}
                               >
-                                Ref {r.id}
+                                {r.id}
                               </p>
                               <Link
                                 href={`/admin/incidents/${encodeURIComponent(r.id)}`}
