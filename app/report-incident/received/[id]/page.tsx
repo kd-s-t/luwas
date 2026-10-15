@@ -24,8 +24,8 @@ export default function ReportReceivedPage({ params }: PageProps) {
   if (!referenceId) {
     return (
       <PublicShell hideFooter hideNav>
-        <div className="min-h-screen bg-[var(--surface)]">
-          <main className="mx-auto max-w-md px-4 pt-10 pb-10 text-center sm:px-5">
+        <div className="flex min-h-dvh flex-col overflow-x-hidden bg-[var(--surface)]">
+          <main className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-10 text-center sm:px-5">
             <p className="text-sm text-[var(--muted)]">Missing reference.</p>
             <Link
               href="/report-incident"
@@ -41,8 +41,8 @@ export default function ReportReceivedPage({ params }: PageProps) {
 
   return (
     <PublicShell hideFooter hideNav>
-      <div className="min-h-screen bg-[var(--surface)]">
-        <main className="mx-auto max-w-md px-4 pt-0 pb-10 sm:px-5">
+      <div className="flex min-h-dvh flex-col overflow-x-hidden bg-[var(--surface)]">
+        <main className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-0 sm:px-5">
           <ReportReceived
             referenceId={referenceId}
             guest={!signedIn}

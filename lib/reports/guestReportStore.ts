@@ -32,6 +32,12 @@ export function listGuestReportIds(): string[] {
   return readIds();
 }
 
+export function hasGuestReportId(reportId: string): boolean {
+  const id = reportId.trim();
+  if (!id) return false;
+  return readIds().includes(id);
+}
+
 export function latestGuestReportId(): string | null {
   return readIds()[0] ?? null;
 }

@@ -3,11 +3,33 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import { Copy } from "lucide-react";
 import {
   CitizenFooter,
   CitizenHeader,
   Danger911Banner,
 } from "@/components/citizen/CitizenChrome";
+
+/** Mock reference badge: notched ticket with three punch dots. */
+function ReferenceTicketIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      aria-hidden
+    >
+      <path
+        d="M4.5 5.5h15a1.5 1.5 0 0 1 1.5 1.5v3.1a2.25 2.25 0 0 0 0 4.3V17a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17v-2.6a2.25 2.25 0 0 0 0-4.3V7A1.5 1.5 0 0 1 4.5 5.5Z"
+        fill="currentColor"
+      />
+      <circle cx="12" cy="9.25" r="1.15" fill="white" />
+      <circle cx="12" cy="12" r="1.15" fill="white" />
+      <circle cx="12" cy="14.75" r="1.15" fill="white" />
+    </svg>
+  );
+}
 import {
   easeOut,
   FadeIn,
@@ -90,6 +112,7 @@ export function ReportReceived({
   }
 
   return (
+    <div className="flex min-h-0 flex-1 flex-col">
     <motion.div
       className="space-y-5"
       initial={motionSafe ? { opacity: 0, y: 18 } : false}
@@ -113,6 +136,12 @@ export function ReportReceived({
 
       <FadeIn delay={0.12} y={12}>
         <div className="rounded-[14px] bg-[#eff6ff] px-4 py-4">
+          <span
+            className="mb-2.5 flex size-9 items-center justify-center rounded-full bg-white"
+            aria-hidden
+          >
+            <ReferenceTicketIcon className="size-[18px] text-[#2563eb]" />
+          </span>
           <p className="text-sm text-[var(--muted)]">
             {t(language, "confirm.reference")}
           </p>
@@ -132,9 +161,12 @@ export function ReportReceived({
           </p>
           <button
             type="button"
-            className="mt-3.5 flex w-full items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] py-3 text-sm font-semibold text-[var(--foreground)]"
+            className="mt-3.5 flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] py-3 text-sm font-semibold text-[var(--foreground)]"
             onClick={() => void copyRef()}
           >
+            {!copied ? (
+              <Copy className="size-3.5" strokeWidth={2.25} aria-hidden />
+            ) : null}
             {copied
               ? t(language, "common.copied")
               : t(language, "confirm.copy")}
@@ -232,8 +264,8 @@ export function ReportReceived({
       <p className="text-center text-xs leading-relaxed text-[var(--muted)]">
         {t(language, "situation.noAccountNote")}
       </p>
-
-      <CitizenFooter language={language} tight />
     </motion.div>
+      <CitizenFooter language={language} tight />
+    </div>
   );
 }

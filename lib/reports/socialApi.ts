@@ -10,9 +10,11 @@ import {
   updateDoc,
   type Unsubscribe,
 } from "firebase/firestore";
+import { sanitizeGuestReporterPhone } from "@/lib/auth/demoAccount";
 import { getClientDb } from "@/lib/firebase/client";
 import { resolveReportPlace } from "@/lib/reports/barangayScope";
 import { mapDispatchLog } from "@/lib/reports/dispatchLog";
+import { computeReportTrust } from "@/lib/reports/trustScore";
 import type { HazardReport } from "@/lib/reports/types";
 import {
   EMPTY_REACTION_COUNTS,
@@ -21,6 +23,8 @@ import {
   type ReportComment,
   type ReportReaction,
 } from "@/lib/reports/socialTypes";
+
+const GUEST_UID = "web-guest";
 
 function mapReport(id: string, data: Record<string, unknown>): HazardReport {
   const counts = (data.reactionCounts as ReactionCounts | undefined) ?? {
@@ -33,9 +37,68 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
     lat: typeof data.lat === "number" ? data.lat : null,
     lng: typeof data.lng === "number" ? data.lng : null,
   });
+  const citizenUid = String(data.citizenUid ?? "");
+  const rawPhone =
+    data.reporterPhone != null ? String(data.reporterPhone) : null;
+  const reporterPhone =
+    citizenUid === GUEST_UID
+      ? sanitizeGuestReporterPhone(rawPhone)
+      : rawPhone;
+  const mediaSource =
+    (data.mediaSource as HazardReport["mediaSource"]) ?? null;
+  const lat = typeof data.lat === "number" ? data.lat : null;
+  const lng = typeof data.lng === "number" ? data.lng : null;
+  const locationAccuracyM =
+    typeof data.locationAccuracyM === "number"
+      ? data.locationAccuracyM
+      : null;
+  const aiConfidence =
+    typeof data.aiConfidence === "number" ? data.aiConfidence : null;
+  const aiVerdict = (data.aiVerdict as HazardReport["aiVerdict"]) ?? null;
+  const phoneWasSanitized =
+    citizenUid === GUEST_UID && rawPhone != null && reporterPhone == null;
+  const recomputed = phoneWasSanitized
+    ? computeReportTrust({
+        registered: false,
+        idVerified: Boolean(data.reporterIdVerified),
+        email: null,
+        phone: reporterPhone,
+        emailVerified: false,
+        mediaSource,
+        lat,
+        lng,
+        locationAccuracyM,
+        aiConfidence,
+        aiVerdict,
+      })
+    : null;
+  const storedTrust =
+    typeof data.trustScore === "number" ? data.trustScore : null;
+  const trustScore = recomputed?.total ?? storedTrust;
+  const trustBreakdown = recomputed
+    ? recomputed
+    : data.trustBreakdown && typeof data.trustBreakdown === "object"
+      ? {
+          identity: Number(
+            (data.trustBreakdown as { identity?: number }).identity ?? 0,
+          ),
+          contact: Number(
+            (data.trustBreakdown as { contact?: number }).contact ?? 0,
+          ),
+          capture: Number(
+            (data.trustBreakdown as { capture?: number }).capture ?? 0,
+          ),
+          ai: Number((data.trustBreakdown as { ai?: number }).ai ?? 0),
+          total: Number(
+            (data.trustBreakdown as { total?: number }).total ??
+              data.trustScore ??
+              0,
+          ),
+        }
+      : null;
   return {
     id,
-    citizenUid: String(data.citizenUid ?? ""),
+    citizenUid,
     citizenName: String(data.citizenName ?? ""),
     citizenPurok: String(data.citizenPurok ?? ""),
     barangay: place.barangay,
@@ -49,8 +112,7 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
     mediaPath: String(data.mediaPath ?? ""),
     mediaUrl: String(data.mediaUrl ?? ""),
     mediaMime: String(data.mediaMime ?? ""),
-    mediaSource:
-      (data.mediaSource as HazardReport["mediaSource"]) ?? null,
+    mediaSource,
     voiceNoteLabel:
       data.voiceNoteLabel != null ? String(data.voiceNoteLabel) : null,
     voicePath: data.voicePath != null ? String(data.voicePath) : null,
@@ -58,20 +120,16 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
     voiceMime: data.voiceMime != null ? String(data.voiceMime) : null,
     voiceTranscript:
       data.voiceTranscript != null ? String(data.voiceTranscript) : null,
-    lat: typeof data.lat === "number" ? data.lat : null,
-    lng: typeof data.lng === "number" ? data.lng : null,
-    locationAccuracyM:
-      typeof data.locationAccuracyM === "number"
-        ? data.locationAccuracyM
-        : null,
+    lat,
+    lng,
+    locationAccuracyM,
     locationLabel:
       data.locationLabel != null ? String(data.locationLabel) : null,
     device: data.device != null ? String(data.device) : null,
     ipAddress: data.ipAddress != null ? String(data.ipAddress) : null,
     status: (data.status as HazardReport["status"]) ?? "queued",
-    aiVerdict: (data.aiVerdict as HazardReport["aiVerdict"]) ?? null,
-    aiConfidence:
-      typeof data.aiConfidence === "number" ? data.aiConfidence : null,
+    aiVerdict,
+    aiConfidence,
     aiReason: data.aiReason != null ? String(data.aiReason) : null,
     aiSource: (data.aiSource as HazardReport["aiSource"]) ?? null,
     aiModel: data.aiModel != null ? String(data.aiModel) : null,
@@ -97,30 +155,10 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
     reporterIdVerified: Boolean(data.reporterIdVerified),
     reporterEmail:
       data.reporterEmail != null ? String(data.reporterEmail) : null,
-    reporterPhone:
-      data.reporterPhone != null ? String(data.reporterPhone) : null,
+    reporterPhone,
     reporterEmailVerified: Boolean(data.reporterEmailVerified),
-    trustScore: typeof data.trustScore === "number" ? data.trustScore : null,
-    trustBreakdown:
-      data.trustBreakdown && typeof data.trustBreakdown === "object"
-        ? {
-            identity: Number(
-              (data.trustBreakdown as { identity?: number }).identity ?? 0,
-            ),
-            contact: Number(
-              (data.trustBreakdown as { contact?: number }).contact ?? 0,
-            ),
-            capture: Number(
-              (data.trustBreakdown as { capture?: number }).capture ?? 0,
-            ),
-            ai: Number((data.trustBreakdown as { ai?: number }).ai ?? 0),
-            total: Number(
-              (data.trustBreakdown as { total?: number }).total ??
-                data.trustScore ??
-                0,
-            ),
-          }
-        : null,
+    trustScore,
+    trustBreakdown,
     reactionCounts: {
       like: Number(counts.like ?? 0),
       helpful: Number(counts.helpful ?? 0),

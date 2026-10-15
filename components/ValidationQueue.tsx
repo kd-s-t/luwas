@@ -19,7 +19,11 @@ import { useAuth } from "@/lib/auth/AuthProvider";
 import { isOfficer } from "@/lib/auth/types";
 import type { LatLng } from "@/lib/geo/cebu";
 import { triggerAutoResponderCall } from "@/lib/alerts/autoResponderCall";
-import { subscribeAllReports, updateReportValidation } from "@/lib/reports/api";
+import {
+  assignReportInvestigator,
+  subscribeAllReports,
+  updateReportValidation,
+} from "@/lib/reports/api";
 import { syncHazardReportToBigQuery } from "@/lib/reports/bigquerySync";
 import {
   formatDistanceKm,
@@ -30,6 +34,10 @@ import {
   sortReportsByDistance,
 } from "@/lib/reports/barangayScope";
 import { captureReportMeta } from "@/lib/reports/captureMeta";
+import {
+  displayReportNotes,
+  displayVoiceNoteLabel,
+} from "@/lib/reports/displayNotes";
 import { ensureQueueSampleReports } from "@/lib/reports/ensureQueueSampleReports";
 import { ensureAllMapReportsInDb } from "@/lib/reports/seedMapReport";
 import {
@@ -153,11 +161,25 @@ export function ValidationQueue() {
           locationAccuracyM: report.locationAccuracyM,
         },
       });
+      if (verdict === "rejected" && isOfficer(profile)) {
+        await assignReportInvestigator({
+          reportId: report.id,
+          investigatorUid: profile.uid,
+          investigatorName: profile.displayName,
+        });
+      }
       syncHazardReportToBigQuery({
         ...report,
         status: verdict,
         aiVerdict: verdict,
         validatedAt,
+        ...(verdict === "rejected" && isOfficer(profile)
+          ? {
+              investigatorUid: profile.uid,
+              investigatorName: profile.displayName,
+              investigatedAt: validatedAt,
+            }
+          : {}),
       });
       if (verdict === "legit") {
         void triggerAutoResponderCall({
@@ -287,9 +309,9 @@ export function ValidationQueue() {
                           "Usable email + phone",
                         ],
                         [
-                          "Capture",
+                          "Allow location · Mobile camera",
                           TRUST_CAPS.capture,
-                          "Mobile camera + tight GPS",
+                          "GPS accuracy (horizontal, not elevation) + live mobile camera photo",
                         ],
                         [
                           "Vertex AI",
@@ -442,14 +464,19 @@ export function ValidationQueue() {
                     {r.hazardHint} · {new Date(r.createdAt).toLocaleString()}
                   </span>
                 </p>
-                <p className="mt-1.5 text-sm leading-relaxed text-[var(--foreground)] break-words">
-                  {r.notes}
-                </p>
+                {displayReportNotes(r.notes) ? (
+                  <p className="mt-1.5 text-sm leading-relaxed text-[var(--foreground)] break-words">
+                    {displayReportNotes(r.notes)}
+                  </p>
+                ) : null}
                 {r.voiceUrl || r.voiceTranscript ? (
                   <div className="mt-2 space-y-1.5 rounded border border-[var(--border)] bg-[var(--surface-panel)] px-2.5 py-2">
                     <p className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
                       Voice note
-                      {r.voiceNoteLabel ? ` · ${r.voiceNoteLabel}` : ""}
+                      {(() => {
+                        const when = displayVoiceNoteLabel(r.voiceNoteLabel);
+                        return when ? ` · ${when}` : "";
+                      })()}
                     </p>
                     {r.voiceUrl ? (
                       <audio

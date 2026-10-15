@@ -7,9 +7,12 @@ import { PublicShell } from "@/components/PublicShell";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { isCitizen, isOfficer } from "@/lib/auth/types";
 import { getHazardReportById } from "@/lib/reports/api";
+import { hasGuestReportId } from "@/lib/reports/guestReportStore";
 import type { HazardReport } from "@/lib/reports/types";
 
-/** Resume a draft (or redirect submitted reports to the received screen). */
+const GUEST_EDITABLE = new Set(["draft", "queued", "needs_review", "rejected"]);
+
+/** Resume draft, or edit a submitted guest report saved on this device. */
 export default function ReportIncidentDraftPage() {
   const params = useParams();
   const router = useRouter();
@@ -20,6 +23,7 @@ export default function ReportIncidentDraftPage() {
     profile && (isCitizen(profile) || isOfficer(profile)) ? profile : null;
 
   const [report, setReport] = useState<HazardReport | null>(null);
+  const [editMode, setEditMode] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -41,13 +45,24 @@ export default function ReportIncidentDraftPage() {
           setReport(null);
           return;
         }
-        if (row.status !== "draft") {
-          router.replace(
-            `/report-incident/received/${encodeURIComponent(row.id)}`,
-          );
+        if (row.status === "draft") {
+          setEditMode(false);
+          setReport(row);
           return;
         }
-        setReport(row);
+        const deviceToken = hasGuestReportId(row.id);
+        const canGuestEdit =
+          deviceToken &&
+          row.citizenUid === "web-guest" &&
+          GUEST_EDITABLE.has(row.status);
+        if (canGuestEdit) {
+          setEditMode(true);
+          setReport(row);
+          return;
+        }
+        router.replace(
+          `/report-incident/received/${encodeURIComponent(row.id)}`,
+        );
       } catch (err) {
         if (!cancelled) {
           setLoadError(
@@ -65,8 +80,8 @@ export default function ReportIncidentDraftPage() {
 
   return (
     <PublicShell hideFooter hideNav>
-      <div className="min-h-screen bg-[var(--surface)]">
-        <main className="mx-auto max-w-md px-4 pt-0 pb-10 sm:px-5">
+      <div className="flex min-h-dvh flex-col overflow-x-hidden bg-[var(--surface)]">
+        <main className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 pt-0 sm:px-5">
           {loading || authLoading ? (
             <p className="py-16 text-center text-sm text-[var(--muted)]">
               Loading report…
@@ -86,9 +101,10 @@ export default function ReportIncidentDraftPage() {
             </div>
           ) : (
             <CitizenReportForm
-              key={report.id}
+              key={`${report.id}-${editMode ? "edit" : "draft"}`}
               author={author}
               draft={report}
+              editMode={editMode}
             />
           )}
         </main>

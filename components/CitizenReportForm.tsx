@@ -13,6 +13,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertTriangle,
   Check,
+  House,
   Loader2,
   LocateFixed,
   Mic,
@@ -38,8 +39,8 @@ import {
   Stagger,
   useMotionSafe,
 } from "@/components/motion/primitives";
-import { DEMO_CITIZENS } from "@/lib/auth/demoAccount";
 import { useAuth } from "@/lib/auth/AuthProvider";
+import { sanitizeGuestReporterPhone } from "@/lib/auth/demoAccount";
 import { isCitizen, isOfficer, type UserProfile } from "@/lib/auth/types";
 import { t, type CitizenLang } from "@/lib/citizen/i18n";
 import { getClientAuth } from "@/lib/firebase/client";
@@ -53,7 +54,7 @@ import {
   createHazardReport,
   markReportValidating,
   newGuestReportId,
-  startIncidentDraft,
+  updateGuestHazardReport,
   updateIncidentDraft,
   updateReportValidation,
 } from "@/lib/reports/api";
@@ -103,8 +104,10 @@ type ReportFor = "myself" | "someoneElse";
 type CitizenReportFormProps = {
   /** Null/undefined = guest (no login), same as iOS. */
   author?: UserProfile | null;
-  /** Open draft from `/report-incident/[id]` — resumes the wizard. */
+  /** Open draft / edit from `/report-incident/[id]`. */
   draft?: HazardReport | null;
+  /** Update a submitted guest report saved on this device. */
+  editMode?: boolean;
 };
 
 type PhotoItem = { id: string; file: File; preview: string };
@@ -222,6 +225,7 @@ function SolidAction({
 export function CitizenReportForm({
   author = null,
   draft = null,
+  editMode = false,
 }: CitizenReportFormProps) {
   const router = useRouter();
   const { logout } = useAuth();
@@ -229,8 +233,8 @@ export function CitizenReportForm({
   const isGuest = !author;
   const [language, setLanguage] = useState<CitizenLang>("en");
   const [draftId, setDraftId] = useState<string | null>(draft?.id ?? null);
-  const [starting, setStarting] = useState(false);
   const [step, setStep] = useState<Step>(() => {
+    if (editMode && draft) return "situation";
     if (!draft || draft.status !== "draft") return "intent";
     return draft.draftStep ?? "situation";
   });
@@ -257,12 +261,22 @@ export function CitizenReportForm({
       .join("\n")
       .trim();
   });
-  const [voiceNoteLabel, setVoiceNoteLabel] = useState<string | null>(null);
+  const [voiceNoteLabel, setVoiceNoteLabel] = useState<string | null>(
+    () => draft?.voiceNoteLabel ?? null,
+  );
   const [voiceFile, setVoiceFile] = useState<File | null>(null);
-  const [voicePreviewUrl, setVoicePreviewUrl] = useState<string | null>(null);
-  const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
+  const [voicePreviewUrl, setVoicePreviewUrl] = useState<string | null>(
+    () => draft?.voiceUrl ?? null,
+  );
+  const [voiceTranscript, setVoiceTranscript] = useState<string | null>(
+    () => draft?.voiceTranscript ?? null,
+  );
   const [voiceTranscribing, setVoiceTranscribing] = useState(false);
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
+  const [existingMediaUrl] = useState(() => draft?.mediaUrl ?? null);
+  const [existingMediaPath] = useState(() => draft?.mediaPath ?? null);
+  const [existingMediaMime] = useState(() => draft?.mediaMime ?? null);
+  const [existingMediaType] = useState(() => draft?.mediaType ?? null);
   const [placeQuery, setPlaceQuery] = useState(
     () => draft?.locationLabel?.trim() || "Brgy. Nangka, Consolacion",
   );
@@ -280,9 +294,7 @@ export function CitizenReportForm({
   const [mobileNumber, setMobileNumber] = useState(
     isCitizen(author)
       ? author.phone || ""
-      : isGuest
-        ? (DEMO_CITIZENS[0]?.phone ?? "")
-        : "",
+      : sanitizeGuestReporterPhone(draft?.reporterPhone) || "",
   );
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -305,10 +317,10 @@ export function CitizenReportForm({
   coordsRef.current = { lat, lng };
 
   function voiceNoteStamp(): string {
-    return `Voice note · ${new Date().toLocaleTimeString("en-PH", {
+    return new Date().toLocaleTimeString("en-PH", {
       hour: "2-digit",
       minute: "2-digit",
-    })}`;
+    });
   }
 
   function pickAudioMime(): string | undefined {
@@ -330,12 +342,11 @@ export function CitizenReportForm({
     return "webm";
   }
 
-  function buildReportNotes(transcript = voiceTranscript): string {
+  function buildReportNotes(): string {
+    // Voice label + transcript live on dedicated fields; do not duplicate in notes.
     return [
       situation.trim(),
       landmark.trim() ? `Landmark: ${landmark.trim()}` : "",
-      voiceNoteLabel ? `Voice: ${voiceNoteLabel}` : "",
-      transcript ? `Transcript: ${transcript}` : "",
       approximate ? "Approximate location" : "",
       intent === "needHelp" ? "Intent: I need help" : "Intent: Report a hazard",
       reportFor === "someoneElse"
@@ -423,16 +434,15 @@ export function CitizenReportForm({
 
   useEffect(() => {
     if (!voiceFile) {
-      setVoicePreviewUrl(null);
+      setVoicePreviewUrl(draft?.voiceUrl ?? null);
       return;
     }
     const url = URL.createObjectURL(voiceFile);
     setVoicePreviewUrl(url);
     return () => {
       URL.revokeObjectURL(url);
-      setVoicePreviewUrl(null);
     };
-  }, [voiceFile]);
+  }, [voiceFile, draft?.voiceUrl]);
 
   useEffect(() => {
     if (step !== "location") {
@@ -452,7 +462,7 @@ export function CitizenReportForm({
       draftStep: step,
       draftIntent: intent,
       draftReportFor: reportFor,
-      notes: buildReportNotes(voiceTranscript),
+      notes: buildReportNotes(),
       title: titleFromSituation(situation, intent, reportFor),
       hazardHint: inferHazard(situation),
       lat,
@@ -465,26 +475,10 @@ export function CitizenReportForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- persist when the wizard step changes
   }, [draftId, step]);
 
-  async function beginReport(nextIntent: Intent) {
-    if (starting) return;
-    setStarting(true);
+  function beginReport(nextIntent: Intent) {
     setError(null);
     setIntent(nextIntent);
-    try {
-      const id = await startIncidentDraft({
-        author,
-        intent: nextIntent,
-        reportFor,
-      });
-      setDraftId(id);
-      saveGuestReportId(id);
-      router.push(`/report-incident/${encodeURIComponent(id)}`);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : t(language, "errors.submitFailed"),
-      );
-      setStarting(false);
-    }
+    setStep("situation");
   }
 
   function clearSavedVoice() {
@@ -788,19 +782,25 @@ export function CitizenReportForm({
     return true;
   }
 
-  async function submitGuestReport(file: File) {
+  async function submitGuestReport(file: File | null) {
     setStatus(t(language, "common.saving"));
     const reportId = draftId ?? newGuestReportId();
     const hazardHint = inferHazard(situation);
     const title = titleFromSituation(situation, intent, reportFor);
-    const mediaType = file.type.startsWith("video/") ? "video" : "photo";
+    const mediaType = file
+      ? file.type.startsWith("video/")
+        ? "video"
+        : "photo"
+      : existingMediaType === "video"
+        ? "video"
+        : "photo";
 
     let transcript = voiceTranscript?.trim() || "";
     if (voiceFile && !transcript) {
       transcript = await transcribeVoiceFile(voiceFile);
       if (transcript) setVoiceTranscript(transcript);
     }
-    const notes = buildReportNotes(transcript || null);
+    const notes = buildReportNotes();
 
     const captured = meta ?? (await captureReportMeta().catch(() => null));
     if (captured) setMeta(captured);
@@ -831,17 +831,36 @@ export function CitizenReportForm({
       };
     }
 
-    const uploaded =
-      (await uploadGuestFile("photo", file)) ??
-      ({
+    let uploaded: {
+      mediaPath: string;
+      mediaUrl: string;
+      mediaMime: string;
+    };
+    if (file) {
+      uploaded =
+        (await uploadGuestFile("photo", file)) ??
+        ({
+          mediaPath: "/reports/flood-road-chapel.png",
+          mediaUrl: "/reports/flood-road-chapel.png",
+          mediaMime: "image/png",
+        } as const);
+    } else if (existingMediaUrl && existingMediaPath) {
+      uploaded = {
+        mediaPath: existingMediaPath,
+        mediaUrl: existingMediaUrl,
+        mediaMime: existingMediaMime || "image/jpeg",
+      };
+    } else {
+      uploaded = {
         mediaPath: "/reports/flood-road-chapel.png",
         mediaUrl: "/reports/flood-road-chapel.png",
         mediaMime: "image/png",
-      } as const);
+      };
+    }
 
-    let voicePath: string | null = null;
-    let voiceUrl: string | null = null;
-    let voiceMime: string | null = null;
+    let voicePath: string | null = draft?.voicePath ?? null;
+    let voiceUrl: string | null = draft?.voiceUrl ?? null;
+    let voiceMime: string | null = draft?.voiceMime ?? null;
     if (voiceFile) {
       const voiceUploaded = await uploadGuestFile("voice", voiceFile);
       if (voiceUploaded) {
@@ -851,13 +870,15 @@ export function CitizenReportForm({
       }
     }
 
-    const mediaSource = mobileCapture ? "mobile-camera" : "desktop-file";
-    const id = await createGuestHazardReport({
+    const mediaSource = mobileCapture
+      ? "mobile-camera"
+      : (draft?.mediaSource ?? "desktop-file");
+    const payload = {
       id: reportId,
       title,
       notes,
       hazardHint,
-      mediaType,
+      mediaType: mediaType as "photo" | "video",
       mediaPath: uploaded.mediaPath,
       mediaUrl: uploaded.mediaUrl,
       mediaMime: uploaded.mediaMime,
@@ -875,13 +896,18 @@ export function CitizenReportForm({
       locationLabel: placeQuery.trim(),
       device: captured?.device ?? "web-luwas-citizen",
       reporterPhone: mobileNumber.trim() || null,
-      status: "queued",
-    });
+    };
+
+    const id = editMode
+      ? await updateGuestHazardReport(payload)
+      : await createGuestHazardReport({ ...payload, status: "queued" });
 
     // AI after save — guest update rules allow it without login.
     const canInline =
-      mediaType === "photo" && file.size <= 3.5 * 1024 * 1024;
-    if (canInline) {
+      file != null &&
+      mediaType === "photo" &&
+      file.size <= 3.5 * 1024 * 1024;
+    if (canInline && file) {
       void (async () => {
         try {
           const mediaBase64 = await fileToBase64(file);
@@ -960,8 +986,8 @@ export function CitizenReportForm({
     setStatus(t(language, "common.saving"));
 
     try {
-      let file = photos[0]?.file;
-      if (!file) {
+      let file: File | null = photos[0]?.file ?? null;
+      if (!file && !(editMode && existingMediaUrl)) {
         const res = await fetch("/reports/flood-road-chapel.png");
         if (!res.ok) throw new Error(t(language, "errors.photoRequired"));
         const blob = await res.blob();
@@ -974,6 +1000,7 @@ export function CitizenReportForm({
         await submitGuestReport(file);
         return;
       }
+      if (!file) throw new Error(t(language, "errors.photoRequired"));
 
       const reportId = draftId ?? crypto.randomUUID();
       const mediaType = file.type.startsWith("video/") ? "video" : "photo";
@@ -985,7 +1012,7 @@ export function CitizenReportForm({
         transcript = await transcribeVoiceFile(voiceFile);
         if (transcript) setVoiceTranscript(transcript);
       }
-      const notes = buildReportNotes(transcript || null);
+      const notes = buildReportNotes();
 
       const captured = meta ?? (await captureReportMeta().catch(() => null));
       if (captured) setMeta(captured);
@@ -1182,7 +1209,11 @@ export function CitizenReportForm({
         setError(null);
         if (recording) stopVoiceCapture(false);
         if (step === "situation") {
-          if (draftId) router.push("/report-incident");
+          if (editMode && draftId) {
+            router.push(
+              `/track-report?ref=${encodeURIComponent(draftId)}`,
+            );
+          } else if (draftId) router.push("/report-incident");
           else setStep("intent");
         } else if (step === "location") setStep("situation");
         else if (step === "review") setStep("location");
@@ -1197,13 +1228,13 @@ export function CitizenReportForm({
 
   if (step === "intent") {
     return (
-      <div>
+      <div className="flex min-h-0 flex-1 flex-col">
         <CitizenHeader
           language={language}
           onLanguageChange={setLanguage}
           variant="brand"
         />
-      <Stagger className="space-y-5 pt-3">
+      <Stagger className="space-y-5 pt-3 pb-4">
         <FadeItem>
           <div className="space-y-3">
             <p className="inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.08em] text-[#1d4ed8] uppercase">
@@ -1250,11 +1281,6 @@ export function CitizenReportForm({
             <p className="text-base font-semibold text-[var(--foreground)]">
               {t(language, "home.whatToDo")}
             </p>
-            {starting ? (
-              <p className="text-center text-sm text-[var(--muted)]">
-                {t(language, "common.saving")}
-              </p>
-            ) : null}
             <div className="space-y-2">
               <p className="text-sm font-semibold text-[var(--muted)]">
                 {t(language, "home.reportFor")}
@@ -1297,8 +1323,7 @@ export function CitizenReportForm({
                     aria-hidden
                   />
                 }
-                disabled={starting}
-                onClick={() => void beginReport("needHelp")}
+                onClick={() => beginReport("needHelp")}
               />
               <p className="px-1 text-sm text-[var(--muted)]">
                 {t(language, "home.needHelpHint")}
@@ -1310,8 +1335,7 @@ export function CitizenReportForm({
                 title={t(language, "home.reportHazard")}
                 style="outline"
                 icon={<AlertTriangle className="size-[18px]" aria-hidden />}
-                disabled={starting}
-                onClick={() => void beginReport("reportHazard")}
+                onClick={() => beginReport("reportHazard")}
               />
               <p className="px-1 text-sm text-[var(--muted)]">
                 {t(language, "home.reportHazardHint")}
@@ -1338,10 +1362,7 @@ export function CitizenReportForm({
           <HomeFloodTip language={language} />
         </FadeItem>
         <FadeItem>
-          <div className="space-y-3">
-            <Danger911Banner language={language} variant="soft" />
-            <CitizenFooter language={language} tight />
-          </div>
+          <Danger911Banner language={language} variant="soft" />
         </FadeItem>
 
         {isCitizen(author) ? (
@@ -1352,12 +1373,13 @@ export function CitizenReportForm({
           </FadeItem>
         ) : null}
       </Stagger>
+        <CitizenFooter language={language} tight />
       </div>
     );
   }
 
   return (
-    <div>
+    <div className="flex min-h-0 flex-1 flex-col">
       {wizardHeader}
 
       <AnimatePresence mode="wait" initial={false}>
@@ -1503,6 +1525,24 @@ export function CitizenReportForm({
             <p className="text-sm font-semibold">
               {t(language, "situation.addPhoto")}
             </p>
+            {editMode && existingMediaUrl && photos.length === 0 ? (
+              <div className="flex items-center gap-2.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-sm">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={existingMediaUrl}
+                  alt=""
+                  className="size-12 rounded-lg object-cover"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">
+                    {existingMediaPath?.split("/").pop() || "Current photo"}
+                  </p>
+                  <p className="text-xs text-[var(--muted)]">
+                    Keep this photo, or add a new one below.
+                  </p>
+                </div>
+              </div>
+            ) : null}
             <AnimatePresence initial={false}>
               {photos.map((p) => (
                 <motion.div
@@ -1646,8 +1686,6 @@ export function CitizenReportForm({
           <p className="text-center text-xs leading-relaxed text-[var(--muted)]">
             {t(language, "situation.noAccountNote")}
           </p>
-
-          <CitizenFooter language={language} tight />
         </motion.div>
       ) : null}
 
@@ -1903,8 +1941,6 @@ export function CitizenReportForm({
           <p className="text-center text-xs leading-relaxed text-[var(--muted)]">
             {t(language, "situation.noAccountNote")}
           </p>
-
-          <CitizenFooter language={language} tight />
         </motion.div>
       ) : null}
 
@@ -1992,16 +2028,27 @@ export function CitizenReportForm({
                   {t(language, "common.edit")}
                 </button>
               </div>
-              <p className="mt-2.5 text-sm font-semibold text-[var(--foreground)]">
-                {placeQuery.trim() ||
-                  placeLabel(nearestPlace(lat, lng))}
-              </p>
-              {landmark ? (
-                <p className="mt-0.5 text-sm text-[var(--muted)]">{landmark}</p>
-              ) : null}
-              <p className="mt-2 text-xs text-[var(--muted)]">
-                {t(language, "review.approxPin")}
-              </p>
+              <div className="mt-2.5 flex items-start gap-2.5">
+                <House
+                  className="mt-0.5 size-5 shrink-0 text-[#2563eb]"
+                  strokeWidth={2}
+                  aria-hidden
+                />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-[var(--foreground)]">
+                    {placeQuery.trim() ||
+                      placeLabel(nearestPlace(lat, lng))}
+                  </p>
+                  {landmark ? (
+                    <p className="mt-0.5 text-sm text-[var(--muted)]">
+                      {landmark}
+                    </p>
+                  ) : null}
+                  <p className="mt-2 text-xs text-[var(--muted)]">
+                    {t(language, "review.approxPin")}
+                  </p>
+                </div>
+              </div>
             </div>
 
             <div className="min-w-0 rounded-[14px] border border-[var(--border)] bg-[var(--surface)] p-3.5">
@@ -2046,10 +2093,24 @@ export function CitizenReportForm({
                   ))}
                 </div>
               ) : null}
-              {voiceNoteLabel ? (
-                <p className="mt-2 truncate text-sm text-[var(--foreground)]">
-                  {voiceNoteLabel}
-                </p>
+              {voiceNoteLabel || voicePreviewUrl ? (
+                <div className="mt-2.5 space-y-2">
+                  {voiceNoteLabel ? (
+                    <p className="truncate text-sm text-[var(--foreground)]">
+                      {voiceNoteLabel}
+                    </p>
+                  ) : null}
+                  {voicePreviewUrl ? (
+                    <audio
+                      controls
+                      src={voicePreviewUrl}
+                      className="w-full"
+                      preload="metadata"
+                    >
+                      {t(language, "situation.voicePlay")}
+                    </audio>
+                  ) : null}
+                </div>
               ) : (
                 <p className="mt-2 text-sm text-[var(--muted)]">
                   {t(language, "review.noVoice")}
@@ -2061,8 +2122,7 @@ export function CitizenReportForm({
                 </p>
               ) : null}
               {voiceTranscript ? (
-                <p className="mt-1.5 text-sm leading-relaxed">
-                  <span className="text-[var(--muted)]">Transcript: </span>
+                <p className="mt-1.5 text-sm leading-relaxed text-[var(--muted)]">
                   {voiceTranscript}
                 </p>
               ) : null}
@@ -2118,7 +2178,10 @@ export function CitizenReportForm({
 
           <div className="space-y-3">
             <p className="text-sm leading-relaxed text-[var(--muted)]">
-              {t(language, "review.consent")}
+              {t(
+                language,
+                editMode ? "review.saveConsent" : "review.consent",
+              )}
             </p>
             <button
               type="button"
@@ -2131,10 +2194,15 @@ export function CitizenReportForm({
               ) : null}
               {submitting
                 ? t(language, "common.saving")
-                : t(language, "review.submit")}
+                : t(language, editMode ? "review.save" : "review.submit")}
             </button>
             <p className="text-center text-xs text-[var(--muted)]">
-              {t(language, "review.submitEvenMissing")}
+              {t(
+                language,
+                editMode
+                  ? "review.saveEvenMissing"
+                  : "review.submitEvenMissing",
+              )}
             </p>
           </div>
 
@@ -2152,11 +2220,13 @@ export function CitizenReportForm({
           <p className="text-center text-xs leading-relaxed text-[var(--muted)]">
             {t(language, "situation.noAccountNote")}
           </p>
-
-          <CitizenFooter language={language} tight />
         </motion.div>
       ) : null}
       </AnimatePresence>
+
+      {step === "situation" || step === "location" || step === "review" ? (
+        <CitizenFooter language={language} tight />
+      ) : null}
     </div>
   );
 }

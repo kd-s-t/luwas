@@ -220,21 +220,29 @@ export function CitizenFooter({
 }) {
   return (
     <div
+      style={{
+        backgroundColor: "#e8eaed",
+        width: "100vw",
+        maxWidth: "100vw",
+        marginLeft: "calc(50% - 50vw)",
+      }}
       className={cn(
-        "space-y-1.5 border-t border-[var(--border)] text-center",
-        tight ? "pt-3 pb-2" : "py-4",
+        "relative mt-auto box-border flex min-h-0 flex-1 flex-col border-t border-[var(--border)] text-center",
+        tight ? "pt-3 pb-6" : "py-5 pb-8",
       )}
     >
-      <p className="text-xs text-[var(--muted)]">
-        {t(language, "footer.tagline")}
-      </p>
-      <div className="flex items-center justify-center gap-4 text-[11px] font-medium text-[#2563eb]">
-        <Link href="/support" className="hover:underline">
-          {t(language, "footer.accessibility")}
-        </Link>
-        <Link href="/privacy" className="hover:underline">
-          {t(language, "footer.privacy")}
-        </Link>
+      <div className="mx-auto w-full max-w-md space-y-1.5 px-4 sm:px-5">
+        <p className="text-xs text-[var(--muted)]">
+          {t(language, "footer.tagline")}
+        </p>
+        <div className="flex items-center justify-center gap-4 text-[11px] font-medium text-[#2563eb]">
+          <Link href="/support" className="hover:underline">
+            {t(language, "footer.accessibility")}
+          </Link>
+          <Link href="/privacy" className="hover:underline">
+            {t(language, "footer.privacy")}
+          </Link>
+        </div>
       </div>
     </div>
   );

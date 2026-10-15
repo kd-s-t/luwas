@@ -135,5 +135,5 @@ export function trustLabel(total: number): string {
 }
 
 export function formatTrustBreakdown(b: ReportTrustBreakdown): string {
-  return `ID ${b.identity}/${TRUST_CAPS.identity} · contact ${b.contact}/${TRUST_CAPS.contact} · capture ${b.capture}/${TRUST_CAPS.capture} · AI ${b.ai}/${TRUST_CAPS.ai}`;
+  return `ID ${b.identity}/${TRUST_CAPS.identity} · contact ${b.contact}/${TRUST_CAPS.contact} · allow location · mobile camera ${b.capture}/${TRUST_CAPS.capture} · AI ${b.ai}/${TRUST_CAPS.ai}`;
 }

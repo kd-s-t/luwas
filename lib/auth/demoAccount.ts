@@ -98,3 +98,23 @@ export function findDemoCitizen(email: string, password: string) {
     (c) => c.email === normalized && c.password === password,
   );
 }
+
+/** Digits-only match against hackathon demo citizen phones. */
+export function isDemoCitizenPhone(phone: string | null | undefined): boolean {
+  const digits = (phone ?? "").replace(/\D/g, "");
+  if (digits.length < 10) return false;
+  return DEMO_CITIZENS.some((c) => {
+    const demo = c.phone.replace(/\D/g, "");
+    return digits === demo || digits.endsWith(demo.slice(-10));
+  });
+}
+
+/** Guest reports must not keep demo bootstrap phones (false Contact score). */
+export function sanitizeGuestReporterPhone(
+  phone: string | null | undefined,
+): string | null {
+  const trimmed = phone?.trim() || null;
+  if (!trimmed) return null;
+  if (isDemoCitizenPhone(trimmed)) return null;
+  return trimmed;
+}

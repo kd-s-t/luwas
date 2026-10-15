@@ -23,6 +23,10 @@ import {
   type ReportReaction,
 } from "@/lib/reports/socialTypes";
 import { formatDispatchListLine } from "@/lib/reports/dispatchLog";
+import {
+  displayReportNotes,
+  displayVoiceNoteLabel,
+} from "@/lib/reports/displayNotes";
 import { formatTrustBreakdown } from "@/lib/reports/trustScore";
 import { hazardHintLabel, type HazardReport } from "@/lib/reports/types";
 import { activityForReport } from "@/lib/workspace/incidentDerived";
@@ -273,9 +277,11 @@ export function PublicReportCard({
         <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-wide">
           {report.title}
         </h2>
-        <p className="mt-1 text-sm whitespace-pre-wrap text-[var(--muted)]">
-          {report.notes}
-        </p>
+        {displayReportNotes(report.notes) ? (
+          <p className="mt-1 text-sm whitespace-pre-wrap text-[var(--muted)]">
+            {displayReportNotes(report.notes)}
+          </p>
+        ) : null}
 
         {expandSocial ? (
           <dl className="mt-3 grid gap-2 border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2.5 text-xs sm:grid-cols-2">
@@ -381,7 +387,10 @@ export function PublicReportCard({
           <div className="mt-3 border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2.5">
             <p className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
               Voice note
-              {report.voiceNoteLabel ? ` · ${report.voiceNoteLabel}` : ""}
+              {(() => {
+                const when = displayVoiceNoteLabel(report.voiceNoteLabel);
+                return when ? ` · ${when}` : "";
+              })()}
             </p>
             {report.voiceUrl ? (
               <audio

@@ -11,6 +11,7 @@ import {
 import { t, type CitizenLang } from "@/lib/citizen/i18n";
 import { getHazardReportById } from "@/lib/reports/api";
 import {
+  hasGuestReportId,
   listGuestReportIds,
   saveGuestReportId,
 } from "@/lib/reports/guestReportStore";
@@ -69,8 +70,13 @@ function intentLabel(report: HazardReport, language: CitizenLang): string {
   return t(language, "intent.needHelp");
 }
 
-/** 0=received done, current step index 1..4 (review..completed) */
+function isClosedRejected(report: HazardReport): boolean {
+  return report.status === "rejected" || report.status === "failed";
+}
+
+/** 0=received done, current step index 1..4 (review..completed). Ignored when rejected. */
 function currentStepIndex(report: HazardReport): number {
+  if (isClosedRejected(report)) return 1;
   if (report.investigatedAt) return 3;
   if (report.investigatorUid || report.dispatchLog || report.autoResponderCallAt) {
     return 2;
@@ -82,15 +88,44 @@ type ProgressStep = {
   key: string;
   title: string;
   detail: string;
-  state: "done" | "current" | "todo";
+  state: "done" | "current" | "todo" | "rejected";
 };
 
 function buildProgress(
   report: HazardReport,
   language: CitizenLang,
 ): ProgressStep[] {
-  const cur = currentStepIndex(report);
   const receivedAt = formatWhen(report.createdAt, language, true);
+  const reviewedAt = formatWhen(
+    report.validatedAt || report.updatedAt || report.createdAt,
+    language,
+    true,
+  );
+
+  if (isClosedRejected(report)) {
+    return [
+      {
+        key: "received",
+        title: t(language, "track.stepReceived"),
+        detail: receivedAt,
+        state: "done",
+      },
+      {
+        key: "review",
+        title: t(language, "track.stepReview"),
+        detail: reviewedAt,
+        state: "done",
+      },
+      {
+        key: "rejected",
+        title: t(language, "track.stepRejected"),
+        detail: t(language, "track.stepRejectedDetail"),
+        state: "rejected",
+      },
+    ];
+  }
+
+  const cur = currentStepIndex(report);
   const rows: Omit<ProgressStep, "state">[] = [
     {
       key: "received",
@@ -112,7 +147,7 @@ function buildProgress(
         cur === 2
           ? t(language, "track.stepCurrentAssigned")
           : cur > 2
-            ? t(language, "track.stepCurrentAssigned")
+            ? t(language, "track.stepAssignedDone")
             : t(language, "track.stepNotYetAssigned"),
     },
     {
@@ -143,20 +178,30 @@ function buildUpdates(
   language: CitizenLang,
 ): UpdateItem[] {
   const items: UpdateItem[] = [];
-  const cur = currentStepIndex(report);
 
-  if (cur >= 2) {
+  if (isClosedRejected(report)) {
     items.push({
-      at: report.updatedAt || report.createdAt,
-      title: t(language, "track.updateAssignedTitle"),
-      body: t(language, "track.updateAssignedBody"),
+      at: report.validatedAt || report.updatedAt || report.createdAt,
+      title: t(language, "track.updateRejectedTitle"),
+      body:
+        report.aiReason?.trim() ||
+        t(language, "track.updateRejectedBody"),
     });
   } else {
-    items.push({
-      at: report.updatedAt || report.createdAt,
-      title: t(language, "track.updateWaitingTitle"),
-      body: t(language, "track.updateWaitingBody"),
-    });
+    const cur = currentStepIndex(report);
+    if (cur >= 2) {
+      items.push({
+        at: report.updatedAt || report.createdAt,
+        title: t(language, "track.updateAssignedTitle"),
+        body: t(language, "track.updateAssignedBody"),
+      });
+    } else {
+      items.push({
+        at: report.updatedAt || report.createdAt,
+        title: t(language, "track.updateWaitingTitle"),
+        body: t(language, "track.updateWaitingBody"),
+      });
+    }
   }
 
   items.push({
@@ -175,22 +220,34 @@ function buildUpdates(
 }
 
 function statusBanner(report: HazardReport, language: CitizenLang) {
+  if (isClosedRejected(report)) {
+    return {
+      title: t(language, "track.statusRejectedTitle"),
+      body:
+        report.aiReason?.trim() ||
+        t(language, "track.statusRejectedBody"),
+      tone: "danger" as const,
+    };
+  }
   const cur = currentStepIndex(report);
   if (cur >= 3) {
     return {
       title: t(language, "track.statusProgressTitle"),
       body: t(language, "track.statusProgressBody"),
+      tone: "warn" as const,
     };
   }
   if (cur >= 2) {
     return {
       title: t(language, "track.statusAssignedTitle"),
       body: t(language, "track.statusAssignedBody"),
+      tone: "warn" as const,
     };
   }
   return {
     title: t(language, "track.statusReviewTitle"),
     body: t(language, "track.statusReviewBody"),
+    tone: "warn" as const,
   };
 }
 
@@ -234,6 +291,10 @@ export function TrackReportForm() {
         setReport(row);
         setValue(id);
         setLastChecked(new Date());
+        const href = `/track-report?ref=${encodeURIComponent(id)}`;
+        if (searchParams.get("ref") !== id) {
+          router.replace(href, { scroll: false });
+        }
       } catch {
         setReport(null);
         setError(t(language, "track.notFound", { ref: id }));
@@ -241,7 +302,7 @@ export function TrackReportForm() {
         setLoading(false);
       }
     },
-    [language],
+    [language, router, searchParams],
   );
 
   useEffect(() => {
@@ -295,7 +356,7 @@ export function TrackReportForm() {
     : "";
 
   return (
-    <div className="space-y-5">
+    <div className="flex min-h-0 flex-1 flex-col space-y-5">
       <CitizenHeader
         language={language}
         onLanguageChange={setLanguage}
@@ -364,46 +425,85 @@ export function TrackReportForm() {
         ) : null}
       </form>
 
-      {!report && saved.length > 0 ? (
+      {saved.length > 0 ? (
         <div className="space-y-2">
           <p className="text-[11px] font-semibold tracking-wide text-[var(--muted)] uppercase">
             {t(language, "track.onDevice")}
           </p>
           <ul className="divide-y divide-[var(--border)] rounded-xl border border-[var(--border)] bg-[var(--surface)]">
-            {saved.map((id) => (
-              <li key={id}>
-                <button
-                  type="button"
-                  className="flex w-full min-w-0 items-center justify-between gap-3 px-3.5 py-3 text-left transition hover:bg-[var(--surface-raised)]"
-                  onClick={() => void load(id)}
-                >
-                  <span className="truncate font-mono text-sm font-semibold">
-                    {id}
-                  </span>
-                  <span className="shrink-0 text-xs font-semibold text-[#2563eb]">
-                    {t(language, "track.open")}
-                  </span>
-                </button>
-              </li>
-            ))}
+            {saved.map((id) => {
+              const active = report?.id === id || value.trim() === id;
+              return (
+                <li key={id}>
+                  <button
+                    type="button"
+                    className={cn(
+                      "flex w-full min-w-0 items-center justify-between gap-3 px-3.5 py-3 text-left transition hover:bg-[var(--surface-raised)]",
+                      active && "bg-[#eff6ff]",
+                    )}
+                    onClick={() => void load(id)}
+                  >
+                    <span className="truncate font-mono text-sm font-semibold">
+                      {id}
+                    </span>
+                    <span
+                      className={cn(
+                        "shrink-0 text-xs font-semibold",
+                        active ? "text-[#1d4ed8]" : "text-[#2563eb]",
+                      )}
+                    >
+                      {active
+                        ? t(language, "track.current")
+                        : t(language, "track.open")}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         </div>
       ) : null}
 
       {report && banner ? (
         <>
-          <div className="flex gap-2.5 rounded-xl border border-[#f0d9a8] bg-[#fff8e8] px-3.5 py-3.5">
+          <div
+            className={cn(
+              "flex gap-2.5 rounded-xl border px-3.5 py-3.5",
+              banner.tone === "danger"
+                ? "border-[var(--danger)]/35 bg-[var(--danger)]/8"
+                : "border-[#f0d9a8] bg-[#fff8e8]",
+            )}
+          >
             <span
-              className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-[#8a6a2f] text-[11px] font-bold text-white"
+              className={cn(
+                "mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white",
+                banner.tone === "danger"
+                  ? "bg-[var(--danger)]"
+                  : "bg-[#8a6a2f]",
+              )}
               aria-hidden
             >
               !
             </span>
             <div className="min-w-0 space-y-0.5">
-              <p className="text-sm font-semibold text-[#5c4a1f]">
+              <p
+                className={cn(
+                  "text-sm font-semibold",
+                  banner.tone === "danger"
+                    ? "text-[var(--danger)]"
+                    : "text-[#5c4a1f]",
+                )}
+              >
                 {banner.title}
               </p>
-              <p className="text-xs leading-relaxed text-[#5c4a1f]/90">
+              <p
+                className={cn(
+                  "text-xs leading-relaxed",
+                  banner.tone === "danger"
+                    ? "text-[var(--danger)]/90"
+                    : "text-[#5c4a1f]/90",
+                )}
+              >
                 {banner.body}
               </p>
             </div>
@@ -440,12 +540,14 @@ export function TrackReportForm() {
                           "border-[var(--success)] bg-[var(--success)] text-white",
                         step.state === "current" &&
                           "border-[#2563eb] bg-[var(--surface)]",
+                        step.state === "rejected" &&
+                          "border-[var(--danger)] bg-[var(--danger)] text-white",
                         step.state === "todo" &&
                           "border-[var(--border)] bg-[var(--surface)]",
                       )}
                       aria-hidden
                     >
-                      {step.state === "done" ? (
+                      {step.state === "done" || step.state === "rejected" ? (
                         <Check className="size-3" strokeWidth={3} />
                       ) : step.state === "current" ? (
                         <span className="size-2 rounded-full bg-[#2563eb]" />
@@ -457,6 +559,7 @@ export function TrackReportForm() {
                           "text-sm font-semibold",
                           step.state === "done" && "text-[var(--success)]",
                           step.state === "current" && "text-[#2563eb]",
+                          step.state === "rejected" && "text-[var(--danger)]",
                           step.state === "todo" && "text-[var(--muted)]",
                         )}
                       >
@@ -491,22 +594,24 @@ export function TrackReportForm() {
             </ul>
           </div>
 
-          <div className="space-y-2">
-            <button
-              type="button"
-              className="flex w-full items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-[14px] text-[15px] font-semibold text-[var(--foreground)]"
-              onClick={() =>
-                router.push(
-                  `/report-incident/${encodeURIComponent(report.id)}`,
-                )
-              }
-            >
-              {t(language, "track.updateReport")}
-            </button>
-            <p className="text-center text-xs leading-relaxed text-[var(--muted)]">
-              {t(language, "track.updateHint")}
-            </p>
-          </div>
+          {hasGuestReportId(report.id) ? (
+            <div className="space-y-2">
+              <button
+                type="button"
+                className="flex w-full items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-[14px] text-[15px] font-semibold text-[var(--foreground)]"
+                onClick={() =>
+                  router.push(
+                    `/report-incident/${encodeURIComponent(report.id)}`,
+                  )
+                }
+              >
+                {t(language, "track.updateReport")}
+              </button>
+              <p className="text-center text-xs leading-relaxed text-[var(--muted)]">
+                {t(language, "track.updateHint")}
+              </p>
+            </div>
+          ) : null}
 
           <div className="rounded-[14px] border border-[var(--border)] bg-[var(--surface)] p-4">
             <p className="text-sm font-semibold text-[var(--foreground)]">
@@ -546,17 +651,19 @@ export function TrackReportForm() {
                 </div>
               </div>
             ) : null}
-            <button
-              type="button"
-              className="mt-3 text-sm font-semibold text-[#2563eb]"
-              onClick={() =>
-                router.push(
-                  `/report-incident/${encodeURIComponent(report.id)}`,
-                )
-              }
-            >
-              {t(language, "track.addCorrect")}
-            </button>
+            {hasGuestReportId(report.id) ? (
+              <button
+                type="button"
+                className="mt-3 text-sm font-semibold text-[#2563eb]"
+                onClick={() =>
+                  router.push(
+                    `/report-incident/${encodeURIComponent(report.id)}`,
+                  )
+                }
+              >
+                {t(language, "track.addCorrect")}
+              </button>
+            ) : null}
           </div>
 
           <Danger911Banner language={language} variant="soft" />

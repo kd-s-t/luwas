@@ -12,6 +12,7 @@ import { createPortal } from "react-dom";
 import { useCommandWorkspace } from "@/components/CommandWorkspaceProvider";
 import { OfficerWorkloadInfo } from "@/components/OfficerWorkloadInfo";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
+import { TrustScoreInfo } from "@/components/TrustScoreInfo";
 import { ReportStatusBadge } from "@/components/ReportStatusBadge";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import {
@@ -226,6 +227,7 @@ export function IncidentBoard() {
                   ? `${officerBundle.shortLabel} · ${scopeLabel(reportScope)}`
                   : scopeLabel(reportScope)}
               </h1>
+              <TrustScoreInfo />
               <OfficerWorkloadInfo />
             </div>
             <p className="text-xs text-[var(--muted)]">

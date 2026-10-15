@@ -31,10 +31,12 @@ import type {
   ReportMediaType,
   ReportStatus,
 } from "@/lib/reports/types";
+import { sanitizeGuestReporterPhone } from "@/lib/auth/demoAccount";
 import type { UserProfile } from "@/lib/auth/types";
 import { isCitizen, isOfficer } from "@/lib/auth/types";
 
 const COL = "reports";
+const GUEST_UID = "web-guest";
 
 function mapTrustBreakdown(
   raw: unknown,
@@ -85,33 +87,41 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
   const reporterIdVerified = Boolean(data.reporterIdVerified);
   const reporterEmail =
     data.reporterEmail != null ? String(data.reporterEmail) : null;
-  const reporterPhone =
+  const citizenUid = String(data.citizenUid ?? "");
+  const rawPhone =
     data.reporterPhone != null ? String(data.reporterPhone) : null;
+  const reporterPhone =
+    citizenUid === GUEST_UID
+      ? sanitizeGuestReporterPhone(rawPhone)
+      : rawPhone;
   const reporterEmailVerified = Boolean(data.reporterEmailVerified);
   const storedTrust =
     typeof data.trustScore === "number" ? data.trustScore : null;
+  const phoneWasSanitized =
+    citizenUid === GUEST_UID && rawPhone != null && reporterPhone == null;
+  const trustInput = {
+    registered: Boolean(citizenUid) && citizenUid !== GUEST_UID,
+    idVerified: reporterIdVerified,
+    email: citizenUid === GUEST_UID ? null : reporterEmail,
+    phone: reporterPhone,
+    emailVerified: reporterEmailVerified,
+    mediaSource,
+    lat,
+    lng,
+    locationAccuracyM,
+    aiConfidence,
+    aiVerdict,
+  };
   const recomputed =
-    storedTrust == null
-      ? computeReportTrust({
-          registered: Boolean(data.citizenUid),
-          idVerified: reporterIdVerified,
-          email: reporterEmail,
-          phone: reporterPhone,
-          emailVerified: reporterEmailVerified,
-          mediaSource,
-          lat,
-          lng,
-          locationAccuracyM,
-          aiConfidence,
-          aiVerdict,
-        })
+    storedTrust == null || phoneWasSanitized
+      ? computeReportTrust(trustInput)
       : null;
-  const trustScore = storedTrust ?? recomputed?.total ?? null;
+  const trustScore = recomputed?.total ?? storedTrust ?? null;
   const trustBreakdown =
-    mapTrustBreakdown(data.trustBreakdown, trustScore) ?? recomputed;
+    recomputed ?? mapTrustBreakdown(data.trustBreakdown, trustScore);
   return {
     id,
-    citizenUid: String(data.citizenUid ?? ""),
+    citizenUid,
     citizenName: String(data.citizenName ?? ""),
     citizenPurok: String(data.citizenPurok ?? ""),
     barangay: place.barangay,
@@ -381,11 +391,12 @@ export async function createGuestHazardReport(input: {
   const aiVerdict = input.aiVerdict ?? null;
   const aiConfidence =
     typeof input.aiConfidence === "number" ? input.aiConfidence : null;
+  const reporterPhone = sanitizeGuestReporterPhone(input.reporterPhone);
   const trust = computeReportTrust({
     registered: false,
     idVerified: false,
     email: null,
-    phone: input.reporterPhone ?? null,
+    phone: reporterPhone,
     emailVerified: false,
     mediaSource: input.mediaSource ?? "desktop-file",
     lat: input.lat,
@@ -395,7 +406,7 @@ export async function createGuestHazardReport(input: {
     aiVerdict,
   });
   await setDoc(doc(getClientDb(), COL, id), {
-    citizenUid: "web-guest",
+    citizenUid: GUEST_UID,
     citizenName: "Guest",
     citizenPurok: "Demo · no login",
     barangay: DEFAULT_REPORT_BARANGAY,
@@ -422,7 +433,7 @@ export async function createGuestHazardReport(input: {
     ipAddress: null,
     reporterIdVerified: false,
     reporterEmail: null,
-    reporterPhone: input.reporterPhone?.trim() || null,
+    reporterPhone,
     reporterEmailVerified: false,
     trustScore: trust.total,
     trustBreakdown: trust,
@@ -450,6 +461,90 @@ export async function createGuestHazardReport(input: {
     createdAt: now,
     updatedAt: now,
     createdAtServer: serverTimestamp(),
+    updatedAtServer: serverTimestamp(),
+  });
+  return id;
+}
+
+/**
+ * Guest update for a LUW-* report already on this device.
+ * Rules allow update while status stays queued / needs_review / rejected / draft.
+ */
+export async function updateGuestHazardReport(input: {
+  id: string;
+  title: string;
+  notes: string;
+  hazardHint: ReportHazardHint;
+  mediaType: ReportMediaType;
+  mediaPath: string;
+  mediaUrl: string;
+  mediaMime: string;
+  mediaSource?: ReportMediaSource | null;
+  voiceNoteLabel?: string | null;
+  voicePath?: string | null;
+  voiceUrl?: string | null;
+  voiceMime?: string | null;
+  voiceTranscript?: string | null;
+  lat: number | null;
+  lng: number | null;
+  locationAccuracyM?: number | null;
+  locationLabel?: string | null;
+  device?: string | null;
+  reporterPhone?: string | null;
+}): Promise<string> {
+  const now = new Date().toISOString();
+  const id = input.id.trim();
+  const reporterPhone = sanitizeGuestReporterPhone(input.reporterPhone);
+  const trust = computeReportTrust({
+    registered: false,
+    idVerified: false,
+    email: null,
+    phone: reporterPhone,
+    emailVerified: false,
+    mediaSource: input.mediaSource ?? "desktop-file",
+    lat: input.lat,
+    lng: input.lng,
+    locationAccuracyM: input.locationAccuracyM ?? null,
+    aiConfidence: null,
+    aiVerdict: null,
+  });
+  await updateDoc(doc(getClientDb(), COL, id), {
+    citizenUid: GUEST_UID,
+    source: "web",
+    title: input.title,
+    notes: input.notes,
+    hazardHint: input.hazardHint,
+    mediaType: input.mediaType,
+    mediaPath: input.mediaPath,
+    mediaUrl: input.mediaUrl,
+    mediaMime: input.mediaMime,
+    mediaSource: input.mediaSource ?? "desktop-file",
+    voiceNoteLabel: input.voiceNoteLabel?.trim() || null,
+    voicePath: input.voicePath ?? null,
+    voiceUrl: input.voiceUrl ?? null,
+    voiceMime: input.voiceMime ?? null,
+    voiceTranscript: input.voiceTranscript?.trim() || null,
+    lat: input.lat,
+    lng: input.lng,
+    locationAccuracyM: input.locationAccuracyM ?? null,
+    locationLabel: input.locationLabel ?? null,
+    device: input.device ?? "web-luwas-citizen",
+    reporterPhone,
+    trustScore: trust.total,
+    trustBreakdown: trust,
+    status: "queued",
+    aiVerdict: null,
+    aiConfidence: null,
+    aiReason: null,
+    aiSource: null,
+    aiModel: null,
+    vertexClass: null,
+    vertexConfidence: null,
+    validatedAt: null,
+    draftStep: null,
+    draftIntent: null,
+    draftReportFor: null,
+    updatedAt: now,
     updatedAtServer: serverTimestamp(),
   });
   return id;

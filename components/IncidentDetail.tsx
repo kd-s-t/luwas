@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useCommandWorkspace } from "@/components/CommandWorkspaceProvider";
@@ -8,6 +9,15 @@ import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { ReportStatusBadge } from "@/components/ReportStatusBadge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+
+const HallPinMap = dynamic(() => import("@/components/HallPinMap"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-[200px] w-full items-center justify-center border border-[var(--border)] bg-[var(--surface)] font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase sm:h-[240px]">
+      Loading map…
+    </div>
+  ),
+});
 import { triggerAutoResponderCall } from "@/lib/alerts/autoResponderCall";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import {
@@ -23,14 +33,22 @@ import {
   hazardHintLabel,
   type HazardReport,
 } from "@/lib/reports/types";
+import {
+  TRUST_CAPS,
+  trustLabel,
+  type ReportTrustBreakdown,
+} from "@/lib/reports/trustScore";
 import { cn } from "@/lib/utils";
+import {
+  displayReportNotes,
+  displayVoiceNoteLabel,
+} from "@/lib/reports/displayNotes";
 import {
   activityForReport,
   proposalsForReport,
   relatedReports,
   unknownsForReport,
 } from "@/lib/workspace/incidentDerived";
-import { matchInventoryForHazard } from "@/lib/workspace/sampleInventory";
 
 type PlanState = {
   notes: string;
@@ -71,9 +89,6 @@ export function IncidentDetail({ reportId }: IncidentDetailProps) {
   const proposals = selected ? proposalsForReport(selected) : [];
   const related = selected ? relatedReports(selected, scoped) : [];
   const activity = selected ? activityForReport(selected) : [];
-  const inventory = selected
-    ? matchInventoryForHazard(selected.hazardHint)
-    : [];
 
   async function assignInvestigator(
     investigatorUid: string | null,
@@ -118,11 +133,25 @@ export function IncidentDetail({ reportId }: IncidentDetailProps) {
           locationAccuracyM: selected.locationAccuracyM,
         },
       });
+      if (verdict === "rejected" && isOfficer(profile)) {
+        await assignReportInvestigator({
+          reportId: selected.id,
+          investigatorUid: profile.uid,
+          investigatorName: profile.displayName,
+        });
+      }
       syncHazardReportToBigQuery({
         ...selected,
         status: verdict,
         aiVerdict: verdict,
         validatedAt,
+        ...(verdict === "rejected" && isOfficer(profile)
+          ? {
+              investigatorUid: profile.uid,
+              investigatorName: profile.displayName,
+              investigatedAt: validatedAt,
+            }
+          : {}),
       });
       if (verdict === "legit") {
         void triggerAutoResponderCall({
@@ -170,13 +199,25 @@ export function IncidentDetail({ reportId }: IncidentDetailProps) {
   return (
     <div className="flex flex-col bg-[var(--surface)]">
       <div className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--surface)]/95 px-4 py-3 backdrop-blur sm:px-5">
-        <div className="mb-2">
+        <div className="mb-2 flex items-start justify-between gap-3">
           <Link
             href="/admin/incidents"
             className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase transition hover:text-[var(--accent)]"
           >
             ← Incidents board
           </Link>
+          <p className="shrink-0 text-right font-mono text-[10px] leading-snug tracking-wide text-[var(--muted)] uppercase">
+            Received
+            <span className="mt-0.5 block normal-case tracking-normal text-[var(--foreground)]">
+              {new Date(selected.createdAt).toLocaleString("en-PH", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+              })}
+            </span>
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <ProfileAvatar
@@ -235,25 +276,47 @@ export function IncidentDetail({ reportId }: IncidentDetailProps) {
             )}
           </div>
 
-          <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed">
-            {selected.notes || (
-              <span className="text-[var(--muted)]">
+          {(() => {
+            const notes = displayReportNotes(selected.notes);
+            return notes ? (
+              <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed">
+                {notes}
+              </p>
+            ) : !selected.voiceUrl && !selected.voiceTranscript ? (
+              <p className="mt-3 text-sm text-[var(--muted)]">
                 No written notes attached.
-              </span>
-            )}
-          </p>
+              </p>
+            ) : null;
+          })()}
+
+          {selected.voiceUrl || selected.voiceTranscript ? (
+            <div className="mt-3 space-y-1.5 rounded border border-[var(--border)] bg-[var(--surface-panel)] px-3 py-2.5">
+              <p className="font-mono text-[9px] tracking-wider text-[var(--muted)] uppercase">
+                Voice note
+                {(() => {
+                  const when = displayVoiceNoteLabel(selected.voiceNoteLabel);
+                  return when ? ` · ${when}` : "";
+                })()}
+              </p>
+              {selected.voiceUrl ? (
+                <audio
+                  controls
+                  preload="metadata"
+                  src={selected.voiceUrl}
+                  className="h-9 w-full max-w-md"
+                >
+                  <track kind="captions" />
+                </audio>
+              ) : null}
+              {selected.voiceTranscript ? (
+                <p className="text-sm leading-relaxed break-words">
+                  {selected.voiceTranscript}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
 
           <dl className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
-            <Meta
-              label="Channel"
-              value={
-                selected.mediaSource === "mobile-camera"
-                  ? "Field camera (in-app)"
-                  : selected.mediaSource === "desktop-file"
-                    ? "Relay / desk upload"
-                    : "In-app report"
-              }
-            />
             <Meta
               label="AI signal"
               value={
@@ -266,31 +329,43 @@ export function IncidentDetail({ reportId }: IncidentDetailProps) {
                   : "Pending"
               }
             />
-            <Meta
-              label="Trust"
-              value={
-                selected.trustScore != null
-                  ? `${selected.trustScore}%${
-                      selected.trustBreakdown
-                        ? ` · ID ${selected.trustBreakdown.identity} · contact ${selected.trustBreakdown.contact} · capture ${selected.trustBreakdown.capture} · AI ${selected.trustBreakdown.ai}`
-                        : ""
-                    }`
-                  : "Not scored"
-              }
-            />
-            <Meta
-              label="Coordinates"
-              value={
-                selected.lat != null && selected.lng != null
-                  ? `${selected.lat.toFixed(5)}, ${selected.lng.toFixed(5)}`
-                  : "Not provided"
-              }
-            />
-            <Meta
-              label="Received"
-              value={new Date(selected.createdAt).toLocaleString()}
-            />
           </dl>
+
+          <div className="mt-3">
+            <p className="mb-1.5 font-mono text-[9px] tracking-wider text-[var(--muted)] uppercase">
+              Location
+            </p>
+            {selected.lat != null && selected.lng != null ? (
+              <>
+                <HallPinMap
+                  center={{ lat: selected.lat, lng: selected.lng }}
+                  zoom={16}
+                  readOnly
+                  className="relative h-[200px] w-full overflow-hidden border border-[var(--border)] sm:h-[240px]"
+                />
+                <p className="mt-1.5 font-mono text-xs tabular-nums text-[var(--foreground)]">
+                  {selected.lat.toFixed(5)}, {selected.lng.toFixed(5)}
+                  {selected.locationAccuracyM != null
+                    ? ` · ±${Math.round(selected.locationAccuracyM)} m`
+                    : ""}
+                </p>
+                {selected.locationLabel ? (
+                  <p className="mt-0.5 text-xs text-[var(--muted)]">
+                    {selected.locationLabel}
+                  </p>
+                ) : null}
+              </>
+            ) : (
+              <div className="border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-3 font-mono text-xs text-[var(--muted)]">
+                Coordinates not provided
+              </div>
+            )}
+          </div>
+
+          <TrustMeter
+            score={selected.trustScore}
+            breakdown={selected.trustBreakdown}
+          />
 
           {selected.aiReason ? (
             <div className="mt-3 border border-dashed border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2">
@@ -335,8 +410,7 @@ export function IncidentDetail({ reportId }: IncidentDetailProps) {
             Verify &amp; allocate
           </h2>
           <p className="mt-0.5 text-xs text-[var(--muted)]">
-            Human verification required. Resource matches use sample inventory
-            only.
+            Human verification required before any response is authorized.
           </p>
 
           <div className="mt-3 space-y-2">
@@ -474,37 +548,6 @@ export function IncidentDetail({ reportId }: IncidentDetailProps) {
             </ul>
           </div>
 
-          <div className="mt-4">
-            <p className="font-mono text-[9px] tracking-[0.16em] text-[var(--muted)] uppercase">
-              Sample inventory vs need
-            </p>
-            <ul className="mt-2 divide-y divide-[var(--border)] border border-[var(--border)]">
-              {inventory.map((m) => (
-                <li
-                  key={m.item.id}
-                  className="flex items-center justify-between gap-2 px-3 py-2 text-xs"
-                >
-                  <span>
-                    <span className="font-medium">{m.item.label}</span>
-                    <span className="mt-0.5 block text-[var(--muted)]">
-                      Request draft {m.requested} {m.item.unit} · stock{" "}
-                      {m.item.available}
-                    </span>
-                  </span>
-                  {m.canFulfill ? (
-                    <Badge variant="outline">Can cover</Badge>
-                  ) : (
-                    <Badge variant="danger">Unmet · short {m.shortfall}</Badge>
-                  )}
-                </li>
-              ))}
-            </ul>
-            <p className="mt-1.5 text-[11px] text-[var(--muted)]">
-              Unmet needs are shown honestly. LUWAS does not invent boats, food,
-              or teams.
-            </p>
-          </div>
-
           <div className="mt-4 border border-[var(--border)] bg-[var(--surface-raised)] p-3">
             <p className="font-mono text-[9px] tracking-[0.16em] text-[var(--accent)] uppercase">
               Authorized response plan
@@ -613,6 +656,105 @@ function Meta({ label, value }: { label: string; value: string }) {
         {label}
       </dt>
       <dd className="mt-0.5 text-[var(--foreground)]">{value}</dd>
+    </div>
+  );
+}
+
+function TrustMeter({
+  score,
+  breakdown,
+}: {
+  score: number | null;
+  breakdown: ReportTrustBreakdown | null;
+}) {
+  const total = score ?? 0;
+  const slices = [
+    {
+      key: "ID",
+      value: breakdown?.identity ?? 0,
+      cap: TRUST_CAPS.identity,
+    },
+    {
+      key: "Contact",
+      value: breakdown?.contact ?? 0,
+      cap: TRUST_CAPS.contact,
+    },
+    {
+      key: "Allow location · Mobile camera",
+      value: breakdown?.capture ?? 0,
+      cap: TRUST_CAPS.capture,
+    },
+    {
+      key: "AI",
+      value: breakdown?.ai ?? 0,
+      cap: TRUST_CAPS.ai,
+    },
+  ] as const;
+
+  const tone =
+    score == null
+      ? "bg-[var(--border)]"
+      : total >= 80
+        ? "bg-[var(--success)]"
+        : total >= 55
+          ? "bg-[#2563eb]"
+          : total >= 30
+            ? "bg-[var(--warn)]"
+            : "bg-[var(--danger)]";
+
+  return (
+    <div className="mt-3 border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-3">
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <p className="font-mono text-[9px] tracking-wider text-[var(--muted)] uppercase">
+            Trust meter
+          </p>
+          <p className="mt-0.5 text-sm text-[var(--muted)]">
+            {score == null ? "Not scored yet" : trustLabel(total)}
+          </p>
+        </div>
+        <p className="font-[family-name:var(--font-display)] text-2xl font-semibold tabular-nums tracking-wide">
+          {score == null ? "—" : `${total}%`}
+        </p>
+      </div>
+
+      <div
+        className="mt-3 h-2.5 overflow-hidden rounded-full bg-[var(--border)]/70"
+        role="meter"
+        aria-label="Trust score"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={score ?? 0}
+      >
+        <div
+          className={cn("h-full rounded-full transition-[width]", tone)}
+          style={{ width: `${Math.min(100, Math.max(0, total))}%` }}
+        />
+      </div>
+
+      <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+        {slices.map((s) => {
+          const pct = s.cap > 0 ? Math.round((s.value / s.cap) * 100) : 0;
+          return (
+            <li key={s.key} className="min-w-0">
+              <div className="flex items-baseline justify-between gap-2 text-xs">
+                <span className="font-medium text-[var(--foreground)]">
+                  {s.key}
+                </span>
+                <span className="font-mono tabular-nums text-[var(--muted)]">
+                  {s.value}/{s.cap}
+                </span>
+              </div>
+              <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[var(--border)]/70">
+                <div
+                  className="h-full rounded-full bg-[var(--foreground)]/70"
+                  style={{ width: `${Math.min(100, Math.max(0, pct))}%` }}
+                />
+              </div>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
