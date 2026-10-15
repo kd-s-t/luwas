@@ -8,7 +8,7 @@ import type { FloodSample } from "@/lib/hazards/floodSamples";
 import type { LandslideSample } from "@/lib/hazards/landslideSamples";
 import type { TyphoonSample } from "@/lib/hazards/typhoonSamples";
 
-export type DrrmScenarioPhase = "before" | "during" | "after";
+export type DrrmScenarioPhase = "nostorm" | "before" | "during" | "after";
 
 /** Field / image report pin on the map (blockage, fire, welfare, EC status). */
 export type ScenarioReportPin = {
@@ -71,21 +71,23 @@ export type ScenarioBundle = {
 };
 
 export const SCENARIO_PHASES: DrrmScenarioPhase[] = [
+  "nostorm",
   "before",
   "during",
   "after",
 ];
 
-/** Empty ops pack when NEXT_PUBLIC_SIMULATION_ON is off (live data only). */
+/** Today / live ops — no Tino drill layers. */
 export function liveOpsScenarioBundle(
-  phase: DrrmScenarioPhase = "during",
+  phase: DrrmScenarioPhase = "nostorm",
 ): ScenarioBundle {
   return {
-    phase,
-    label: "Live ops",
-    shortLabel: "Live",
-    eyebrow: "Live operations",
-    blurb: "Simulation off — live reports and roster only.",
+    phase: phase === "nostorm" ? "nostorm" : phase,
+    label: "Today · live",
+    shortLabel: "No storm",
+    eyebrow: "Live operations · no simulation",
+    blurb:
+      "Today's map - live weather, reports, and roster. No Tino drill layers.",
     typhoons: [],
     floods: [],
     landslides: [],
@@ -95,4 +97,9 @@ export function liveOpsScenarioBundle(
     needs: [],
     escapes: [],
   };
+}
+
+/** True when Before / During / After Tino packs are active. */
+export function isTinoSimulationPhase(phase: DrrmScenarioPhase): boolean {
+  return phase === "before" || phase === "during" || phase === "after";
 }

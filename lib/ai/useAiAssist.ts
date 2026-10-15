@@ -63,7 +63,7 @@ export type AssistPayload = {
   weatherLabel?: string;
   model?: GeminiAssistModelId;
   /** Tino scenario phase — AI triage overlays only apply in "during". */
-  phase?: "before" | "during" | "after";
+  phase?: "nostorm" | "before" | "during" | "after";
 };
 
 function bootstrap() {

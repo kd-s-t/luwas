@@ -55,13 +55,19 @@ export function ScenarioNeedsPanel({
       <div className="grid gap-0 sm:grid-cols-2 lg:grid-cols-3">
         <NeedColumn
           title={
-            bundle.phase === "before"
-              ? "Must evacuate"
-              : bundle.phase === "after"
-                ? "Still displaced"
-                : "Needs help · evacuate"
+            bundle.phase === "nostorm"
+              ? "Evacuations"
+              : bundle.phase === "before"
+                ? "Must evacuate"
+                : bundle.phase === "after"
+                  ? "Still displaced"
+                  : "Needs help · evacuate"
           }
-          empty="No priority evacuations"
+          empty={
+            bundle.phase === "nostorm"
+              ? "No storm · no evacuations"
+              : "No priority evacuations"
+          }
           items={evac.map((n) => ({
             id: n.householdId,
             title: n.ownerName,
@@ -71,7 +77,13 @@ export function ScenarioNeedsPanel({
           }))}
         />
 
-        {bundle.phase === "before" ? (
+        {bundle.phase === "nostorm" ? (
+          <NeedColumn
+            title="Hazards"
+            empty="Clear · no active typhoon"
+            items={[]}
+          />
+        ) : bundle.phase === "before" ? (
           <NeedColumn
             title="Prepare now"
             empty="No prepare list"
@@ -103,7 +115,13 @@ export function ScenarioNeedsPanel({
           />
         )}
 
-        {bundle.phase === "after" ? (
+        {bundle.phase === "nostorm" ? (
+          <NeedColumn
+            title="Field reports"
+            empty="No storm reports"
+            items={[]}
+          />
+        ) : bundle.phase === "after" ? (
           <NeedColumn
             title="Welfare check · roster"
             empty="All checked in"

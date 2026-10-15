@@ -161,7 +161,7 @@ export function SituationMap({
     void bootArea();
   }, [defaultArea]);
 
-  const { phase, officerBundle: scenario, simulationOn } = useScenario();
+  const { phase, officerBundle: scenario, tinoActive } = useScenario();
   const pack = useMemo(
     () => getBarangayMapPack(mapArea, scenario),
     [mapArea, scenario],
@@ -196,7 +196,8 @@ export function SituationMap({
     patchMessageAudio,
   } = useAiAssist({ officerUid });
   /** AI triage overlays (floods / red-yellow / escapes) in Before + During. */
-  const triageLive = phase === "before" || phase === "during";
+  const triageLive =
+    tinoActive && (phase === "before" || phase === "during");
   const hasAiOverlay =
     triageLive && Object.keys(assistPriorities).length > 0;
 
@@ -210,16 +211,20 @@ export function SituationMap({
     });
   }, [officerUid]);
 
-  // During/After (simulation): seed curated map reports, then live-subscribe.
+  // Live today (nostorm): subscribe only. During/After drill: seed curated pins first.
   useEffect(() => {
-    if (!nangkaOps || (phase !== "during" && phase !== "after")) {
+    if (!nangkaOps) {
+      setDbReports([]);
+      return;
+    }
+    if (tinoActive && phase !== "during" && phase !== "after") {
       setDbReports([]);
       return;
     }
     let unsub: (() => void) | undefined;
     let cancelled = false;
     void (async () => {
-      if (simulationOn) {
+      if (tinoActive && (phase === "during" || phase === "after")) {
         try {
           await ensureAllMapReportsInDb();
         } catch (err) {
@@ -233,11 +238,11 @@ export function SituationMap({
       cancelled = true;
       unsub?.();
     };
-  }, [nangkaOps, phase, simulationOn]);
+  }, [nangkaOps, phase, tinoActive]);
 
-  // Simulation: empty / oversized roster → Nangka house-owner seed.
+  // Tino drill: empty / oversized roster → Nangka house-owner seed.
   useEffect(() => {
-    if (!simulationOn) return;
+    if (!tinoActive) return;
     if (!rosterReady || migrateAttempted.current || migrating) return;
     const inOps =
       households.length > 0 && rosterMatchesOpsArea(households);
@@ -251,11 +256,11 @@ export function SituationMap({
         /* keep seed fallback on map */
       })
       .finally(() => setMigrating(false));
-  }, [simulationOn, rosterReady, households, officerUid, migrating]);
+  }, [tinoActive, rosterReady, households, officerUid, migrating]);
 
-  // Simulation: add Ken / curated pins if roster was seeded before they existed.
+  // Tino drill: add Ken / curated pins if roster was seeded before they existed.
   useEffect(() => {
-    if (!simulationOn) return;
+    if (!tinoActive) return;
     if (!rosterReady || migrating || curatedSynced.current) return;
     if (households.length === 0 || !rosterMatchesOpsArea(households)) return;
     curatedSynced.current = true;
@@ -266,7 +271,7 @@ export function SituationMap({
     ).catch(() => {
       curatedSynced.current = false;
     });
-  }, [simulationOn, rosterReady, migrating, households, officerUid]);
+  }, [tinoActive, rosterReady, migrating, households, officerUid]);
 
   const mapHouseholds = useMemo(() => {
     if (!nangkaOps) {
@@ -275,8 +280,8 @@ export function SituationMap({
     if (households.length > 0 && rosterMatchesOpsArea(households)) {
       return households;
     }
-    return simulationOn ? seedAsHouseholds() : [];
-  }, [households, nangkaOps, mapArea, simulationOn]);
+    return tinoActive ? seedAsHouseholds() : [];
+  }, [households, nangkaOps, mapArea, tinoActive]);
 
   const scenarioPriorities = useMemo(
     () => resolveScenarioPriorities(pack.scenarioActions, mapHouseholds),

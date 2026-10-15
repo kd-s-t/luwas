@@ -372,6 +372,24 @@ function buildNeeds(
   });
 }
 
+/** Pill label only — map data for nostorm comes from liveOpsScenarioBundle. */
+export const CAT5_NOSTORM: ScenarioBundle = {
+  phase: "nostorm",
+  label: "Today · live",
+  shortLabel: "No storm",
+  eyebrow: "Live operations · no simulation",
+  blurb:
+    "Today's map - live weather, reports, and roster. Switch to Before / During / After for the Tino drill.",
+  typhoons: [],
+  floods: [],
+  landslides: [],
+  fires: [],
+  reportPins: [],
+  actions: [],
+  needs: [],
+  escapes: [],
+};
+
 export const CAT5_BEFORE: ScenarioBundle = {
   phase: "before",
   label: "Before Tino",
@@ -446,6 +464,7 @@ export const CAT5_SCENARIOS: Record<
   ScenarioBundle["phase"],
   ScenarioBundle
 > = {
+  nostorm: CAT5_NOSTORM,
   before: CAT5_BEFORE,
   during: CAT5_DURING,
   after: CAT5_AFTER,

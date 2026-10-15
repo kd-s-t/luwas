@@ -16,11 +16,14 @@ export function ScenarioMapOverlay({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "pointer-events-none absolute inset-x-0 top-2 z-[1100] flex justify-center px-2 sm:top-3 sm:px-3",
+        "pointer-events-none absolute inset-x-0 top-2 z-[5000] flex justify-center px-2 sm:top-3 sm:px-3",
         className,
       )}
     >
-      <div className="pointer-events-auto" title={bundle.blurb}>
+      <div
+        className="pointer-events-auto relative z-[5000]"
+        title={bundle.blurb}
+      >
         <ScenarioSwitcher
           phase={phase}
           onChange={setPhase}

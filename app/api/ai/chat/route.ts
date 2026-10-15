@@ -32,11 +32,11 @@ type Body = {
   weatherLabel?: string;
   model?: string;
   /** Tino scenario phase — AI triage overlays apply in before + during. */
-  phase?: "before" | "during" | "after";
+  phase?: "nostorm" | "before" | "during" | "after";
 };
 
 const TRIAGE_AFTER_ONLY =
-  "Map triage (flood footprints, evacuate/prepare, escape lines) runs in Before and During. Switch the scenario bar out of After, then ask me again.";
+  "Map triage (flood footprints, evacuate/prepare, escape lines) runs in Before and During. Switch the scenario bar to Before or During, then ask me again.";
 
 type GeminiChatPayload = {
   reply: string;
@@ -153,7 +153,7 @@ Reply style (required):
 - They can also ask you to call responders: “call the fire station”, “call the police”, “call hospital”, “call barangay hall” (Twilio Voice to curated Consolacion BFP/PNP numbers — officer-triggered, never auto-dial 911).
 - Rule of thumb: low ground / flood belt → evacuate; high ground → shelter in place and stock up (not escape).
 
-Scenario phase: ${body.phase ?? "during"} — map paint (updateMap) is allowed in "before" and "during" (prep + landfall). If phase is "after", set updateMap=false and tell the officer to switch to Before or During for flood footprints / evacuate lines.
+Scenario phase: ${body.phase ?? "during"} — map paint (updateMap) is allowed in "before" and "during" (prep + landfall). If phase is "nostorm" or "after", set updateMap=false and tell the officer to switch to Before or During for flood footprints / evacuate lines.
 Set updateMap=true in Before or During when the officer asks for triage, priorities, evacuate/prepare lists, escape routes, map highlights, OR what to do about an incoming typhoon/storm/flood (e.g. “triage”, “cat 5 coming”, “what do we do”). In Before, emphasize early prep and pre-emptive evacuation of flood-belt homes.
 Do not truncate the affected list — the server computes every evacuate/prepare household from hazards + elevation.
 When updateMap=true the server also paints flood footprints (elevation + storm context).

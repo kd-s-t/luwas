@@ -16,6 +16,7 @@ import {
 } from "@/lib/scenarios/cat5Typhoon";
 import {
   SCENARIO_PHASES,
+  isTinoSimulationPhase,
   liveOpsScenarioBundle,
   type DrrmScenarioPhase,
   type ScenarioBundle,
@@ -28,8 +29,10 @@ type ScenarioContextValue = {
   setPhase: (phase: DrrmScenarioPhase) => void;
   bundle: ScenarioBundle;
   officerBundle: ScenarioBundle;
-  /** Tino Before/During/After + demo packs enabled. */
+  /** Env flag: Before/During/After available in the pill. */
   simulationOn: boolean;
+  /** Tino drill packs active (not No storm / live today). */
+  tinoActive: boolean;
 };
 
 const ScenarioContext = createContext<ScenarioContextValue | null>(null);
@@ -43,11 +46,11 @@ function isPhase(value: unknown): value is DrrmScenarioPhase {
 
 export function ScenarioProvider({ children }: { children: ReactNode }) {
   const simulationOn = isSimulationOn();
-  const [phase, setPhaseState] = useState<DrrmScenarioPhase>("during");
+  const [phase, setPhaseState] = useState<DrrmScenarioPhase>("nostorm");
 
   useEffect(() => {
     if (!simulationOn) {
-      setPhaseState("during");
+      setPhaseState("nostorm");
       return;
     }
     try {
@@ -60,7 +63,7 @@ export function ScenarioProvider({ children }: { children: ReactNode }) {
 
   const setPhase = useCallback(
     (next: DrrmScenarioPhase) => {
-      if (!simulationOn) return;
+      if (!simulationOn && next !== "nostorm") return;
       setPhaseState(next);
       try {
         window.localStorage.setItem(STORAGE_KEY, next);
@@ -71,22 +74,31 @@ export function ScenarioProvider({ children }: { children: ReactNode }) {
     [simulationOn],
   );
 
-  const bundle = useMemo(
-    () =>
-      simulationOn ? getCat5Scenario(phase) : liveOpsScenarioBundle(phase),
-    [phase, simulationOn],
-  );
+  const tinoActive = simulationOn && isTinoSimulationPhase(phase);
+
+  const bundle = useMemo(() => {
+    if (!tinoActive) return liveOpsScenarioBundle("nostorm");
+    return getCat5Scenario(phase);
+  }, [phase, tinoActive]);
+
   const officerBundle = useMemo(
     () =>
-      simulationOn
+      tinoActive
         ? remapScenarioHouseholdIds(bundle, (i) => `seed-${i}`)
         : bundle,
-    [bundle, simulationOn],
+    [bundle, tinoActive],
   );
 
   const value = useMemo(
-    () => ({ phase, setPhase, bundle, officerBundle, simulationOn }),
-    [phase, setPhase, bundle, officerBundle, simulationOn],
+    () => ({
+      phase,
+      setPhase,
+      bundle,
+      officerBundle,
+      simulationOn,
+      tinoActive,
+    }),
+    [phase, setPhase, bundle, officerBundle, simulationOn, tinoActive],
   );
 
   return (

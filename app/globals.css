@@ -489,11 +489,16 @@ body {
   font-weight: 600;
 }
 
-/* Pinch / pan stay on the map — don't zoom the whole page. */
+/* Pinch / pan stay on the map — don't zoom the whole page.
+   Isolate so Maps' huge internal z-indexes can't cover UI siblings
+   (Before/During/After pill, locate controls). */
 .dro-gmap-root,
 .dro-gmap-root .gm-style {
   touch-action: none;
   -ms-touch-action: none;
+  isolation: isolate;
+  position: relative;
+  z-index: 0;
 }
 
 .dro-gmap-popup {

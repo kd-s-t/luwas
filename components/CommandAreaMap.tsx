@@ -1065,7 +1065,7 @@ function CommandAreaMapInner({
 
   return (
     <div
-      className={`relative h-full w-full overscroll-none ${
+      className={`relative z-0 isolate h-full w-full overscroll-none ${
         scrollWheelZoom ? "touch-none" : ""
       }`}
     >

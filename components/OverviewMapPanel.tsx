@@ -37,7 +37,7 @@ function kindToPin(
 
 export function OverviewMapPanel({ items }: OverviewMapPanelProps) {
   const { profile } = useAuth();
-  const { officerBundle, phase, setPhase, bundle, simulationOn } =
+  const { officerBundle, phase, setPhase, bundle, simulationOn, tinoActive } =
     useScenario();
   const [mapArea, setMapArea] = useState<MapArea>(DEFAULT_MAP_AREA);
 
@@ -168,9 +168,9 @@ export function OverviewMapPanel({ items }: OverviewMapPanelProps) {
       </div>
 
       <p className="border-t border-[var(--border)] px-4 py-2.5 text-[11px] leading-snug text-[var(--muted)] sm:px-5">
-        {simulationOn
+        {tinoActive
           ? `${bundle.shortLabel} · illustrative multi-area view. Marker positions are not verified; no safe route is shown.`
-          : "Live ops · marker positions from verified reports and hall pin."}
+          : "Today · live — marker positions from verified reports and hall pin."}
       </p>
     </section>
   );

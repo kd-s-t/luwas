@@ -83,14 +83,13 @@ function seedAsHouseholds(): Household[] {
 
 export function PublicSituationMap() {
   const { profile } = useAuth();
-  const { bundle, phase, simulationOn } = useScenario();
+  const { bundle, phase, tinoActive } = useScenario();
   const nangkaHouseholds = useMemo(
-    () => (simulationOn ? seedAsHouseholds() : []),
-    [simulationOn],
+    () => (tinoActive ? seedAsHouseholds() : []),
+    [tinoActive],
   );
-  /** AI triage overlays paint in Before + During (simulation). */
-  const triageLive =
-    simulationOn && (phase === "before" || phase === "during");
+  /** AI triage overlays paint in Before + During (Tino drill). */
+  const triageLive = tinoActive && (phase === "before" || phase === "during");
   const [weather, setWeather] = useState<AreaWeather | null>(null);
   const [weatherError, setWeatherError] = useState<string | null>(null);
   const [quakes, setQuakes] = useState<QuakeEvent[]>([]);

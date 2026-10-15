@@ -17,11 +17,11 @@ type Situation = {
   typhoons: TyphoonSample[];
   weatherLabel?: string;
   /** Tino scenario phase — AI triage paints in before + during. */
-  phase?: "before" | "during" | "after";
+  phase?: "nostorm" | "before" | "during" | "after";
 };
 
 const TRIAGE_AFTER_ONLY =
-  "Map triage (flood footprints, evacuate/prepare, escape lines) runs in Before and During. Switch the scenario bar out of After, then ask me again.";
+  "Map triage (flood footprints, evacuate/prepare, escape lines) runs in Before and During. Switch the scenario bar to Before or During, then ask me again.";
 
 function triageAllowed(situation: Situation): boolean {
   return !situation.phase || situation.phase === "before" || situation.phase === "during";
