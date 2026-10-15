@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 const COST_SCENARIOS = [
   {
     id: "cup",
-    label: "Cup / demo",
+    label: "Initial",
     volume: "~80 reports · ~25 ID · ~120 chat · ~20 dispatch",
     total: "~$20–25",
     lines: [
@@ -108,29 +108,30 @@ export default function DeveloperCostPage() {
 
             <p className="text-xs text-[var(--muted)]">{scenario.volume}</p>
 
-            <ul className="divide-y divide-[var(--border)]">
-              {scenario.lines.map((line) => (
-                <li
-                  key={line.name}
-                  className="flex items-baseline justify-between gap-4 py-2 text-sm"
-                >
-                  <span className="text-[var(--foreground)]">{line.name}</span>
-                  <span className="shrink-0 font-mono tabular-nums text-[var(--foreground)]">
-                    {line.amount}
+            <div>
+              <ul className="divide-y divide-[var(--border)]">
+                {scenario.lines.map((line) => (
+                  <li
+                    key={line.name}
+                    className="flex items-baseline justify-between gap-4 py-2 text-sm"
+                  >
+                    <span className="text-[var(--foreground)]">{line.name}</span>
+                    <span className="shrink-0 font-mono tabular-nums text-[var(--foreground)]">
+                      {line.amount}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-3 flex items-baseline justify-between gap-4 font-mono text-sm font-semibold tabular-nums text-[#16794c]">
+                <span>Total</span>
+                <span>
+                  {scenario.total}
+                  <span className="ml-1 font-normal text-[var(--muted)]">
+                    / month
                   </span>
-                </li>
-              ))}
-            </ul>
-
-            <p className="flex items-baseline justify-between gap-4 border-t border-[var(--border)] pt-3 font-mono text-sm font-semibold tabular-nums text-[#16794c]">
-              <span>Total</span>
-              <span>
-                {scenario.total}
-                <span className="ml-1 font-normal text-[var(--muted)]">
-                  / month
                 </span>
-              </span>
-            </p>
+              </p>
+            </div>
 
             <div className="border-t border-[var(--border)] pt-4">
               <p className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">

@@ -1,57 +1,43 @@
 "use client";
 
+import Image from "next/image";
 import { AuthGate } from "@/components/AuthGate";
 import { DeveloperShell } from "@/components/DeveloperShell";
 import { FadeIn } from "@/components/motion/primitives";
 
-const PROJECT =
-  process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim() || "nice-pen-181017";
+/** Prod GCP / Firebase project (not local demo-dro). */
+const PROJECT = "nice-pen-181017";
 
 const LINKS = [
   {
-    label: "Firestore Database",
-    hint: "Collections · users, reports, barangays, supportTickets",
+    label: "Firestore",
+    hint: "Database · users, reports, barangays, supportTickets",
     href: `https://console.firebase.google.com/project/${PROJECT}/firestore/databases/-default-/data`,
+    logo: "/brands/firestore.png",
   },
   {
     label: "BigQuery",
     hint: "Dataset luwas · hazard_reports",
     href: `https://console.cloud.google.com/bigquery?project=${PROJECT}&ws=!1m11!1m5!4m3!1s${PROJECT}!2sluwas!3shazard_reports!23sWS_URL_PARAM!1m4!3m2!1s${PROJECT}!2sluwas!23sTREE_NODE_SELECTION`,
-  },
-  {
-    label: "Authentication",
-    hint: "Users · email/password accounts",
-    href: `https://console.firebase.google.com/project/${PROJECT}/authentication/users`,
+    logo: "/brands/bigquery.png",
   },
   {
     label: "GCS · Cloud Storage",
     hint: "luwas-media · vision ingest labels.csv (latest)",
     href: `https://console.cloud.google.com/storage/browser/_details/luwas-media-${PROJECT}/luwas-vision-ingest/latest/labels.csv;tab=live_object?project=${PROJECT}`,
+    logo: "/brands/gcs.png",
   },
   {
-    label: "Storage (Firebase)",
-    hint: "Media bucket and uploaded report files",
-    href: `https://console.firebase.google.com/project/${PROJECT}/storage`,
-  },
-  {
-    label: "Cloud Run · luwas",
-    hint: "Prod service · asia-southeast1",
-    href: `https://console.cloud.google.com/run/detail/asia-southeast1/luwas/metrics?project=${PROJECT}`,
-  },
-  {
-    label: "Firebase project overview",
-    hint: PROJECT,
-    href: `https://console.firebase.google.com/project/${PROJECT}/overview`,
-  },
-  {
-    label: "GitHub Actions",
-    hint: "CI · Deploy prod → luwasph.com",
-    href: "https://github.com/kd-s-t/luwas/actions",
+    label: "GitHub",
+    hint: "kd-s-t/luwas",
+    href: "https://github.com/kd-s-t/luwas",
+    logo: "/brands/github.svg",
   },
   {
     label: "Figma · Luwas Flow",
     hint: "Product / flow design",
     href: "https://www.figma.com/design/806rvmMWa5XgLcAg1t4wCb/Luwas-Flow?node-id=0-1&p=f&m=draw",
+    logo: "/brands/figma.png",
   },
 ] as const;
 
@@ -66,21 +52,29 @@ export default function DeveloperReferencesPage() {
                 References
               </h1>
               <p className="mt-1 text-sm text-[var(--muted)]">
-                External consoles for this GCP / Firebase project. Opens in a new
-                tab.
+                External consoles. Opens in a new tab.
               </p>
             </div>
 
-            <ul className="divide-y divide-[var(--border)] overflow-hidden rounded-xl border border-[var(--border)] bg-white shadow-sm">
+            <ul className="divide-y divide-[var(--border)]">
               {LINKS.map((link) => (
-                <li key={link.href}>
+                <li key={link.href + link.label}>
                   <a
                     href={link.href}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5 transition hover:bg-[#f7f8fa]"
+                    className="flex flex-wrap items-center gap-3 py-3.5 transition hover:opacity-80"
                   >
-                    <div className="min-w-0">
+                    <span className="relative flex size-9 shrink-0 items-center justify-center overflow-hidden">
+                      <Image
+                        src={link.logo}
+                        alt=""
+                        width={28}
+                        height={28}
+                        className="size-7 object-contain"
+                      />
+                    </span>
+                    <div className="min-w-0 flex-1">
                       <p className="font-medium text-[var(--foreground)]">
                         {link.label}
                       </p>
