@@ -16,6 +16,7 @@ import { ReportStatusBadge } from "@/components/ReportStatusBadge";
 import { TrustScoreInfo } from "@/components/TrustScoreInfo";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { isOfficer, type OfficerProfile } from "@/lib/auth/types";
+import { triggerInvestigatorNotify } from "@/lib/alerts/notifyInvestigator";
 import {
   assignReportInvestigator,
   updateReportStatus,
@@ -26,6 +27,8 @@ import {
   type HazardReport,
   type ReportStatus,
 } from "@/lib/reports/types";
+import { APAS_STAFF_SEED } from "@/lib/staff/apasStaff";
+import { NANGKA_STAFF_SEED } from "@/lib/staff/nangkaStaff";
 import { useScenario } from "@/lib/scenarios";
 import { cn } from "@/lib/utils";
 
@@ -203,6 +206,25 @@ export function IncidentBoard() {
         investigatorUid,
         investigatorName,
       });
+      if (investigatorUid && investigatorName) {
+        const officer = officerByUid.get(investigatorUid);
+        const staff =
+          APAS_STAFF_SEED.find((s) => s.id === officer?.staffId) ||
+          NANGKA_STAFF_SEED.find((s) => s.id === officer?.staffId) ||
+          [...APAS_STAFF_SEED, ...NANGKA_STAFF_SEED].find(
+            (s) =>
+              s.displayName.toLowerCase() ===
+              investigatorName.trim().toLowerCase(),
+          );
+        void triggerInvestigatorNotify({
+          report,
+          investigatorUid,
+          investigatorName,
+          phone: staff?.phone ?? null,
+          staffId: officer?.staffId ?? staff?.id ?? null,
+          email: officer?.email ?? staff?.email ?? null,
+        });
+      }
       closeAssignMenu();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Assign failed");

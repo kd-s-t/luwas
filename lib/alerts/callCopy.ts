@@ -37,6 +37,25 @@ export function buildEvacCallScript(input: {
   );
 }
 
+/** Spoken script when an investigator is assigned to a citizen report. */
+export function buildInvestigatorAssignCallScript(input: {
+  ownerName: string;
+  barangay?: string;
+  title?: string | null;
+  hazardHint?: string | null;
+}): string {
+  const brgy = input.barangay ?? "your barangay";
+  const name = input.ownerName.trim() || "Officer";
+  const hazard = (input.hazardHint ?? "hazard").replace(/_/g, " ");
+  const title = (input.title ?? "a citizen report").slice(0, 60);
+  return (
+    `This is Luwas for Barangay ${brgy}. ` +
+    `${name}, you were assigned as investigator for a ${hazard} report: ${title}. ` +
+    `Open the Luwas incidents board for evidence and next steps. ` +
+    `This is an Tino simulation for responders.`
+  );
+}
+
 /** Spoken script when MDRRMO dials BFP / PNP / hospital / tanod. */
 export function buildResponderCallScript(input: {
   kind: ResponderCallKind;
