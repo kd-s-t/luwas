@@ -70,13 +70,13 @@ function TicketChat({
         ) : (
           ticket.messages.map((m, i) => (
             <li
-              key={`${m.at}-${i}`}
+              key={`${m.id}-${i}`}
               className="rounded-lg border border-[var(--border)] bg-white px-3 py-2"
             >
               <p className="text-[11px] text-[var(--muted)]">
                 {m.authorName}
-                {m.at
-                  ? ` · ${new Date(m.at).toLocaleString()}`
+                {m.createdAt
+                  ? ` · ${new Date(m.createdAt).toLocaleString()}`
                   : ""}
               </p>
               <p className="mt-1 text-sm whitespace-pre-wrap">{m.body}</p>

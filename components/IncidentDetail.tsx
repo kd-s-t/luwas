@@ -22,6 +22,7 @@ import { triggerAutoResponderCall } from "@/lib/alerts/autoResponderCall";
 import { triggerInvestigatorNotify } from "@/lib/alerts/notifyInvestigator";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import {
+  isDeveloper,
   isOfficer,
   type OfficerProfile,
 } from "@/lib/auth/types";
@@ -64,9 +65,14 @@ type PlanState = {
 
 type IncidentDetailProps = {
   reportId: string;
+  /** Override board back-link (developer console uses /dev/incidents). */
+  backHref?: string;
 };
 
-export function IncidentDetail({ reportId }: IncidentDetailProps) {
+export function IncidentDetail({
+  reportId,
+  backHref = "/admin/incidents",
+}: IncidentDetailProps) {
   const { profile } = useAuth();
   const {
     reportScope,
@@ -82,6 +88,7 @@ export function IncidentDetail({ reportId }: IncidentDetailProps) {
 
   const scoped = scopedReports;
   const officers = activeOfficers;
+  const globalView = isDeveloper(profile);
 
   useEffect(() => {
     setDirectReady(false);
@@ -98,7 +105,10 @@ export function IncidentDetail({ reportId }: IncidentDetailProps) {
   );
   const candidate = fromList ?? directReport;
   const selected =
-    candidate && reportInScope(candidate, reportScope) ? candidate : null;
+    candidate &&
+    (globalView || reportInScope(candidate, reportScope))
+      ? candidate
+      : null;
   const loading = !selected && !directReady;
 
   useEffect(() => {
@@ -267,7 +277,7 @@ export function IncidentDetail({ reportId }: IncidentDetailProps) {
           This report is missing, out of scope, or was removed.
         </p>
         <Link
-          href="/admin/incidents"
+          href={backHref}
           className="font-mono text-[10px] tracking-wider text-[var(--accent)] uppercase hover:underline"
         >
           ← Back to board
@@ -281,7 +291,7 @@ export function IncidentDetail({ reportId }: IncidentDetailProps) {
       <div className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--surface)]/95 px-4 py-3 backdrop-blur sm:px-5">
         <div className="mb-2 flex items-start justify-between gap-3">
           <Link
-            href="/admin/incidents"
+            href={backHref}
             className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase transition hover:text-[var(--accent)]"
           >
             ← Incidents board
@@ -472,7 +482,7 @@ export function IncidentDetail({ reportId }: IncidentDetailProps) {
                 {related.map((r) => (
                   <li key={r.id}>
                     <Link
-                      href={`/admin/incidents/${encodeURIComponent(r.id)}`}
+                      href={`${backHref}/${encodeURIComponent(r.id)}`}
                       className="block w-full border border-[var(--border)] px-2.5 py-2 text-left text-xs transition hover:border-[var(--accent)]"
                     >
                       <span className="font-medium">{r.title}</span>

@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
- * Create / refresh the LUWAS developer Auth + Firestore user in production.
+ * Create / refresh the four LUWAS developer Auth + Firestore users (About us team).
  *
  * Usage: node scripts/seed-developer-prod.mjs
- * Login: developer@luwas.demo / demo1234
+ * Password: demo1234
  */
 import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -16,8 +16,29 @@ const PROJECT =
   "nice-pen-181017";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const DEMO_PASSWORD = "demo1234";
-const EMAIL = "developer@luwas.demo";
-const DISPLAY_NAME = "LUWAS Developer";
+
+const DEVELOPERS = [
+  {
+    email: "ken@luwas.demo",
+    displayName: "Ken Dan Tinio",
+    title: "Fullstack Engineer",
+  },
+  {
+    email: "don@luwas.demo",
+    displayName: "Don Sebial",
+    title: "Product Designer",
+  },
+  {
+    email: "jean@luwas.demo",
+    displayName: "Jeanilou Labajo",
+    title: "System Analyst",
+  },
+  {
+    email: "pat@luwas.demo",
+    displayName: "Patricia Abrenica",
+    title: "Application Support Analyst",
+  },
+];
 
 function loadApiKey() {
   const text = readFileSync(join(ROOT, ".env.production"), "utf8");
@@ -38,16 +59,16 @@ function authHeaders(tok) {
   };
 }
 
-async function ensureAuthUser(apiKey) {
+async function ensureAuthUser(apiKey, email, displayName) {
   const signUp = await fetch(
     `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${apiKey}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        email: EMAIL,
+        email,
         password: DEMO_PASSWORD,
-        displayName: DISPLAY_NAME,
+        displayName,
         returnSecureToken: true,
       }),
     },
@@ -58,7 +79,7 @@ async function ensureAuthUser(apiKey) {
   }
   const errText = await signUp.text();
   if (!/EMAIL_EXISTS/i.test(errText)) {
-    throw new Error(`signUp: ${signUp.status} ${errText.slice(0, 200)}`);
+    throw new Error(`signUp ${email}: ${signUp.status} ${errText.slice(0, 200)}`);
   }
   const signIn = await fetch(
     `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`,
@@ -66,28 +87,30 @@ async function ensureAuthUser(apiKey) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        email: EMAIL,
+        email,
         password: DEMO_PASSWORD,
         returnSecureToken: true,
       }),
     },
   );
   if (!signIn.ok) {
-    throw new Error(`signIn: ${signIn.status} ${(await signIn.text()).slice(0, 200)}`);
+    throw new Error(
+      `signIn ${email}: ${signIn.status} ${(await signIn.text()).slice(0, 200)}`,
+    );
   }
   const data = await signIn.json();
   return { uid: data.localId, created: false };
 }
 
-async function upsertProfile(tok, uid) {
+async function upsertProfile(tok, uid, member) {
   const now = new Date().toISOString();
   const fields = {
     uid: { stringValue: uid },
-    email: { stringValue: EMAIL },
-    displayName: { stringValue: DISPLAY_NAME },
+    email: { stringValue: member.email },
+    displayName: { stringValue: member.displayName },
     role: { stringValue: "developer" },
     accountStatus: { stringValue: "active" },
-    orgName: { stringValue: "LUWAS Developers" },
+    orgName: { stringValue: `UgnAI Labs · ${member.title}` },
     idVerified: { booleanValue: true },
     createdAt: { stringValue: now },
     updatedAt: { stringValue: now },
@@ -111,7 +134,9 @@ async function upsertProfile(tok, uid) {
     },
   );
   if (!create.ok && create.status !== 409) {
-    throw new Error(`profile: ${create.status} ${(await create.text()).slice(0, 200)}`);
+    throw new Error(
+      `profile ${member.email}: ${create.status} ${(await create.text()).slice(0, 200)}`,
+    );
   }
   if (create.status === 409) {
     res = await fetch(url, {
@@ -119,24 +144,34 @@ async function upsertProfile(tok, uid) {
       headers: authHeaders(tok),
       body: JSON.stringify({ fields }),
     });
-    if (!res.ok) throw new Error(`profile retry: ${res.status}`);
+    if (!res.ok) throw new Error(`profile retry ${member.email}: ${res.status}`);
   }
 }
 
 async function main() {
   const apiKey = loadApiKey();
   const tok = token();
-  const auth = await ensureAuthUser(apiKey);
-  await upsertProfile(tok, auth.uid);
+  const results = [];
+  for (const member of DEVELOPERS) {
+    const auth = await ensureAuthUser(apiKey, member.email, member.displayName);
+    await upsertProfile(tok, auth.uid, member);
+    results.push({
+      email: member.email,
+      name: member.displayName,
+      uid: auth.uid,
+      created: auth.created,
+    });
+    console.log(
+      `${auth.created ? "created" : "ok"} ${member.email} → ${auth.uid}`,
+    );
+  }
   console.log(
     JSON.stringify(
       {
-        email: EMAIL,
         password: DEMO_PASSWORD,
-        uid: auth.uid,
-        created: auth.created,
         login: "/login/developer",
         home: "/dev",
+        developers: results,
       },
       null,
       2,
