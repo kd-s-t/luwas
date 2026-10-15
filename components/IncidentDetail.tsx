@@ -334,10 +334,16 @@ export function IncidentDetail({ reportId }: IncidentDetailProps) {
 
           <dl className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
             <Meta
-              label="AI signal"
+              label="AI check"
               value={
                 selected.aiReason
-                  ? `${selected.aiSource ?? "ai"}${
+                  ? `${
+                      selected.aiSource === "gemini"
+                        ? "Gemini"
+                        : selected.aiSource === "local"
+                          ? "local rules"
+                          : (selected.aiSource ?? "AI")
+                    }${
                       selected.aiConfidence != null
                         ? ` · ${Math.round(selected.aiConfidence * 100)}%`
                         : ""
