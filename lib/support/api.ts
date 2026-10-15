@@ -134,8 +134,9 @@ export async function submitSupportTicket(input: SupportTicketInput) {
       typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 400) : "",
     createdAt: new Date().toISOString(),
     createdAtServer: serverTimestamp(),
-    assignedToUid: null,
-    assignedToName: null,
+    // All user-created tickets land with the developer team.
+    assignedToUid: LUWAS_DEVELOPERS_ASSIGNEE.uid,
+    assignedToName: LUWAS_DEVELOPERS_ASSIGNEE.name,
     messages: [],
     resolvedAt: null,
     resolvedByUid: null,

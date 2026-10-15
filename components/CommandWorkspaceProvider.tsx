@@ -29,9 +29,6 @@ import {
 } from "@/lib/reports/barangayScope";
 import { ensureAllMapReportsInDb } from "@/lib/reports/seedMapReport";
 import type { HazardReport } from "@/lib/reports/types";
-import { subscribeSupportTickets } from "@/lib/support/api";
-import type { SupportTicket } from "@/lib/support/api";
-import { ensureSampleSupportTickets } from "@/lib/support/ensureSampleSupportTickets";
 import { fetchCebuWeather, isHazardousWeather } from "@/lib/weather/openMeteo";
 
 const QUEUE_STATUSES = new Set([
@@ -47,7 +44,6 @@ type CommandWorkspaceValue = {
   reports: HazardReport[];
   scopedReports: HazardReport[];
   pendingAccounts: PendingAccount[];
-  supportTickets: SupportTicket[];
   /** Active + pending users in this barangay (officers + citizens). */
   barangayUsers: UserProfile[];
   /** Active officers only, sorted by name (assign menus / workload). */
@@ -55,7 +51,6 @@ type CommandWorkspaceValue = {
   pendingCitizenCount: number;
   pendingOfficerCount: number;
   reportQueueCount: number;
-  supportOpenCount: number;
   weatherOk: boolean | null;
   weatherHazard: boolean;
   seedReady: boolean;
@@ -79,7 +74,6 @@ export function CommandWorkspaceProvider({
   const [pendingAccounts, setPendingAccounts] = useState<PendingAccount[]>(
     [],
   );
-  const [supportTickets, setSupportTickets] = useState<SupportTicket[]>([]);
   const [barangayUsers, setBarangayUsers] = useState<UserProfile[]>([]);
   const [weatherOk, setWeatherOk] = useState<boolean | null>(null);
   const [weatherHazard, setWeatherHazard] = useState(false);
@@ -99,7 +93,6 @@ export function CommandWorkspaceProvider({
         const sim = isSimulationOn();
         await Promise.all([
           sim ? ensureAllMapReportsInDb() : Promise.resolve(),
-          sim ? ensureSampleSupportTickets() : Promise.resolve(),
         ]);
         // Apas starter roster runs in prod (households + staff only).
         if (
@@ -148,14 +141,6 @@ export function CommandWorkspaceProvider({
       areaId,
     );
   }, [canSync, barangay, areaId]);
-
-  useEffect(() => {
-    if (!canSync) {
-      setSupportTickets([]);
-      return;
-    }
-    return subscribeSupportTickets(setSupportTickets);
-  }, [canSync]);
 
   useEffect(() => {
     if (!canSync || !barangay) {
@@ -216,22 +201,17 @@ export function CommandWorkspaceProvider({
     const reportQueueCount = scopedReports.filter((r) =>
       QUEUE_STATUSES.has(r.status),
     ).length;
-    const supportOpenCount = supportTickets.filter(
-      (r) => r.status === "open" || r.status === "in_progress",
-    ).length;
 
     return {
       reportScope,
       reports,
       scopedReports,
       pendingAccounts,
-      supportTickets,
       barangayUsers,
       activeOfficers,
       pendingCitizenCount,
       pendingOfficerCount,
       reportQueueCount,
-      supportOpenCount,
       weatherOk,
       weatherHazard,
       seedReady,
@@ -241,7 +221,6 @@ export function CommandWorkspaceProvider({
     reports,
     scopedReports,
     pendingAccounts,
-    supportTickets,
     barangayUsers,
     activeOfficers,
     weatherOk,

@@ -45,6 +45,17 @@ export default function LoginChoosePage() {
               Report hazards and track your submissions
             </span>
           </Link>
+          <Link
+            href="/login/developer"
+            className="block border border-[var(--border)] px-4 py-4 transition hover:border-[var(--accent)] hover:bg-[var(--surface-raised)]"
+          >
+            <span className="block text-base font-semibold text-[var(--foreground)]">
+              Developer
+            </span>
+            <span className="mt-1 block text-sm text-[var(--muted)]">
+              All users, work status, operational barangays, onboard
+            </span>
+          </Link>
         </div>
       </AuthCard>
     </AuthGate>

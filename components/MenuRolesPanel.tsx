@@ -74,8 +74,8 @@ const MENU_ROLE_MATRIX: {
   {
     menu: "Earth Engine",
     l1: "—",
-    l2: "View / download cache",
-    l3: "Run DEM / hazards + history",
+    l2: "—",
+    l3: "Developers only · DEM / hazards",
   },
   {
     menu: "Barangays / Profile",

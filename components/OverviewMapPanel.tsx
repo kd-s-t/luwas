@@ -25,6 +25,8 @@ import type { AttentionItem } from "@/lib/workspace/attentionBoard";
 
 type OverviewMapPanelProps = {
   items: AttentionItem[];
+  /** Stretch map to fill parent height (overview split pane). */
+  fill?: boolean;
 };
 
 function kindToPin(
@@ -35,7 +37,7 @@ function kindToPin(
   return "evac_status";
 }
 
-export function OverviewMapPanel({ items }: OverviewMapPanelProps) {
+export function OverviewMapPanel({ items, fill = false }: OverviewMapPanelProps) {
   const { profile } = useAuth();
   const { officerBundle, phase, setPhase, bundle, simulationOn, tinoActive } =
     useScenario();
@@ -100,8 +102,14 @@ export function OverviewMapPanel({ items }: OverviewMapPanelProps) {
   }, [items, officerBundle.reportPins]);
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-[var(--border)] bg-white shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-3 sm:px-5">
+    <section
+      className={
+        fill
+          ? "flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-white shadow-sm"
+          : "overflow-hidden rounded-2xl border border-[var(--border)] bg-white shadow-sm"
+      }
+    >
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-3 sm:px-5">
         <div className="flex min-w-0 flex-wrap items-center gap-2.5">
           <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-wide text-[var(--foreground)]">
             Situation map
@@ -120,7 +128,13 @@ export function OverviewMapPanel({ items }: OverviewMapPanelProps) {
         </Link>
       </div>
 
-      <div className="relative h-[min(52dvh,420px)] bg-[var(--surface-panel)]">
+      <div
+        className={
+          fill
+            ? "relative min-h-0 flex-1 bg-[var(--surface-panel)]"
+            : "relative h-[min(52dvh,420px)] bg-[var(--surface-panel)]"
+        }
+      >
         <CommandAreaMapMount
           key={`${mapArea.id}-${phase}-overview`}
           area={mapArea}
@@ -167,7 +181,7 @@ export function OverviewMapPanel({ items }: OverviewMapPanelProps) {
         </div>
       </div>
 
-      <p className="border-t border-[var(--border)] px-4 py-2.5 text-[11px] leading-snug text-[var(--muted)] sm:px-5">
+      <p className="shrink-0 border-t border-[var(--border)] px-4 py-2.5 text-[11px] leading-snug text-[var(--muted)] sm:px-5">
         {tinoActive
           ? `${bundle.shortLabel} · illustrative multi-area view. Marker positions are not verified; no safe route is shown.`
           : "Today · live — marker positions from verified reports and hall pin."}

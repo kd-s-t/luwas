@@ -334,7 +334,7 @@ export function IncidentBoard() {
           </p>
         </div>
       ) : (
-        <div className="flex min-h-0 flex-1 items-stretch gap-3 overflow-x-auto px-3 py-3 sm:px-4 sm:py-4">
+        <div className="flex min-h-0 w-full flex-1 items-stretch gap-2 overflow-x-auto px-3 py-3 sm:gap-3 sm:px-4 sm:py-4">
           {COLUMNS.map((col) => {
             const cards = ranked.filter(col.match);
             return (
@@ -361,7 +361,7 @@ export function IncidentBoard() {
                   if (report) void moveToColumn(report, col);
                 }}
                 className={cn(
-                  "flex h-full min-h-0 w-[15.5rem] shrink-0 flex-col rounded-lg border bg-[var(--surface-panel)]/40 transition",
+                  "flex h-full min-h-0 min-w-[13.5rem] flex-1 flex-col rounded-lg border bg-[var(--surface-panel)]/40 transition",
                   dropColId === col.id
                     ? "border-[var(--accent)] bg-[var(--accent)]/5"
                     : "border-[var(--border)]",

@@ -16,7 +16,7 @@ import {
   LogOut,
   Shield,
 } from "lucide-react";
-import { BrandLogo } from "@/components/BrandLogo";
+import { BrandLogoOnDark } from "@/components/BrandLogo";
 import { CommandBarangaySwitcher } from "@/components/CommandBarangaySwitcher";
 import { CommandNotifications } from "@/components/CommandNotifications";
 import {
@@ -83,24 +83,14 @@ const SECONDARY: { href: string; label: string; match: (p: string) => boolean }[
       match: (p) => p.startsWith("/admin/officers"),
     },
     {
-      href: "/admin/roles",
-      label: "Roles",
-      match: (p) => p.startsWith("/admin/roles"),
-    },
-    {
-      href: "/admin/support",
-      label: "Support",
-      match: (p) => p.startsWith("/admin/support"),
-    },
-    {
       href: "/admin/onboard",
       label: "Onboard",
       match: (p) => p.startsWith("/admin/onboard"),
     },
     {
-      href: "/admin/earth-engine",
-      label: "Earth Engine",
-      match: (p) => p.startsWith("/admin/earth-engine"),
+      href: "/support",
+      label: "Support",
+      match: (p) => p === "/support" || p.startsWith("/support/"),
     },
   ];
 
@@ -120,7 +110,6 @@ function CommandShellInner({ children, fill = false }: CommandShellProps) {
     pendingCitizenCount,
     pendingOfficerCount,
     reportQueueCount,
-    supportOpenCount,
   } = useCommandWorkspace();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
@@ -153,8 +142,7 @@ function CommandShellInner({ children, fill = false }: CommandShellProps) {
           className="inline-flex transition hover:opacity-90"
           aria-label="LUWAS home"
         >
-          <BrandLogo
-            tone="inverse"
+          <BrandLogoOnDark
             size={28}
             wordmarkClassName="text-2xl"
           />
@@ -200,7 +188,7 @@ function CommandShellInner({ children, fill = false }: CommandShellProps) {
 
         <div className="mt-4 shrink-0 border-t border-white/10 pt-3">
           <p className="px-3 pb-1.5 font-mono text-[9px] tracking-[0.16em] text-white/35 uppercase">
-            Admin
+            Databases
           </p>
           {SECONDARY.map((item) => {
             const active = item.match(pathname);
@@ -209,9 +197,7 @@ function CommandShellInner({ children, fill = false }: CommandShellProps) {
                 ? pendingCitizenCount
                 : item.href === "/admin/officers"
                   ? pendingOfficerCount
-                  : item.href === "/admin/support"
-                    ? supportOpenCount
-                    : 0;
+                  : 0;
             return (
               <Link
                 key={item.href}
@@ -314,8 +300,7 @@ function CommandShellInner({ children, fill = false }: CommandShellProps) {
             className="inline-flex transition hover:opacity-90"
             aria-label="LUWAS home"
           >
-            <BrandLogo
-              tone="inverse"
+            <BrandLogoOnDark
               size={24}
               wordmarkClassName="text-lg"
             />

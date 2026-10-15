@@ -13,10 +13,9 @@ import {
 } from "@/lib/auth/accountValidation";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { isAccountActive, isOfficer } from "@/lib/auth/types";
-import { subscribeSupportTickets } from "@/lib/support/api";
 import { cn } from "@/lib/utils";
 
-type NavBadge = "pending" | "support" | null;
+type NavBadge = "pending" | null;
 
 const NAV: {
   href: string;
@@ -55,24 +54,17 @@ const NAV: {
     badge: null,
   },
   {
-    href: "/admin/roles",
-    label: "Roles",
-    short: "Roles",
-    match: (p) => p.startsWith("/admin/roles"),
-    badge: null,
-  },
-  {
-    href: "/admin/support",
-    label: "Support",
-    short: "Help",
-    match: (p) => p.startsWith("/admin/support"),
-    badge: "support",
-  },
-  {
     href: "/admin/onboard",
     label: "Onboard",
     short: "Onboard",
     match: (p) => p.startsWith("/admin/onboard"),
+    badge: null,
+  },
+  {
+    href: "/support",
+    label: "Support",
+    short: "Support",
+    match: (p) => p === "/support" || p.startsWith("/support/"),
     badge: null,
   },
 ];
@@ -107,7 +99,6 @@ export function CommandHeader() {
   const pathname = usePathname();
   const router = useRouter();
   const [pendingCount, setPendingCount] = useState(0);
-  const [supportOpenCount, setSupportOpenCount] = useState(0);
 
   const barangay = isOfficer(profile) ? officerScopeBarangay(profile) : "";
   const areaId = isOfficer(profile)
@@ -127,20 +118,6 @@ export function CommandHeader() {
     );
   }, [profile, barangay, areaId]);
 
-  useEffect(() => {
-    if (!isOfficer(profile) || !isAccountActive(profile)) {
-      setSupportOpenCount(0);
-      return;
-    }
-    return subscribeSupportTickets((rows) => {
-      setSupportOpenCount(
-        rows.filter(
-          (r) => r.status === "open" || r.status === "in_progress",
-        ).length,
-      );
-    });
-  }, [profile]);
-
   async function onLogout() {
     await logout();
     router.replace("/login/officer");
@@ -156,6 +133,7 @@ export function CommandHeader() {
             aria-label="LUWAS home"
           >
             <BrandLogo
+              tone="blue"
               size={26}
               wordmarkClassName="text-xl sm:text-2xl"
             />
@@ -165,17 +143,11 @@ export function CommandHeader() {
             {NAV.map((item) => {
               const active = item.match(pathname);
               const badgeCount =
-                item.badge === "pending"
-                  ? pendingCount
-                  : item.badge === "support"
-                    ? supportOpenCount
-                    : 0;
+                item.badge === "pending" ? pendingCount : 0;
               const badgeLabel =
                 item.badge === "pending"
                   ? `${pendingCount} pending registrations`
-                  : item.badge === "support"
-                    ? `${supportOpenCount} open support tickets`
-                    : "";
+                  : "";
               return (
                 <Link
                   key={item.href}

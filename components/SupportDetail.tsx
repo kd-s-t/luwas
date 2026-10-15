@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { useCommandWorkspace } from "@/components/CommandWorkspaceProvider";
+import { useEffect, useMemo, useState } from "react";
 import { CommandContentSkeleton } from "@/components/PageLoadSkeleton";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { Badge } from "@/components/ui/badge";
@@ -10,16 +9,20 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import {
   isAccountActive,
-  isOfficer,
+  isDeveloper,
+  type OfficerProfile,
 } from "@/lib/auth/types";
 import {
   addSupportTicketMessage,
   assignSupportTicket,
   LUWAS_DEVELOPERS_ASSIGNEE,
+  subscribeSupportTickets,
   updateSupportTicketStatus,
   type SupportTicket,
   type SupportTicketStatus,
 } from "@/lib/support/api";
+import { collection, onSnapshot } from "firebase/firestore";
+import { getClientDb } from "@/lib/firebase/client";
 
 function statusVariant(
   status: SupportTicketStatus,
@@ -49,7 +52,7 @@ function TicketChat({
 
   async function submit() {
     const body = draft.trim();
-    if (!body || sending || busy) return;
+    if (!body || busy || sending) return;
     setSending(true);
     try {
       await onSend(body);
@@ -60,61 +63,36 @@ function TicketChat({
   }
 
   return (
-    <div className="flex h-full min-h-[18rem] flex-col border border-[var(--border)] bg-[var(--surface)]">
-      <p className="shrink-0 border-b border-[var(--border)] px-3 py-1.5 font-mono text-[9px] tracking-[0.18em] text-[var(--muted)] uppercase">
-        Messages
-      </p>
-      {ticket.messages.length > 0 ? (
-        <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-2">
-          {ticket.messages.map((m) => (
+    <div className="flex flex-col gap-3">
+      <ul className="space-y-2">
+        {ticket.messages.length === 0 ? (
+          <li className="text-sm text-[var(--muted)]">No messages yet.</li>
+        ) : (
+          ticket.messages.map((m, i) => (
             <li
-              key={m.id}
-              className="flex items-start justify-end gap-2 text-sm"
+              key={`${m.at}-${i}`}
+              className="rounded-lg border border-[var(--border)] bg-white px-3 py-2"
             >
-              <div className="min-w-0 max-w-[85%] text-right">
-                <p className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
-                  {m.authorName}
-                  {m.createdAt
-                    ? ` · ${new Date(m.createdAt).toLocaleString()}`
-                    : ""}
-                </p>
-                <p className="mt-0.5 whitespace-pre-wrap text-[var(--foreground)]">
-                  {m.body}
-                </p>
-              </div>
-              <ProfileAvatar
-                name={m.authorName}
-                seed={m.authorUid || m.authorName}
-                size="sm"
-                className="mt-0.5"
-              />
+              <p className="text-[11px] text-[var(--muted)]">
+                {m.authorName}
+                {m.at
+                  ? ` · ${new Date(m.at).toLocaleString()}`
+                  : ""}
+              </p>
+              <p className="mt-1 text-sm whitespace-pre-wrap">{m.body}</p>
             </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="min-h-0 flex-1 px-3 py-6 text-right text-xs text-[var(--muted)]">
-          No messages yet — leave a triage note below.
-        </p>
-      )}
-      <div className="flex shrink-0 flex-col gap-2 border-t border-[var(--border)] p-3 sm:flex-row sm:items-end">
-        <label className="min-w-0 flex-1">
-          <span className="sr-only">Message</span>
-          <textarea
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            disabled={busy || sending}
-            rows={2}
-            maxLength={2000}
-            placeholder="Officer note / reply…"
-            className="w-full resize-y border border-[var(--border)] bg-[var(--input)] px-2.5 py-1.5 text-sm outline-none focus:border-[var(--accent)] disabled:opacity-50"
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                e.preventDefault();
-                void submit();
-              }
-            }}
-          />
-        </label>
+          ))
+        )}
+      </ul>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <textarea
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          rows={3}
+          placeholder="Reply…"
+          className="min-h-[4.5rem] flex-1 resize-y rounded-md border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+          disabled={busy || sending}
+        />
         <Button
           type="button"
           size="sm"
@@ -131,19 +109,62 @@ function TicketChat({
 
 export function SupportDetail({ ticketId }: { ticketId: string }) {
   const { profile } = useAuth();
-  const { supportTickets, activeOfficers, seedReady } = useCommandWorkspace();
-  const officers = activeOfficers;
+  const [tickets, setTickets] = useState<SupportTicket[]>([]);
+  const [officers, setOfficers] = useState<OfficerProfile[]>([]);
+  const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const ready = seedReady;
+
+  useEffect(() => {
+    if (!isDeveloper(profile) || !isAccountActive(profile)) {
+      setTickets([]);
+      setReady(true);
+      return;
+    }
+    return subscribeSupportTickets((rows) => {
+      setTickets(rows);
+      setReady(true);
+    });
+  }, [profile]);
+
+  useEffect(() => {
+    if (!isDeveloper(profile) || !isAccountActive(profile)) {
+      setOfficers([]);
+      return;
+    }
+    return onSnapshot(collection(getClientDb(), "users"), (snap) => {
+      const next: OfficerProfile[] = [];
+      for (const d of snap.docs) {
+        const data = d.data();
+        if (data.role !== "officer") continue;
+        const status = data.accountStatus as string | undefined;
+        if (status === "fired" || status === "rejected" || status === "pending") {
+          continue;
+        }
+        next.push({
+          uid: String(data.uid ?? d.id),
+          email: String(data.email ?? ""),
+          displayName: String(data.displayName ?? ""),
+          orgName: String(data.orgName ?? ""),
+          role: "officer",
+          createdAt: String(data.createdAt ?? ""),
+          accountStatus: "active",
+        });
+      }
+      next.sort((a, b) =>
+        (a.displayName || a.email).localeCompare(b.displayName || b.email),
+      );
+      setOfficers(next);
+    });
+  }, [profile]);
 
   const selected = useMemo(
-    () => supportTickets.find((t) => t.id === ticketId) ?? null,
-    [supportTickets, ticketId],
+    () => tickets.find((t) => t.id === ticketId) ?? null,
+    [tickets, ticketId],
   );
 
   async function setStatus(status: SupportTicketStatus) {
-    if (!isOfficer(profile) || !selected) return;
+    if (!isDeveloper(profile) || !selected) return;
     setBusy(true);
     setError(null);
     try {
@@ -164,7 +185,7 @@ export function SupportDetail({ ticketId }: { ticketId: string }) {
     assigneeUid: string | null,
     assigneeName: string | null,
   ) {
-    if (!isOfficer(profile) || !selected) return;
+    if (!isDeveloper(profile) || !selected) return;
     setBusy(true);
     setError(null);
     try {
@@ -183,12 +204,12 @@ export function SupportDetail({ ticketId }: { ticketId: string }) {
   }
 
   async function takeIt() {
-    if (!isOfficer(profile) || !selected) return;
+    if (!isDeveloper(profile) || !selected) return;
     await assign(profile.uid, profile.displayName || profile.email);
   }
 
   async function sendMessage(body: string) {
-    if (!isOfficer(profile) || !selected) return;
+    if (!isDeveloper(profile) || !selected) return;
     setBusy(true);
     setError(null);
     try {
@@ -206,10 +227,10 @@ export function SupportDetail({ ticketId }: { ticketId: string }) {
     }
   }
 
-  if (!isOfficer(profile) || !isAccountActive(profile)) {
+  if (!isDeveloper(profile) || !isAccountActive(profile)) {
     return (
       <p className="p-6 text-sm text-[var(--muted)]">
-        Only active officers can triage support tickets.
+        Only developers can triage support tickets.
       </p>
     );
   }
@@ -225,7 +246,7 @@ export function SupportDetail({ ticketId }: { ticketId: string }) {
           Ticket not found
         </p>
         <Link
-          href="/admin/support"
+          href="/dev/support"
           className="font-mono text-[10px] tracking-wider text-[var(--accent)] uppercase hover:underline"
         >
           ← Back to board
@@ -239,7 +260,7 @@ export function SupportDetail({ ticketId }: { ticketId: string }) {
       <div className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--surface)]/95 px-4 py-3 backdrop-blur sm:px-5">
         <div className="mb-2">
           <Link
-            href="/admin/support"
+            href="/dev/support"
             className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase transition hover:text-[var(--accent)]"
           >
             ← Support board
@@ -259,134 +280,117 @@ export function SupportDetail({ ticketId }: { ticketId: string }) {
             ? ` · ${new Date(selected.createdAt).toLocaleString()}`
             : ""}
         </p>
+        {error ? (
+          <p className="mt-2 text-sm text-[var(--danger)]" role="alert">
+            {error}
+          </p>
+        ) : null}
       </div>
 
-      <div className="grid lg:grid-cols-2">
-        <section className="border-b border-[var(--border)] px-4 py-4 sm:px-5 lg:border-r lg:border-b-0">
-          <p className="font-mono text-[9px] tracking-[0.16em] text-[var(--muted)] uppercase">
-            Ticket
-          </p>
-          {selected.pageUrl ? (
-            <p className="mt-2 break-all font-mono text-[10px] text-[var(--muted)]">
-              {selected.pageUrl}
+      <div className="grid gap-6 px-4 py-5 sm:px-5 lg:grid-cols-[1fr_16rem]">
+        <div className="space-y-6">
+          <section>
+            <h2 className="mb-2 text-sm font-semibold">Details</h2>
+            <p className="text-sm whitespace-pre-wrap text-[var(--muted)]">
+              {selected.details || "—"}
             </p>
-          ) : null}
-          {selected.details ? (
-            <p className="mt-3 text-sm leading-relaxed whitespace-pre-wrap">
-              {selected.details}
-            </p>
-          ) : (
-            <p className="mt-3 text-sm text-[var(--muted)]">No details.</p>
-          )}
-          <p className="mt-3 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
-            {selected.assignedToName
-              ? `Assigned · ${selected.assignedToName}`
-              : "Unassigned"}
-          </p>
-          {error ? (
-            <p className="mt-2 text-sm text-[var(--danger)]" role="alert">
-              {error}
-            </p>
-          ) : null}
+          </section>
+          <section>
+            <h2 className="mb-2 text-sm font-semibold">Thread</h2>
+            <TicketChat
+              ticket={selected}
+              busy={busy}
+              onSend={sendMessage}
+            />
+          </section>
+        </div>
 
-          <div className="mt-4 flex max-w-xs flex-col gap-2">
-            {(selected.status === "open" ||
-              selected.status === "in_progress") && (
-              <label className="block">
-                <span className="sr-only">Assign officer</span>
-                <select
-                  value={selected.assignedToUid ?? ""}
-                  disabled={busy}
-                  aria-label="Assign officer"
-                  onChange={(e) => {
-                    const uid = e.target.value || null;
-                    if (!uid) {
-                      void assign(null, null);
-                      return;
-                    }
-                    if (uid === LUWAS_DEVELOPERS_ASSIGNEE.uid) {
-                      void assign(
-                        LUWAS_DEVELOPERS_ASSIGNEE.uid,
-                        LUWAS_DEVELOPERS_ASSIGNEE.name,
-                      );
-                      return;
-                    }
-                    const officer = officers.find((o) => o.uid === uid);
-                    void assign(
-                      uid,
-                      officer?.displayName || officer?.email || uid,
-                    );
-                  }}
-                  className="w-full border border-[var(--border)] bg-[var(--input)] px-2 py-1.5 font-mono text-[10px] tracking-wider uppercase outline-none focus:border-[var(--accent)] disabled:opacity-50"
+        <aside className="space-y-4">
+          <section className="rounded-xl border border-[var(--border)] bg-white p-3">
+            <h2 className="mb-2 text-xs font-semibold tracking-wide uppercase text-[var(--muted)]">
+              Status
+            </h2>
+            <div className="flex flex-wrap gap-1.5">
+              {(
+                ["open", "in_progress", "resolved", "closed"] as const
+              ).map((s) => (
+                <Button
+                  key={s}
+                  type="button"
+                  size="sm"
+                  variant={selected.status === s ? "default" : "outline"}
+                  disabled={busy || selected.status === s}
+                  onClick={() => void setStatus(s)}
                 >
-                  <option value="">Unassigned</option>
-                  <option value={LUWAS_DEVELOPERS_ASSIGNEE.uid}>
-                    {LUWAS_DEVELOPERS_ASSIGNEE.name}
-                  </option>
-                  {officers.map((o) => (
-                    <option key={o.uid} value={o.uid}>
-                      {o.displayName || o.email}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
-            {selected.status === "open" && !selected.assignedToUid ? (
+                  {statusLabel(s)}
+                </Button>
+              ))}
+            </div>
+          </section>
+
+          <section className="rounded-xl border border-[var(--border)] bg-white p-3">
+            <h2 className="mb-2 text-xs font-semibold tracking-wide uppercase text-[var(--muted)]">
+              Assignee
+            </h2>
+            <p className="mb-2 text-sm">
+              {selected.assignedToName || "Unassigned"}
+            </p>
+            <div className="flex flex-col gap-1.5">
               <Button
                 type="button"
                 size="sm"
-                variant="outline"
                 disabled={busy}
                 onClick={() => void takeIt()}
               >
-                Assign me
+                Take it
               </Button>
-            ) : null}
-            {selected.status === "open" ||
-            selected.status === "in_progress" ? (
-              <Button
-                type="button"
-                size="sm"
-                disabled={busy}
-                onClick={() => void setStatus("resolved")}
-              >
-                Resolve
-              </Button>
-            ) : null}
-            {selected.status === "resolved" ? (
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
                 disabled={busy}
-                onClick={() => void setStatus("closed")}
+                onClick={() =>
+                  void assign(
+                    LUWAS_DEVELOPERS_ASSIGNEE.uid,
+                    LUWAS_DEVELOPERS_ASSIGNEE.name,
+                  )
+                }
               >
-                Close
+                <span className="inline-flex items-center gap-2">
+                  <ProfileAvatar
+                    name={LUWAS_DEVELOPERS_ASSIGNEE.name}
+                    seed={LUWAS_DEVELOPERS_ASSIGNEE.uid}
+                    size="sm"
+                  />
+                  {LUWAS_DEVELOPERS_ASSIGNEE.name}
+                </span>
               </Button>
-            ) : null}
-            {selected.status === "resolved" ||
-            selected.status === "closed" ? (
+              {officers.slice(0, 8).map((o) => (
+                <Button
+                  key={o.uid}
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() =>
+                    void assign(o.uid, o.displayName || o.email)
+                  }
+                >
+                  {o.displayName || o.email}
+                </Button>
+              ))}
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
-                disabled={busy}
-                onClick={() => void setStatus("open")}
+                disabled={busy || !selected.assignedToUid}
+                onClick={() => void assign(null, null)}
               >
-                Reopen
+                Clear assignee
               </Button>
-            ) : null}
-          </div>
-        </section>
-
-        <section className="px-4 py-4 sm:px-5">
-          <TicketChat
-            key={selected.id}
-            ticket={selected}
-            busy={busy}
-            onSend={sendMessage}
-          />
-        </section>
+            </div>
+          </section>
+        </aside>
       </div>
     </div>
   );

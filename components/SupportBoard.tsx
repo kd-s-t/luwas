@@ -8,23 +8,24 @@ import {
   useRef,
   useState,
 } from "react";
-import { useCommandWorkspace } from "@/components/CommandWorkspaceProvider";
-import { OfficerWorkloadInfo } from "@/components/OfficerWorkloadInfo";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import {
   isAccountActive,
-  isOfficer,
+  isDeveloper,
   type OfficerProfile,
 } from "@/lib/auth/types";
 import {
   assignSupportTicket,
   LUWAS_DEVELOPERS_ASSIGNEE,
+  subscribeSupportTickets,
   updateSupportTicketStatus,
   type SupportTicket,
   type SupportTicketStatus,
 } from "@/lib/support/api";
+import { collection, onSnapshot } from "firebase/firestore";
+import { getClientDb } from "@/lib/firebase/client";
 import { cn } from "@/lib/utils";
 
 type BoardColumn = {
@@ -74,9 +75,8 @@ function statusLabel(status: SupportTicketStatus): string {
 
 export function SupportBoard() {
   const { profile } = useAuth();
-  const { supportTickets, activeOfficers } = useCommandWorkspace();
-  const [rows, setRows] = useState<SupportTicket[]>(supportTickets);
-  const officers = activeOfficers;
+  const [rows, setRows] = useState<SupportTicket[]>([]);
+  const [officers, setOfficers] = useState<OfficerProfile[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<SupportTicketStatus | null>(
@@ -161,8 +161,48 @@ export function SupportBoard() {
   }, [assignMenuId]);
 
   useEffect(() => {
-    setRows(supportTickets);
-  }, [supportTickets]);
+    if (!isDeveloper(profile) || !isAccountActive(profile)) {
+      setRows([]);
+      return;
+    }
+    return subscribeSupportTickets(setRows);
+  }, [profile]);
+
+  useEffect(() => {
+    if (!isDeveloper(profile) || !isAccountActive(profile)) {
+      setOfficers([]);
+      return;
+    }
+    return onSnapshot(collection(getClientDb(), "users"), (snap) => {
+      const next: OfficerProfile[] = [];
+      for (const d of snap.docs) {
+        const data = d.data();
+        if (data.role !== "officer") continue;
+        const status = data.accountStatus as string | undefined;
+        if (status === "fired" || status === "rejected" || status === "pending") {
+          continue;
+        }
+        next.push({
+          uid: String(data.uid ?? d.id),
+          email: String(data.email ?? ""),
+          displayName: String(data.displayName ?? ""),
+          orgName: String(data.orgName ?? ""),
+          role: "officer",
+          createdAt: String(data.createdAt ?? ""),
+          accountStatus: "active",
+          officerTitle:
+            data.officerTitle != null ? String(data.officerTitle) : null,
+          barangay: data.barangay != null ? String(data.barangay) : null,
+          lgu: data.lgu != null ? String(data.lgu) : null,
+          areaId: data.areaId != null ? String(data.areaId) : null,
+        });
+      }
+      next.sort((a, b) =>
+        (a.displayName || a.email).localeCompare(b.displayName || b.email),
+      );
+      setOfficers(next);
+    });
+  }, [profile]);
 
   const openCount = useMemo(
     () =>
@@ -174,12 +214,22 @@ export function SupportBoard() {
   const officerByUid = useMemo(() => {
     const map = new Map<string, OfficerProfile>();
     for (const o of officers) map.set(o.uid, o);
-    if (isOfficer(profile)) map.set(profile.uid, profile);
+    if (isDeveloper(profile)) {
+      map.set(profile.uid, {
+        uid: profile.uid,
+        email: profile.email,
+        displayName: profile.displayName,
+        orgName: profile.orgName || "LUWAS Developers",
+        role: "officer",
+        createdAt: profile.createdAt,
+        accountStatus: "active",
+      });
+    }
     return map;
   }, [officers, profile]);
 
   async function moveTicket(ticketId: string, status: SupportTicketStatus) {
-    if (!isOfficer(profile)) return;
+    if (!isDeveloper(profile)) return;
     const ticket = rows.find((t) => t.id === ticketId);
     if (!ticket || ticket.status === status) return;
 
@@ -212,7 +262,7 @@ export function SupportBoard() {
     assigneeUid: string | null,
     assigneeName: string | null,
   ) {
-    if (!isOfficer(profile)) return;
+    if (!isDeveloper(profile)) return;
     setBusyId(ticket.id);
     setError(null);
     const promote =
@@ -247,10 +297,10 @@ export function SupportBoard() {
     }
   }
 
-  if (!isOfficer(profile) || !isAccountActive(profile)) {
+  if (!isDeveloper(profile) || !isAccountActive(profile)) {
     return (
       <p className="p-6 text-sm text-[var(--muted)]">
-        Only active officers can triage support tickets.
+        Only developers can triage support tickets.
       </p>
     );
   }
@@ -263,10 +313,10 @@ export function SupportBoard() {
             Product support
           </p>
           <Link
-            href="/admin/overview"
+            href="/dev"
             className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase transition hover:text-[var(--accent)]"
           >
-            ← Overview
+            ← Developers
           </Link>
         </div>
         <div className="mt-0.5 flex flex-wrap items-end justify-between gap-2">
@@ -275,7 +325,6 @@ export function SupportBoard() {
               <h1 className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-wide sm:text-2xl">
                 Support tickets
               </h1>
-              <OfficerWorkloadInfo />
             </div>
             <p className="text-xs text-[var(--muted)]">
               {openCount} open · drag to change status · assign on the card
@@ -295,7 +344,7 @@ export function SupportBoard() {
             No support tickets yet
           </p>
           <p className="max-w-md text-sm text-[var(--muted)]">
-            Bug reports from /support appear on this board.
+            Tickets from officers, citizens, and guests land here for developers.
           </p>
         </div>
       ) : (
@@ -395,7 +444,7 @@ export function SupportBoard() {
                         >
                           <div className="flex items-start justify-between gap-2">
                             <Link
-                              href={`/admin/support/${encodeURIComponent(t.id)}`}
+                              href={`/dev/support/${encodeURIComponent(t.id)}`}
                               className="line-clamp-2 min-w-0 flex-1 text-sm font-medium leading-snug hover:text-[var(--accent)] hover:underline"
                               onClick={(e) => {
                                 if (draggedRef.current) e.preventDefault();
@@ -576,7 +625,7 @@ export function SupportBoard() {
                                     const match = (label: string) =>
                                       !q || label.toLowerCase().includes(q);
                                     const showMe =
-                                      isOfficer(profile) &&
+                                      isDeveloper(profile) &&
                                       match(
                                         `me ${profile.displayName || ""} ${profile.email || ""}`,
                                       );
@@ -590,7 +639,7 @@ export function SupportBoard() {
                                     const none = !showMe && filtered.length === 0;
                                     return (
                                       <>
-                                        {showMe && isOfficer(profile) ? (
+                                        {showMe && isDeveloper(profile) ? (
                                           <button
                                             type="button"
                                             role="option"

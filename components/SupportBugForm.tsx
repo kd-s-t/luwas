@@ -110,12 +110,12 @@ export function SupportBugForm() {
       ) : null}
       {done ? (
         <p className="text-sm text-[var(--accent)]" role="status">
-          Thanks. Your bug report was sent.
+          Thanks. Sent to LUWAS developers. They will follow up if needed.
         </p>
       ) : null}
 
       <Button type="submit" disabled={busy || !summary.trim()}>
-        {busy ? "Sending…" : "Send bug report"}
+        {busy ? "Sending…" : "Send to developers"}
       </Button>
     </form>
   );

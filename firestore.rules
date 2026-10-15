@@ -29,10 +29,25 @@ service cloud.firestore {
         && userDoc().role == "citizen";
     }
 
+    function isDeveloper() {
+      return userExists()
+        && ("role" in userDoc())
+        && userDoc().role == "developer";
+    }
+
     // Legacy demos may omit accountStatus (or set null) — treat as active.
     // Never use == null / != null in rules; that throws "Null value error".
     function isActiveOfficer() {
       return isOfficer()
+        && (
+          !("accountStatus" in userDoc())
+          || !(userDoc().accountStatus is string)
+          || userDoc().accountStatus == "active"
+        );
+    }
+
+    function isActiveDeveloper() {
+      return isDeveloper()
         && (
           !("accountStatus" in userDoc())
           || !(userDoc().accountStatus is string)
@@ -56,6 +71,7 @@ service cloud.firestore {
       allow read: if signedIn() && (
         request.auth.uid == userId
         || isOfficer()
+        || isDeveloper()
       );
       // Keep create/update lean — nested hasOnly chains hit the 1000-expression cap.
       allow create: if signedIn()
@@ -64,12 +80,14 @@ service cloud.firestore {
         && (
           request.auth.uid == userId
           || isActiveOfficer()
+          || isActiveDeveloper()
         );
       allow update: if signedIn()
         && request.resource.data.role == resource.data.role
         && (
           request.auth.uid == userId
           || isActiveOfficer()
+          || isActiveDeveloper()
         );
       // Officers may delete orphan citizen profiles (email twins from seed drift).
       // Never delete your own doc or another officer via this path.
@@ -80,8 +98,8 @@ service cloud.firestore {
 
     // Onboarded barangay ops areas (hall pin, org, checklist).
     match /barangays/{barangayId} {
-      allow read: if isOfficer();
-      allow create, update: if isOfficer()
+      allow read: if isOfficer() || isDeveloper();
+      allow create, update: if (isOfficer() || isActiveDeveloper())
         && request.resource.data.barangay is string
         && request.resource.data.barangay.size() > 0
         && request.resource.data.lgu is string
@@ -89,7 +107,7 @@ service cloud.firestore {
         && request.resource.data.center is map
         && request.resource.data.center.lat is number
         && request.resource.data.center.lng is number;
-      allow delete: if isOfficer();
+      allow delete: if isOfficer() || isActiveDeveloper();
     }
 
     match /households/{householdId} {
@@ -283,9 +301,10 @@ service cloud.firestore {
       }
     }
 
-    // Website bug reports — guests + signed-in; officers can read.
+    // Website bug reports — guests + signed-in; developers triage.
     match /supportTickets/{ticketId} {
-      allow read: if isOfficer();
+      allow read: if isDeveloper();
+      // Anyone (guest or signed-in) may create; tickets go to developers.
       allow create: if (
           request.resource.data.kind == "bug"
           && request.resource.data.summary is string
@@ -301,9 +320,14 @@ service cloud.firestore {
             request.resource.data.uid == "guest"
             || (signedIn() && request.resource.data.uid == request.auth.uid)
           )
+          && (
+            !("assignedToUid" in request.resource.data)
+            || request.resource.data.assignedToUid == null
+            || request.resource.data.assignedToUid == "luwas-developers"
+          )
         )
-        // Demo seed rows (Command → Support sample inbox).
-        || (isActiveOfficer()
+        // Demo seed rows (Developer → Support sample inbox).
+        || (isActiveDeveloper()
           && ticketId.matches('sup-sample-[0-9]{3}')
           && request.resource.data.kind == "bug"
           && request.resource.data.summary is string
@@ -312,8 +336,8 @@ service cloud.firestore {
           && request.resource.data.details is string
           && request.resource.data.details.size() <= 4000
           && request.resource.data.status in ["open", "in_progress", "resolved", "closed"]);
-      // Officers triage tickets (status / assignee / resolution).
-      allow update: if isActiveOfficer()
+      // Developers triage tickets (status / assignee / resolution).
+      allow update: if isActiveDeveloper()
         && request.resource.data.uid == resource.data.uid
         && request.resource.data.kind == resource.data.kind
         && request.resource.data.summary == resource.data.summary

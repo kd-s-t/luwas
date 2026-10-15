@@ -165,11 +165,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const nextProfile = snap.data() as UserProfile;
             setProfile(nextProfile);
             setLoading(false);
-            if (nextProfile.role === "officer") {
+            if (
+              nextProfile.role === "officer" ||
+              nextProfile.role === "developer"
+            ) {
               void hydrateOnboardedBarangays().then(() => {
-                const active = nextProfile.activeBarangayId;
-                if (active && !getPreferredAreaId()) {
-                  setPreferredAreaId(active);
+                if (nextProfile.role === "officer") {
+                  const active = nextProfile.activeBarangayId;
+                  if (active && !getPreferredAreaId()) {
+                    setPreferredAreaId(active);
+                  }
                 }
               });
             }
@@ -434,7 +439,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       await setDoc(doc(getClientDb(), "users", u.uid), payload, { merge: true });
       setProfile((prev) => {
-        if (!prev || prev.role !== "officer") return prev;
+        if (!prev || (prev.role !== "officer" && prev.role !== "developer")) {
+          return prev;
+        }
+        if (prev.role === "developer") {
+          return {
+            ...prev,
+            areaId,
+            ...(option
+              ? { barangay: option.barangay, lgu: option.lgu }
+              : {}),
+            ...(orgName?.trim()
+              ? { orgName: orgName.trim() }
+              : option
+                ? { orgName: `Brgy. ${option.barangay} · ${option.lgu}` }
+                : {}),
+          };
+        }
         return {
           ...prev,
           activeBarangayId: areaId,
