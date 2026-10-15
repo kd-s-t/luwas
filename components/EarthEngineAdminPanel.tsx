@@ -142,7 +142,7 @@ export function EarthEngineAdminPanel() {
           </Badge>
           {busy ? <Badge variant="warn">Running</Badge> : null}
           <span className="font-mono text-[11px] text-[var(--muted)]">
-            Project · {data?.projectId || "—"}
+            Project · {data?.projectId || "-"}
           </span>
         </div>
         {data?.error ? (
@@ -302,11 +302,11 @@ export function EarthEngineAdminPanel() {
                     ) : null}
                   </td>
                   <td className="px-3 py-3 text-[var(--muted)]">
-                    {run.triggeredBy || "—"}
+                    {run.triggeredBy || "-"}
                   </td>
                   <td className="px-3 py-3">
                     {run.files.length === 0 ? (
-                      <span className="text-xs text-[var(--muted)]">—</span>
+                      <span className="text-xs text-[var(--muted)]">-</span>
                     ) : (
                       <ul className="space-y-1">
                         {run.files.map((f) => (
