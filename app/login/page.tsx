@@ -53,7 +53,7 @@ export default function LoginChoosePage() {
               Developer
             </span>
             <span className="mt-1 block text-sm text-[var(--muted)]">
-              All users, work status, operational barangays, onboard
+              Ken, Don, Jean, Pat · About us team console
             </span>
           </Link>
         </div>

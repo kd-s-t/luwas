@@ -91,13 +91,11 @@ ORDER BY COALESCE(validated_at, synced_at, created_at) DESC
     const latestPath = `${prefix}/latest/labels.csv`;
 
     await gcsPutObject({
-      bucket,
       objectPath: datedPath,
       bytes,
       contentType: "text/csv; charset=utf-8",
     });
     await gcsPutObject({
-      bucket,
       objectPath: latestPath,
       bytes,
       contentType: "text/csv; charset=utf-8",

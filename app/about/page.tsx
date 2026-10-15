@@ -4,41 +4,9 @@ import {
   PublicPageHeader,
   PublicShell,
 } from "@/components/PublicShell";
+import { LUWAS_DEVELOPERS } from "@/lib/auth/luwasDevelopers";
 
-const TEAM = [
-  {
-    slug: "ken-dan-tinio",
-    name: "Ken Dan Tinio",
-    short: "Ken",
-    role: "Fullstack Engineer",
-    focus: "Product and platform",
-    bio: "Owns the LUWAS web stack end to end: Next.js command center and citizen flows, Firebase auth and Firestore, Cloud Run / Hosting deploy, AI triage and validation wiring (Gemini + Vertex), alerts (SMS, email, voice), and the APIs that keep field reports moving from guest ingest to officer queue.",
-  },
-  {
-    slug: "don-sebial",
-    name: "Don Sebial",
-    short: "Don",
-    role: "Product Designer",
-    focus: "UI/UX and Graphic Design",
-    bio: "Shapes how LUWAS looks and feels: brand direction, map and command layout, citizen report UX, motion, and graphic assets so officers and residents can read urgency at a glance without clutter.",
-  },
-  {
-    slug: "jeanilou-labajo",
-    name: "Jeanilou Labajo",
-    short: "Jean",
-    role: "System Analyst",
-    focus: "Quality and field checks",
-    bio: "Runs quality passes across citizen and officer paths: registration and login, guest and signed-in reporting, triage and map layers, and regression checks before a release so demo and ops scenarios stay trustworthy.",
-  },
-  {
-    slug: "patricia-abrenica",
-    name: "Patricia Abrenica",
-    short: "Pat",
-    role: "Application Support Analyst",
-    focus: "Support and acceptance",
-    bio: "An Accenture Custom Software Engineer designs, codes, tests, and enhances custom software solutions and applications using modern frameworks and agile methodologies.",
-  },
-] as const;
+const TEAM = LUWAS_DEVELOPERS;
 
 const PILLARS = [
   {
