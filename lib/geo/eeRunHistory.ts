@@ -70,7 +70,7 @@ function eeIndexObjectPath(): string {
   return `${EE_PREFIX}/runs/index.json`;
 }
 
-function useLocalDiskOnly(): boolean {
+function preferLocalDiskOnly(): boolean {
   return process.env.NEXT_PUBLIC_USE_EMULATORS === "true";
 }
 
@@ -116,7 +116,7 @@ function writeLocalFile(absPath: string, body: string) {
 
 /** Newest first. Prefers Firebase Storage index. */
 export async function listEeRuns(): Promise<EeRunMeta[]> {
-  if (!useLocalDiskOnly()) {
+  if (!preferLocalDiskOnly()) {
     try {
       const remote = await gcsGetJson<EeRunMeta[]>(eeIndexObjectPath());
       if (Array.isArray(remote) && remote.length > 0) {
@@ -163,7 +163,7 @@ export async function listEeRuns(): Promise<EeRunMeta[]> {
 export async function getEeRun(runId: string): Promise<EeRunMeta | null> {
   if (!runId || runId.includes("..") || runId.includes("/")) return null;
 
-  if (!useLocalDiskOnly()) {
+  if (!preferLocalDiskOnly()) {
     try {
       const remote = await gcsGetJson<EeRunMeta>(
         eeRunObjectPath(runId, "meta.json"),
@@ -188,7 +188,7 @@ export async function getEeRun(runId: string): Promise<EeRunMeta | null> {
 
 async function persistIndex(rows: EeRunMeta[]) {
   writeLocalIndex(rows);
-  if (useLocalDiskOnly()) return;
+  if (preferLocalDiskOnly()) return;
   try {
     await gcsPutJson(eeIndexObjectPath(), rows);
   } catch (err) {
@@ -219,7 +219,7 @@ export async function createEeRunStub(input: {
   };
   const body = `${JSON.stringify(meta, null, 2)}\n`;
   writeLocalFile(join(dir, "meta.json"), body);
-  if (!useLocalDiskOnly()) {
+  if (!preferLocalDiskOnly()) {
     try {
       await gcsPutJson(eeRunObjectPath(id, "meta.json"), meta);
     } catch (err) {
@@ -258,7 +258,7 @@ export async function finalizeEeRun(
   };
   const body = `${JSON.stringify(next, null, 2)}\n`;
   writeLocalFile(join(eeRunDir(runId), "meta.json"), body);
-  if (!useLocalDiskOnly()) {
+  if (!preferLocalDiskOnly()) {
     try {
       await gcsPutJson(eeRunObjectPath(runId, "meta.json"), next);
     } catch (err) {
@@ -281,7 +281,7 @@ export async function writeEeRunFile(
   const body = `${JSON.stringify(json, null, 2)}\n`;
   const bytes = Buffer.byteLength(body, "utf8");
   writeLocalFile(join(eeRunDir(runId), fileName), body);
-  if (!useLocalDiskOnly()) {
+  if (!preferLocalDiskOnly()) {
     try {
       await gcsPutJson(eeRunObjectPath(runId, fileName), json);
     } catch (err) {
@@ -298,7 +298,7 @@ export async function readEeRunFile(
   if (!runId || runId.includes("..") || runId.includes("/")) return null;
   if (!isAllowedEeFileName(fileName) || fileName === "meta.json") return null;
 
-  if (!useLocalDiskOnly()) {
+  if (!preferLocalDiskOnly()) {
     try {
       const remote = await gcsGetObject(eeRunObjectPath(runId, fileName));
       if (remote) {
@@ -341,7 +341,7 @@ export async function listActiveEeCacheFiles(): Promise<
 
   for (const name of ACTIVE_NAMES) {
     const storagePath = eeActiveObjectPath(name);
-    if (!useLocalDiskOnly()) {
+    if (!preferLocalDiskOnly()) {
       try {
         const meta = await gcsObjectMeta(storagePath);
         if (meta && meta.size > 0) {
@@ -380,7 +380,7 @@ export async function readActiveEeCacheFile(
 ): Promise<{ body: Buffer; contentType: string } | null> {
   if (!isAllowedEeFileName(fileName) || fileName === "meta.json") return null;
 
-  if (!useLocalDiskOnly()) {
+  if (!preferLocalDiskOnly()) {
     try {
       const remote = await gcsGetObject(eeActiveObjectPath(fileName));
       if (remote) {
@@ -412,6 +412,6 @@ export async function writeActiveEeCacheFile(
   }
   const body = `${JSON.stringify(json, null, 2)}\n`;
   writeLocalFile(join(eeDataRoot(), fileName), body);
-  if (useLocalDiskOnly()) return;
+  if (preferLocalDiskOnly()) return;
   await gcsPutJson(eeActiveObjectPath(fileName), json);
 }
