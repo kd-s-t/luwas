@@ -19,7 +19,8 @@
     "ee:hazards": "npx --yes tsx scripts/ee-cebu-hazards.ts",
     "bq:vertex-ingest": "npx --yes tsx scripts/vertex-ingest-export.ts",
     "bq:vertex-ingest:schedule": "bash scripts/setup-vertex-ingest-schedule.sh",
-    "rules:reload": "bash scripts/reload-firestore-rules.sh"
+    "rules:reload": "bash scripts/reload-firestore-rules.sh",
+    "seed:apas-officers": "node scripts/seed-apas-officers-prod.mjs"
   },
   "dependencies": {
     "@elevenlabs/elevenlabs-js": "^2.71.0",

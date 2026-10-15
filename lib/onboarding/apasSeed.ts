@@ -268,6 +268,7 @@ export async function ensureApasOpsSeed(
   households: number;
   staff: number;
   reports: number;
+  officers: number;
   hall: typeof APAS_HALL;
   areaId: typeof APAS_AREA_ID;
 }> {
@@ -276,10 +277,16 @@ export async function ensureApasOpsSeed(
     ensureApasStaff(),
     opts?.includeSampleReports ? ensureApasReports() : Promise.resolve(0),
   ]);
+  const { ensureApasOfficers } = await import("@/lib/auth/ensureApasOfficers");
+  const officerSeed = await ensureApasOfficers(officerUid, APAS_ORG_NAME);
+  if (officerSeed.errors.length > 0) {
+    console.warn("[apasSeed] officer auth partial", officerSeed.errors.slice(0, 3));
+  }
   return {
     households,
     staff,
     reports,
+    officers: officerSeed.officers,
     hall: APAS_HALL,
     areaId: APAS_AREA_ID,
   };
