@@ -52,8 +52,11 @@ import {
   createHazardReport,
   markReportValidating,
   newGuestReportId,
+  startIncidentDraft,
+  updateIncidentDraft,
   updateReportValidation,
 } from "@/lib/reports/api";
+import type { HazardReport } from "@/lib/reports/types";
 import { triggerAutoResponderCall } from "@/lib/alerts/autoResponderCall";
 import {
   DEFAULT_REPORT_BARANGAY,
@@ -99,6 +102,8 @@ type ReportFor = "myself" | "someoneElse";
 type CitizenReportFormProps = {
   /** Null/undefined = guest (no login), same as iOS. */
   author?: UserProfile | null;
+  /** Open draft from `/report-incident/[id]` — resumes the wizard. */
+  draft?: HazardReport | null;
 };
 
 type PhotoItem = { id: string; file: File; preview: string };
@@ -202,25 +207,59 @@ function SolidAction({
   );
 }
 
-export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
+export function CitizenReportForm({
+  author = null,
+  draft = null,
+}: CitizenReportFormProps) {
   const router = useRouter();
   const { logout } = useAuth();
   const motionSafe = useMotionSafe();
   const isGuest = !author;
   const [language, setLanguage] = useState<CitizenLang>("en");
-  const [step, setStep] = useState<Step>("intent");
-  const [intent, setIntent] = useState<Intent>("needHelp");
-  const [reportFor, setReportFor] = useState<ReportFor>("myself");
-  const [situation, setSituation] = useState("");
+  const [draftId, setDraftId] = useState<string | null>(draft?.id ?? null);
+  const [starting, setStarting] = useState(false);
+  const [step, setStep] = useState<Step>(() => {
+    if (!draft || draft.status !== "draft") return "intent";
+    return draft.draftStep ?? "situation";
+  });
+  const [intent, setIntent] = useState<Intent>(
+    () => draft?.draftIntent ?? "needHelp",
+  );
+  const [reportFor, setReportFor] = useState<ReportFor>(
+    () => draft?.draftReportFor ?? "myself",
+  );
+  const [situation, setSituation] = useState(() => {
+    if (!draft?.notes) return "";
+    return draft.notes
+      .split("\n")
+      .filter(
+        (line) =>
+          !line.startsWith("Intent:") &&
+          !line.startsWith("Report for:") &&
+          !line.startsWith("Status:") &&
+          !line.startsWith("Landmark:") &&
+          !line.startsWith("Voice:") &&
+          !line.startsWith("Transcript:") &&
+          line !== "Approximate location",
+      )
+      .join("\n")
+      .trim();
+  });
   const [voiceNoteLabel, setVoiceNoteLabel] = useState<string | null>(null);
   const [voiceFile, setVoiceFile] = useState<File | null>(null);
   const [voicePreviewUrl, setVoicePreviewUrl] = useState<string | null>(null);
   const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
   const [voiceTranscribing, setVoiceTranscribing] = useState(false);
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
-  const [placeQuery, setPlaceQuery] = useState("Brgy. Nangka, Consolacion");
-  const [lat, setLat] = useState<number>(NANGKA_HALL.lat);
-  const [lng, setLng] = useState<number>(NANGKA_HALL.lng);
+  const [placeQuery, setPlaceQuery] = useState(
+    () => draft?.locationLabel?.trim() || "Brgy. Nangka, Consolacion",
+  );
+  const [lat, setLat] = useState<number>(
+    () => draft?.lat ?? NANGKA_HALL.lat,
+  );
+  const [lng, setLng] = useState<number>(
+    () => draft?.lng ?? NANGKA_HALL.lng,
+  );
   const [mapZoom, setMapZoom] = useState(15);
   const [landmark, setLandmark] = useState("");
   const [approximate, setApproximate] = useState(true);
@@ -396,6 +435,49 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
     void captureGps();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- auto GPS once per location step visit
   }, [step]);
+
+  useEffect(() => {
+    if (!draftId) return;
+    if (step === "intent") return;
+    void updateIncidentDraft(draftId, {
+      draftStep: step,
+      draftIntent: intent,
+      draftReportFor: reportFor,
+      notes: buildReportNotes(voiceTranscript),
+      title: titleFromSituation(situation, intent, reportFor),
+      hazardHint: inferHazard(situation),
+      lat,
+      lng,
+      locationLabel: placeQuery.trim() || null,
+      reporterPhone: mobileNumber.trim() || null,
+    }).catch(() => {
+      // non-blocking — local wizard still works
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- persist when the wizard step changes
+  }, [draftId, step]);
+
+  async function beginReport(nextIntent: Intent) {
+    if (starting) return;
+    setStarting(true);
+    setError(null);
+    setIntent(nextIntent);
+    try {
+      const id = await startIncidentDraft({
+        author,
+        intent: nextIntent,
+        reportFor,
+      });
+      setDraftId(id);
+      saveGuestReportId(id);
+      setSavedGuestId(id);
+      router.push(`/report-incident/${encodeURIComponent(id)}`);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : t(language, "errors.submitFailed"),
+      );
+      setStarting(false);
+    }
+  }
 
   function clearSavedVoice() {
     setVoiceNoteLabel(null);
@@ -704,7 +786,7 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
 
   async function submitGuestReport(file: File) {
     setStatus(t(language, "common.saving"));
-    const reportId = newGuestReportId();
+    const reportId = draftId ?? newGuestReportId();
     const hazardHint = inferHazard(situation);
     const title = titleFromSituation(situation, intent, reportFor);
     const mediaType = file.type.startsWith("video/") ? "video" : "photo";
@@ -882,7 +964,7 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
         return;
       }
 
-      const reportId = crypto.randomUUID();
+      const reportId = draftId ?? crypto.randomUUID();
       const mediaType = file.type.startsWith("video/") ? "video" : "photo";
       const hazardHint = inferHazard(situation);
       const title = titleFromSituation(situation, intent, reportFor);
@@ -1088,8 +1170,10 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
       onBack={() => {
         setError(null);
         if (recording) stopVoiceCapture(false);
-        if (step === "situation") setStep("intent");
-        else if (step === "location") setStep("situation");
+        if (step === "situation") {
+          if (draftId) router.push("/report-incident");
+          else setStep("intent");
+        } else if (step === "location") setStep("situation");
         else if (step === "review") setStep("location");
       }}
     />
@@ -1149,6 +1233,11 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
 
         <FadeItem>
           <div className="space-y-3">
+            {starting ? (
+              <p className="text-center text-sm text-[var(--muted)]">
+                {t(language, "common.saving")}
+              </p>
+            ) : null}
             <div className="space-y-2">
               <p className="text-sm font-semibold text-[var(--foreground)]">
                 {t(language, "home.reportFor")}
@@ -1189,21 +1278,15 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
                   aria-hidden
                 />
               }
-              onClick={() => {
-                setIntent("needHelp");
-                setStep("situation");
-                setError(null);
-              }}
+              disabled={starting}
+              onClick={() => void beginReport("needHelp")}
             />
             <SolidAction
               title={t(language, "home.reportHazard")}
               style="outline"
               icon={<Activity className="size-[18px]" aria-hidden />}
-              onClick={() => {
-                setIntent("reportHazard");
-                setStep("situation");
-                setError(null);
-              }}
+              disabled={starting}
+              onClick={() => void beginReport("reportHazard")}
             />
             <SolidAction
               title={t(language, "home.checkReport")}
@@ -1282,6 +1365,11 @@ export function CitizenReportForm({ author = null }: CitizenReportFormProps) {
             title={t(language, "step.situation")}
             language={language}
           />
+          {draftId ? (
+            <p className="font-mono text-[11px] text-[var(--muted)]">
+              {draftId}
+            </p>
+          ) : null}
 
           <div className="flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3.5 py-3.5">
             <div>

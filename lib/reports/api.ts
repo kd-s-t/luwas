@@ -25,11 +25,14 @@ import {
 } from "@/lib/reports/trustScore";
 import type {
   HazardReport,
+  ReportDraftStep,
   ReportHazardHint,
   ReportMediaSource,
   ReportMediaType,
   ReportStatus,
 } from "@/lib/reports/types";
+import type { UserProfile } from "@/lib/auth/types";
+import { isCitizen, isOfficer } from "@/lib/auth/types";
 
 const COL = "reports";
 
@@ -176,9 +179,153 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
       concern: Number(counts?.concern ?? 0),
     },
     commentCount: Number(data.commentCount ?? 0),
+    draftStep:
+      data.draftStep === "situation" ||
+      data.draftStep === "location" ||
+      data.draftStep === "review"
+        ? data.draftStep
+        : null,
+    draftIntent:
+      data.draftIntent === "needHelp" || data.draftIntent === "reportHazard"
+        ? data.draftIntent
+        : null,
+    draftReportFor:
+      data.draftReportFor === "myself" ||
+      data.draftReportFor === "someoneElse"
+        ? data.draftReportFor
+        : null,
     createdAt: String(data.createdAt ?? new Date().toISOString()),
     updatedAt: String(data.updatedAt ?? new Date().toISOString()),
   };
+}
+
+const DRAFT_PLACEHOLDER_MEDIA = "/reports/flood-road-chapel.png";
+
+/** Start a draft incident on step 1 — returns LUW-* (guest) or uuid (signed-in). */
+export async function startIncidentDraft(input: {
+  author: UserProfile | null;
+  intent: "needHelp" | "reportHazard";
+  reportFor: "myself" | "someoneElse";
+}): Promise<string> {
+  const now = new Date().toISOString();
+  const isGuest = !input.author;
+  const id = isGuest ? newGuestReportId() : crypto.randomUUID();
+  const title =
+    input.intent === "needHelp"
+      ? input.reportFor === "someoneElse"
+        ? "Someone else needs help"
+        : "I need help"
+      : input.reportFor === "someoneElse"
+        ? "Hazard report for someone else"
+        : "Hazard report";
+  const notes = [
+    input.intent === "needHelp"
+      ? "Intent: I need help"
+      : "Intent: Report a hazard",
+    input.reportFor === "someoneElse"
+      ? "Report for: someone else"
+      : "Report for: myself",
+    "Status: draft",
+  ].join("\n");
+
+  const citizenUid = isGuest
+    ? "web-guest"
+    : input.author!.uid;
+  const citizenName = isGuest
+    ? "Guest"
+    : input.author!.displayName || "Citizen";
+  const citizenPurok = isGuest
+    ? "Demo · no login"
+    : isCitizen(input.author!)
+      ? input.author!.purok
+      : isOfficer(input.author!)
+        ? input.author!.orgName
+        : "Field";
+
+  await setDoc(doc(getClientDb(), COL, id), {
+    citizenUid,
+    citizenName,
+    citizenPurok,
+    barangay: DEFAULT_REPORT_BARANGAY,
+    lgu: DEFAULT_REPORT_LGU,
+    citizenPhotoURL: input.author?.photoURL ?? null,
+    title,
+    notes,
+    hazardHint: "other",
+    mediaType: "photo",
+    mediaPath: DRAFT_PLACEHOLDER_MEDIA,
+    mediaUrl: DRAFT_PLACEHOLDER_MEDIA,
+    mediaMime: "image/png",
+    mediaSource: null,
+    voiceNoteLabel: null,
+    voicePath: null,
+    voiceUrl: null,
+    voiceMime: null,
+    voiceTranscript: null,
+    lat: null,
+    lng: null,
+    locationAccuracyM: null,
+    locationLabel: null,
+    device: "web-luwas-citizen",
+    ipAddress: null,
+    reporterIdVerified: Boolean(input.author && isCitizen(input.author) && input.author.idVerified),
+    reporterEmail: input.author?.email ?? null,
+    reporterPhone:
+      input.author && isCitizen(input.author) ? input.author.phone : null,
+    reporterEmailVerified: false,
+    trustScore: null,
+    trustBreakdown: null,
+    status: "draft" satisfies ReportStatus,
+    aiVerdict: null,
+    aiConfidence: null,
+    aiReason: null,
+    aiSource: null,
+    aiModel: null,
+    vertexClass: null,
+    vertexConfidence: null,
+    validatedAt: null,
+    investigatorUid: null,
+    investigatorName: null,
+    investigatedAt: null,
+    autoResponderCallAt: null,
+    dispatchLog: null,
+    reactionCounts: { ...EMPTY_REACTION_COUNTS },
+    commentCount: 0,
+    draftStep: "situation" satisfies ReportDraftStep,
+    draftIntent: input.intent,
+    draftReportFor: input.reportFor,
+    source: isGuest ? "web" : "web-auth",
+    iosReference: id,
+    createdAt: now,
+    updatedAt: now,
+    createdAtServer: serverTimestamp(),
+    updatedAtServer: serverTimestamp(),
+  });
+  return id;
+}
+
+/** Persist wizard progress on an open draft. */
+export async function updateIncidentDraft(
+  reportId: string,
+  patch: {
+    draftStep?: ReportDraftStep;
+    draftIntent?: "needHelp" | "reportHazard";
+    draftReportFor?: "myself" | "someoneElse";
+    title?: string;
+    notes?: string;
+    hazardHint?: ReportHazardHint;
+    lat?: number | null;
+    lng?: number | null;
+    locationAccuracyM?: number | null;
+    locationLabel?: string | null;
+    reporterPhone?: string | null;
+  },
+): Promise<void> {
+  await updateDoc(doc(getClientDb(), COL, reportId), {
+    ...patch,
+    updatedAt: new Date().toISOString(),
+    updatedAtServer: serverTimestamp(),
+  });
 }
 
 /** Public track / detail — any report id (guest LUW-* or signed-in). */
@@ -295,6 +442,9 @@ export async function createGuestHazardReport(input: {
     dispatchLog: null,
     reactionCounts: { ...EMPTY_REACTION_COUNTS },
     commentCount: 0,
+    draftStep: null,
+    draftIntent: null,
+    draftReportFor: null,
     source: "web",
     iosReference: id,
     createdAt: now,
@@ -391,6 +541,9 @@ export async function createHazardReport(input: {
     dispatchLog: null,
     reactionCounts: { ...EMPTY_REACTION_COUNTS },
     commentCount: 0,
+    draftStep: null,
+    draftIntent: null,
+    draftReportFor: null,
     createdAt: now,
     updatedAt: now,
     createdAtServer: serverTimestamp(),

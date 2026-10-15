@@ -184,7 +184,7 @@ service cloud.firestore {
         (
           (isCitizen() || isOfficer())
           && request.resource.data.citizenUid == request.auth.uid
-          && request.resource.data.status == "queued"
+          && request.resource.data.status in ["draft", "queued"]
           && request.resource.data.title is string
           && request.resource.data.title.size() > 0
           && request.resource.data.mediaUrl is string
@@ -205,7 +205,7 @@ service cloud.firestore {
           reportId.matches('LUW-[0-9]{6}-[0-9]{4}')
           && request.resource.data.citizenUid in ["ios-guest", "web-guest"]
           && request.resource.data.source in ["ios", "web"]
-          && request.resource.data.status in ["queued", "needs_review", "rejected"]
+          && request.resource.data.status in ["draft", "queued", "needs_review", "rejected"]
           && request.resource.data.title is string
           && request.resource.data.title.size() > 0
           && request.resource.data.mediaUrl is string
@@ -231,7 +231,7 @@ service cloud.firestore {
         && resource.data.citizenUid in ["ios-guest", "web-guest"]
         && request.resource.data.citizenUid == resource.data.citizenUid
         && request.resource.data.source in ["ios", "web"]
-        && request.resource.data.status in ["queued", "needs_review", "rejected"]
+        && request.resource.data.status in ["draft", "queued", "needs_review", "rejected"]
       );
       allow update: if (
         (

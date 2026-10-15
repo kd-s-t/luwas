@@ -46,15 +46,19 @@ export function hazardHintLabel(hint: ReportHazardHint): string {
 
 /**
  * Queue-first statuses for high upload volume.
- * queued → validating → legit | rejected | needs_review | failed
+ * draft → queued → validating → legit | rejected | needs_review | failed
  */
 export type ReportStatus =
+  | "draft"
   | "queued"
   | "validating"
   | "legit"
   | "rejected"
   | "needs_review"
   | "failed";
+
+/** In-progress citizen wizard step persisted on draft reports. */
+export type ReportDraftStep = "situation" | "location" | "review";
 
 /** Audit of responder outreach after a report is verified/legit. */
 export type ReportDispatchLog = {
@@ -131,6 +135,10 @@ export type HazardReport = {
   trustBreakdown: ReportTrustBreakdown | null;
   reactionCounts: ReactionCounts;
   commentCount: number;
+  /** Wizard progress while status is draft (optional on older docs). */
+  draftStep?: ReportDraftStep | null;
+  draftIntent?: "needHelp" | "reportHazard" | null;
+  draftReportFor?: "myself" | "someoneElse" | null;
   createdAt: string;
   updatedAt: string;
 };

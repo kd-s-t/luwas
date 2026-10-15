@@ -146,7 +146,12 @@ export function subscribePublicReports(
     (snap) => {
       const rows = snap.docs
         .map((d) => mapReport(d.id, d.data()))
-        .filter((r) => r.status !== "rejected" && r.status !== "failed");
+        .filter(
+          (r) =>
+            r.status !== "rejected" &&
+            r.status !== "failed" &&
+            r.status !== "draft",
+        );
       onChange(rows);
     },
     (err) => {
