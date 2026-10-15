@@ -156,7 +156,11 @@ export default function LoginPage() {
     const snap = await getDoc(doc(getClientDb(), "users", uid));
     const profile = snap.exists() ? (snap.data() as UserProfile) : null;
     router.replace(
-      profile?.role === "citizen" ? "/my-reports" : "/admin/overview",
+      profile?.role === "citizen"
+        ? "/my-reports"
+        : profile?.role === "developer"
+          ? "/dev"
+          : "/admin/overview",
     );
   }
 
@@ -194,6 +198,13 @@ export default function LoginPage() {
           <>
             <Link href="/login" className="text-[var(--accent)] hover:underline">
               Change role
+            </Link>
+            {" · "}
+            <Link
+              href="/login/developer"
+              className="text-[var(--accent)] hover:underline"
+            >
+              Developer login
             </Link>
             {" · "}
             No officer account?{" "}
