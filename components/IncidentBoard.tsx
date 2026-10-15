@@ -20,11 +20,7 @@ import {
   type OfficerProfile,
 } from "@/lib/auth/types";
 import { assignReportInvestigator } from "@/lib/reports/api";
-import {
-  scopeAnchor,
-  scopeLabel,
-  sortReportsByDistance,
-} from "@/lib/reports/barangayScope";
+import { scopeLabel } from "@/lib/reports/barangayScope";
 import {
   hazardHintLabel,
   type HazardReport,
@@ -159,11 +155,10 @@ export function IncidentBoard() {
 
   const ranked = useMemo(
     () =>
-      sortReportsByDistance(
-        scopedReports,
-        scopeAnchor(reportScope),
-      ).map((x) => x.report),
-    [scopedReports, reportScope],
+      [...scopedReports].sort(
+        (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
+      ),
+    [scopedReports],
   );
 
   const queueCount = ranked.filter((r) => REVIEW_STATUSES.has(r.status)).length;
@@ -295,12 +290,20 @@ export function IncidentBoard() {
                           )}
                         >
                           <div className="flex items-start justify-between gap-2">
-                            <Link
-                              href={`/admin/incidents/${encodeURIComponent(r.id)}`}
-                              className="line-clamp-2 min-w-0 flex-1 text-sm font-medium leading-snug hover:text-[var(--accent)] hover:underline"
-                            >
-                              {r.title}
-                            </Link>
+                            <div className="min-w-0 flex-1">
+                              <p
+                                className="font-mono text-[10px] tracking-wide text-[var(--muted)] tabular-nums"
+                                title={r.id}
+                              >
+                                Ref {r.id}
+                              </p>
+                              <Link
+                                href={`/admin/incidents/${encodeURIComponent(r.id)}`}
+                                className="mt-0.5 line-clamp-2 block text-sm font-medium leading-snug hover:text-[var(--accent)] hover:underline"
+                              >
+                                {r.title}
+                              </Link>
+                            </div>
                             <ReportStatusBadge
                               status={r.status}
                               className="shrink-0"
