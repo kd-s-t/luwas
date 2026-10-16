@@ -6,7 +6,7 @@ import Image from "next/image";
 export function FlowMark({ size = 28 }: { size?: number }) {
   return (
     <Image
-      src="/brands/flow.svg"
+      src="/brands/lucide.svg"
       alt=""
       width={size}
       height={size}

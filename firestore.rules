@@ -208,6 +208,22 @@ service cloud.firestore {
       allow delete: if isOfficer();
     }
 
+    // Evacuation / shelter directory (location, capacity, on-site stock).
+    // Public read so citizens can open shelters for their barangay.
+    match /evacCenters/{centerId} {
+      allow read: if true;
+      allow create, update: if isOfficer()
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.barangayId is string
+        && request.resource.data.barangayId.size() > 0
+        && request.resource.data.lat is number
+        && request.resource.data.lng is number
+        && request.resource.data.maxCapacity is number
+        && request.resource.data.maxCapacity >= 0;
+      allow delete: if isOfficer();
+    }
+
     // Barangay-owned disaster inventory (vehicles, generators, supplies).
     match /barangayInventory/{itemId} {
       allow read: if isOfficer();

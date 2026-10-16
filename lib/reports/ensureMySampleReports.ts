@@ -226,6 +226,19 @@ export async function ensureMySampleReports(input: {
       aiReason: sample.aiReason,
       aiSource: sample.status === "queued" ? null : "local",
       aiModel: sample.status === "queued" ? null : "sample-seed",
+      aiPriority:
+        sample.status === "rejected"
+          ? "low"
+          : sample.status === "queued"
+            ? "medium"
+            : "high",
+      aiPriorityFactors: {
+        immediateSeverity: "Citizen sample seed.",
+        peopleAffected: "Confirm on scene.",
+        existingCoverage: "Check local stock.",
+        deliveryFeasibility: "Confirm access.",
+        evidenceQuality: sample.aiReason,
+      },
       vertexClass: null,
       vertexConfidence: null,
       validatedAt: sample.status === "queued" ? null : now,

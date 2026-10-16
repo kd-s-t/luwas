@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BrandLogo } from "@/components/BrandLogo";
-import { CommandBarangaySwitcher } from "@/components/CommandBarangaySwitcher";
 import { CommandNotifications } from "@/components/CommandNotifications";
 import { FadeIn } from "@/components/motion/primitives";
 import {
@@ -159,7 +158,6 @@ export function CommandHeader() {
 
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
             <CommandNotifications />
-            <CommandBarangaySwitcher />
             <Link
               href="/profile"
               className="hidden text-right transition hover:text-[var(--accent)] lg:block"

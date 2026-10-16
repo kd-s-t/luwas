@@ -15,6 +15,11 @@ import { getClientDb } from "@/lib/firebase/client";
 import { resolveReportPlace } from "@/lib/reports/barangayScope";
 import { mapDispatchLog } from "@/lib/reports/dispatchLog";
 import { resolveReportMediaUrl } from "@/lib/reports/mediaUrl";
+import { mapReportAssignees } from "@/lib/reports/assignees";
+import {
+  parsePriorityFactors,
+  parseReportPriority,
+} from "@/lib/reports/priority";
 import { computeReportTrust } from "@/lib/reports/trustScore";
 import type { HazardReport } from "@/lib/reports/types";
 import {
@@ -137,6 +142,8 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
     aiReason: data.aiReason != null ? String(data.aiReason) : null,
     aiSource: (data.aiSource as HazardReport["aiSource"]) ?? null,
     aiModel: data.aiModel != null ? String(data.aiModel) : null,
+    aiPriority: parseReportPriority(data.aiPriority),
+    aiPriorityFactors: parsePriorityFactors(data.aiPriorityFactors),
     vertexClass: data.vertexClass != null ? String(data.vertexClass) : null,
     vertexConfidence:
       typeof data.vertexConfidence === "number"
@@ -149,6 +156,12 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
       data.investigatorName != null ? String(data.investigatorName) : null,
     investigatedAt:
       data.investigatedAt != null ? String(data.investigatedAt) : null,
+    assignees: mapReportAssignees(
+      data.assignees,
+      data.investigatorUid != null ? String(data.investigatorUid) : null,
+      data.investigatorName != null ? String(data.investigatorName) : null,
+      data.investigatedAt != null ? String(data.investigatedAt) : null,
+    ),
     autoResponderCallAt:
       data.autoResponderCallAt != null
         ? String(data.autoResponderCallAt)

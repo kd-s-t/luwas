@@ -17,19 +17,40 @@ import { useAuth } from "@/lib/auth/AuthProvider";
 import { isOfficer, type OfficerProfile } from "@/lib/auth/types";
 import { triggerInvestigatorNotify } from "@/lib/alerts/notifyInvestigator";
 import {
-  assignReportInvestigator,
+  setReportAssignees,
   updateReportStatus,
 } from "@/lib/reports/api";
+import {
+  assigneeLabel,
+  reportHasAssignee,
+} from "@/lib/reports/assignees";
 import { scopeLabel } from "@/lib/reports/barangayScope";
+import { PRIORITY_RANK } from "@/lib/reports/priority";
 import {
   hazardHintLabel,
+  reportPriorityLabel,
   type HazardReport,
+  type ReportAssignee,
+  type ReportPriority,
   type ReportStatus,
 } from "@/lib/reports/types";
 import { APAS_STAFF_SEED } from "@/lib/staff/apasStaff";
 import { NANGKA_STAFF_SEED } from "@/lib/staff/nangkaStaff";
 import { useScenario } from "@/lib/scenarios";
 import { cn } from "@/lib/utils";
+
+function priorityTone(priority: ReportPriority) {
+  if (priority === "critical") {
+    return "bg-[#c72929]/10 text-[#c72929] ring-[#c72929]/25";
+  }
+  if (priority === "high") {
+    return "bg-[#fff7ed] text-[#c2410c] ring-[#fdba74]/70";
+  }
+  if (priority === "medium") {
+    return "bg-[#eff6ff] text-[#2f5f9e] ring-[#93c5fd]/70";
+  }
+  return "bg-[var(--foreground)]/6 text-[var(--muted)] ring-[var(--border)]";
+}
 
 type BoardColumnId =
   | "queue"
@@ -92,6 +113,24 @@ const COLUMNS: BoardColumn[] = [
 ];
 
 const DRAG_MIME = "application/x-ugnai-report-id";
+
+function hasAssignee(report: HazardReport): boolean {
+  return reportHasAssignee(report);
+}
+
+function assigneesOf(report: HazardReport): ReportAssignee[] {
+  return report.assignees?.length
+    ? report.assignees
+    : report.investigatorUid
+      ? [
+          {
+            uid: report.investigatorUid,
+            name: report.investigatorName || report.investigatorUid,
+            assignedAt: report.investigatedAt || report.updatedAt,
+          },
+        ]
+      : [];
+}
 
 export function IncidentBoard() {
   const { profile } = useAuth();
@@ -211,9 +250,12 @@ export function IncidentBoard() {
 
   const ranked = useMemo(
     () =>
-      [...scopedReports].sort(
-        (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
-      ),
+      [...scopedReports].sort((a, b) => {
+        const pa = a.aiPriority ? PRIORITY_RANK[a.aiPriority] : 9;
+        const pb = b.aiPriority ? PRIORITY_RANK[b.aiPriority] : 9;
+        if (pa !== pb) return pa - pb;
+        return Date.parse(b.createdAt) - Date.parse(a.createdAt);
+      }),
     [scopedReports],
   );
 
@@ -225,39 +267,40 @@ export function IncidentBoard() {
     ? ranked.find((r) => r.id === assignMenuId) ?? null
     : null;
 
-  async function assignInvestigator(
+  async function saveAssignees(
     report: HazardReport,
-    investigatorUid: string | null,
-    investigatorName: string | null,
+    next: { uid: string; name: string }[],
+    opts?: { close?: boolean; notifyUid?: string },
   ) {
     setBusyId(report.id);
     setError(null);
     try {
-      await assignReportInvestigator({
+      await setReportAssignees({
         reportId: report.id,
-        investigatorUid,
-        investigatorName,
+        assignees: next,
       });
-      if (investigatorUid && investigatorName) {
-        const officer = officerByUid.get(investigatorUid);
-        const staff =
-          APAS_STAFF_SEED.find((s) => s.id === officer?.staffId) ||
-          NANGKA_STAFF_SEED.find((s) => s.id === officer?.staffId) ||
-          [...APAS_STAFF_SEED, ...NANGKA_STAFF_SEED].find(
-            (s) =>
-              s.displayName.toLowerCase() ===
-              investigatorName.trim().toLowerCase(),
-          );
-        void triggerInvestigatorNotify({
-          report,
-          investigatorUid,
-          investigatorName,
-          phone: staff?.phone ?? null,
-          staffId: officer?.staffId ?? staff?.id ?? null,
-          email: officer?.email ?? staff?.email ?? null,
-        });
+      if (opts?.notifyUid) {
+        const row = next.find((a) => a.uid === opts.notifyUid);
+        if (row) {
+          const officer = officerByUid.get(row.uid);
+          const staff =
+            APAS_STAFF_SEED.find((s) => s.id === officer?.staffId) ||
+            NANGKA_STAFF_SEED.find((s) => s.id === officer?.staffId) ||
+            [...APAS_STAFF_SEED, ...NANGKA_STAFF_SEED].find(
+              (s) =>
+                s.displayName.toLowerCase() === row.name.trim().toLowerCase(),
+            );
+          void triggerInvestigatorNotify({
+            report,
+            investigatorUid: row.uid,
+            investigatorName: row.name,
+            phone: staff?.phone ?? null,
+            staffId: officer?.staffId ?? staff?.id ?? null,
+            email: officer?.email ?? staff?.email ?? null,
+          });
+        }
       }
-      closeAssignMenu();
+      if (opts?.close) closeAssignMenu();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Assign failed");
     } finally {
@@ -265,17 +308,51 @@ export function IncidentBoard() {
     }
   }
 
+  async function toggleAssignee(
+    report: HazardReport,
+    uid: string,
+    name: string,
+  ) {
+    const current = assigneesOf(report);
+    const exists = current.some((a) => a.uid === uid);
+    const next = exists
+      ? current.filter((a) => a.uid !== uid).map((a) => ({
+          uid: a.uid,
+          name: a.name,
+        }))
+      : [...current.map((a) => ({ uid: a.uid, name: a.name })), { uid, name }];
+    await saveAssignees(report, next, {
+      notifyUid: exists ? undefined : uid,
+    });
+  }
+
   async function moveToColumn(report: HazardReport, col: BoardColumn) {
     if (col.match(report)) return;
+    if (col.id === "dispatched" && !hasAssignee(report)) {
+      setError("Assign an officer before moving to Dispatched.");
+      return;
+    }
+    if (
+      col.id === "done" &&
+      !(report.fieldEvidence && report.fieldEvidence.length > 0)
+    ) {
+      setError("Upload field photos on the incident before moving to Done.");
+      return;
+    }
     setBusyId(report.id);
     setError(null);
     try {
       if (col.id === "assigned") {
-        if (!report.investigatorUid && isOfficer(profile)) {
-          await assignInvestigator(
+        if (!hasAssignee(report) && isOfficer(profile)) {
+          await saveAssignees(
             report,
-            profile.uid,
-            profile.displayName || profile.email,
+            [
+              {
+                uid: profile.uid,
+                name: profile.displayName || profile.email,
+              },
+            ],
+            { close: true, notifyUid: profile.uid },
           );
           return;
         }
@@ -357,13 +434,37 @@ export function IncidentBoard() {
         <div className="flex min-h-0 w-full flex-1 items-stretch gap-2 overflow-x-auto px-3 py-3 sm:gap-3 sm:px-4 sm:py-4">
           {COLUMNS.map((col) => {
             const cards = ranked.filter(col.match);
+            const dragging = dragId
+              ? ranked.find((r) => r.id === dragId)
+              : null;
+            const rejectDrop =
+              dragging != null &&
+              ((col.id === "dispatched" && !hasAssignee(dragging)) ||
+                (col.id === "done" &&
+                  !(
+                    dragging.fieldEvidence &&
+                    dragging.fieldEvidence.length > 0
+                  )));
             return (
               <section
                 key={col.id}
                 onDragOver={(e) => {
+                  if (dropColId !== col.id) setDropColId(col.id);
+                  const block =
+                    (col.id === "dispatched" &&
+                      (dragging == null || !hasAssignee(dragging))) ||
+                    (col.id === "done" &&
+                      (dragging == null ||
+                        !(
+                          dragging.fieldEvidence &&
+                          dragging.fieldEvidence.length > 0
+                        )));
+                  if (block) {
+                    e.dataTransfer.dropEffect = "none";
+                    return;
+                  }
                   e.preventDefault();
                   e.dataTransfer.dropEffect = "move";
-                  if (dropColId !== col.id) setDropColId(col.id);
                 }}
                 onDragLeave={(e) => {
                   if (!e.currentTarget.contains(e.relatedTarget as Node)) {
@@ -378,13 +479,31 @@ export function IncidentBoard() {
                     e.dataTransfer.getData("text/plain");
                   const report = ranked.find((r) => r.id === id);
                   setDragId(null);
-                  if (report) void moveToColumn(report, col);
+                  if (!report) return;
+                  if (col.id === "dispatched" && !hasAssignee(report)) {
+                    setError(
+                      "Assign an officer before moving to Dispatched.",
+                    );
+                    return;
+                  }
+                  if (
+                    col.id === "done" &&
+                    !(report.fieldEvidence && report.fieldEvidence.length > 0)
+                  ) {
+                    setError(
+                      "Upload field photos on the incident before moving to Done.",
+                    );
+                    return;
+                  }
+                  void moveToColumn(report, col);
                 }}
                 className={cn(
                   "flex h-full min-h-0 w-[17rem] shrink-0 flex-col rounded-lg border bg-[var(--surface-panel)]/40 transition sm:w-[18rem]",
-                  dropColId === col.id
-                    ? "border-[var(--accent)] bg-[var(--accent)]/5"
-                    : "border-[var(--border)]",
+                  rejectDrop && dropColId === col.id
+                    ? "border-[#c72929]/50 bg-[#c72929]/5"
+                    : dropColId === col.id
+                      ? "border-[var(--accent)] bg-[var(--accent)]/5"
+                      : "border-[var(--border)]",
                 )}
               >
                 <header className="flex shrink-0 items-baseline justify-between gap-2 border-b border-[var(--border)] px-3 py-2.5">
@@ -434,27 +553,39 @@ export function IncidentBoard() {
                             >
                               {r.id}
                             </p>
-                            <span
-                              className={cn(
-                                "shrink-0 rounded-md px-1.5 py-0.5 font-mono text-[9px] tracking-wide uppercase",
-                                r.status === "needs_review" ||
-                                  r.status === "queued" ||
-                                  r.status === "validating"
-                                  ? "bg-[#fff7ed] text-[#c2410c] ring-1 ring-[#fdba74]/70"
-                                  : r.status === "failed" ||
-                                      r.status === "rejected"
-                                    ? "bg-[#fef2f2] text-[#b91c1c] ring-1 ring-[#fecaca]"
-                                    : "bg-[var(--foreground)]/6 text-[var(--muted)] ring-1 ring-[var(--border)]",
-                              )}
-                            >
-                              {r.status === "needs_review"
-                                ? "Review"
-                                : r.status === "queued"
-                                  ? "Queue"
-                                  : r.status === "validating"
-                                    ? "Validating"
-                                    : r.status.replace(/_/g, " ")}
-                            </span>
+                            <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
+                              {r.aiPriority ? (
+                                <span
+                                  className={cn(
+                                    "rounded-md px-1.5 py-0.5 font-mono text-[9px] tracking-wide uppercase ring-1",
+                                    priorityTone(r.aiPriority),
+                                  )}
+                                >
+                                  {reportPriorityLabel(r.aiPriority)}
+                                </span>
+                              ) : null}
+                              <span
+                                className={cn(
+                                  "rounded-md px-1.5 py-0.5 font-mono text-[9px] tracking-wide uppercase",
+                                  r.status === "needs_review" ||
+                                    r.status === "queued" ||
+                                    r.status === "validating"
+                                    ? "bg-[#fff7ed] text-[#c2410c] ring-1 ring-[#fdba74]/70"
+                                    : r.status === "failed" ||
+                                        r.status === "rejected"
+                                      ? "bg-[#fef2f2] text-[#b91c1c] ring-1 ring-[#fecaca]"
+                                      : "bg-[var(--foreground)]/6 text-[var(--muted)] ring-1 ring-[var(--border)]",
+                                )}
+                              >
+                                {r.status === "needs_review"
+                                  ? "Review"
+                                  : r.status === "queued"
+                                    ? "Queue"
+                                    : r.status === "validating"
+                                      ? "Validating"
+                                      : r.status.replace(/_/g, " ")}
+                              </span>
+                            </div>
                           </div>
                           <Link
                             href={`/admin/incidents/${encodeURIComponent(r.id)}`}
@@ -473,15 +604,18 @@ export function IncidentBoard() {
                           </p>
 
                           <div className="mt-2 border-t border-[var(--border)]/70 pt-2">
+                            {(() => {
+                              const assigned = assigneesOf(r);
+                              return (
                             <button
                               type="button"
                               disabled={busyId === r.id}
                               aria-haspopup="listbox"
                               aria-expanded={assignMenuId === r.id}
                               aria-label={
-                                r.investigatorName
-                                  ? `Assigned to ${r.investigatorName}. Change assignee`
-                                  : "Assign investigator"
+                                assigned.length > 0
+                                  ? `Assigned to ${assigneeLabel(assigned)}. Change assignees`
+                                  : "Assign investigators"
                               }
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -490,38 +624,38 @@ export function IncidentBoard() {
                               onMouseDown={(e) => e.stopPropagation()}
                               className="flex w-full items-center gap-2 rounded-md text-left transition hover:bg-[var(--surface-panel)]/60 disabled:opacity-50"
                             >
-                              {r.investigatorUid || r.investigatorName ? (
+                              {assigned.length > 0 ? (
                                 <>
-                                  <ProfileAvatar
-                                    name={
-                                      r.investigatorName ||
-                                      officerByUid.get(r.investigatorUid ?? "")
-                                        ?.displayName ||
-                                      "Officer"
-                                    }
-                                    photoURL={
-                                      officerByUid.get(r.investigatorUid ?? "")
-                                        ?.photoURL ?? null
-                                    }
-                                    seed={
-                                      r.investigatorName ||
-                                      officerByUid.get(r.investigatorUid ?? "")
-                                        ?.displayName ||
-                                      r.investigatorUid ||
-                                      undefined
-                                    }
-                                    size="sm"
-                                  />
+                                  <div className="flex shrink-0 -space-x-1.5">
+                                    {assigned.slice(0, 3).map((a) => (
+                                      <ProfileAvatar
+                                        key={a.uid}
+                                        name={
+                                          a.name ||
+                                          officerByUid.get(a.uid)?.displayName ||
+                                          "Officer"
+                                        }
+                                        photoURL={
+                                          officerByUid.get(a.uid)?.photoURL ??
+                                          null
+                                        }
+                                        seed={
+                                          a.name ||
+                                          officerByUid.get(a.uid)?.displayName ||
+                                          a.uid
+                                        }
+                                        size="sm"
+                                      />
+                                    ))}
+                                  </div>
                                   <div className="min-w-0 flex-1">
                                     <p className="font-mono text-[9px] tracking-wider text-[var(--muted)] uppercase">
-                                      Assigned
+                                      {assigned.length > 1
+                                        ? `${assigned.length} assigned`
+                                        : "Assigned"}
                                     </p>
                                     <p className="truncate text-xs font-medium text-[var(--foreground)]">
-                                      {r.investigatorName ||
-                                        officerByUid.get(
-                                          r.investigatorUid ?? "",
-                                        )?.displayName ||
-                                        "Officer"}
+                                      {assigneeLabel(assigned)}
                                     </p>
                                   </div>
                                 </>
@@ -536,6 +670,8 @@ export function IncidentBoard() {
                                 </>
                               )}
                             </button>
+                              );
+                            })()}
                           </div>
                         </div>
                       </li>
@@ -577,6 +713,11 @@ export function IncidentBoard() {
                   className="w-full bg-[var(--input)] px-2 py-1.5 text-xs outline-none ring-1 ring-[var(--border)] focus:ring-[var(--accent)]"
                 />
               </div>
+              <div className="shrink-0 border-b border-[var(--border)] px-2.5 py-1.5">
+                <p className="text-[10px] text-[var(--muted)]">
+                  Tap officers to add or remove. Multiple allowed.
+                </p>
+              </div>
               <div className="min-h-0 flex-1 overflow-y-auto py-1">
                 {showUnassigned ? (
                   <button
@@ -584,29 +725,30 @@ export function IncidentBoard() {
                     role="option"
                     className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs hover:bg-[var(--surface-panel)]"
                     onClick={() =>
-                      void assignInvestigator(assignTicket, null, null)
+                      void saveAssignees(assignTicket, [], { close: true })
                     }
                   >
                     <span className="flex size-7 items-center justify-center rounded-full border border-dashed border-[var(--border)] text-[10px] text-[var(--muted)]">
                       —
                     </span>
-                    Unassigned
+                    Clear all
                   </button>
                 ) : null}
                 {showMe && isOfficer(profile) ? (
                   <button
                     type="button"
                     role="option"
-                    aria-selected={
-                      assignTicket.investigatorUid === profile.uid
-                    }
+                    aria-selected={assigneesOf(assignTicket).some(
+                      (a) => a.uid === profile.uid,
+                    )}
                     className={cn(
                       "flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs hover:bg-[var(--surface-panel)]",
-                      assignTicket.investigatorUid === profile.uid &&
-                        "bg-[var(--accent)]/10",
+                      assigneesOf(assignTicket).some(
+                        (a) => a.uid === profile.uid,
+                      ) && "bg-[var(--accent)]/10",
                     )}
                     onClick={() =>
-                      void assignInvestigator(
+                      void toggleAssignee(
                         assignTicket,
                         profile.uid,
                         profile.displayName || profile.email,
@@ -619,24 +761,34 @@ export function IncidentBoard() {
                       seed={profile.displayName || profile.email}
                       size="sm"
                     />
-                    <span className="min-w-0 truncate">
+                    <span className="min-w-0 flex-1 truncate">
                       Me · {profile.displayName || profile.email}
                     </span>
+                    {assigneesOf(assignTicket).some(
+                      (a) => a.uid === profile.uid,
+                    ) ? (
+                      <span className="text-[10px] font-semibold text-[#16794c]">
+                        ✓
+                      </span>
+                    ) : null}
                   </button>
                 ) : null}
-                {filteredOfficers.map((o) => (
+                {filteredOfficers.map((o) => {
+                  const selected = assigneesOf(assignTicket).some(
+                    (a) => a.uid === o.uid,
+                  );
+                  return (
                   <button
                     key={o.uid}
                     type="button"
                     role="option"
-                    aria-selected={assignTicket.investigatorUid === o.uid}
+                    aria-selected={selected}
                     className={cn(
                       "flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs hover:bg-[var(--surface-panel)]",
-                      assignTicket.investigatorUid === o.uid &&
-                        "bg-[var(--accent)]/10",
+                      selected && "bg-[var(--accent)]/10",
                     )}
                     onClick={() =>
-                      void assignInvestigator(
+                      void toggleAssignee(
                         assignTicket,
                         o.uid,
                         o.displayName || o.email,
@@ -649,11 +801,17 @@ export function IncidentBoard() {
                       seed={o.displayName || o.email}
                       size="sm"
                     />
-                    <span className="min-w-0 truncate">
+                    <span className="min-w-0 flex-1 truncate">
                       {o.displayName || o.email}
                     </span>
+                    {selected ? (
+                      <span className="text-[10px] font-semibold text-[#16794c]">
+                        ✓
+                      </span>
+                    ) : null}
                   </button>
-                ))}
+                  );
+                })}
                 {!showUnassigned && !showMe && filteredOfficers.length === 0 ? (
                   <p className="px-2.5 py-3 text-center text-xs text-[var(--muted)]">
                     No matches

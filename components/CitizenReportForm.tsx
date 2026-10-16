@@ -833,14 +833,7 @@ export function CitizenReportForm({
           const nearest = nearestPlace(captured.lat, captured.lng);
           setPlaceQuery(placeLabel(nearest));
         }
-        if (
-          typeof captured.locationAccuracyM === "number" &&
-          captured.locationAccuracyM > 80
-        ) {
-          setApproximate(true);
-        } else {
-          setApproximate(false);
-        }
+        setApproximate(true);
       } else if (force) {
         setError(t(language, "errors.gpsFailed"));
       }
@@ -1015,6 +1008,14 @@ export function CitizenReportForm({
           reason: string;
           source: "gemini" | "local";
           model?: string;
+          priority?: "critical" | "high" | "medium" | "low";
+          priorityFactors?: {
+            immediateSeverity: string;
+            peopleAffected: string;
+            existingCoverage: string;
+            deliveryFeasibility: string;
+            evidenceQuality: string;
+          };
           vertexClass?: string | null;
           vertexConfidence?: number | null;
         };
@@ -1031,6 +1032,8 @@ export function CitizenReportForm({
           aiReason: data.reason,
           aiSource: data.source,
           aiModel: data.model ?? null,
+          aiPriority: data.priority ?? null,
+          aiPriorityFactors: data.priorityFactors ?? null,
           vertexClass: data.vertexClass ?? null,
           vertexConfidence:
             typeof data.vertexConfidence === "number"
@@ -1205,6 +1208,14 @@ export function CitizenReportForm({
         reason: string;
         source: "gemini" | "local";
         model?: string;
+        priority?: "critical" | "high" | "medium" | "low";
+        priorityFactors?: {
+          immediateSeverity: string;
+          peopleAffected: string;
+          existingCoverage: string;
+          deliveryFeasibility: string;
+          evidenceQuality: string;
+        };
         vertexClass?: string | null;
         vertexConfidence?: number | null;
       };
@@ -1217,6 +1228,8 @@ export function CitizenReportForm({
         aiReason: data.reason,
         aiSource: data.source,
         aiModel: data.model ?? null,
+        aiPriority: data.priority ?? null,
+        aiPriorityFactors: data.priorityFactors ?? null,
         vertexClass: data.vertexClass ?? null,
         vertexConfidence:
           typeof data.vertexConfidence === "number"

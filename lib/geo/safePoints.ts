@@ -22,6 +22,24 @@ export type SafePoint = LatLng & {
    * Barangay Hall = command; chapel = landmark — not ECs.
    */
   isEvacCenter: boolean;
+  /** Officer-marked site condition (evac directory). */
+  condition?: "usable" | "flooded" | "collapsed" | "unusable";
+  /** People currently on site (evac directory). */
+  occupancy?: number;
+  /** Max shelter capacity (evac directory). */
+  capacity?: number;
+  /** ISO timestamp when the directory row was last saved. */
+  updatedAt?: string;
+  /** Landmark / place label (evac directory). */
+  locationLabel?: string;
+  /** On-site stock snapshot (evac directory). */
+  stock?: {
+    foodPacks: number;
+    waterLiters: number;
+    blankets: number;
+    medicalKits: number;
+    other: string;
+  };
 };
 
 function evacKind(e: CebuEvacCenter): SafePointKind {
@@ -60,7 +78,7 @@ export function commandHallPoint(area: MapArea): SafePoint {
     lng: area.center.lng,
     elevM: 0,
     isEvacCenter: false,
-    notes: "",
+    notes: "Command center",
   };
 }
 

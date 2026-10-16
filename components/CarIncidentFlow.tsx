@@ -199,8 +199,8 @@ const nodeTypes = {
   siteGroup: SiteGroupNode,
 };
 
-const GROUP_W = 1120;
-const GROUP_H = 520;
+const GROUP_W = 1480;
+const GROUP_H = 560;
 
 function CarIncidentFlowCanvas() {
   const { defaultNodes, defaultEdges } = useMemo(() => {
@@ -264,20 +264,50 @@ function CarIncidentFlowCanvas() {
         type: "status",
         parentId: "site",
         extent: "parent",
-        position: { x: 640, y: 250 },
+        position: { x: 640, y: 280 },
         data: { label: "Rejected", tone: "bad" },
+      },
+      {
+        id: "dispatch-officer",
+        type: "step",
+        parentId: "site",
+        extent: "parent",
+        position: { x: 860, y: 24 },
+        data: {
+          label: "Dispatched officer",
+          logo: "/brands/officer.png",
+          lines: ["same time as BFP"],
+        },
+      },
+      {
+        id: "dispatch-firestation",
+        type: "step",
+        parentId: "site",
+        extent: "parent",
+        position: { x: 860, y: 160 },
+        data: {
+          label: "Dispatched Firestation",
+          logo: "/map/bfp-helmet.png",
+          lines: ["same time as officer"],
+        },
+      },
+      {
+        id: "mark-done",
+        type: "status",
+        parentId: "site",
+        extent: "parent",
+        position: { x: 1100, y: 90 },
+        data: { label: "Mark done", tone: "ok" },
       },
       {
         id: "bq",
         type: "step",
         parentId: "site",
         extent: "parent",
-        position: { x: 860, y: 24 },
+        position: { x: 860, y: 320 },
         data: {
           label: "BigQuery",
           logo: "/brands/bigquery.png",
-          inLeft: false,
-          inBottom: true,
           outRight: false,
         },
       },
@@ -286,7 +316,7 @@ function CarIncidentFlowCanvas() {
         type: "step",
         parentId: "site",
         extent: "parent",
-        position: { x: 860, y: 130 },
+        position: { x: 1100, y: 240 },
         data: {
           label: "Twilio",
           logo: "/brands/twilio.png",
@@ -303,7 +333,7 @@ function CarIncidentFlowCanvas() {
         type: "step",
         parentId: "site",
         extent: "parent",
-        position: { x: 860, y: 280 },
+        position: { x: 1100, y: 380 },
         data: {
           label: "Resend",
           logo: "/brands/resend.png",
@@ -335,7 +365,7 @@ function CarIncidentFlowCanvas() {
         sourceHandle: "out",
         target: "firestore",
         targetHandle: "in",
-        label: "report car incident · 1-20 at same time",
+        label: "report fire incident · 1-20 at same time",
         markerEnd: redMarker,
         style: red,
         ...labelBg,
@@ -379,17 +409,57 @@ function CarIncidentFlowCanvas() {
         style: red,
       },
       {
+        id: "e-dispatch-officer",
+        source: "validated",
+        sourceHandle: "out",
+        target: "dispatch-officer",
+        targetHandle: "in",
+        label: "dispatch · same time",
+        markerEnd: greenMarker,
+        style: green,
+        ...labelBg,
+      },
+      {
+        id: "e-dispatch-fire",
+        source: "validated",
+        sourceHandle: "out",
+        target: "dispatch-firestation",
+        targetHandle: "in",
+        markerEnd: greenMarker,
+        style: green,
+      },
+      {
+        id: "e-officer-done",
+        source: "dispatch-officer",
+        sourceHandle: "out",
+        target: "mark-done",
+        targetHandle: "in",
+        label: "close report",
+        markerEnd: greenMarker,
+        style: green,
+        ...labelBg,
+      },
+      {
+        id: "e-fire-done",
+        source: "dispatch-firestation",
+        sourceHandle: "out",
+        target: "mark-done",
+        targetHandle: "in",
+        markerEnd: greenMarker,
+        style: green,
+      },
+      {
         id: "e-bq",
         source: "validated",
-        sourceHandle: "up",
+        sourceHandle: "down",
         target: "bq",
-        targetHandle: "in-bottom",
+        targetHandle: "in",
         markerEnd: greenMarker,
         style: green,
       },
       {
         id: "e-twilio",
-        source: "validated",
+        source: "mark-done",
         sourceHandle: "out",
         target: "twilio",
         targetHandle: "in",
@@ -398,7 +468,7 @@ function CarIncidentFlowCanvas() {
       },
       {
         id: "e-resend-ok",
-        source: "validated",
+        source: "mark-done",
         sourceHandle: "down",
         target: "resend",
         targetHandle: "in",
@@ -433,7 +503,7 @@ function CarIncidentFlowCanvas() {
     fitView,
     hydrated,
     canvasKey,
-  } = useFlowLayout("car-incident-v3", defaultNodes, defaultEdges);
+  } = useFlowLayout("fire-incident-v3", defaultNodes, defaultEdges);
 
   return (
     <div className="relative h-full min-h-[480px] w-full overflow-hidden bg-[#eef1f5]">
@@ -484,7 +554,7 @@ export function CarIncidentFlow() {
     <div className="flex h-full min-h-0 flex-col gap-3">
       <div>
         <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-wide">
-          Simple Car Incident Flow
+          Simple Fire Incident Flow
         </h1>
         <p className="mt-1 text-sm text-[var(--muted)]">
           Report → Firestore → Vertex → Gemini → Validated (BigQuery, Twilio,

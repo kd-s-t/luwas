@@ -175,6 +175,13 @@ export function ValidationQueue() {
         validatedAt,
         ...(verdict === "rejected" && isOfficer(profile)
           ? {
+              assignees: [
+                {
+                  uid: profile.uid,
+                  name: profile.displayName || profile.email,
+                  assignedAt: validatedAt,
+                },
+              ],
               investigatorUid: profile.uid,
               investigatorName: profile.displayName,
               investigatedAt: validatedAt,

@@ -16,9 +16,9 @@ import { cn } from "@/lib/utils";
 const TABS = [
   { id: "onboard", label: "Barangay Onboard" },
   { id: "earth-engine", label: "Earth Engine" },
-  { id: "vertex", label: "Vertex AI" },
+  { id: "vertex", label: "Gemini Agent Platform" },
   { id: "registration", label: "Register Citizen" },
-  { id: "incident", label: "Car Incident" },
+  { id: "incident", label: "Fire Incident" },
   { id: "calamity", label: "Before Storm" },
   { id: "during", label: "During Landfall" },
   { id: "aftermath", label: "Aftermath" },

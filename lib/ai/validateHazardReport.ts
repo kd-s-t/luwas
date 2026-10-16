@@ -9,7 +9,17 @@ import {
   type VertexClassifyResult,
 } from "@/lib/ai/vertexClassify";
 import { runLocalValidate } from "@/lib/reports/localValidate";
-import type { ReportHazardHint, ReportMediaType } from "@/lib/reports/types";
+import {
+  localPriorityForReport,
+  parsePriorityFactors,
+  parseReportPriority,
+} from "@/lib/reports/priority";
+import type {
+  ReportHazardHint,
+  ReportMediaType,
+  ReportPriority,
+  ReportPriorityFactors,
+} from "@/lib/reports/types";
 
 export type HazardValidateResult = {
   verdict: "legit" | "rejected" | "needs_review";
@@ -18,6 +28,8 @@ export type HazardValidateResult = {
   source: "gemini" | "local";
   model: string | null;
   status: "legit" | "rejected" | "needs_review";
+  priority: ReportPriority;
+  priorityFactors: ReportPriorityFactors;
   vertexClass: string | null;
   vertexConfidence: number | null;
   vertexSource: VertexClassifyResult["source"];
@@ -27,6 +39,8 @@ function parseVerdict(text: string): {
   verdict: "legit" | "rejected" | "needs_review";
   confidence: number;
   reason: string;
+  priority: ReportPriority | null;
+  priorityFactors: ReportPriorityFactors | null;
 } | null {
   const match = text.match(/\{[\s\S]*\}/);
   if (!match) return null;
@@ -35,6 +49,8 @@ function parseVerdict(text: string): {
       verdict?: string;
       confidence?: number;
       reason?: string;
+      priority?: string;
+      priorityFactors?: unknown;
     };
     const verdict =
       parsed.verdict === "legit" ||
@@ -51,6 +67,8 @@ function parseVerdict(text: string): {
       verdict,
       confidence,
       reason: String(parsed.reason ?? "No reason provided."),
+      priority: parseReportPriority(parsed.priority),
+      priorityFactors: parsePriorityFactors(parsed.priorityFactors),
     };
   } catch {
     return null;
@@ -93,6 +111,12 @@ function localFallback(input: {
   });
   const verdict =
     input.localE2e && local.verdict === "rejected" ? "legit" : local.verdict;
+  const ranked = localPriorityForReport({
+    title: input.title,
+    notes: input.notes,
+    hazardHint: input.hazardHint,
+    verdict,
+  });
   const vertexLine = formatVertexSignal(input.vertex);
   return withVertex(
     {
@@ -100,6 +124,8 @@ function localFallback(input: {
       verdict,
       status: verdict,
       model: null,
+      priority: ranked.priority,
+      priorityFactors: ranked.factors,
       reason: `${local.reason} ${input.extraReason} ${vertexLine}`.trim(),
     },
     input.vertex,
@@ -182,7 +208,15 @@ Return ONLY JSON:
 {
   "verdict": "legit" | "rejected" | "needs_review",
   "confidence": number between 0 and 1,
-  "reason": string
+  "reason": string,
+  "priority": "critical" | "high" | "medium" | "low",
+  "priorityFactors": {
+    "immediateSeverity": string,
+    "peopleAffected": string,
+    "existingCoverage": string,
+    "deliveryFeasibility": string,
+    "evidenceQuality": string
+  }
 }
 
 Rules:
@@ -199,7 +233,19 @@ ${
     : ""
 }
 ${mediaBase64 ? "" : voiceOnly ? "- No photo bytes; judge from voice transcript + notes + hazard hint." : "- No photo bytes were provided; judge from text and hazard hint only, prefer needs_review when unsure."}
-Guidance for responders.
+
+Priority (you decide for responders / resource allocation):
+- Score using these factors only:
+  1. Immediate severity — verified life-safety or health risk?
+  2. People affected — how many need the resource, and for how long?
+  3. Existing coverage — how much usable stock the community likely has (infer; say unknown if unclear)
+  4. Delivery feasibility — can supplies physically reach the location?
+  5. Evidence quality — verified, estimated, or conflicting?
+- critical: life-safety now and/or many people with poor access or weak coverage
+- high: urgent need, clear impact, feasible response
+- medium: real need but limited scale or incomplete evidence
+- low: minor, rejected, or insufficient signal
+- Each priorityFactors value: one short sentence (max ~120 chars)
 
 Hazard hint: ${hazardHint}
 Title: ${title}
@@ -249,13 +295,24 @@ Media type: ${mediaType}${voiceOnly ? " (voice-only report)" : ""}`;
         ? "legit"
         : parsed.verdict;
 
+    const fallbackRank = localPriorityForReport({
+      title,
+      notes,
+      hazardHint,
+      verdict,
+    });
+    const priority = parsed.priority ?? fallbackRank.priority;
+    const priorityFactors = parsed.priorityFactors ?? fallbackRank.factors;
+
     return withVertex(
       {
-        ...parsed,
         verdict,
+        confidence: parsed.confidence,
         source: "gemini",
         model,
         status: verdict,
+        priority,
+        priorityFactors,
         reason:
           verdict !== parsed.verdict
             ? `Local e2e · accepted for demo. ${parsed.reason}`

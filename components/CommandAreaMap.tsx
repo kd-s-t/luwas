@@ -39,9 +39,11 @@ import {
 import type { TyphoonSample, TyphoonTrackPoint } from "@/lib/hazards/typhoonSamples";
 import { typhoonCategoryLabel } from "@/lib/hazards/typhoonSamples";
 import type { QuakeEvent } from "@/lib/hazards/usgsEarthquakes";
+import { EvacStockList } from "@/components/EvacStockList";
 import { FloodTilesLayer } from "@/components/FloodTilesLayer";
 import { HouseholdPinsLayer } from "@/components/HouseholdPinsLayer";
 import { MapHtmlMarker } from "@/components/MapHtmlMarker";
+import { emptyEvacStock } from "@/lib/evacCenters/types";
 import type { Household } from "@/lib/households/types";
 import {
   googleMapsApiKey,
@@ -165,11 +167,26 @@ function fitBrgyAndTyphoon(
   void listener;
 }
 
-function facilityHtml(kind: FacilityMarkerKind, flooded = false) {
-  return facilityMarkerHtml(kind, 28, { flooded });
+function facilityHtml(
+  kind: FacilityMarkerKind,
+  flooded = false,
+  opts?: { occupancy?: number; pulse?: boolean },
+) {
+  const base = facilityMarkerHtml(kind, 32, { flooded });
+  const pulse = opts?.pulse !== false;
+  const people =
+    typeof opts?.occupancy === "number" && opts.occupancy > 0
+      ? `<span class="dro-map-occupancy-badge">${opts.occupancy}</span>`
+      : "";
+  return `<span class="dro-map-facility-stack${pulse ? " dro-map-facility-pulse" : ""}">${base}${people}</span>`;
 }
 
-const hallHtml = facilityHtml("hall");
+function googleDirectionsUrl(
+  from: { lat: number; lng: number },
+  to: { lat: number; lng: number },
+): string {
+  return `https://www.google.com/maps/dir/?api=1&origin=${from.lat},${from.lng}&destination=${to.lat},${to.lng}&travelmode=driving`;
+}
 
 function quakeHtml(mag: number | null) {
   const m = mag ?? 0;
@@ -470,15 +487,36 @@ function FitTyphoonTrack({
   return null;
 }
 
+function fitMapToSafePoints(
+  map: google.maps.Map,
+  points: SafePoint[],
+  padding = 56,
+) {
+  if (points.length === 0) return false;
+  if (points.length === 1) {
+    map.setCenter({ lat: points[0].lat, lng: points[0].lng });
+    map.setZoom(16);
+    return true;
+  }
+  const bounds = new google.maps.LatLngBounds();
+  for (const p of points) bounds.extend({ lat: p.lat, lng: p.lng });
+  map.fitBounds(bounds, padding);
+  return true;
+}
+
 function FitHouseholds({
   area,
   households,
+  safePoints = [],
+  safePointsKey = "",
   highlightKey,
   escapeKey,
   escapeRoutes,
 }: {
   area: MapArea;
   households: Household[];
+  safePoints?: SafePoint[];
+  safePointsKey?: string;
   highlightKey: string;
   escapeKey: string;
   escapeRoutes: AssistEscapeRoute[];
@@ -486,9 +524,12 @@ function FitHouseholds({
   const map = useMap();
   const didFitEmptyRef = useRef(false);
   const lastAreaIdRef = useRef(area.id);
+  const lastSafeKeyRef = useRef(safePointsKey);
   const householdsRef = useRef(households);
+  const safePointsRef = useRef(safePoints);
   const escapeRoutesRef = useRef(escapeRoutes);
   householdsRef.current = households;
+  safePointsRef.current = safePoints;
   escapeRoutesRef.current = escapeRoutes;
 
   useEffect(() => {
@@ -497,9 +538,14 @@ function FitHouseholds({
       lastAreaIdRef.current = area.id;
       didFitEmptyRef.current = false;
     }
+    if (lastSafeKeyRef.current !== safePointsKey) {
+      lastSafeKeyRef.current = safePointsKey;
+      didFitEmptyRef.current = false;
+    }
 
     const rows = householdsRef.current;
     const routes = escapeRoutesRef.current;
+    const points = safePointsRef.current;
     const highlightIds = highlightKey ? highlightKey.split("|") : [];
     const hasTriage = highlightIds.length > 0 || routes.length > 0;
 
@@ -508,6 +554,7 @@ function FitHouseholds({
       didFitEmptyRef.current = true;
       const mapped = rows.filter((h) => h.lat != null && h.lng != null);
       if (mapped.length === 0) {
+        if (fitMapToSafePoints(map, points)) return;
         map.setCenter({ lat: area.center.lat, lng: area.center.lng });
         map.setZoom(area.zoom);
         return;
@@ -537,13 +584,14 @@ function FitHouseholds({
     }
 
     if (focusCap.length === 0 && routes.length === 0) {
+      if (fitMapToSafePoints(map, points)) return;
       map.setCenter({ lat: area.center.lat, lng: area.center.lng });
       map.setZoom(area.zoom);
       return;
     }
 
     map.fitBounds(bounds, 90);
-  }, [area, highlightKey, escapeKey, map]);
+  }, [area, highlightKey, escapeKey, safePointsKey, map]);
 
   return null;
 }
@@ -626,6 +674,15 @@ function CommandAreaMapInner({
         .join("|"),
     [escapeRoutes],
   );
+  const safePointsKey = useMemo(
+    () =>
+      safePoints
+        .map((p) => `${p.id}:${p.lat.toFixed(5)},${p.lng.toFixed(5)}`)
+        .join("|"),
+    [safePoints],
+  );
+  const fitSafePointsOnly =
+    lockCameraToArea && mapped.length === 0 && safePoints.length > 0;
   const layerLandslides = landslides;
   const layerFloods = floods;
   const layerTyphoons = typhoons;
@@ -658,7 +715,10 @@ function CommandAreaMapInner({
         area={area}
         userLocation={showUserPin ? effectiveUser : null}
         lockToArea={lockCameraToArea}
-        skip={hasForecastTrack && !cameraFollowsUser && !lockCameraToArea}
+        skip={
+          fitSafePointsOnly ||
+          (hasForecastTrack && !cameraFollowsUser && !lockCameraToArea)
+        }
       />
       <FlyToFocus
         target={cameraFollowsUser ? effectiveUser : null}
@@ -671,10 +731,10 @@ function CommandAreaMapInner({
           hasForecastTrack && !cameraFollowsUser && !lockCameraToArea
         }
       />
-      {layerSafePoints.length === 0 && !showUserPin ? (
+      {layerSafePoints.every((sp) => sp.kind !== "hall") && !showUserPin ? (
         <MapHtmlMarker
           position={{ lat: area.center.lat, lng: area.center.lng }}
-          html={hallHtml}
+          html={facilityHtml("hall", false, { pulse: true })}
           zIndex={750}
         >
           <strong>Command center · Brgy. {area.barangay} Hall</strong>
@@ -682,6 +742,36 @@ function CommandAreaMapInner({
           {area.name}
         </MapHtmlMarker>
       ) : null}
+      {layerEscapes.map((route) => {
+        const path =
+          route.path.length >= 2 ? route.path : [route.from, route.to];
+        const alongRoads = route.routed && route.path.length > 2;
+        return (
+          <Polyline
+            key={`dir-${route.householdId}-${route.destinationId}-${alongRoads ? "road" : "fly"}`}
+            path={path}
+            strokeColor="#2f5f9e"
+            strokeWeight={alongRoads ? 4 : 3}
+            strokeOpacity={alongRoads ? 0.92 : 0}
+            icons={
+              alongRoads
+                ? undefined
+                : [
+                    {
+                      icon: {
+                        path: "M 0,-1 0,1",
+                        strokeOpacity: 0.55,
+                        strokeColor: "#2f5f9e",
+                        scale: 3,
+                      },
+                      offset: "0",
+                      repeat: "14px",
+                    },
+                  ]
+            }
+          />
+        );
+      })}
       {showUserPin && effectiveUser ? (
         <MapHtmlMarker
           position={{ lat: effectiveUser.lat, lng: effectiveUser.lng }}
@@ -948,10 +1038,15 @@ function CommandAreaMapInner({
         // (EE baseline flood samples must not mark every EC as flooded).
         const tinoFloodPhase =
           scenarioPhase === "before" || scenarioPhase === "during";
+        const markedUnusable =
+          sp.condition === "flooded" ||
+          sp.condition === "collapsed" ||
+          sp.condition === "unusable";
         const floodedPin =
           Boolean(isShelter) &&
-          tinoFloodPhase &&
-          (scenarioPhase === "during" || washOn || inFlood);
+          (markedUnusable ||
+            (tinoFloodPhase &&
+              (scenarioPhase === "during" || washOn || inFlood)));
         const iconKind: FacilityMarkerKind =
           floodedPin && isShelter ? "evac_center" : sp.kind;
         const z =
@@ -964,15 +1059,88 @@ function CommandAreaMapInner({
                 : sp.kind === "school"
                   ? 710
                   : 690;
+        const hallOrigin =
+          layerSafePoints.find((p) => p.kind === "hall") ?? {
+            lat: area.center.lat,
+            lng: area.center.lng,
+          };
+        const dirHref =
+          isShelter || sp.kind === "hall"
+            ? googleDirectionsUrl(
+                sp.kind === "hall"
+                  ? { lat: sp.lat, lng: sp.lng }
+                  : hallOrigin,
+                { lat: sp.lat, lng: sp.lng },
+              )
+            : null;
         return (
           <MapHtmlMarker
-            key={`${sp.id}-ecv5-${floodedPin ? "flood" : "dry"}-${iconKind}`}
+            key={`${sp.id}-ecv5-${floodedPin ? "flood" : "dry"}-${iconKind}-${sp.occupancy ?? 0}`}
             position={{ lat: sp.lat, lng: sp.lng }}
-            html={facilityHtml(iconKind, floodedPin)}
+            html={facilityHtml(iconKind, floodedPin, {
+              occupancy: isShelter ? sp.occupancy : undefined,
+              pulse: true,
+            })}
             zIndex={z}
           >
             <strong>{sp.name}</strong>
-            {floodedPin ? (
+            {sp.kind === "hall" ? (
+              <>
+                <br />
+                <span style={{ opacity: 0.8 }}>
+                  Command center · Brgy. {area.barangay} Hall
+                </span>
+              </>
+            ) : null}
+            {sp.locationLabel ? (
+              <>
+                <br />
+                <span style={{ opacity: 0.8, fontSize: 12 }}>
+                  {sp.locationLabel}
+                </span>
+              </>
+            ) : null}
+            {isShelter &&
+            (sp.stock ||
+              typeof sp.occupancy === "number") ? (
+              <div style={{ marginTop: 8 }}>
+                <EvacStockList
+                  stock={sp.stock ?? emptyEvacStock()}
+                  occupancy={sp.occupancy}
+                  capacity={sp.capacity}
+                />
+              </div>
+            ) : null}
+            {sp.updatedAt ? (
+              <>
+                <br />
+                <span style={{ opacity: 0.75, fontSize: 12 }}>
+                  Last updated{" "}
+                  {new Date(sp.updatedAt).toLocaleString("en-PH", {
+                    timeZone: "Asia/Manila",
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  })}
+                </span>
+              </>
+            ) : null}
+            {markedUnusable ? (
+              <>
+                <br />
+                <span style={{ fontWeight: 700, color: "#b91c1c" }}>
+                  Unusable
+                  {sp.condition === "flooded"
+                    ? " · flooded"
+                    : sp.condition === "collapsed"
+                      ? " · collapsed"
+                      : ""}
+                </span>
+                <br />
+                <span style={{ color: "#9a3412", opacity: 0.95 }}>
+                  Do not send evacuees here · use an alternate center
+                </span>
+              </>
+            ) : floodedPin ? (
               <>
                 <br />
                 <span style={{ fontWeight: 700, color: "#b45309" }}>
@@ -1003,12 +1171,18 @@ function CommandAreaMapInner({
                   ) : null}
                 </span>
               </>
-            ) : sp.isEvacCenter ? (
+            ) : null}
+            {dirHref && sp.kind !== "hall" ? (
               <>
                 <br />
-                <span style={{ opacity: 0.75 }}>
-                  No population report yet · EC staff can upload a field report
-                </span>
+                <a
+                  href={dirHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ fontWeight: 600 }}
+                >
+                  Directions from Brgy. Hall
+                </a>
               </>
             ) : null}
           </MapHtmlMarker>
@@ -1057,6 +1231,8 @@ function CommandAreaMapInner({
         <FitHouseholds
           area={area}
           households={mapped}
+          safePoints={layerSafePoints}
+          safePointsKey={safePointsKey}
           highlightKey={highlightKey}
           escapeKey={escapeKey}
           escapeRoutes={layerEscapes}

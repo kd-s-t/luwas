@@ -7,6 +7,7 @@ Day-to-day local setup lives in the root [README.md](../README.md). This folder 
 | Doc | What it covers |
 |-----|----------------|
 | [features.md](./features.md) | Product feature map (citizen, command, AI, geo) |
+| [demo-logins.md](./demo-logins.md) | Demo developer / officer / citizen emails (password demo1234) |
 | [cost.md](./cost.md) | Monthly cost estimates (Firebase, Gemini, EE) |
 | [GOOGLE_CHECKLIST.md](./GOOGLE_CHECKLIST.md) | Firebase, Gemini, Vertex, Maps, Earth Engine checklist |
 | [PRODUCTION.md](./PRODUCTION.md) | Prod / Cup deploy blueprint (not for local emulators) |

@@ -79,11 +79,27 @@ function isClosedRejected(report: HazardReport): boolean {
   return report.status === "rejected" || report.status === "failed";
 }
 
-/** 0=received done, current step index 1..4 (review..completed). Ignored when rejected. */
+/**
+ * Current step index in the citizen progress rail:
+ * 0 received · 1 under review · 2 assigned · 3 in progress · 4 completed
+ */
 function currentStepIndex(report: HazardReport): number {
   if (isClosedRejected(report)) return 1;
-  if (report.investigatedAt) return 3;
-  if (report.investigatorUid || report.dispatchLog || report.autoResponderCallAt) {
+  if (report.status === "done") return 4;
+  if (
+    report.status === "dispatched" ||
+    report.dispatchLog ||
+    report.autoResponderCallAt ||
+    report.manualDispatchChecked
+  ) {
+    return 3;
+  }
+  if (
+    report.status === "assigned" ||
+    report.investigatorUid ||
+    report.investigatedAt ||
+    (report.assignees && report.assignees.length > 0)
+  ) {
     return 2;
   }
   return 1;
@@ -161,15 +177,23 @@ function buildProgress(
       detail:
         cur === 3
           ? t(language, "track.stepCurrentProgress")
-          : t(language, "track.stepNotYetStarted"),
+          : cur > 3
+            ? t(language, "track.stepProgressDone")
+            : t(language, "track.stepNotYetStarted"),
     },
     {
       key: "completed",
       title: t(language, "track.stepCompleted"),
-      detail: t(language, "track.stepNotYetCompleted"),
+      detail:
+        cur >= 4
+          ? formatWhen(report.updatedAt || report.createdAt, language, true)
+          : t(language, "track.stepNotYetCompleted"),
     },
   ];
   return rows.map((row, i) => {
+    if (cur >= 4) {
+      return { ...row, state: "done" as const };
+    }
     if (i < cur) return { ...row, state: "done" as const };
     if (i === cur) return { ...row, state: "current" as const };
     return { ...row, state: "todo" as const };
@@ -194,7 +218,19 @@ function buildUpdates(
     });
   } else {
     const cur = currentStepIndex(report);
-    if (cur >= 2) {
+    if (cur >= 4) {
+      items.push({
+        at: report.updatedAt || report.createdAt,
+        title: t(language, "track.updateCompletedTitle"),
+        body: t(language, "track.updateCompletedBody"),
+      });
+    } else if (cur >= 3) {
+      items.push({
+        at: report.updatedAt || report.createdAt,
+        title: t(language, "track.updateProgressTitle"),
+        body: t(language, "track.updateProgressBody"),
+      });
+    } else if (cur >= 2) {
       items.push({
         at: report.updatedAt || report.createdAt,
         title: t(language, "track.updateAssignedTitle"),
@@ -235,6 +271,13 @@ function statusBanner(report: HazardReport, language: CitizenLang) {
     };
   }
   const cur = currentStepIndex(report);
+  if (cur >= 4) {
+    return {
+      title: t(language, "track.statusCompletedTitle"),
+      body: t(language, "track.statusCompletedBody"),
+      tone: "ok" as const,
+    };
+  }
   if (cur >= 3) {
     return {
       title: t(language, "track.statusProgressTitle"),
@@ -477,7 +520,9 @@ export function TrackReportForm() {
               "flex gap-2.5 rounded-xl border px-3.5 py-3.5",
               banner.tone === "danger"
                 ? "border-[var(--danger)]/35 bg-[var(--danger)]/8"
-                : "border-[#f0d9a8] bg-[#fff8e8]",
+                : banner.tone === "ok"
+                  ? "border-[#86efac]/60 bg-[#ecfdf3]"
+                  : "border-[#f0d9a8] bg-[#fff8e8]",
             )}
           >
             <span
@@ -485,11 +530,13 @@ export function TrackReportForm() {
                 "mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white",
                 banner.tone === "danger"
                   ? "bg-[var(--danger)]"
-                  : "bg-[#8a6a2f]",
+                  : banner.tone === "ok"
+                    ? "bg-[#16794c]"
+                    : "bg-[#8a6a2f]",
               )}
               aria-hidden
             >
-              !
+              {banner.tone === "ok" ? "✓" : "!"}
             </span>
             <div className="min-w-0 space-y-0.5">
               <p
@@ -497,7 +544,9 @@ export function TrackReportForm() {
                   "text-sm font-semibold",
                   banner.tone === "danger"
                     ? "text-[var(--danger)]"
-                    : "text-[#5c4a1f]",
+                    : banner.tone === "ok"
+                      ? "text-[#16794c]"
+                      : "text-[#5c4a1f]",
                 )}
               >
                 {banner.title}
@@ -507,7 +556,9 @@ export function TrackReportForm() {
                   "text-xs leading-relaxed",
                   banner.tone === "danger"
                     ? "text-[var(--danger)]/90"
-                    : "text-[#5c4a1f]/90",
+                    : banner.tone === "ok"
+                      ? "text-[#16794c]/90"
+                      : "text-[#5c4a1f]/90",
                 )}
               >
                 {banner.body}

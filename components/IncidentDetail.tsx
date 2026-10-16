@@ -48,16 +48,23 @@ import {
 import {
   addReportFieldEvidence,
   assignReportInvestigator,
+  setReportAssignees,
   setReportManualDispatchChecked,
   subscribeHazardReportById,
   updateReportStatus,
   updateReportValidation,
 } from "@/lib/reports/api";
+import {
+  assigneeLabel,
+  reportHasAssignee,
+} from "@/lib/reports/assignees";
 import { reportInScope } from "@/lib/reports/barangayScope";
 import { syncHazardReportToBigQuery } from "@/lib/reports/bigquerySync";
 import {
   hazardHintLabel,
+  reportPriorityLabel,
   type HazardReport,
+  type ReportAssignee,
   type ReportStatus,
 } from "@/lib/reports/types";
 import {
@@ -100,6 +107,7 @@ export function IncidentDetail({
     activeOfficers,
   } = useCommandWorkspace();
   const [busy, setBusy] = useState(false);
+  const [statusError, setStatusError] = useState<string | null>(null);
   const [activityOpen, setActivityOpen] = useState(true);
   const [plan, setPlan] = useState<PlanState>({ notes: "", recordedAt: null });
   const [planDraft, setPlanDraft] = useState("");
@@ -185,40 +193,82 @@ export function IncidentDetail({
     }
   }
 
-  async function assignInvestigator(
-    investigatorUid: string | null,
-    investigatorName: string | null,
+  function assigneesOf(report: HazardReport): ReportAssignee[] {
+    return report.assignees?.length
+      ? report.assignees
+      : report.investigatorUid
+        ? [
+            {
+              uid: report.investigatorUid,
+              name: report.investigatorName || report.investigatorUid,
+              assignedAt: report.investigatedAt || report.updatedAt,
+            },
+          ]
+        : [];
+  }
+
+  async function saveAssignees(
+    next: { uid: string; name: string }[],
+    notifyUid?: string,
   ) {
     if (!selected) return;
     setBusy(true);
+    setStatusError(null);
     try {
-      await assignReportInvestigator({
+      await setReportAssignees({
         reportId: selected.id,
-        investigatorUid,
-        investigatorName,
+        assignees: next,
       });
-      if (investigatorUid && investigatorName) {
-        const officer = officers.find((o) => o.uid === investigatorUid);
-        const staff =
-          APAS_STAFF_SEED.find((s) => s.id === officer?.staffId) ||
-          NANGKA_STAFF_SEED.find((s) => s.id === officer?.staffId) ||
-          [...APAS_STAFF_SEED, ...NANGKA_STAFF_SEED].find(
-            (s) =>
-              s.displayName.toLowerCase() ===
-              investigatorName.trim().toLowerCase(),
-          );
-        void triggerInvestigatorNotify({
-          report: selected,
-          investigatorUid,
-          investigatorName,
-          phone: staff?.phone ?? null,
-          staffId: officer?.staffId ?? staff?.id ?? null,
-          email: officer?.email ?? staff?.email ?? null,
-        });
+      if (notifyUid) {
+        const row = next.find((a) => a.uid === notifyUid);
+        if (row) {
+          const officer = officers.find((o) => o.uid === row.uid);
+          const staff =
+            APAS_STAFF_SEED.find((s) => s.id === officer?.staffId) ||
+            NANGKA_STAFF_SEED.find((s) => s.id === officer?.staffId) ||
+            [...APAS_STAFF_SEED, ...NANGKA_STAFF_SEED].find(
+              (s) =>
+                s.displayName.toLowerCase() === row.name.trim().toLowerCase(),
+            );
+          void triggerInvestigatorNotify({
+            report: selected,
+            investigatorUid: row.uid,
+            investigatorName: row.name,
+            phone: staff?.phone ?? null,
+            staffId: officer?.staffId ?? staff?.id ?? null,
+            email: officer?.email ?? staff?.email ?? null,
+          });
+        }
       }
     } finally {
       setBusy(false);
     }
+  }
+
+  async function toggleAssignee(uid: string, name: string) {
+    if (!selected) return;
+    const current = assigneesOf(selected);
+    const exists = current.some((a) => a.uid === uid);
+    const next = exists
+      ? current
+          .filter((a) => a.uid !== uid)
+          .map((a) => ({ uid: a.uid, name: a.name }))
+      : [...current.map((a) => ({ uid: a.uid, name: a.name })), { uid, name }];
+    await saveAssignees(next, exists ? undefined : uid);
+  }
+
+  async function assignInvestigator(
+    investigatorUid: string | null,
+    investigatorName: string | null,
+  ) {
+    if (!investigatorUid) {
+      await saveAssignees([]);
+      return;
+    }
+    await saveAssignees(
+      [{ uid: investigatorUid, name: investigatorName || investigatorUid }],
+      investigatorUid,
+    );
   }
 
   async function override(verdict: "legit" | "rejected") {
@@ -261,6 +311,13 @@ export function IncidentDetail({
         validatedAt,
         ...(verdict === "rejected" && isOfficer(profile)
           ? {
+              assignees: [
+                {
+                  uid: profile.uid,
+                  name: profile.displayName || profile.email,
+                  assignedAt: validatedAt,
+                },
+              ],
               investigatorUid: profile.uid,
               investigatorName: profile.displayName,
               investigatedAt: validatedAt,
@@ -289,13 +346,29 @@ export function IncidentDetail({
 
   async function advanceStatus(next: ReportStatus) {
     if (!selected) return;
+    if (next === "dispatched" && !reportHasAssignee(selected)) {
+      setStatusError("Assign an officer before marking dispatched.");
+      return;
+    }
+    if (
+      next === "done" &&
+      !(selected.fieldEvidence && selected.fieldEvidence.length > 0)
+    ) {
+      setStatusError("Upload at least one field photo before marking done.");
+      return;
+    }
+    setStatusError(null);
     setBusy(true);
     try {
       if (next === "legit") {
         await override("legit");
         return;
       }
-      if (next === "assigned" && isOfficer(profile) && !selected.investigatorUid) {
+      if (
+        next === "assigned" &&
+        isOfficer(profile) &&
+        !reportHasAssignee(selected)
+      ) {
         await assignInvestigator(
           profile.uid,
           profile.displayName || profile.email,
@@ -513,7 +586,43 @@ export function IncidentDetail({
                   : "Pending"
               }
             />
+            <Meta
+              label="Priority"
+              value={
+                selected.aiPriority
+                  ? reportPriorityLabel(selected.aiPriority)
+                  : "Pending AI"
+              }
+            />
           </dl>
+
+          {selected.aiPriorityFactors ? (
+            <div className="mt-3 rounded-xl border border-[var(--border)] bg-white px-3 py-3">
+              <p className="font-mono text-[9px] tracking-[0.16em] text-[var(--muted)] uppercase">
+                Priority factors · AI draft
+              </p>
+              <dl className="mt-2 space-y-2 text-[12px]">
+                {(
+                  [
+                    ["Immediate severity", selected.aiPriorityFactors.immediateSeverity],
+                    ["People affected", selected.aiPriorityFactors.peopleAffected],
+                    ["Existing coverage", selected.aiPriorityFactors.existingCoverage],
+                    ["Delivery feasibility", selected.aiPriorityFactors.deliveryFeasibility],
+                    ["Evidence quality", selected.aiPriorityFactors.evidenceQuality],
+                  ] as const
+                ).map(([label, value]) =>
+                  value ? (
+                    <div key={label}>
+                      <dt className="font-medium text-[var(--foreground)]">
+                        {label}
+                      </dt>
+                      <dd className="text-[var(--muted)]">{value}</dd>
+                    </div>
+                  ) : null,
+                )}
+              </dl>
+            </div>
+          ) : null}
 
           <div className="mt-3">
             <p className="mb-1.5 font-mono text-[9px] tracking-wider text-[var(--muted)] uppercase">
@@ -599,71 +708,92 @@ export function IncidentDetail({
 
           <div className="mt-3 space-y-2">
             <p className="font-mono text-[9px] tracking-[0.16em] text-[var(--muted)] uppercase">
-              Assign investigator
+              Assign investigators
             </p>
-            <div className="flex flex-wrap items-center gap-2">
-              <label className="min-w-[12rem] flex-1">
-                <span className="sr-only">Who will investigate</span>
-                <select
-                  value={selected.investigatorUid ?? ""}
-                  disabled={busy}
-                  aria-label="Assign who will investigate"
-                  onChange={(e) => {
-                    const uid = e.target.value || null;
-                    if (!uid) {
-                      void assignInvestigator(null, null);
-                      return;
+            <p className="text-xs text-[var(--muted)]">
+              Select one or more officers. Multiple assignees are allowed.
+            </p>
+            <ul className="max-h-48 space-y-1 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--input)] p-1.5">
+              {isOfficer(profile) ? (
+                <li>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() =>
+                      void toggleAssignee(
+                        profile.uid,
+                        profile.displayName || profile.email,
+                      )
                     }
-                    const officer = officers.find((o) => o.uid === uid);
-                    void assignInvestigator(
-                      uid,
-                      officer?.displayName || officer?.email || uid,
-                    );
-                  }}
-                  className="w-full border border-[var(--border)] bg-[var(--input)] px-2.5 py-1.5 text-sm outline-none focus:border-[var(--accent)] disabled:opacity-50"
-                >
-                  <option value="">Unassigned</option>
-                  {officers.map((o) => (
-                    <option key={o.uid} value={o.uid}>
-                      {o.displayName || o.email}
-                      {o.officerTitle ? ` · ${o.officerTitle}` : ""}
-                    </option>
-                  ))}
-                  {selected.investigatorUid &&
-                  !officers.some((o) => o.uid === selected.investigatorUid) ? (
-                    <option value={selected.investigatorUid}>
-                      {selected.investigatorName || selected.investigatorUid}
-                    </option>
-                  ) : null}
-                </select>
-              </label>
-              {isOfficer(profile) && !selected.investigatorUid ? (
+                    className={cn(
+                      "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition hover:bg-[var(--surface-panel)] disabled:opacity-50",
+                      assigneesOf(selected).some((a) => a.uid === profile.uid) &&
+                        "bg-[var(--accent)]/10",
+                    )}
+                  >
+                    <span className="min-w-0 flex-1 truncate">
+                      Me · {profile.displayName || profile.email}
+                    </span>
+                    {assigneesOf(selected).some((a) => a.uid === profile.uid) ? (
+                      <span className="text-[11px] font-semibold text-[#16794c]">
+                        ✓
+                      </span>
+                    ) : null}
+                  </button>
+                </li>
+              ) : null}
+              {officers
+                .filter((o) => o.uid !== profile?.uid)
+                .map((o) => {
+                  const on = assigneesOf(selected).some((a) => a.uid === o.uid);
+                  return (
+                    <li key={o.uid}>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() =>
+                          void toggleAssignee(
+                            o.uid,
+                            o.displayName || o.email,
+                          )
+                        }
+                        className={cn(
+                          "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition hover:bg-[var(--surface-panel)] disabled:opacity-50",
+                          on && "bg-[var(--accent)]/10",
+                        )}
+                      >
+                        <span className="min-w-0 flex-1 truncate">
+                          {o.displayName || o.email}
+                          {o.officerTitle ? ` · ${o.officerTitle}` : ""}
+                        </span>
+                        {on ? (
+                          <span className="text-[11px] font-semibold text-[#16794c]">
+                            ✓
+                          </span>
+                        ) : null}
+                      </button>
+                    </li>
+                  );
+                })}
+            </ul>
+            {assigneesOf(selected).length > 0 ? (
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs text-[var(--muted)]">
+                  Investigating · {assigneeLabel(assigneesOf(selected))}
+                </p>
                 <Button
                   type="button"
                   size="sm"
                   variant="outline"
                   disabled={busy}
-                  onClick={() =>
-                    void assignInvestigator(
-                      profile.uid,
-                      profile.displayName || profile.email,
-                    )
-                  }
+                  onClick={() => void saveAssignees([])}
                 >
-                  Assign me
+                  Clear all
                 </Button>
-              ) : null}
-            </div>
-            {selected.investigatorName ? (
-              <p className="text-xs text-[var(--muted)]">
-                Investigating · {selected.investigatorName}
-                {selected.investigatedAt
-                  ? ` · assigned ${new Date(selected.investigatedAt).toLocaleString()}`
-                  : ""}
-              </p>
+              </div>
             ) : (
               <p className="text-xs text-[var(--muted)]">
-                Pick an officer who will investigate this incident.
+                No officers assigned yet.
               </p>
             )}
           </div>
@@ -673,7 +803,16 @@ export function IncidentDetail({
               <Button
                 type="button"
                 size="sm"
-                disabled={busy}
+                disabled={
+                  busy ||
+                  (pipelineNext.status === "dispatched" &&
+                    !reportHasAssignee(selected)) ||
+                  (pipelineNext.status === "done" &&
+                    !(
+                      selected.fieldEvidence &&
+                      selected.fieldEvidence.length > 0
+                    ))
+                }
                 onClick={() => void advanceStatus(pipelineNext.status)}
               >
                 {pipelineNext.label}
@@ -693,6 +832,21 @@ export function IncidentDetail({
               Reject report
             </Button>
           </div>
+          {statusError ? (
+            <p className="mt-2 text-sm text-[var(--danger)]" role="alert">
+              {statusError}
+            </p>
+          ) : pipelineNext?.status === "dispatched" &&
+            !reportHasAssignee(selected) ? (
+            <p className="mt-2 text-xs text-[var(--muted)]">
+              Assign an officer before marking dispatched.
+            </p>
+          ) : pipelineNext?.status === "done" &&
+            !(selected.fieldEvidence && selected.fieldEvidence.length > 0) ? (
+            <p className="mt-2 text-xs text-[var(--muted)]">
+              Upload field photos below before marking done.
+            </p>
+          ) : null}
 
           <div className="mt-4">
             <p className="font-mono text-[9px] tracking-[0.16em] text-[var(--muted)] uppercase">
@@ -952,10 +1106,10 @@ export function IncidentDetail({
 
       <section className="border-t border-[var(--border)] px-4 py-4 sm:px-5">
         <p className="font-mono text-[9px] tracking-[0.16em] text-[var(--muted)] uppercase">
-          Field photos
+          Field photos · required before done
         </p>
         <p className="mt-0.5 text-xs text-[var(--muted)]">
-          Upload images of what is happening on site. Images only.
+          Upload on-site images before marking this incident done. Images only.
         </p>
         <label className="mt-2 block">
           <span className="sr-only">Upload field photos</span>
