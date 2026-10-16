@@ -122,7 +122,7 @@ export async function sendSmsBatch(
     const smsTargets = sandboxTos.length > 0 ? sandboxTos : [r.to];
     const body =
       sandboxTos.length > 0
-        ? `LUWAS sandbox. Intended for ${detail.phoneDisplay}. ${r.body}`
+        ? `UGNAI sandbox. Intended for ${detail.phoneDisplay}. ${r.body}`
         : r.body;
 
     for (const smsTo of smsTargets) {

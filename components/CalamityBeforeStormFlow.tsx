@@ -15,6 +15,7 @@ import {
   type NodeProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { BrandLogo } from "@/components/BrandLogo";
 import {
   FlowCostsBelow,
   FlowMark,
@@ -77,13 +78,7 @@ function CommandNode(_props: NodeProps) {
         position={Position.Left}
         className="!size-2 !bg-[#c72929] !border-0"
       />
-      <Image
-        src="/brand/luwas-logo.png"
-        alt=""
-        width={36}
-        height={36}
-        className="size-9 object-contain"
-      />
+      <BrandLogo size={20} wordmarkClassName="text-sm" />
       <p className={flowLabelClass}>Command center</p>
       <Handle
         type="source"
@@ -104,8 +99,8 @@ function TriageNode(_props: NodeProps) {
       />
       <div className="mb-0.5 flex items-center justify-center gap-2">
         <Image
-          src="/mangluluwas.jpg"
-          alt="Mangluluwas"
+          src="/mangugnai.jpg"
+          alt="Mangugnai"
           width={40}
           height={40}
           className="size-10 rounded-full object-cover"
@@ -119,7 +114,7 @@ function TriageNode(_props: NodeProps) {
         />
       </div>
       <p className={flowLabelClass}>
-        Chat Mangluluwas to &quot;run triage&quot;
+        Chat Mangugnai to &quot;run triage&quot;
       </p>
       <p className={flowMetaClass}>gemini-1.5-flash-lite</p>
       <FlowCostsBelow costs={["~$0.0002–$0.0005"]} />
@@ -283,7 +278,7 @@ function SiteGroupNode(_props: NodeProps) {
         className="absolute top-3 right-3 size-6 object-contain"
       />
       <p className="absolute top-3 left-3 font-mono text-[11px] tracking-wider text-[var(--muted)] uppercase">
-        Luwasph.com
+        Ugnaiph.com
       </p>
     </div>
   );

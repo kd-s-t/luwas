@@ -9,7 +9,7 @@ export default function LoginChoosePage() {
     <AuthGate mode="guest">
       <AuthCard
         title="Login"
-        subtitle="Choose how you use LUWAS."
+        subtitle="Choose how you use UGNAI."
         footer={
           <>
             New here?{" "}

@@ -66,7 +66,7 @@ export function buildDemoHouseholds(
       phone: `09${String(17 + (i % 6)).padStart(2, "0")}${String(3000000 + i).slice(0, 7)}`,
       email:
         rand() > 0.4
-          ? `${first.toLowerCase()}.${last.toLowerCase().replace(/\s/g, "")}${i}@demo.luwas.ph`
+          ? `${first.toLowerCase()}.${last.toLowerCase().replace(/\s/g, "")}${i}@demo.ugnai.ph`
           : "",
       notes: `Demo seed · ${2 + (i % 5)} household members · Brgy. ${barangay}`,
       lat: center.lat + Math.cos(ang) * dist,

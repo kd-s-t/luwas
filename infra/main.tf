@@ -11,10 +11,10 @@ locals {
     "firebasehosting.googleapis.com",
   ]
 
-  effective_project_id = var.create_project ? google_project.luwas[0].project_id : var.project_id
+  effective_project_id = var.create_project ? google_project.ugnai[0].project_id : var.project_id
 }
 
-resource "google_project" "luwas" {
+resource "google_project" "ugnai" {
   count = var.create_project ? 1 : 0
 
   name            = var.project_name
@@ -22,7 +22,7 @@ resource "google_project" "luwas" {
   billing_account = var.billing_account != "" ? var.billing_account : null
 
   labels = {
-    app     = "luwas"
+    app     = "ugnai"
     managed = "terraform"
   }
 }
@@ -34,7 +34,7 @@ resource "google_project_service" "required" {
   service            = each.value
   disable_on_destroy = false
 
-  depends_on = [google_project.luwas]
+  depends_on = [google_project.ugnai]
 }
 
 resource "google_firebase_project" "default" {
@@ -57,7 +57,7 @@ resource "google_firestore_database" "default" {
 }
 
 # Web app config for Next.js NEXT_PUBLIC_FIREBASE_* env vars
-resource "google_firebase_web_app" "luwas" {
+resource "google_firebase_web_app" "ugnai" {
   provider     = google-beta
   project      = local.effective_project_id
   display_name = var.project_name
@@ -65,8 +65,8 @@ resource "google_firebase_web_app" "luwas" {
   depends_on = [google_firebase_project.default]
 }
 
-data "google_firebase_web_app_config" "luwas" {
+data "google_firebase_web_app_config" "ugnai" {
   provider   = google-beta
   project    = local.effective_project_id
-  web_app_id = google_firebase_web_app.luwas.app_id
+  web_app_id = google_firebase_web_app.ugnai.app_id
 }

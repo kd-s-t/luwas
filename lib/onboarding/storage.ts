@@ -5,7 +5,7 @@ import {
 } from "@/lib/onboarding/api";
 import type { OnboardedBarangay } from "@/lib/onboarding/types";
 
-const STORAGE_KEY = "luwas.onboarded.barangays.v1";
+const STORAGE_KEY = "ugnai.onboarded.barangays.v1";
 
 function readCache(): OnboardedBarangay[] {
   if (typeof window === "undefined") return [];

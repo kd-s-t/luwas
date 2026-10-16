@@ -10,7 +10,7 @@ import {
 } from "@/lib/geo/cebuBarangays";
 
 export const metadata = {
-  title: "Cebu barangays · LUWAS",
+  title: "Cebu barangays · UGNAI",
   description:
     "Directory of barangays across Cebu province and highly urbanized cities, with barangay government hierarchy.",
 };

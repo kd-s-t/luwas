@@ -7,7 +7,7 @@ import {
   type ResponderStation,
 } from "@/lib/geo/responderStations";
 
-/** Station kinds Mangluluwas may dial (never 911 / national hotlines). */
+/** Station kinds Mangugnai may dial (never 911 / national hotlines). */
 export type ResponderCallKind = Exclude<ResponderKind, "hotline">;
 
 export type ResolvedResponderCall = {

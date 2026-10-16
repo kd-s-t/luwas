@@ -15,7 +15,7 @@ import {
 import {
   addSupportTicketMessage,
   assignSupportTicket,
-  LUWAS_DEVELOPERS_ASSIGNEE,
+  UGNAI_DEVELOPERS_ASSIGNEE,
   subscribeSupportTickets,
   updateSupportTicketStatus,
   type SupportTicket,
@@ -351,18 +351,18 @@ export function SupportDetail({ ticketId }: { ticketId: string }) {
                 disabled={busy}
                 onClick={() =>
                   void assign(
-                    LUWAS_DEVELOPERS_ASSIGNEE.uid,
-                    LUWAS_DEVELOPERS_ASSIGNEE.name,
+                    UGNAI_DEVELOPERS_ASSIGNEE.uid,
+                    UGNAI_DEVELOPERS_ASSIGNEE.name,
                   )
                 }
               >
                 <span className="inline-flex items-center gap-2">
                   <ProfileAvatar
-                    name={LUWAS_DEVELOPERS_ASSIGNEE.name}
-                    seed={LUWAS_DEVELOPERS_ASSIGNEE.uid}
+                    name={UGNAI_DEVELOPERS_ASSIGNEE.name}
+                    seed={UGNAI_DEVELOPERS_ASSIGNEE.uid}
                     size="sm"
                   />
-                  {LUWAS_DEVELOPERS_ASSIGNEE.name}
+                  {UGNAI_DEVELOPERS_ASSIGNEE.name}
                 </span>
               </Button>
               {officers.slice(0, 8).map((o) => (

@@ -38,6 +38,6 @@ export function demoPortraitAbsoluteUrl(opts: {
   const origin =
     opts.origin?.replace(/\/$/, "") ||
     (typeof window !== "undefined" ? window.location.origin : "") ||
-    "https://luwasph.com";
+    "https://ugnaiph.com";
   return `${origin}${path}`;
 }

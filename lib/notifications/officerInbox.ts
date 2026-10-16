@@ -18,7 +18,7 @@ const QUEUE_STATUSES = new Set([
 ]);
 
 function readStorageKey(uid: string) {
-  return `luwas.officerNotifRead.${uid}`;
+  return `ugnai.officerNotifRead.${uid}`;
 }
 
 export function loadReadIds(uid: string): Set<string> {

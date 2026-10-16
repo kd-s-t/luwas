@@ -8,8 +8,8 @@ export default function RegisterChooserPage() {
   return (
     <AuthGate mode="guest">
       <AuthCard
-        title="Create a LUWAS account"
-        subtitle="Choose how you’ll use LUWAS."
+        title="Create a UGNAI account"
+        subtitle="Choose how you’ll use UGNAI."
         footer={
           <>
             Already registered?{" "}

@@ -29,8 +29,8 @@ export function buildRegisterSms(
   ctx: EmailSampleContext = DEFAULT_EMAIL_SAMPLE,
 ): TextParts {
   return parts(
-    `LUWAS: Hi ${ctx.name}, thanks for registering as a citizen of ${ctx.barangay}. ` +
-      `Open the LUWAS app / site to verify your account and start receiving DRRM alerts.`,
+    `UGNAI: Hi ${ctx.name}, thanks for registering as a citizen of ${ctx.barangay}. ` +
+      `Open the UGNAI app / site to verify your account and start receiving DRRM alerts.`,
   );
 }
 
@@ -38,7 +38,7 @@ export function buildVerifiedSms(
   ctx: EmailSampleContext = DEFAULT_EMAIL_SAMPLE,
 ): TextParts {
   return parts(
-    `LUWAS: ${ctx.name}, your account is verified. ` +
+    `UGNAI: ${ctx.name}, your account is verified. ` +
       `You will receive SMS alerts for ${ctx.barangay}, ${ctx.lgu}. Keep this number on.`,
   );
 }
@@ -47,7 +47,7 @@ export function buildWelcomeSms(
   ctx: EmailSampleContext = DEFAULT_EMAIL_SAMPLE,
 ): TextParts {
   return parts(
-    `LUWAS · Welcome ${ctx.name}. You're on the ${ctx.barangay} (${ctx.purok}) alert roster. ` +
+    `UGNAI · Welcome ${ctx.name}. You're on the ${ctx.barangay} (${ctx.purok}) alert roster. ` +
       `We'll text evacuate / prepare / monitor guidance from MDRRMO. Reply STOP to opt out (demo).`,
   );
 }
@@ -59,7 +59,7 @@ export function buildEqAlertSms(
   const dist = formatDistanceKm(haversineKm(ctx.home, eq));
   const mag = `M${eq.magnitude.toFixed(1)}`;
   return parts(
-    `LUWAS EQ ALERT · JUST NOW: ${mag} · ${dist} from your home (${ctx.purok}). ` +
+    `UGNAI EQ ALERT · JUST NOW: ${mag} · ${dist} from your home (${ctx.purok}). ` +
       `Epicenter: ${eq.place}. Drop, Cover, Hold. Check damage before going outside. ` +
       `Follow barangay if told to evacuate.`,
   );
@@ -71,7 +71,7 @@ export function buildFireAlertSms(
   const fire = ctx.fire ?? DEFAULT_EMAIL_SAMPLE.fire!;
   const dist = formatDistanceKm(haversineKm(ctx.home, fire));
   return parts(
-    `LUWAS FIRE ALERT · JUST NOW: ${fire.name} · ${dist} from your home (${ctx.purok}). ` +
+    `UGNAI FIRE ALERT · JUST NOW: ${fire.name} · ${dist} from your home (${ctx.purok}). ` +
       `${fire.place}. Move away from smoke/heat. Do not re-enter. Call BFP/barangay if you have info.`,
   );
 }
@@ -80,9 +80,9 @@ export function buildTyphoonAlertSms(
   ctx: EmailSampleContext = DEFAULT_EMAIL_SAMPLE,
 ): TextParts {
   return parts(
-    `LUWAS TYPHOON WATCH · ~3 DAYS: Storm approaching ${ctx.barangay}. ` +
+    `UGNAI TYPHOON WATCH · ~3 DAYS: Storm approaching ${ctx.barangay}. ` +
       `Charge phone/flashlight/power bank now. Stock water/food/meds. ` +
-      `Save the LUWAS email as PDF — during landfall you may be on your own. Good luck.`,
+      `Save the UGNAI email as PDF — during landfall you may be on your own. Good luck.`,
   );
 }
 
@@ -117,7 +117,7 @@ export function buildReportVerifiedSms(
 ): TextParts {
   const report = ctx.report ?? DEFAULT_EMAIL_SAMPLE.report!;
   return parts(
-    `LUWAS: Your report was verified — ${report.title} (${report.hazardLabel}) at ${report.place}. ` +
+    `UGNAI: Your report was verified — ${report.title} (${report.hazardLabel}) at ${report.place}. ` +
       `Ref ${report.id}. Salamat — this helps ${ctx.barangay} DRRM prioritize response.`,
   );
 }

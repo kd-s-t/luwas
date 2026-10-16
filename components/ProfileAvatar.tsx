@@ -21,7 +21,7 @@ function initials(name: string): string {
 
 /** Deterministic portrait URL when the user has no uploaded photo. */
 export function avatarPhotoSrc(seed: string): string {
-  const key = seed.trim() || "luwas";
+  const key = seed.trim() || "ugnai";
   return `https://i.pravatar.cc/128?u=${encodeURIComponent(key)}`;
 }
 

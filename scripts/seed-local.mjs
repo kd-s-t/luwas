@@ -595,7 +595,7 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(`Seeding local Luwas DB · project=${PROJECT}`);
+  console.log(`Seeding local Ugnai DB · project=${PROJECT}`);
   console.log(`Auth ${AUTH_HOST} · Firestore ${FS_HOST}`);
 
   const uids = await seedUsers();

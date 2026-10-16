@@ -4,7 +4,7 @@ export type BrandedEmailParts = {
   html: string;
 };
 
-const BRAND = "LUWAS";
+const BRAND = "UGNAI";
 const ACCENT = "#c72929";
 const INK = "#1f2126";
 const MUTED = "#666e78";
@@ -31,7 +31,7 @@ export function appOrigin(): string {
 export function mailFromDisplay(): string {
   return (
     process.env.RESEND_FROM_EMAIL?.trim() ||
-    "Luwas Alerts <alerts@luwasph.com>"
+    "Ugnai Alerts <alerts@ugnaiph.com>"
   );
 }
 
@@ -64,7 +64,7 @@ function warningAlertHeaderHtml(): string {
                               </td>
                             </tr>
                           </table>
-                          <p style="margin:12px 0 0;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:rgba(255,255,255,0.92);font-family:Arial,Helvetica,sans-serif;">${escapeHtml(BRAND)} · Aid &amp; Safety</p>
+                          <p style="margin:12px 0 0;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:rgba(255,255,255,0.92);font-family:Arial,Helvetica,sans-serif;">${escapeHtml(BRAND)} · Needs · Alerts · Incidents</p>
                         </td>
                       </tr>
                     </table>
@@ -78,18 +78,18 @@ function brandHeaderHtml(headerColor: string): string {
                 <tr>
                   <td align="center" style="background:${headerColor};padding:36px 28px 40px;">
                     <p style="margin:0;font-size:28px;line-height:1.15;font-weight:700;letter-spacing:-0.02em;color:#ffffff;">${escapeHtml(BRAND)}</p>
-                    <p style="margin:8px 0 0;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(255,255,255,0.85);">Aid &amp; Safety</p>
+                    <p style="margin:8px 0 0;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(255,255,255,0.85);">Needs · Alerts · Incidents</p>
                   </td>
                 </tr>`;
 }
 
-/** Shared LUWAS transactional chrome: red header, white card, muted footer. */
+/** Shared UGNAI transactional chrome: red header, white card, muted footer. */
 export function buildBrandedEmail(params: {
   subject: string;
   eyebrow?: string;
   headline?: string;
   greetingName?: string;
-  /** Header strip color (default LUWAS red). Ignored when headerVariant is warning. */
+  /** Header strip color (default UGNAI red). Ignored when headerVariant is warning. */
   headerColor?: string;
   /** `warning` = red hazard-tape WARNING banner for DRRM alerts. */
   headerVariant?: "brand" | "warning";
@@ -152,8 +152,8 @@ export function buildBrandedEmail(params: {
               ${secondaryHtml}`;
   }
 
-  const footerText = `— ${BRAND}
-Logistics & Unified Workflow for Aid & Safety
+  const footerText = `- ${BRAND}
+Unified Guidance for Needs, Alerts & Incidents
 Brgy. Nangka MDRRMO · Consolacion, Cebu
 ${origin}`;
 
@@ -197,7 +197,7 @@ ${footerText}`;
                 <tr>
                   <td style="padding:20px 28px 28px;border-top:1px solid #e5e8ec;background:#f7f7fa;">
                     <p style="margin:0 0 4px;font-size:13px;font-weight:600;color:${INK};text-align:center;">${escapeHtml(BRAND)}</p>
-                    <p style="margin:0 0 8px;font-size:12px;line-height:1.45;color:${MUTED};text-align:center;">Logistics &amp; Unified Workflow for Aid &amp; Safety</p>
+                    <p style="margin:0 0 8px;font-size:12px;line-height:1.45;color:${MUTED};text-align:center;">Unified Guidance for Needs, Alerts &amp; Incidents</p>
                     <p style="margin:0;font-size:11px;line-height:1.45;color:${MUTED};text-align:center;">Brgy. Nangka MDRRMO · Consolacion, Cebu</p>
                   </td>
                 </tr>

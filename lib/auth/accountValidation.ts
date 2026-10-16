@@ -99,7 +99,7 @@ function mapUser(id: string, data: Record<string, unknown>): UserProfile {
       ...base,
       role: "developer",
       orgName:
-        data.orgName != null ? String(data.orgName) : "LUWAS Developers",
+        data.orgName != null ? String(data.orgName) : "UGNAI Developers",
     };
   }
   if (role === "citizen") {

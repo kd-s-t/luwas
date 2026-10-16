@@ -394,7 +394,7 @@ const SUPPORT = [
   {
     id: "sup-sample-005",
     status: "open",
-    email: "guest@luwas.local",
+    email: "guest@ugnai.local",
     pageUrl: "/support",
     summary: "Support form rejects long details past ~4k chars",
     details:
@@ -575,7 +575,7 @@ function supportFields(sample) {
     details: sv(sample.details),
     uid: sv(sample.uid),
     status: sv(sample.status),
-    userAgent: sv("LUWAS prod sample seed"),
+    userAgent: sv("UGNAI prod sample seed"),
     createdAt: sv(NOW),
     assignedToUid: sample.assignedToUid ? sv(sample.assignedToUid) : nullV(),
     assignedToName: sample.assignedToName

@@ -41,7 +41,7 @@ function mapDoc(id: string, data: Record<string, unknown>): UserProfile {
     return {
       ...base,
       role: "developer",
-      orgName: String(data.orgName ?? "LUWAS Developers"),
+      orgName: String(data.orgName ?? "UGNAI Developers"),
     };
   }
   if (role === "citizen") {

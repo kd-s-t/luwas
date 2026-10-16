@@ -92,7 +92,7 @@ const COLUMNS: BoardColumn[] = [
   },
 ];
 
-const DRAG_MIME = "application/x-luwas-report-id";
+const DRAG_MIME = "application/x-ugnai-report-id";
 
 export function IncidentBoard() {
   const { profile } = useAuth();

@@ -15,7 +15,7 @@ export function buildEvacCallScript(input: {
 
   if (input.priority === "evacuate") {
     return (
-      `This is a Luwas alert for ${brgy}. ` +
+      `This is a Ugnai alert for ${brgy}. ` +
       `${name}${place}, please evacuate now to Consolacion Evacuation Center, ` +
       `or Center 2, or Nangka Elementary. Follow road escape routes. ` +
       `This is an Tino simulation for responders. ` +
@@ -24,14 +24,14 @@ export function buildEvacCallScript(input: {
   }
   if (input.priority === "prepare") {
     return (
-      `This is a Luwas alert for ${brgy}. ` +
+      `This is a Ugnai alert for ${brgy}. ` +
       `${name}${place}, please prepare: stock water, food, and cooking fuel. ` +
       `Watch for flood and wind. This is an Tino simulation. ` +
       `Call local responders if you are in danger.`
     );
   }
   return (
-    `This is a Luwas alert for ${brgy}. ` +
+    `This is a Ugnai alert for ${brgy}. ` +
     `${name}${place}, please monitor conditions and keep your phone on. ` +
     `This is an Tino simulation. Call local responders if you are in danger.`
   );
@@ -49,9 +49,9 @@ export function buildInvestigatorAssignCallScript(input: {
   const hazard = (input.hazardHint ?? "hazard").replace(/_/g, " ");
   const title = (input.title ?? "a citizen report").slice(0, 60);
   return (
-    `This is Luwas for Barangay ${brgy}. ` +
+    `This is Ugnai for Barangay ${brgy}. ` +
     `${name}, you were assigned as investigator for a ${hazard} report: ${title}. ` +
-    `Open the Luwas incidents board for evidence and next steps. ` +
+    `Open the Ugnai incidents board for evidence and next steps. ` +
     `This is an Tino simulation for responders.`
   );
 }
@@ -72,7 +72,7 @@ export function buildResponderCallScript(input: {
     "Please stand by for barangay coordination under the Tino simulation.";
 
   return (
-    `This is Luwas M D R R M O for Barangay ${brgy}, ${lgu}. ` +
+    `This is Ugnai M D R R M O for Barangay ${brgy}, ${lgu}. ` +
     `Officer-requested call to ${role}, ${input.stationName}. ` +
     `${reason} ` +
     `This is an Tino simulation for responders. Please acknowledge if you receive this.`
@@ -106,7 +106,7 @@ export function buildIncidentAlertCallScript(input: {
       : "";
 
   return (
-    `Luwas ${input.alertLabel} alert. ${situation} at ${place}.${pin} ` +
+    `Ugnai ${input.alertLabel} alert. ${situation} at ${place}.${pin} ` +
     `Please dispatch. Tino simulation.`
   );
 }

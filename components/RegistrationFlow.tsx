@@ -173,7 +173,7 @@ function SiteGroupNode(_props: NodeProps) {
         className="absolute top-3 right-3 size-6 object-contain"
       />
       <p className="absolute top-3 left-3 font-mono text-[11px] tracking-wider text-[var(--muted)] uppercase">
-        Luwasph.com
+        Ugnaiph.com
       </p>
     </div>
   );
@@ -387,7 +387,7 @@ export function RegistrationFlow() {
           Registration Flow
         </h1>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          New users register with ID. Gemini validates inside Luwasph.com
+          New users register with ID. Gemini validates inside Ugnaiph.com
           (Firebase). Valid → sends email; Rejected → officer call → Valid
           (email) or Rejected (officer could not validate).
         </p>

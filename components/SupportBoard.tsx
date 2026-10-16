@@ -18,7 +18,7 @@ import {
 } from "@/lib/auth/types";
 import {
   assignSupportTicket,
-  LUWAS_DEVELOPERS_ASSIGNEE,
+  UGNAI_DEVELOPERS_ASSIGNEE,
   subscribeSupportTickets,
   updateSupportTicketStatus,
   type SupportTicket,
@@ -57,7 +57,7 @@ const COLUMNS: BoardColumn[] = [
   },
 ];
 
-const DRAG_TYPE = "application/x-luwas-support-ticket";
+const DRAG_TYPE = "application/x-ugnai-support-ticket";
 
 function statusVariant(
   status: SupportTicketStatus,
@@ -219,7 +219,7 @@ export function SupportBoard() {
         uid: profile.uid,
         email: profile.email,
         displayName: profile.displayName,
-        orgName: profile.orgName || "LUWAS Developers",
+        orgName: profile.orgName || "UGNAI Developers",
         role: "officer",
         createdAt: profile.createdAt,
         accountStatus: "active",
@@ -555,7 +555,7 @@ export function SupportBoard() {
                                       !q || label.toLowerCase().includes(q);
                                     const showUnassigned = match("unassigned");
                                     const showDevs = match(
-                                      LUWAS_DEVELOPERS_ASSIGNEE.name,
+                                      UGNAI_DEVELOPERS_ASSIGNEE.name,
                                     );
                                     return (
                                       <>
@@ -581,34 +581,34 @@ export function SupportBoard() {
                                             role="option"
                                             aria-selected={
                                               t.assignedToUid ===
-                                              LUWAS_DEVELOPERS_ASSIGNEE.uid
+                                              UGNAI_DEVELOPERS_ASSIGNEE.uid
                                             }
                                             className={cn(
                                               "flex w-full items-center gap-2 px-2 py-1.5 text-left text-xs hover:bg-[var(--surface-panel)]",
                                               t.assignedToUid ===
-                                                LUWAS_DEVELOPERS_ASSIGNEE.uid &&
+                                                UGNAI_DEVELOPERS_ASSIGNEE.uid &&
                                                 "bg-[var(--accent)]/10",
                                             )}
                                             onClick={() => {
                                               void assignTicket(
                                                 t,
-                                                LUWAS_DEVELOPERS_ASSIGNEE.uid,
-                                                LUWAS_DEVELOPERS_ASSIGNEE.name,
+                                                UGNAI_DEVELOPERS_ASSIGNEE.uid,
+                                                UGNAI_DEVELOPERS_ASSIGNEE.name,
                                               );
                                               closeAssignMenu();
                                             }}
                                           >
                                             <ProfileAvatar
                                               name={
-                                                LUWAS_DEVELOPERS_ASSIGNEE.name
+                                                UGNAI_DEVELOPERS_ASSIGNEE.name
                                               }
                                               seed={
-                                                LUWAS_DEVELOPERS_ASSIGNEE.uid
+                                                UGNAI_DEVELOPERS_ASSIGNEE.uid
                                               }
                                               size="sm"
                                             />
                                             <span className="min-w-0 truncate font-medium">
-                                              {LUWAS_DEVELOPERS_ASSIGNEE.name}
+                                              {UGNAI_DEVELOPERS_ASSIGNEE.name}
                                             </span>
                                           </button>
                                         ) : null}

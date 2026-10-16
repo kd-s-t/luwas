@@ -18,7 +18,7 @@ export function buildEvacEmailSubject(input: {
       : input.priority === "prepare"
         ? "PREPARE"
         : "MONITOR";
-  return `LUWAS ALERT · ${brgy} · ${label}`;
+  return `UGNAI ALERT · ${brgy} · ${label}`;
 }
 
 /** Branded HTML+text email — not the SMS string. */

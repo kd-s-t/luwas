@@ -62,8 +62,8 @@ service cloud.firestore {
         && resource.data.officerUid == request.auth.uid;
     }
 
-    // Mangluluwas command chat threads (+ meta doc) under the officer.
-    match /users/{userId}/mangluluwasThreads/{threadId} {
+    // Mangugnai command chat threads (+ meta doc) under the officer.
+    match /users/{userId}/mangugnaiThreads/{threadId} {
       allow read, write: if signedIn() && request.auth.uid == userId;
     }
 
@@ -219,7 +219,7 @@ service cloud.firestore {
           && request.resource.data.mediaUrl.size() > 0
         )
         || (
-          // Guest reports from LUWAS Citizen iOS / web (reference LUW-YYMMDD-####).
+          // Guest reports from UGNAI Citizen iOS / web (reference LUW-YYMMDD-####).
           reportId.matches('LUW-[0-9]{6}-[0-9]{4}')
           && request.resource.data.citizenUid in ["ios-guest", "web-guest"]
           && request.resource.data.source in ["ios", "web"]
@@ -323,7 +323,7 @@ service cloud.firestore {
           && (
             !("assignedToUid" in request.resource.data)
             || request.resource.data.assignedToUid == null
-            || request.resource.data.assignedToUid == "luwas-developers"
+            || request.resource.data.assignedToUid == "ugnai-developers"
           )
         )
         // Demo seed rows (Developer → Support sample inbox).

@@ -10,7 +10,7 @@ export default function TermsPage() {
       <PublicPageHeader
         eyebrow="Legal"
         title="Terms"
-        description="Terms of use for LUWAS: command center, citizen reports, voice notes, AI triage, and the Tino simulation."
+        description="Terms of use for UGNAI: command center, citizen reports, voice notes, AI triage, and the Tino simulation."
       />
       <main className="mx-auto max-w-3xl space-y-6 px-4 py-8 text-sm leading-relaxed text-[var(--muted)] sm:px-6">
         <p className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
@@ -22,7 +22,7 @@ export default function TermsPage() {
             Acceptance
           </h2>
           <p>
-            By using LUWAS (web or Citizen iOS) you agree to these terms. LUWAS
+            By using UGNAI (web or Citizen iOS) you agree to these terms. UGNAI
             is a paid product of{" "}
             <Link
               href="/about"
@@ -76,7 +76,7 @@ export default function TermsPage() {
             Field content
           </h2>
           <p>
-            You retain rights to media you upload and grant LUWAS a license to
+            You retain rights to media you upload and grant UGNAI a license to
             store, display, and process it for DRRM workflows: AI validation
             (Gemini and Vertex vision when configured), optional voice
             transcription, officer review (queued → validating → legit /
@@ -102,12 +102,12 @@ export default function TermsPage() {
           <p>
             Command features (field reports, Vertex month export, house owners,
             users, roles, support tickets, notifications, SMS / email / voice
-            alerts, Mangluluwas triage) are for authorized staff of a
+            alerts, Mangugnai triage) are for authorized staff of a
             subscribing barangay or LGU. Scope is limited to onboarded /
             assigned areas (e.g. Brgy. Nangka). Roster and alert actions in the
             Tino simulation are for demo and training unless your organization
-            has an active LUWAS subscription for live ops. Never auto-dial 911
-            from LUWAS; responder calls are officer-triggered to curated numbers
+            has an active UGNAI subscription for live ops. Never auto-dial 911
+            from UGNAI; responder calls are officer-triggered to curated numbers
             when Twilio is configured.
           </p>
         </section>
@@ -137,7 +137,7 @@ export default function TermsPage() {
             AI &amp; Google services
           </h2>
           <p>
-            LUWAS uses Google AI and Cloud services (including Gemini, Vertex
+            UGNAI uses Google AI and Cloud services (including Gemini, Vertex
             AI, Firebase, and Google Maps / Weather / Elevation) to assist validation
             and command decisions. Model outputs can be wrong. Officers remain
             responsible for verification before acting. Vertex prediction
@@ -153,7 +153,7 @@ export default function TermsPage() {
           <p>
             Maps, weather, AI suggestions, trust scores, flood footprints,
             escape routes, and the Tino Before / During / After simulation can
-            be incomplete or delayed. LUWAS will not present unverified rescue
+            be incomplete or delayed. UGNAI will not present unverified rescue
             or aid as confirmed. Always follow LGU, barangay, PAGASA, and other
             official instructions during hazards.
           </p>
@@ -168,10 +168,10 @@ export default function TermsPage() {
             after changes means you accept the revised terms. For product
             issues, email{" "}
             <a
-              href="mailto:support@luwasph.com"
+              href="mailto:support@ugnaiph.com"
               className="text-[var(--accent)] underline-offset-2 hover:underline"
             >
-              support@luwasph.com
+              support@ugnaiph.com
             </a>{" "}
             or see{" "}
             <Link

@@ -10,7 +10,7 @@ export default function PrivacyPage() {
       <PublicPageHeader
         eyebrow="Legal"
         title="Privacy"
-        description="How LUWAS handles accounts, guest reports, voice notes, AI triage, and field data when a barangay or LGU subscribes."
+        description="How UGNAI handles accounts, guest reports, voice notes, AI triage, and field data when a barangay or LGU subscribes."
       />
       <main className="mx-auto max-w-3xl space-y-6 px-4 py-8 text-sm leading-relaxed text-[var(--muted)] sm:px-6">
         <p className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
@@ -22,7 +22,7 @@ export default function PrivacyPage() {
             Who we are
           </h2>
           <p>
-            LUWAS (Logistics &amp; Unified Workflow for Aid &amp; Safety) is a
+            UGNAI (Unified Guidance for Needs, Alerts &amp; Incidents) is a
             commercial product owned and operated by{" "}
             <Link
               href="/about"
@@ -30,8 +30,8 @@ export default function PrivacyPage() {
             >
               UgnAI Labs Co.
             </Link>
-            . Barangay and LGU DRRM teams use LUWAS under a paid subscription.
-            UgnAI Labs is not a government agency, and LUWAS is not donated or
+            . Barangay and LGU DRRM teams use UGNAI under a paid subscription.
+            UgnAI Labs is not a government agency, and UGNAI is not donated or
             transferred to the Philippine government. The product includes a
             public situation map, citizen / guest reporting (web and Citizen
             iOS), officer command tools, and the Tino Before / During / After
@@ -60,7 +60,7 @@ export default function PrivacyPage() {
               situation text, intent (e.g. need help / report hazard), photos
               or video, optional voice notes and speech transcripts, hazard
               hint, GPS / place / landmark, mobile number when provided, and
-              device / IP metadata from web or the LUWAS Citizen iOS app
+              device / IP metadata from web or the UGNAI Citizen iOS app
             </li>
             <li>
               <strong className="font-medium text-[var(--foreground)]">
@@ -111,7 +111,7 @@ export default function PrivacyPage() {
             >
               community reports
             </Link>
-            , AI-assisted validation, and Tino map assist (Mangluluwas). Voice
+            , AI-assisted validation, and Tino map assist (Mangugnai). Voice
             notes may be transcribed so officers can read what was said. Photos
             may be scored by a custom Vertex vision model and reasoned over by
             Gemini. Officers may export a monthly photo batch (zip + CSV) to
@@ -186,10 +186,10 @@ export default function PrivacyPage() {
           <p>
             Privacy questions:{" "}
             <a
-              href="mailto:support@luwasph.com"
+              href="mailto:support@ugnaiph.com"
               className="text-[var(--accent)] underline-offset-2 hover:underline"
             >
-              support@luwasph.com
+              support@ugnaiph.com
             </a>
             ,{" "}
             <Link

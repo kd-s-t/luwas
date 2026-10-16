@@ -4,9 +4,9 @@ import {
   PublicPageHeader,
   PublicShell,
 } from "@/components/PublicShell";
-import { LUWAS_DEVELOPERS } from "@/lib/auth/luwasDevelopers";
+import { UGNAI_DEVELOPERS } from "@/lib/auth/ugnaiDevelopers";
 
-const TEAM = LUWAS_DEVELOPERS;
+const TEAM = UGNAI_DEVELOPERS;
 
 const PILLARS = [
   {
@@ -23,7 +23,7 @@ const PILLARS = [
   },
   {
     title: "Barangay command",
-    body: "For paying MDRRMO customers: household roster, live situation map, Mangluluwas chat, SMS / email / voice outreach, and EC occupancy under pressure.",
+    body: "For paying MDRRMO customers: household roster, live situation map, Mangugnai chat, SMS / email / voice outreach, and EC occupancy under pressure.",
     image: "/reports/ec-nangka-elem-after.jpg",
     alt: "Nangka Elementary School evacuation center",
   },
@@ -42,7 +42,7 @@ export default function AboutPage() {
       <PublicPageHeader
         eyebrow="UgnAI Labs"
         title="About us"
-        description="LUWAS is our DRRM command product. Barangays and LGUs subscribe, run ops on it, and pay UgnAI Labs."
+        description="UGNAI is our DRRM command product. Barangays and LGUs subscribe, run ops on it, and pay UgnAI Labs."
       />
       <main className="mx-auto max-w-3xl space-y-14 px-4 py-10 text-sm leading-relaxed text-[var(--muted)] sm:px-6 sm:py-14">
         <section className="space-y-5">
@@ -62,10 +62,10 @@ export default function AboutPage() {
             <p>
               <span className="text-[var(--foreground)]">UgnAI Labs Co.</span>{" "}
               builds and sells{" "}
-              <span className="text-[var(--foreground)]">LUWAS</span>{" "}
-              (Logistics and Unified Workflow for Aid and Safety), a paid
+              <span className="text-[var(--foreground)]">UGNAI</span>{" "}
+              (Unified Guidance for Needs, Alerts and Incidents), a paid
               command-center product for barangay and LGU DRRM teams. We are not
-              a government agency, and LUWAS is not donated or handed over to
+              a government agency, and UGNAI is not donated or handed over to
               the Philippine government. Customers activate an area, run their
               ops on the platform, and pay us for the software and support.
             </p>
@@ -74,7 +74,7 @@ export default function AboutPage() {
               same product is designed so other barangays can subscribe and go
               live the same way. Under stress we keep the map clear: red means
               evacuate, yellow means prepare, blue means flood belt. Officers
-              get a command map and an AI colleague (Mangluluwas). Residents get
+              get a command map and an AI colleague (Mangugnai). Residents get
               a fast way to report what they see, including guests who only need
               a reference ID.
             </p>
@@ -145,8 +145,8 @@ export default function AboutPage() {
               Team
             </h2>
             <p>
-              Four people shipping LUWAS together: engineering, design, QA, and
-              IT application support in one loop from idea to luwasph.com.
+              Four people shipping UGNAI together: engineering, design, QA, and
+              IT application support in one loop from idea to ugnaiph.com.
             </p>
           </div>
           <ul className="divide-y divide-[var(--border)] border-y border-[var(--border)]">
@@ -202,10 +202,10 @@ export default function AboutPage() {
           <p>
             Sales, billing, bug, or barangay activation question: email{" "}
             <a
-              href="mailto:support@luwasph.com"
+              href="mailto:support@ugnaiph.com"
               className="text-[var(--accent)] underline-offset-2 hover:underline"
             >
-              support@luwasph.com
+              support@ugnaiph.com
             </a>{" "}
             or use{" "}
             <Link

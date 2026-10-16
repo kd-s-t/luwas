@@ -38,7 +38,7 @@ export async function POST(req: Request) {
       {
         headers: {
           Accept: "application/json",
-          "User-Agent": "LuwasDRRM/0.1 (barangay map switcher; local demo)",
+          "User-Agent": "UgnaiDRRM/0.1 (barangay map switcher; local demo)",
         },
         next: { revalidate: 86400 },
       },

@@ -1,6 +1,6 @@
-# Luwas monthly cost (server / integrations + Gemini)
+# Ugnai monthly cost (server / integrations + Gemini)
 
-Project: **`nice-pen-181017`**. Estimates from Luwas call paths + list prices (Oct 2026). Not a GCP / Twilio / ElevenLabs invoice.
+Project: **`nice-pen-181017`**. Estimates from Ugnai call paths + list prices (Oct 2026). Not a GCP / Twilio / ElevenLabs invoice.
 
 **Out of this doc:** Maps JS overages, BigQuery (usually cents at barangay scale).
 
@@ -84,7 +84,7 @@ cost = (inputTokens × calls × 0.30 + outputTokens × calls × 2.50) / 1_000_00
 
 ## Firebase (Blaze)
 
-| Piece | Free allowance | Luwas use |
+| Piece | Free allowance | Ugnai use |
 |-------|----------------|-----------|
 | Firestore reads | 50K / day | Queue + map live |
 | Firestore writes | 20K / day | Reports + users |
@@ -124,7 +124,7 @@ Sandbox does **not** make Twilio free; it only redirects all SMS/calls to `TWILI
 
 ---
 
-## ElevenLabs (Mangluluwas Speak)
+## ElevenLabs (Mangugnai Speak)
 
 Server route: `POST /api/ai/tts`. Model: **`eleven_multilingual_v2`**. First Speak per reply hits ElevenLabs; replay uses memory / Storage `audioUrl` (no second charge).
 
@@ -151,7 +151,7 @@ Browser TTS is the free fallback when ElevenLabs is unset or over quota.
 
 Account decisions + alert email (`sendEmailBatch`). Free: **3,000 emails / month** (100 / day). Pro: **$20 / month** for 50k.
 
-Luwas volume (ID approvals, officer alerts) stays under Free for cup / quiet months. Storm month still usually Free; jump to Pro only if you blast many recipients per alert.
+Ugnai volume (ID approvals, officer alerts) stays under Free for cup / quiet months. Storm month still usually Free; jump to Pro only if you blast many recipients per alert.
 
 | Scenario | Est. |
 |----------|------|
@@ -164,7 +164,7 @@ Luwas volume (ID approvals, officer alerts) stays under Free for cup / quiet mon
 
 **Rename (Apr 2026):** Vertex AI → **Gemini Enterprise Agent Platform** (Agent Platform). `VERTEX_*` env still works.
 
-Luwas: AutoML image class on report photos. Estimate if you run ~1 hour/month and keep the endpoint undeployed otherwise:
+Ugnai: AutoML image class on report photos. Estimate if you run ~1 hour/month and keep the endpoint undeployed otherwise:
 
 | | Est. |
 |--|------|
@@ -185,7 +185,7 @@ App does **not** call EE per page load. Only manual `ee:dem` / `ee:hazards` (or 
 | Limited (usage only) | ~$0.40 / EECU-hour |
 | Basic platform | $500 / month + credits |
 
-For Luwas-sized Cebu / Nangka cache refreshes, Limited compute stays under a few dollars if commercial. Basic is only needed if you buy that plan.
+For Ugnai-sized Cebu / Nangka cache refreshes, Limited compute stays under a few dollars if commercial. Basic is only needed if you buy that plan.
 
 ---
 

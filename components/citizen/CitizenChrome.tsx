@@ -31,7 +31,7 @@ export function CitizenHeader({
   onBack?: () => void;
   /** History back (falls back to site home if no prior page). */
   showHomeLink?: boolean;
-  /** `brand` = red LUWAS bar (citizen home). */
+  /** `brand` = red UGNAI bar (citizen home). */
   variant?: "default" | "brand";
 }) {
   const router = useRouter();
@@ -59,7 +59,7 @@ export function CitizenHeader({
           <Link
             href="/"
             className="inline-flex transition hover:opacity-90"
-            aria-label="LUWAS home"
+            aria-label="UGNAI home"
           >
             <BrandLogo
               tone="inverse"
@@ -149,7 +149,7 @@ export function CitizenHeader({
         <Link
           href="/"
           className="inline-flex transition hover:opacity-90"
-          aria-label="LUWAS home"
+          aria-label="UGNAI home"
         >
           <BrandLogo
             size={26}

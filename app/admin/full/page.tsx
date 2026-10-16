@@ -6,7 +6,7 @@ import { SituationMap } from "@/components/SituationMap";
 import { useAuth } from "@/lib/auth/AuthProvider";
 
 /**
- * Map + Mangluluwas (Tino phase switcher lives on the map).
+ * Map + Mangugnai (Tino phase switcher lives on the map).
  * No command header — fills the viewport.
  */
 export default function CommandFullViewPage() {

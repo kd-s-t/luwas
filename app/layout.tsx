@@ -24,18 +24,34 @@ const mono = IBM_Plex_Mono({
   weight: ["400", "500"],
 });
 
+const isLocal = process.env.NEXT_PUBLIC_USE_EMULATORS === "true";
+
 export const metadata: Metadata = {
-  title: "LUWAS",
-  description:
-    "LUWAS — Logistics & Unified Workflow for Aid & Safety. Barangay DRRM command center.",
-  icons: {
-    icon: [
-      { url: "/favicon.ico", sizes: "any" },
-      { url: "/brand/luwas-logo.png", type: "image/png", sizes: "512x512" },
-      { url: "/brand/luwas-logo.svg", type: "image/svg+xml" },
-    ],
-    apple: [{ url: "/brand/apple-touch-icon.png", sizes: "180x180" }],
-  },
+  title: isLocal ? "UGNAI (local)" : "UGNAI",
+  description: "UGNAI. Barangay DRRM command center.",
+  icons: isLocal
+    ? {
+        icon: [
+          { url: "/favicon-local.ico", sizes: "any" },
+          {
+            url: "/brand/ugnai-logo.jpg",
+            type: "image/jpeg",
+            sizes: "512x512",
+          },
+        ],
+        apple: [{ url: "/brand/ugnai-logo.jpg", sizes: "180x180" }],
+      }
+    : {
+        icon: [
+          { url: "/favicon.ico", sizes: "any" },
+          {
+            url: "/brand/ugnai-logo.jpg",
+            type: "image/jpeg",
+            sizes: "512x512",
+          },
+        ],
+        apple: [{ url: "/brand/ugnai-logo.jpg", sizes: "180x180" }],
+      },
 };
 
 export default function RootLayout({

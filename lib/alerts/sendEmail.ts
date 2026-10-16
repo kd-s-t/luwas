@@ -128,11 +128,11 @@ export async function sendEmailBatch(
         : r.subject;
     const text =
       sandboxTos.length > 0
-        ? `LUWAS sandbox. Intended for ${r.to}.\n\n${r.body}`
+        ? `UGNAI sandbox. Intended for ${r.to}.\n\n${r.body}`
         : r.body;
     const html =
       sandboxTos.length > 0 && r.html?.trim()
-        ? `<p><strong>LUWAS sandbox.</strong> Intended for ${r.to}.</p>${r.html}`
+        ? `<p><strong>UGNAI sandbox.</strong> Intended for ${r.to}.</p>${r.html}`
         : r.html;
 
     for (const mailTo of mailTargets) {

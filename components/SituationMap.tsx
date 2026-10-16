@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AreaSearchSelect } from "@/components/AreaSearchSelect";
 import { CommandAreaMapMount } from "@/components/CommandAreaMapMount";
-import { MangluluwasChat } from "@/components/MangluluwasChat";
+import { MangugnaiChat } from "@/components/MangugnaiChat";
 import { ScenarioMapOverlay } from "@/components/ScenarioMapOverlay";
 import type {
   AssistEscapeRoute,
@@ -538,7 +538,7 @@ export function SituationMap({
             </p>
           </div>
           <div className="min-h-0 flex-1 overflow-hidden">
-            <MangluluwasChat
+            <MangugnaiChat
               className="h-full border-0"
               messages={messages}
               running={running}

@@ -120,7 +120,7 @@ export function HomeNav({ overlay = false }: HomeNavProps) {
         <Link
           href="/"
           className="relative z-10 shrink-0 transition hover:opacity-90"
-          aria-label="LUWAS home"
+          aria-label="UGNAI home"
         >
           <BrandLogo size={26} wordmarkClassName="text-xl" />
         </Link>

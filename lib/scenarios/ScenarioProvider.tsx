@@ -22,7 +22,7 @@ import {
   type ScenarioBundle,
 } from "@/lib/scenarios/types";
 
-const STORAGE_KEY = "luwas.drrm.scenario.phase";
+const STORAGE_KEY = "ugnai.drrm.scenario.phase";
 
 type ScenarioContextValue = {
   phase: DrrmScenarioPhase;

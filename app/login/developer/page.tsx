@@ -12,24 +12,24 @@ import { AuthCard } from "@/components/AuthCard";
 import { AuthGate } from "@/components/AuthGate";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import {
-  findLuwasDeveloper,
-  LUWAS_DEVELOPERS,
-  type LuwasDeveloper,
-} from "@/lib/auth/luwasDevelopers";
+  findUgnaiDeveloper,
+  UGNAI_DEVELOPERS,
+  type UgnaiDeveloper,
+} from "@/lib/auth/ugnaiDevelopers";
 import { getClientAuth, getClientDb } from "@/lib/firebase/client";
 
 export default function DeveloperLoginPage() {
   const { login } = useAuth();
   const router = useRouter();
-  const [email, setEmail] = useState(LUWAS_DEVELOPERS[0]!.email);
-  const [password, setPassword] = useState(LUWAS_DEVELOPERS[0]!.password);
-  const [selectedId, setSelectedId] = useState(LUWAS_DEVELOPERS[0]!.id);
+  const [email, setEmail] = useState(UGNAI_DEVELOPERS[0]!.email);
+  const [password, setPassword] = useState(UGNAI_DEVELOPERS[0]!.password);
+  const [selectedId, setSelectedId] = useState(UGNAI_DEVELOPERS[0]!.id);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   async function ensureDeveloperProfile(
     uid: string,
-    member: LuwasDeveloper,
+    member: UgnaiDeveloper,
   ) {
     const ref = doc(getClientDb(), "users", uid);
     const snap = await getDoc(ref);
@@ -57,7 +57,7 @@ export default function DeveloperLoginPage() {
     await setDoc(ref, payload);
   }
 
-  async function ensureDeveloperAuth(member: LuwasDeveloper) {
+  async function ensureDeveloperAuth(member: UgnaiDeveloper) {
     try {
       await login(member.email, member.password);
     } catch (err) {
@@ -89,7 +89,7 @@ export default function DeveloperLoginPage() {
     await ensureDeveloperProfile(uid, member);
   }
 
-  async function loginAs(member: LuwasDeveloper) {
+  async function loginAs(member: UgnaiDeveloper) {
     setSelectedId(member.id);
     setEmail(member.email);
     setPassword(member.password);
@@ -109,9 +109,9 @@ export default function DeveloperLoginPage() {
     setError(null);
     setSubmitting(true);
     const mail = email.trim().toLowerCase();
-    const member = findLuwasDeveloper(mail, password);
+    const member = findUgnaiDeveloper(mail, password);
     if (!member) {
-      setError("Only the four LUWAS developers on About us can sign in here.");
+      setError("Only the four UGNAI developers on About us can sign in here.");
       setSubmitting(false);
       return;
     }
@@ -147,7 +147,7 @@ export default function DeveloperLoginPage() {
               Developers · password demo1234
             </p>
             <ul className="divide-y divide-[var(--border)] border border-[var(--border)]">
-              {LUWAS_DEVELOPERS.map((d) => {
+              {UGNAI_DEVELOPERS.map((d) => {
                 const selected = selectedId === d.id;
                 return (
                   <li key={d.id}>

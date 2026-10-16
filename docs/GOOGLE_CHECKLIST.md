@@ -1,18 +1,18 @@
-# Google tech checklist (Luwas)
+# Google tech checklist (Ugnai)
 
-Use this for Cup demos and production. Project: **`nice-pen-181017`** (Luwas).
+Use this for Cup demos and production. Project: **`nice-pen-181017`** (Ugnai).
 
 Non-Google (Twilio, ElevenLabs, Open-Meteo, OSRM) is out of scope here.
 
 ## In use now
 
-| Tech | What Luwas uses it for | Env / how |
+| Tech | What Ugnai uses it for | Env / how |
 |------|------------------------|-----------|
 | **Firebase Auth** | Officer + citizen login | `NEXT_PUBLIC_FIREBASE_*`, emulators local |
 | **Cloud Firestore** | Users, reports, households, command data (ops DB) | same + rules deploy |
 | **BigQuery** | Warehouse mirror after report verdict (`legit` / `rejected` / `needs_review`) | `BIGQUERY_*` + ADC; skips if unset |
 | **Firebase Storage** | Report media / TTS cache | Storage bucket in Firebase config |
-| **Firebase App Hosting** | Prod Next.js host | Console ↔ GitHub `kd-s-t/luwas` |
+| **Firebase App Hosting** | Prod Next.js host | Console ↔ GitHub `kd-s-t/ugnai` |
 | **Gemini** | Chat assist, report validation | `GEMINI_API_KEY` |
 | **Vertex AI** | Photo class before Gemini (optional) | `VERTEX_PROJECT_ID`, `VERTEX_LOCATION`, `VERTEX_ENDPOINT_ID`, ADC/SA |
 | **Maps JavaScript** | Situation / command map tiles | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` |
@@ -23,7 +23,7 @@ Non-Google (Twilio, ElevenLabs, Open-Meteo, OSRM) is out of scope here.
 
 - [ ] Earth Engine API enabled on `nice-pen-181017`
 - [ ] Cloud project registered in [Code Editor](https://code.earthengine.google.com/)
-- [ ] Service account created + JSON key (gitignored, e.g. `.secrets/luwas-ee.json`)
+- [ ] Service account created + JSON key (gitignored, e.g. `.secrets/ugnai-ee.json`)
 - [ ] SA has project access (e.g. Editor) and EE can run as that SA
 - [ ] `.env.local`: `EARTH_ENGINE_PROJECT_ID=nice-pen-181017` + `GOOGLE_APPLICATION_CREDENTIALS=…`
 - [ ] `npm run ee:dem` → `data/cebu-ee-dem.json` + `data/nangka-ee-dem.json`
@@ -53,8 +53,8 @@ Non-Google (Twilio, ElevenLabs, Open-Meteo, OSRM) is out of scope here.
 - [ ] ADC / SA can write BigQuery on `nice-pen-181017`
 - [ ] After verify / reject / needs_review, row lands in BQ (ops stay in Firestore)
 - [ ] `CRON_SECRET` + `FIREBASE_STORAGE_BUCKET` on runtime for monthly Vertex labels export
-- [ ] Cloud Scheduler (1st of month) → `POST https://luwasph.com/api/cron/vertex-ingest-export` (Bearer `CRON_SECRET`)
-- [ ] Check `gs://luwas-media-nice-pen-181017/luwas-vision-ingest/latest/labels.csv`
+- [ ] Cloud Scheduler (1st of month) → `POST https://ugnaiph.com/api/cron/vertex-ingest-export` (Bearer `CRON_SECRET`)
+- [ ] Check `gs://ugnai-media-nice-pen-181017/ugnai-vision-ingest/latest/labels.csv`
 
 ## Maps / Weather
 
@@ -80,7 +80,7 @@ Non-Google (Twilio, ElevenLabs, Open-Meteo, OSRM) is out of scope here.
 - **Earth Engine** = offline SRTM DEM + FIRMS fire hotspots for flood / hazard layers  
 - **Maps JavaScript** = basemap; EE is the elevation / hazard cache, not a live map SDK  
 
-### What Mangluluwas (Gemini) is fed
+### What Mangugnai (Gemini) is fed
 
 | Input | Source |
 |-------|--------|

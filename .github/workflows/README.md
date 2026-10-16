@@ -1,11 +1,11 @@
-# GitHub Actions — Luwas
+# GitHub Actions — Ugnai
 
-Repo: [kd-s-t/luwas](https://github.com/kd-s-t/luwas)
+Repo: [kd-s-t/ugnai](https://github.com/kd-s-t/ugnai)
 
 | Workflow | When | What |
 |----------|------|------|
 | **CI** | Push / PR → `main` | `npm ci` → lint → typecheck → Next.js build |
-| **Deploy prod → luwasph.com** | Push → `prod` (or manual) | Cloud Run `luwas` + Firebase Hosting CDN refresh |
+| **Deploy prod → ugnaiph.com** | Push → `prod` (or manual) | Cloud Run `ugnai` + Firebase Hosting CDN refresh |
 | **Deploy** | Manual, or push changing Firestore files | `firebase deploy` rules + indexes (opt-in) |
 
 ## CI
@@ -21,9 +21,9 @@ No secrets required. Build uses placeholder `NEXT_PUBLIC_FIREBASE_*` values.
    - Variable `ENABLE_FIREBASE_DEPLOY` = `true`
 3. Run **Deploy** via **Actions → Deploy → Run workflow**, or push changes under `firestore.*`
 
-## App (Next.js) → https://luwasph.com
+## App (Next.js) → https://ugnaiph.com
 
-Production is **Cloud Run** (`luwas` / `asia-southeast1`) fronted by **Firebase Hosting** (`luwasph.com`).
+Production is **Cloud Run** (`ugnai` / `asia-southeast1`) fronted by **Firebase Hosting** (`ugnaiph.com`).
 
 Push to the **`prod`** branch (not only `main`) to ship:
 
@@ -37,13 +37,13 @@ gcloud iam service-accounts create github-deploy \
 # storage.admin, iam.serviceAccountUser, firebasehosting.admin
 ```
 
-2. Download a JSON key and set GitHub Actions secrets on `kd-s-t/luwas`:
+2. Download a JSON key and set GitHub Actions secrets on `kd-s-t/ugnai`:
 
 | Secret | Value |
 |--------|--------|
 | `GCP_SA_KEY` | SA JSON key |
 | `GCP_PROJECT_ID` | `nice-pen-181017` |
-| `NEXT_PUBLIC_FIREBASE_*` + `NEXT_PUBLIC_APP_URL` | same as `.env.production` (`https://luwasph.com`) |
+| `NEXT_PUBLIC_FIREBASE_*` + `NEXT_PUBLIC_APP_URL` | same as `.env.production` (`https://ugnaiph.com`) |
 
 3. Ship:
 

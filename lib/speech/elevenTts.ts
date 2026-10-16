@@ -26,7 +26,7 @@ const blobByContentKey = new Map<string, Blob>();
 /** One in-flight ElevenLabs fetch per message / content key. */
 const inflightByKey = new Map<string, Promise<Blob | null>>();
 
-const AUDIO_URL_STORE = "luwas.tts.audioUrls.v1";
+const AUDIO_URL_STORE = "ugnai.tts.audioUrls.v1";
 
 export function ttsContentKey(raw: string, emotion: SpeakEmotion): string {
   return `${emotion}\n${raw.trim()}`;
@@ -246,7 +246,7 @@ async function fetchElevenLabsBlob(
     elevenCooldownUntil = 0;
     if (cacheKey) rememberTtsBlob(cacheKey, blob);
     rememberTtsBlobForContent(raw, emotion, blob);
-    const cacheHdr = res.headers.get("X-Luwas-TTS-Cache");
+    const cacheHdr = res.headers.get("X-Ugnai-TTS-Cache");
     console.info("[tts] network", cacheHdr === "hit" ? "server-cache" : "elevenlabs");
     return blob;
   })();

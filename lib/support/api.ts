@@ -15,9 +15,9 @@ import { getClientDb } from "@/lib/firebase/client";
 export type SupportTicketStatus = "open" | "in_progress" | "resolved" | "closed";
 
 /** Permanent product-team assignee (not a Firestore user). */
-export const LUWAS_DEVELOPERS_ASSIGNEE = {
-  uid: "luwas-developers",
-  name: "Luwas developers",
+export const UGNAI_DEVELOPERS_ASSIGNEE = {
+  uid: "ugnai-developers",
+  name: "Ugnai developers",
 } as const;
 
 export type SupportMessage = {
@@ -135,8 +135,8 @@ export async function submitSupportTicket(input: SupportTicketInput) {
     createdAt: new Date().toISOString(),
     createdAtServer: serverTimestamp(),
     // All user-created tickets land with the developer team.
-    assignedToUid: LUWAS_DEVELOPERS_ASSIGNEE.uid,
-    assignedToName: LUWAS_DEVELOPERS_ASSIGNEE.name,
+    assignedToUid: UGNAI_DEVELOPERS_ASSIGNEE.uid,
+    assignedToName: UGNAI_DEVELOPERS_ASSIGNEE.name,
     messages: [],
     resolvedAt: null,
     resolvedByUid: null,

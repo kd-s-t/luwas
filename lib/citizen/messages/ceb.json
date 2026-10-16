@@ -1,5 +1,5 @@
 {
-  "brand": "Luwas",
+  "brand": "Ugnai",
   "common": {
     "change": "Usba",
     "edit": "I-edit",
@@ -16,7 +16,7 @@
     "copied": "Nakopya",
     "removePhoto": "Kuhaa ang litrato",
     "pending": "Nagpaabot",
-    "saving": "Gina-save sa LUWAS…"
+    "saving": "Gina-save sa UGNAI…"
   },
   "errors": {
     "situationShort": "Ihulagway ang nahitabo (opsyonal).",
@@ -30,7 +30,7 @@
   "home": {
     "badge": "Para sa matag komunidad",
     "tagline": "Usa ka luwas nga sunod nga lakang, magkauban.",
-    "blurb": "Sultihi kami unsa ang nahitabo ug asa. Ang LUWAS makatabang pag-organisar sa imong report para sa mga tigtubag.",
+    "blurb": "Sultihi kami unsa ang nahitabo ug asa. Ang UGNAI makatabang pag-organisar sa imong report para sa mga tigtubag.",
     "noLoginNeeded": "Walay login. Dili kinahanglan og perpekto nga report.",
     "whatToDo": "Unsa ang imong kinahanglan buhaton?",
     "reportFor": "Kinsa ang imong gi-reportan niining insidente?",
@@ -56,7 +56,7 @@
     "call911": "Tawag og 911"
   },
   "footer": {
-    "tagline": "LUWAS · Pagreport sa katalagman sa komunidad",
+    "tagline": "UGNAI · Pagreport sa katalagman sa komunidad",
     "accessibility": "Accessibility",
     "privacy": "Privacy"
   },
@@ -162,7 +162,7 @@
     "saveEvenMissing": "Mahimo nimo i-save bisan kung adunay kulang nga detalye.",
     "nextTitle": "Unsa ang sunod?",
     "nextBody": "Nadawat ang report para sa review. Depende ang assignment sa available nga responders ug resources.",
-    "disclaimer": "Dili ipakita sa LUWAS ang wala pa beripika nga rescue o tabang isip kumpirmado."
+    "disclaimer": "Dili ipakita sa UGNAI ang wala pa beripika nga rescue o tabang isip kumpirmado."
   },
   "confirm": {
     "title": "Nadawat ang imong report",
@@ -243,7 +243,7 @@
   },
   "auth": {
     "loginTitle": "Login sa lungsoranon",
-    "loginSubtitle": "Para sa residente ra. Ang mga opisyal mogamit sa LUWAS web command center.",
+    "loginSubtitle": "Para sa residente ra. Ang mga opisyal mogamit sa UGNAI web command center.",
     "email": "Email",
     "password": "Password",
     "signingIn": "Nag-login…",

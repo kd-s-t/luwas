@@ -1,6 +1,6 @@
-# Luwas
+# Ugnai
 
-**Logistics & Unified Workflow for Aid & Safety** — barangay / LGU DRRM command center (Next.js, Tailwind, Lucide, shadcn/ui).
+**Unified Guidance for Needs, Alerts & Incidents** — barangay / LGU DRRM command center (Next.js, Tailwind, Lucide, shadcn/ui).
 
 Slice 1: officer **login / register** against Firebase Auth + Firestore.
 
@@ -62,7 +62,7 @@ Citizens upload photo/video hazard reports → AI validation queue (`queued` →
 
 ## CI / CD
 
-GitHub: [kd-s-t/luwas](https://github.com/kd-s-t/luwas)
+GitHub: [kd-s-t/ugnai](https://github.com/kd-s-t/ugnai)
 
 - **CI** (`.github/workflows/ci.yml`) — lint, typecheck, and build on every push/PR to `main`
 - **Deploy** (`.github/workflows/deploy.yml`) — optional Firestore rules/indexes deploy (secrets + `ENABLE_FIREBASE_DEPLOY`)

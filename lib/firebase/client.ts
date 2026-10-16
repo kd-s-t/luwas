@@ -57,7 +57,7 @@ function getFirebaseApp() {
       // Still allow emulator / local demo; production should never hit empty keys.
       if (!useEmulators && typeof window !== "undefined") {
         console.warn(
-          "[luwas] Firebase web config looks like a placeholder. Check NEXT_PUBLIC_FIREBASE_* build env.",
+          "[ugnai] Firebase web config looks like a placeholder. Check NEXT_PUBLIC_FIREBASE_* build env.",
         );
       }
     }
@@ -74,7 +74,7 @@ export function getClientAuth() {
   return auth;
 }
 
-const SECONDARY_AUTH_NAME = "luwas-secondary";
+const SECONDARY_AUTH_NAME = "ugnai-secondary";
 let secondaryAuthConnected = false;
 
 /**

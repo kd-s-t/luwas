@@ -32,9 +32,9 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: PageProps) {
   const { lgu: lguSlug, barangay: brgySlug } = await params;
   const hit = findBarangay(lguSlug, brgySlug);
-  if (!hit) return { title: "Barangay · LUWAS" };
+  if (!hit) return { title: "Barangay · UGNAI" };
   return {
-    title: `${hit.barangay}, ${hit.lgu.name} · LUWAS`,
+    title: `${hit.barangay}, ${hit.lgu.name} · UGNAI`,
     description: `Government employee hierarchy for Brgy. ${hit.barangay}, ${hit.lgu.name}, Cebu.`,
   };
 }

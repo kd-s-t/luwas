@@ -2,6 +2,7 @@ name: Deploy prod → luwasph.com
 
 # Push to `prod` builds Cloud Run (luwas) + refreshes Firebase Hosting
 # so https://luwasph.com picks up the new revision (not just GitHub CI).
+# App brand is UGNAI; GCP service / bucket names stay luwas until renamed in cloud.
 on:
   push:
     branches: [prod]

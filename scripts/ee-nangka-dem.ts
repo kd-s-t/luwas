@@ -2,7 +2,7 @@
  * One Earth Engine call: whole-Cebu coarse DEM + fine Nangka grid.
  * Also archives under data/ee-runs/ (same as admin UI).
  *
- * Usage (from luwas/):
+ * Usage (from ugnai/):
  *   npm run ee:dem
  */
 import { existsSync, readFileSync } from "node:fs";

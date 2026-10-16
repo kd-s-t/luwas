@@ -1,7 +1,7 @@
 /**
  * Seed catalog of Cebu-area evacuation centers.
  *
- * LUWAS does NOT yet ingest Google Places / a full provincial EC feed.
+ * UGNAI does NOT yet ingest Google Places / a full provincial EC feed.
  * Entries below are only places we can pin with a public coordinate source
  * (Google Places plus-code, OSM, or LGU-published site).
  *

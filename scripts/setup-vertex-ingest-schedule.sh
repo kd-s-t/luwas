@@ -5,11 +5,11 @@ set -euo pipefail
 
 PROJECT="${GCP_PROJECT:-nice-pen-181017}"
 LOCATION="${SCHEDULER_LOCATION:-asia-southeast1}"
-JOB_NAME="${SCHEDULER_JOB:-luwas-vertex-ingest-export}"
+JOB_NAME="${SCHEDULER_JOB:-ugnai-vertex-ingest-export}"
 # 02:00 Asia/Manila on the 1st of each month
 SCHEDULE="${SCHEDULER_CRON:-0 2 1 * *}"
 TIME_ZONE="${SCHEDULER_TZ:-Asia/Manila}"
-URI="${SCHEDULER_URI:-https://luwasph.com/api/cron/vertex-ingest-export}"
+URI="${SCHEDULER_URI:-https://ugnaiph.com/api/cron/vertex-ingest-export}"
 
 if [[ -z "${CRON_SECRET:-}" ]]; then
   echo "Set CRON_SECRET (same value as Cloud Run / App Hosting)." >&2

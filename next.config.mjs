@@ -19,7 +19,7 @@ const nextConfig = {
   },
   /**
    * Firebase Hosting CDN caches Cloud Run responses using Cache-Control.
-   * Next's default s-maxage (~1y) left luwasph.com stuck on stale HTML/CSS.
+   * Next's default s-maxage (~1y) left ugnaiph.com stuck on stale HTML/CSS.
    * Keep hashed /_next/static long-lived; keep document HTML fresh.
    */
   async redirects() {

@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import type { HazardReport, ReportStatus } from "@/lib/reports/types";
 import {
-  LUWAS_DEVELOPERS_ASSIGNEE,
+  UGNAI_DEVELOPERS_ASSIGNEE,
   type SupportTicket,
 } from "@/lib/support/api";
 import { scopeLabel } from "@/lib/reports/barangayScope";
@@ -79,11 +79,11 @@ export function OfficerWorkloadInfo({
       });
     }
 
-    byUid.set(LUWAS_DEVELOPERS_ASSIGNEE.uid, {
-      key: LUWAS_DEVELOPERS_ASSIGNEE.uid,
-      name: LUWAS_DEVELOPERS_ASSIGNEE.name,
+    byUid.set(UGNAI_DEVELOPERS_ASSIGNEE.uid, {
+      key: UGNAI_DEVELOPERS_ASSIGNEE.uid,
+      name: UGNAI_DEVELOPERS_ASSIGNEE.name,
       photoURL: null,
-      seed: LUWAS_DEVELOPERS_ASSIGNEE.uid,
+      seed: UGNAI_DEVELOPERS_ASSIGNEE.uid,
       title: "Product team",
       support: 0,
       incidents: 0,

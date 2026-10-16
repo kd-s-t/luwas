@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { CitizenLang } from "@/lib/citizen/i18n";
 
-const STORAGE_KEY = "luwas.citizenLang";
+const STORAGE_KEY = "ugnai.citizenLang";
 const VALID = new Set<CitizenLang>(["en", "fil", "ceb"]);
 
 export function getCitizenLang(): CitizenLang {

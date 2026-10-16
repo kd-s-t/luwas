@@ -149,7 +149,7 @@ export default function BootstrapKitPage() {
   const [chat, setChat] = useState<{ role: "ai" | "user"; text: string }[]>([
     {
       role: "ai",
-      text: "Kumusta — I’m Mangluluwas. Ask about Tino triage, flood belts, or who to call. Green = house owners, red = evacuate, yellow = prepare, blue = flood footprints.",
+      text: "Kumusta — I’m Mangugnai. Ask about Tino triage, flood belts, or who to call. Green = house owners, red = evacuate, yellow = prepare, blue = flood footprints.",
     },
   ]);
 
@@ -192,7 +192,7 @@ export default function BootstrapKitPage() {
       { role: "user", text },
       {
         role: "ai",
-        text: "Sample reply — same shell as /admin/overview Mangluluwas.",
+        text: "Sample reply — same shell as /admin/overview Mangugnai.",
       },
     ]);
     setDraft("");
@@ -211,7 +211,7 @@ export default function BootstrapKitPage() {
             href="/"
             className="shrink-0 font-[family-name:var(--font-display)] text-2xl font-semibold tracking-wide"
           >
-            LUWAS
+            UGNAI
           </Link>
           <nav className="hidden min-w-0 flex-1 items-center gap-0.5 overflow-x-auto md:flex">
             {NAV_LINKS.map((item) => {
@@ -263,7 +263,7 @@ export default function BootstrapKitPage() {
           className="mb-8 border-b border-[var(--border)] pb-6"
         >
           <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-wide sm:text-4xl">
-            LUWAS UI Bootstrap
+            UGNAI UI Bootstrap
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-[var(--muted)]">
             Living style guide for the product stack — not GetBootstrap. Built
@@ -400,14 +400,14 @@ export default function BootstrapKitPage() {
             <Section
               id="logo"
               title="Logo"
-              hint="LUWAS wordmark — brand mark for headers, QR, and chrome."
+              hint="UGNAI wordmark — brand mark for headers, QR, and chrome."
             >
               <div>
                 <p className="font-[family-name:var(--font-display)] text-5xl font-semibold tracking-wide">
-                  LUWAS
+                  UGNAI
                 </p>
                 <p className="mt-1 font-mono text-[9px] tracking-[0.14em] text-[var(--muted)] uppercase">
-                  Logistics &amp; Unified Workflow for Aid &amp; Safety
+                  Unified Guidance for Needs, Alerts &amp; Incidents
                 </p>
               </div>
             </Section>
@@ -415,27 +415,27 @@ export default function BootstrapKitPage() {
             <Section
               id="qr"
               title="QR + logo"
-              hint="Public entry QR with LUWAS wordmark centered."
+              hint="Public entry QR with UGNAI wordmark centered."
             >
               <div className="flex flex-wrap items-center gap-5">
                 <div className="relative size-[220px] border border-[var(--border)] bg-[var(--surface)] p-2">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={qrSrc}
-                    alt="LUWAS home QR"
+                    alt="UGNAI home QR"
                     width={204}
                     height={204}
                     className="size-full"
                   />
                   <div className="absolute top-1/2 left-1/2 flex h-12 w-[4.75rem] -translate-x-1/2 -translate-y-1/2 items-center justify-center border-[3px] border-white bg-white px-1 shadow-[0_0_0_2px_var(--accent)]">
                     <span className="font-[family-name:var(--font-display)] text-lg font-semibold leading-none tracking-wide text-[var(--foreground)]">
-                      LUWAS
+                      UGNAI
                     </span>
                   </div>
                 </div>
                 <div>
                   <p className="font-[family-name:var(--font-display)] text-lg font-semibold">
-                    Scan to open LUWAS
+                    Scan to open UGNAI
                   </p>
                   <Button asChild variant="outline" size="sm" className="mt-3">
                     <Link href="/">Open public home</Link>
@@ -491,7 +491,7 @@ export default function BootstrapKitPage() {
             >
               <div className="flex items-center gap-2 overflow-x-auto border border-[var(--border)] bg-[var(--surface)] px-3">
                 <span className="shrink-0 font-[family-name:var(--font-display)] text-xl font-semibold">
-                  LUWAS
+                  UGNAI
                 </span>
                 <span className="shrink-0 border-b-2 border-[var(--accent)] px-2 py-3 font-mono text-[10px] tracking-wider text-[var(--accent)] uppercase">
                   Command center
@@ -552,7 +552,7 @@ export default function BootstrapKitPage() {
               hint="Barlow Condensed · IBM Plex Sans · IBM Plex Mono"
             >
               <p className="font-[family-name:var(--font-display)] text-4xl font-semibold tracking-wide">
-                LUWAS
+                UGNAI
               </p>
               <p className="mt-3 font-[family-name:var(--font-display)] text-2xl font-semibold tracking-wide">
                 Brgy. Nangka, Consolacion, Cebu
@@ -616,7 +616,7 @@ export default function BootstrapKitPage() {
               <textarea
                 readOnly
                 rows={2}
-                placeholder="Ask Mangluluwas…"
+                placeholder="Ask Mangugnai…"
                 className="mt-3 w-full border border-[var(--border)] bg-[var(--input)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
               />
             </Section>
@@ -734,21 +734,21 @@ export default function BootstrapKitPage() {
             <Section
               id="chat"
               title="Chat"
-              hint="Mangluluwas shell — matches /admin/overview (Lucide history/new/send)."
+              hint="Mangugnai shell — matches /admin/overview (Lucide history/new/send)."
             >
               <div className="flex max-w-md flex-col border border-[var(--border)] bg-[var(--surface)]">
                 <header className="space-y-2.5 border-b border-[var(--border)] bg-[var(--surface-panel)] px-3 py-3">
                   <div className="flex items-center gap-2">
                     <Image
-                      src="/mangluluwas.jpg"
-                      alt="Mangluluwas"
+                      src="/mangugnai.jpg"
+                      alt="Mangugnai"
                       width={40}
                       height={40}
                       className="size-10 rounded-full object-cover ring-2 ring-[var(--accent)]/35"
                     />
                     <div className="min-w-0 flex-1">
                       <p className="font-[family-name:var(--font-display)] text-base font-semibold tracking-wide">
-                        Mangluluwas
+                        Mangugnai
                       </p>
                       <p className="font-mono text-[10px] tracking-[0.16em] text-[var(--accent)] uppercase">
                         New chat
@@ -781,7 +781,7 @@ export default function BootstrapKitPage() {
                     >
                       {m.role === "ai" ? (
                         <Image
-                          src="/mangluluwas.jpg"
+                          src="/mangugnai.jpg"
                           alt=""
                           width={28}
                           height={28}
@@ -820,7 +820,7 @@ export default function BootstrapKitPage() {
                       value={draft}
                       onChange={(e) => setDraft(e.target.value)}
                       rows={1}
-                      placeholder="Ask Mangluluwas…"
+                      placeholder="Ask Mangugnai…"
                       className="min-h-10 max-h-28 flex-1 resize-none border border-[var(--border)] bg-[var(--input)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
                     />
                     <Button
