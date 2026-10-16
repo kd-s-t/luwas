@@ -79,6 +79,7 @@ import { fileToBase64, uploadReportMedia } from "@/lib/reports/upload";
 import {
   distanceKm,
   filterPlaces,
+  matchPlace,
   NANGKA_HALL,
   nearestPlace,
   placeLabel,
@@ -317,6 +318,9 @@ export function CitizenReportForm({
   const voiceStreamRef = useRef<MediaStream | null>(null);
   const voiceKeepRef = useRef(true);
   const gpsAutoForStepRef = useRef(false);
+  /** User searched, tapped a place, or moved the map — late auto-GPS must not overwrite. */
+  const userPinnedRef = useRef(false);
+  const gpsRequestIdRef = useRef(0);
   const coordsRef = useRef<{ lat: number; lng: number }>({
     lat: NANGKA_HALL.lat,
     lng: NANGKA_HALL.lng,
@@ -488,7 +492,8 @@ export function CitizenReportForm({
     }
     if (gpsAutoForStepRef.current) return;
     gpsAutoForStepRef.current = true;
-    void captureGps();
+    if (userPinnedRef.current) return;
+    void captureGps({ force: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- auto GPS once per location step visit
   }, [step]);
 
@@ -590,6 +595,7 @@ export function CitizenReportForm({
     setLandmark("");
     setApproximate(true);
     setFromGps(false);
+    userPinnedRef.current = false;
     setError(null);
     setStatus(null);
   }
@@ -602,6 +608,7 @@ export function CitizenReportForm({
     setLng(nextLng);
     if (typeof zoom === "number") setMapZoom(zoom);
     if (!moved) return;
+    userPinnedRef.current = true;
     setFromGps(false);
     setError(null);
     const nearest = nearestPlace(nextLat, nextLng);
@@ -792,6 +799,7 @@ export function CitizenReportForm({
   }
 
   function selectPlace(p: ServiceAreaPlace) {
+    userPinnedRef.current = true;
     setPlaceQuery(placeLabel(p));
     setLat(p.lat);
     setLng(p.lng);
@@ -800,17 +808,25 @@ export function CitizenReportForm({
     setError(null);
   }
 
-  async function captureGps() {
+  async function captureGps(opts?: { force?: boolean }) {
+    const force = opts?.force === true;
+    const requestId = ++gpsRequestIdRef.current;
+    if (force) userPinnedRef.current = false;
     setGpsLoading(true);
     setError(null);
     try {
       const captured = await captureReportMeta();
+      if (requestId !== gpsRequestIdRef.current) return;
+      // Manual search / map pin wins over a late auto-GPS result.
+      if (!force && userPinnedRef.current) return;
       setMeta(captured);
       if (captured.lat != null && captured.lng != null) {
+        if (!force && userPinnedRef.current) return;
         setLat(captured.lat);
         setLng(captured.lng);
         setMapZoom(16);
         setFromGps(true);
+        userPinnedRef.current = false;
         if (captured.locationLabel) {
           setPlaceQuery(captured.locationLabel);
         } else {
@@ -825,13 +841,13 @@ export function CitizenReportForm({
         } else {
           setApproximate(false);
         }
-      } else {
+      } else if (force) {
         setError(t(language, "errors.gpsFailed"));
       }
     } catch {
-      setError(t(language, "errors.gpsDenied"));
+      if (force) setError(t(language, "errors.gpsDenied"));
     } finally {
-      setGpsLoading(false);
+      if (requestId === gpsRequestIdRef.current) setGpsLoading(false);
     }
   }
 
@@ -1821,7 +1837,7 @@ export function CitizenReportForm({
             <button
               type="button"
               disabled={gpsLoading}
-              onClick={() => void captureGps()}
+              onClick={() => void captureGps({ force: true })}
               className={cn(
                 "flex w-full items-center justify-center gap-2 rounded-xl border-[1.5px] bg-[var(--surface)] px-3 py-3.5 text-sm font-semibold disabled:opacity-60",
                 fromGps ? "border-[var(--success)]" : "border-[var(--border)]",
@@ -1857,17 +1873,19 @@ export function CitizenReportForm({
                     const next = e.target.value;
                     setPlaceQuery(next);
                     setFromGps(false);
+                    userPinnedRef.current = true;
                     setError(null);
-                    const hit = filterPlaces(next).find(
-                      (p) =>
-                        placeLabel(p).toLowerCase() ===
-                        next.trim().toLowerCase(),
-                    );
+                    const hit = matchPlace(next);
                     if (hit) {
                       setLat(hit.lat);
                       setLng(hit.lng);
                       setMapZoom(15);
                     }
+                  }}
+                  onBlur={() => {
+                    const hit = matchPlace(placeQuery);
+                    if (!hit) return;
+                    selectPlace(hit);
                   }}
                   placeholder={t(language, "location.searchPlaceholder")}
                   className={cn(
@@ -1876,57 +1894,55 @@ export function CitizenReportForm({
                       ? "border-[var(--danger)]"
                       : "border-[var(--border)] focus:border-[#2563eb]/40",
                   )}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
                 />
               </div>
             </label>
             {placeHits.length > 0 ? (
-              <div className="flex gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <ul className="space-y-1.5">
                 {placeHits.slice(0, 6).map((p) => {
                   const label = placeLabel(p);
+                  const selected =
+                    matchPlace(placeQuery)?.id === p.id ||
+                    placeQuery.trim().toLowerCase() === label.toLowerCase();
                   return (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => selectPlace(p)}
-                      className={cn(
-                        "shrink-0 rounded-full border px-2.5 py-1.5 text-xs font-semibold whitespace-nowrap",
-                        placeQuery === label
-                          ? "border-[#2563eb] bg-[#eff6ff] text-[#1d4ed8]"
-                          : "border-[var(--border)] bg-[var(--surface)]",
-                      )}
-                    >
-                      {label}
-                    </button>
+                    <li key={p.id}>
+                      <button
+                        type="button"
+                        onClick={() => selectPlace(p)}
+                        className={cn(
+                          "flex w-full items-center gap-3 rounded-xl border px-3.5 py-3 text-left",
+                          selected
+                            ? "border-[#bfdbfe] bg-[#eff6ff]"
+                            : "border-[var(--border)] bg-[var(--surface)]",
+                        )}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-[var(--foreground)]">
+                            {label}
+                          </p>
+                          <p className="text-xs text-[var(--muted)]">
+                            {t(language, "location.selectedRegion", {
+                              lgu: p.lgu,
+                            })}
+                          </p>
+                        </div>
+                        {selected ? (
+                          <span
+                            className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#2563eb] text-white"
+                            aria-hidden
+                          >
+                            <Check className="size-3.5" strokeWidth={3} />
+                          </span>
+                        ) : null}
+                      </button>
+                    </li>
                   );
                 })}
-              </div>
+              </ul>
             ) : null}
-            {(() => {
-              const selected =
-                placeHits.find((p) => placeLabel(p) === placeQuery.trim()) ??
-                nearestPlace(lat, lng);
-              if (!placeQuery.trim()) return null;
-              return (
-                <div className="flex items-center gap-3 rounded-xl border border-[#bfdbfe] bg-[#eff6ff] px-3.5 py-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-[var(--foreground)]">
-                      {placeQuery.trim()}
-                    </p>
-                    <p className="text-xs text-[var(--muted)]">
-                      {t(language, "location.selectedRegion", {
-                        lgu: selected.lgu,
-                      })}
-                    </p>
-                  </div>
-                  <span
-                    className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#2563eb] text-white"
-                    aria-hidden
-                  >
-                    <Check className="size-3.5" strokeWidth={3} />
-                  </span>
-                </div>
-              );
-            })()}
           </div>
 
           <div className="space-y-2">
