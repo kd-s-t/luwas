@@ -23,29 +23,62 @@ import {
   flowNodeClass,
   isFlowCostLine,
 } from "@/components/flow/FlowMark";
+import { FlowCopyJsonButton } from "@/components/flow/FlowCopyJsonButton";
 import { useFlowLayout } from "@/components/flow/useFlowLayout";
 
 const RED = "#c72929";
 const GREEN = "#16794c";
 
-function UserNode(_props: NodeProps) {
+function UserNode({ data }: NodeProps) {
+  const d = data as {
+    label?: string;
+    logo?: string;
+    /** Target on the right (node left of Firebase). */
+    inRight?: boolean;
+    /** Target on the left (node right of Firebase). */
+    inLeft?: boolean;
+    outRight?: boolean;
+  };
+  const color = d.inRight || d.inLeft ? GREEN : RED;
   return (
     <div className={flowNodeClass} style={{ width: 140 }}>
       <Image
-        src="/brands/citizens.png"
+        src={d.logo ?? "/brands/citizens.png"}
         alt=""
         width={40}
         height={40}
         className="size-10 object-contain"
       />
-      <p className={flowLabelClass}>Non Register or Registered user</p>
-      <Handle
-        type="source"
-        position={Position.Right}
-        id="out"
-        className="!size-2 !border-0"
-        style={{ background: RED }}
-      />
+      <p className={flowLabelClass}>
+        {d.label ?? "Non Register or Registered user"}
+      </p>
+      {d.inLeft ? (
+        <Handle
+          type="target"
+          position={Position.Left}
+          id="in"
+          className="!size-2 !border-0"
+          style={{ background: color }}
+        />
+      ) : null}
+      {d.inRight ? (
+        <Handle
+          type="target"
+          position={Position.Right}
+          id="in"
+          className="!size-2 !border-0"
+          style={{ background: color }}
+        />
+      ) : null}
+      {d.outRight !== false ? (
+        <Handle
+          type="source"
+          position={Position.Right}
+          id="out"
+          className="!size-2 !border-0"
+          style={{ background: color }}
+        />
+      ) : null}
     </div>
   );
 }
@@ -55,15 +88,28 @@ function StepNode({ data }: NodeProps) {
     label: string;
     lines?: string[];
     logo?: string;
+    logos?: string[];
     inLeft?: boolean;
+    inTop?: boolean;
     inBottom?: boolean;
     outRight?: boolean;
     outBottom?: boolean;
   };
   const meta = (d.lines ?? []).filter((l) => !isFlowCostLine(l));
   const costs = (d.lines ?? []).filter(isFlowCostLine);
+  const logos =
+    d.logos?.length ? d.logos : d.logo ? [d.logo] : [];
   return (
     <div className={`relative ${flowNodeClass}`} style={{ width: 140 }}>
+      {d.inTop ? (
+        <Handle
+          type="target"
+          position={Position.Top}
+          id="in-top"
+          className="!size-2 !border-0"
+          style={{ background: RED }}
+        />
+      ) : null}
       {d.inLeft !== false ? (
         <Handle
           type="target"
@@ -82,14 +128,19 @@ function StepNode({ data }: NodeProps) {
           style={{ background: GREEN }}
         />
       ) : null}
-      {d.logo ? (
-        <Image
-          src={d.logo}
-          alt=""
-          width={36}
-          height={36}
-          className="size-9 object-contain"
-        />
+      {logos.length > 0 ? (
+        <div className="flex items-center justify-center gap-1.5">
+          {logos.map((src) => (
+            <Image
+              key={src}
+              src={src}
+              alt=""
+              width={36}
+              height={36}
+              className="size-9 object-contain"
+            />
+          ))}
+        </div>
       ) : (
         <FlowMark size={24} />
       )}
@@ -123,15 +174,24 @@ function StepNode({ data }: NodeProps) {
 }
 
 function StatusNode({ data }: NodeProps) {
-  const d = data as { label: string; tone: "ok" | "bad" };
+  const d = data as {
+    label: string;
+    tone: "ok" | "bad";
+    /** Rejected: top + right only. */
+    handles?: "top-right";
+    /** Hide top handle (e.g. Mark done). */
+    noTop?: boolean;
+  };
   const color = d.tone === "ok" ? GREEN : RED;
   const isOk = d.tone === "ok";
+  const topRightOnly = d.handles === "top-right";
+  const showTop = !d.noTop;
   return (
     <div
       className="relative rounded-[8px] border bg-white px-3 py-2 text-center text-sm font-semibold"
       style={{ color, borderColor: color }}
     >
-      {isOk ? (
+      {showTop && isOk ? (
         <Handle
           type="source"
           position={Position.Top}
@@ -139,7 +199,8 @@ function StatusNode({ data }: NodeProps) {
           className="!size-2 !border-0"
           style={{ background: color }}
         />
-      ) : (
+      ) : null}
+      {showTop && !isOk ? (
         <Handle
           type="target"
           position={Position.Top}
@@ -147,14 +208,16 @@ function StatusNode({ data }: NodeProps) {
           className="!size-2 !border-0"
           style={{ background: color }}
         />
-      )}
-      <Handle
-        type="target"
-        position={Position.Left}
-        id="in"
-        className="!size-2 !border-0"
-        style={{ background: color }}
-      />
+      ) : null}
+      {!topRightOnly ? (
+        <Handle
+          type="target"
+          position={Position.Left}
+          id="in"
+          className="!size-2 !border-0"
+          style={{ background: color }}
+        />
+      ) : null}
       {d.label}
       <Handle
         type="source"
@@ -163,13 +226,15 @@ function StatusNode({ data }: NodeProps) {
         className="!size-2 !border-0"
         style={{ background: color }}
       />
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        id="down"
-        className="!size-2 !border-0"
-        style={{ background: color }}
-      />
+      {!topRightOnly ? (
+        <Handle
+          type="source"
+          position={Position.Bottom}
+          id="down"
+          className="!size-2 !border-0"
+          style={{ background: color }}
+        />
+      ) : null}
     </div>
   );
 }
@@ -208,13 +273,28 @@ function CarIncidentFlowCanvas() {
       {
         id: "user",
         type: "user",
-        position: { x: 24, y: 180 },
-        data: {},
+        position: { x: -42, y: 365 },
+        data: {
+          label: "Non Register or Registered user",
+          logo: "/brands/citizens.png",
+        },
+      },
+      {
+        id: "bq",
+        type: "step",
+        position: { x: 640, y: 8 },
+        data: {
+          label: "BigQuery",
+          logo: "/brands/bigquery.png",
+          inLeft: false,
+          inBottom: true,
+          outRight: false,
+        },
       },
       {
         id: "site",
         type: "siteGroup",
-        position: { x: 220, y: 24 },
+        position: { x: 220, y: 135 },
         data: {},
         style: { width: GROUP_W, height: GROUP_H },
       },
@@ -223,19 +303,25 @@ function CarIncidentFlowCanvas() {
         type: "step",
         parentId: "site",
         extent: "parent",
-        position: { x: 36, y: 140 },
-        data: { label: "Firestore", logo: "/brands/firestore.png" },
+        position: { x: 38, y: 94 },
+        data: {
+          label: "Firestore",
+          logo: "/brands/firestore.png",
+          outBottom: true,
+        },
       },
       {
         id: "vertex",
         type: "step",
         parentId: "site",
         extent: "parent",
-        position: { x: 220, y: 120 },
+        position: { x: 36, y: 380 },
         data: {
           label: "Vertex AI",
           logo: "/brands/vertex-ai.svg",
           lines: ["AutoML Image Class", "~$1.375/hr"],
+          inTop: true,
+          inLeft: false,
         },
       },
       {
@@ -243,7 +329,7 @@ function CarIncidentFlowCanvas() {
         type: "step",
         parentId: "site",
         extent: "parent",
-        position: { x: 420, y: 110 },
+        position: { x: 234, y: 95 },
         data: {
           label: "Gemini",
           logo: "/brands/gemini.png",
@@ -256,7 +342,7 @@ function CarIncidentFlowCanvas() {
         type: "status",
         parentId: "site",
         extent: "parent",
-        position: { x: 640, y: 70 },
+        position: { x: 446, y: 124 },
         data: { label: "Validated", tone: "ok" },
       },
       {
@@ -264,51 +350,32 @@ function CarIncidentFlowCanvas() {
         type: "status",
         parentId: "site",
         extent: "parent",
-        position: { x: 640, y: 280 },
-        data: { label: "Rejected", tone: "bad" },
+        position: { x: 263, y: 414 },
+        data: { label: "Rejected", tone: "bad", handles: "top-right" },
+      },
+      {
+        id: "reject-notify",
+        type: "step",
+        parentId: "site",
+        extent: "parent",
+        position: { x: 452, y: 377 },
+        data: {
+          label: "Twilio + Resend",
+          logos: ["/brands/twilio.png", "/brands/resend.png"],
+          lines: ["AI Text only", "email · no call"],
+          outRight: false,
+        },
       },
       {
         id: "dispatch-officer",
         type: "step",
         parentId: "site",
         extent: "parent",
-        position: { x: 860, y: 24 },
+        position: { x: 703, y: 72 },
         data: {
           label: "Dispatched officer",
           logo: "/brands/officer.png",
-          lines: ["same time as BFP"],
-        },
-      },
-      {
-        id: "dispatch-firestation",
-        type: "step",
-        parentId: "site",
-        extent: "parent",
-        position: { x: 860, y: 160 },
-        data: {
-          label: "Dispatched Firestation",
-          logo: "/map/bfp-helmet.png",
-          lines: ["same time as officer"],
-        },
-      },
-      {
-        id: "mark-done",
-        type: "status",
-        parentId: "site",
-        extent: "parent",
-        position: { x: 1100, y: 90 },
-        data: { label: "Mark done", tone: "ok" },
-      },
-      {
-        id: "bq",
-        type: "step",
-        parentId: "site",
-        extent: "parent",
-        position: { x: 860, y: 320 },
-        data: {
-          label: "BigQuery",
-          logo: "/brands/bigquery.png",
-          outRight: false,
+          lines: ["only officer marks done"],
         },
       },
       {
@@ -316,7 +383,7 @@ function CarIncidentFlowCanvas() {
         type: "step",
         parentId: "site",
         extent: "parent",
-        position: { x: 1100, y: 240 },
+        position: { x: 712, y: 325 },
         data: {
           label: "Twilio",
           logo: "/brands/twilio.png",
@@ -325,6 +392,29 @@ function CarIncidentFlowCanvas() {
             "AI Text and AI Call",
             "₱51 / 3 min call",
           ],
+          inLeft: true,
+          outBottom: true,
+          outRight: false,
+        },
+      },
+      {
+        id: "mark-done",
+        type: "status",
+        parentId: "site",
+        extent: "parent",
+        position: { x: 1050, y: 117 },
+        data: { label: "Mark done", tone: "ok", noTop: true },
+      },
+      {
+        id: "dispatch-firestation",
+        type: "step",
+        position: { x: 928, y: 728 },
+        data: {
+          label: "Dispatched Fireman",
+          logo: "/map/bfp-helmet.png",
+          lines: ["after Twilio alert"],
+          inTop: true,
+          inLeft: false,
           outRight: false,
         },
       },
@@ -333,10 +423,12 @@ function CarIncidentFlowCanvas() {
         type: "step",
         parentId: "site",
         extent: "parent",
-        position: { x: 1100, y: 380 },
+        position: { x: 1025, y: 359 },
         data: {
           label: "Resend",
           logo: "/brands/resend.png",
+          inTop: true,
+          inLeft: false,
           outRight: false,
         },
       },
@@ -365,17 +457,15 @@ function CarIncidentFlowCanvas() {
         sourceHandle: "out",
         target: "firestore",
         targetHandle: "in",
-        label: "report fire incident · 1-20 at same time",
         markerEnd: redMarker,
         style: red,
-        ...labelBg,
       },
       {
         id: "e-queue",
         source: "firestore",
-        sourceHandle: "out",
+        sourceHandle: "down",
         target: "vertex",
-        targetHandle: "in",
+        targetHandle: "in-top",
         label: "queue",
         markerEnd: redMarker,
         style: red,
@@ -414,19 +504,32 @@ function CarIncidentFlowCanvas() {
         sourceHandle: "out",
         target: "dispatch-officer",
         targetHandle: "in",
-        label: "dispatch · same time",
+        label: "dispatch officer",
         markerEnd: greenMarker,
         style: green,
         ...labelBg,
       },
       {
-        id: "e-dispatch-fire",
+        id: "e-twilio",
         source: "validated",
-        sourceHandle: "out",
-        target: "dispatch-firestation",
+        sourceHandle: "down",
+        target: "twilio",
         targetHandle: "in",
+        label: "alert",
         markerEnd: greenMarker,
         style: green,
+        ...labelBg,
+      },
+      {
+        id: "e-twilio-bfp",
+        source: "twilio",
+        sourceHandle: "down",
+        target: "dispatch-firestation",
+        targetHandle: "in-top",
+        label: "dispatch BFP",
+        markerEnd: greenMarker,
+        style: green,
+        ...labelBg,
       },
       {
         id: "e-officer-done",
@@ -434,35 +537,17 @@ function CarIncidentFlowCanvas() {
         sourceHandle: "out",
         target: "mark-done",
         targetHandle: "in",
-        label: "close report",
+        label: "officer closes report",
         markerEnd: greenMarker,
         style: green,
         ...labelBg,
       },
       {
-        id: "e-fire-done",
-        source: "dispatch-firestation",
-        sourceHandle: "out",
-        target: "mark-done",
-        targetHandle: "in",
-        markerEnd: greenMarker,
-        style: green,
-      },
-      {
         id: "e-bq",
         source: "validated",
-        sourceHandle: "down",
+        sourceHandle: "up",
         target: "bq",
-        targetHandle: "in",
-        markerEnd: greenMarker,
-        style: green,
-      },
-      {
-        id: "e-twilio",
-        source: "mark-done",
-        sourceHandle: "out",
-        target: "twilio",
-        targetHandle: "in",
+        targetHandle: "in-bottom",
         markerEnd: greenMarker,
         style: green,
       },
@@ -471,18 +556,20 @@ function CarIncidentFlowCanvas() {
         source: "mark-done",
         sourceHandle: "down",
         target: "resend",
-        targetHandle: "in",
+        targetHandle: "in-top",
         markerEnd: greenMarker,
         style: green,
       },
       {
-        id: "e-resend-bad",
+        id: "e-reject-notify",
         source: "rejected",
-        sourceHandle: "down",
-        target: "resend",
+        sourceHandle: "out",
+        target: "reject-notify",
         targetHandle: "in",
+        label: "text + email",
         markerEnd: redMarker,
         style: red,
+        ...labelBg,
       },
     ];
 
@@ -503,19 +590,26 @@ function CarIncidentFlowCanvas() {
     fitView,
     hydrated,
     canvasKey,
-  } = useFlowLayout("fire-incident-v3", defaultNodes, defaultEdges);
+  } = useFlowLayout("fire-incident", defaultNodes, defaultEdges);
 
   return (
     <div className="relative h-full min-h-[480px] w-full overflow-hidden bg-[#eef1f5]">
-      {hasSavedLayout ? (
-        <button
-          type="button"
-          onClick={resetLayout}
-          className="absolute top-3 right-3 z-10 rounded-[8px] border border-[var(--border)] bg-white px-3 py-1.5 text-xs font-medium text-[var(--muted)] hover:text-[var(--foreground)]"
-        >
-          Reset layout
-        </button>
-      ) : null}
+      <div className="absolute top-3 right-3 z-10 flex gap-2">
+        <FlowCopyJsonButton
+          flowId="fire-incident"
+          nodes={nodes}
+          edges={edges}
+        />
+        {hasSavedLayout ? (
+          <button
+            type="button"
+            onClick={resetLayout}
+            className="rounded-[8px] border border-[var(--border)] bg-white px-3 py-1.5 text-xs font-medium text-[var(--muted)] hover:text-[var(--foreground)]"
+          >
+            Reset layout
+          </button>
+        ) : null}
+      </div>
       {hydrated ? (
         <ReactFlow
           key={canvasKey}
@@ -554,7 +648,7 @@ export function CarIncidentFlow() {
     <div className="flex h-full min-h-0 flex-col gap-3">
       <div>
         <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-wide">
-          Simple Fire Incident Flow
+          Fire Incident Flow
         </h1>
         <p className="mt-1 text-sm text-[var(--muted)]">
           Report → Firestore → Vertex → Gemini → Validated (BigQuery, Twilio,

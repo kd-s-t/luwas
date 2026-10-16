@@ -23,6 +23,7 @@ import {
   flowMetaClass,
   flowNodeClass,
 } from "@/components/flow/FlowMark";
+import { FlowCopyJsonButton } from "@/components/flow/FlowCopyJsonButton";
 import { useFlowLayout } from "@/components/flow/useFlowLayout";
 
 function ActorNode({ data }: NodeProps) {
@@ -496,15 +497,22 @@ function CalamityBeforeStormFlowCanvas() {
 
   return (
     <div className="relative h-full min-h-[480px] w-full overflow-hidden bg-[#eef1f5]">
-      {hasSavedLayout ? (
-        <button
-          type="button"
-          onClick={resetLayout}
-          className="absolute top-3 right-3 z-10 rounded-[8px] border border-[var(--border)] bg-white px-3 py-1.5 text-xs font-medium text-[var(--muted)] hover:text-[var(--foreground)]"
-        >
-          Reset layout
-        </button>
-      ) : null}
+      <div className="absolute top-3 right-3 z-10 flex gap-2">
+        <FlowCopyJsonButton
+          flowId="before-storm-v2"
+          nodes={nodes}
+          edges={edges}
+        />
+        {hasSavedLayout ? (
+          <button
+            type="button"
+            onClick={resetLayout}
+            className="rounded-[8px] border border-[var(--border)] bg-white px-3 py-1.5 text-xs font-medium text-[var(--muted)] hover:text-[var(--foreground)]"
+          >
+            Reset layout
+          </button>
+        ) : null}
+      </div>
       {hydrated ? (
         <ReactFlow
           key={canvasKey}

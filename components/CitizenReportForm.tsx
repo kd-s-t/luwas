@@ -67,6 +67,7 @@ import {
   placeFromCoords,
 } from "@/lib/reports/barangayScope";
 import { syncHazardReportToBigQuery } from "@/lib/reports/bigquerySync";
+import { inferHazard } from "@/lib/reports/inferHazard";
 import {
   hazardHintLabel,
   type HazardReport,
@@ -128,7 +129,7 @@ function isReportMediaFile(file: File): boolean {
 }
 
 function authorPlace(profile: UserProfile | null | undefined): string {
-  if (!profile) return "Demo · no login";
+  if (!profile) return "no login";
   if (isCitizen(profile)) return profile.purok;
   if (isOfficer(profile)) return profile.orgName;
   return "Field";
@@ -143,34 +144,6 @@ function formatBytes(bytes: number): string {
 function reviewHazardLabel(hint: ReportHazardHint): string {
   if (hint === "flood") return "Flooding";
   return hazardHintLabel(hint);
-}
-
-function inferHazard(situation: string): ReportHazardHint {
-  const t = situation.toLowerCase();
-  if (/flood|tubig|baha|knee-deep|knee deep/.test(t)) return "flood";
-  if (/landslide|land slide|gusaw|dahon/.test(t)) return "landslide";
-  if (
-    /road.?block|blockage|blocked road|fallen tree|nahulog.*kahoy|debris|washout|impassable|no.?pass|hindi.?makadaan|road closed|access road/.test(
-      t,
-    )
-  )
-    return "blockage";
-  if (/typhoon|bagyo|hangin|wind|storm/.test(t)) return "typhoon";
-  if (/fire|sunog|usok|smoke/.test(t)) return "fire";
-  if (
-    /crime|hold.?up|holdup|robbery|theft|nakaw|assault|stab|shoot|gunshot|snatch|riot/.test(
-      t,
-    )
-  )
-    return "crime";
-  if (
-    /accident|banggaan|crash|collision|vehicular|hit.?and.?run|road.?crash|car.?accident|motorcycle.?accident/.test(
-      t,
-    )
-  )
-    return "accident";
-  if (/evac|shelter|evacuation/.test(t)) return "evac";
-  return "other";
 }
 
 function titleFromSituation(
@@ -506,7 +479,7 @@ export function CitizenReportForm({
       draftReportFor: reportFor,
       notes: buildReportNotes(),
       title: titleFromSituation(situation, intent, reportFor),
-      hazardHint: inferHazard(situation),
+      hazardHint: inferHazard(situation, voiceTranscript),
       lat,
       lng,
       locationLabel: placeQuery.trim() || null,
@@ -863,7 +836,6 @@ export function CitizenReportForm({
       t(language, editMode ? "common.saving" : "common.submitting"),
     );
     const reportId = draftId ?? newGuestReportId();
-    const hazardHint = inferHazard(situation);
     const title = titleFromSituation(situation, intent, reportFor);
     const mediaType = file
       ? file.type.startsWith("video/")
@@ -879,6 +851,7 @@ export function CitizenReportForm({
       if (transcript) setVoiceTranscript(transcript);
     }
     const notes = buildReportNotes();
+    const hazardHint = inferHazard(situation, notes, transcript, title);
 
     const captured = meta ?? (await captureReportMeta().catch(() => null));
     if (captured) setMeta(captured);
@@ -1008,6 +981,7 @@ export function CitizenReportForm({
           reason: string;
           source: "gemini" | "local";
           model?: string;
+          hazardHint?: ReportHazardHint;
           priority?: "critical" | "high" | "medium" | "low";
           priorityFactors?: {
             immediateSeverity: string;
@@ -1032,6 +1006,7 @@ export function CitizenReportForm({
           aiReason: data.reason,
           aiSource: data.source,
           aiModel: data.model ?? null,
+          ...(data.hazardHint ? { hazardHint: data.hazardHint } : {}),
           aiPriority: data.priority ?? null,
           aiPriorityFactors: data.priorityFactors ?? null,
           vertexClass: data.vertexClass ?? null,
@@ -1081,7 +1056,6 @@ export function CitizenReportForm({
       }
 
       const reportId = draftId ?? crypto.randomUUID();
-      const hazardHint = inferHazard(situation);
       const title = titleFromSituation(situation, intent, reportFor);
 
       let transcript = voiceTranscript?.trim() || "";
@@ -1090,6 +1064,7 @@ export function CitizenReportForm({
         if (transcript) setVoiceTranscript(transcript);
       }
       const notes = buildReportNotes();
+      const hazardHint = inferHazard(situation, notes, transcript, title);
 
       const captured = meta ?? (await captureReportMeta().catch(() => null));
       if (captured) setMeta(captured);
@@ -1208,6 +1183,7 @@ export function CitizenReportForm({
         reason: string;
         source: "gemini" | "local";
         model?: string;
+        hazardHint?: ReportHazardHint;
         priority?: "critical" | "high" | "medium" | "low";
         priorityFactors?: {
           immediateSeverity: string;
@@ -1220,6 +1196,7 @@ export function CitizenReportForm({
         vertexConfidence?: number | null;
       };
 
+      const detectedHint = data.hazardHint || hazardHint;
       const validatedAt = new Date().toISOString();
       await updateReportValidation(id, {
         status: data.status,
@@ -1228,6 +1205,7 @@ export function CitizenReportForm({
         aiReason: data.reason,
         aiSource: data.source,
         aiModel: data.model ?? null,
+        ...(data.hazardHint ? { hazardHint: data.hazardHint } : {}),
         aiPriority: data.priority ?? null,
         aiPriorityFactors: data.priorityFactors ?? null,
         vertexClass: data.vertexClass ?? null,
@@ -1260,7 +1238,7 @@ export function CitizenReportForm({
         lgu: place.lgu,
         title,
         notes,
-        hazardHint,
+        hazardHint: detectedHint,
         mediaType,
         mediaPath: uploaded.mediaPath,
         mediaUrl: uploaded.mediaUrl,
@@ -1284,7 +1262,7 @@ export function CitizenReportForm({
       if (data.status === "legit") {
         void triggerAutoResponderCall({
           id,
-          hazardHint,
+          hazardHint: detectedHint,
           status: "legit",
           barangay: place.barangay,
           lgu: place.lgu,
@@ -1294,6 +1272,8 @@ export function CitizenReportForm({
           notes,
           citizenPurok: authorPlace(author),
           autoResponderCallAt: null,
+          voiceTranscript: transcript || null,
+          aiReason: data.reason,
         });
       }
 
@@ -2120,7 +2100,9 @@ export function CitizenReportForm({
                   ? t(language, "intent.needHelp")
                   : t(language, "intent.reportHazard")}
                 {" · "}
-                {reviewHazardLabel(inferHazard(situation))}
+                {reviewHazardLabel(
+                  inferHazard(situation, voiceTranscript),
+                )}
               </p>
               <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-[var(--foreground)]">
                 {situation}
@@ -2140,7 +2122,9 @@ export function CitizenReportForm({
                 </p>
                 <p className="text-xs leading-relaxed text-[var(--muted)]">
                   {t(language, "review.aiSuggestionBody", {
-                    category: reviewHazardLabel(inferHazard(situation)),
+                    category: reviewHazardLabel(
+                      inferHazard(situation, voiceTranscript),
+                    ),
                   })}
                 </p>
               </div>

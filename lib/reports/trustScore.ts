@@ -4,17 +4,17 @@ import type { ReportMediaSource } from "@/lib/reports/types";
  * Report trust stack (max 100).
  *
  * Identity + contact are floors, not “half true.”
- * Field capture is the big jump; AI is the last 20%.
+ * Field capture is the big jump; AI is the last 25%.
  *
- * Caps: identity 20 · contact 15 · capture 45 · AI 20
- * → registered+ID+contacts+tight field capture = 80 before AI
+ * Caps: identity 15 · contact 10 · capture 50 · AI 25
+ * → registered+ID+contacts+tight field capture = 75 before AI
  * → + AI = up to 100
  */
 export const TRUST_CAPS = {
-  identity: 20,
-  contact: 15,
-  capture: 45,
-  ai: 20,
+  identity: 15,
+  contact: 10,
+  capture: 50,
+  ai: 25,
 } as const;
 
 export type ReportTrustBreakdown = {
@@ -89,7 +89,7 @@ function scoreCapture(input: TrustScoreInput): number {
       : null;
 
   if (mobile && hasGps) {
-    // Tight field fix — full capture cap (~80% stack with identity+contact).
+    // Tight field fix — full capture cap (~75% stack with identity+contact).
     if (accuracy != null && accuracy <= 50) return TRUST_CAPS.capture;
     if (accuracy != null && accuracy <= 120) {
       return Math.round(TRUST_CAPS.capture * 0.85);

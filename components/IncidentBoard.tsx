@@ -10,6 +10,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { useCommandWorkspace } from "@/components/CommandWorkspaceProvider";
+import { CriticalInfo } from "@/components/CriticalInfo";
 import { OfficerWorkloadInfo } from "@/components/OfficerWorkloadInfo";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { TrustScoreInfo } from "@/components/TrustScoreInfo";
@@ -332,13 +333,6 @@ export function IncidentBoard() {
       setError("Assign an officer before moving to Dispatched.");
       return;
     }
-    if (
-      col.id === "done" &&
-      !(report.fieldEvidence && report.fieldEvidence.length > 0)
-    ) {
-      setError("Upload field photos on the incident before moving to Done.");
-      return;
-    }
     setBusyId(report.id);
     setError(null);
     try {
@@ -403,6 +397,7 @@ export function IncidentBoard() {
               </h1>
               <TrustScoreInfo />
               <OfficerWorkloadInfo />
+              <CriticalInfo />
             </div>
             <p className="text-xs text-[var(--muted)]">
               {queueCount} in queue · drag cards across columns
@@ -439,26 +434,16 @@ export function IncidentBoard() {
               : null;
             const rejectDrop =
               dragging != null &&
-              ((col.id === "dispatched" && !hasAssignee(dragging)) ||
-                (col.id === "done" &&
-                  !(
-                    dragging.fieldEvidence &&
-                    dragging.fieldEvidence.length > 0
-                  )));
+              col.id === "dispatched" &&
+              !hasAssignee(dragging);
             return (
               <section
                 key={col.id}
                 onDragOver={(e) => {
                   if (dropColId !== col.id) setDropColId(col.id);
                   const block =
-                    (col.id === "dispatched" &&
-                      (dragging == null || !hasAssignee(dragging))) ||
-                    (col.id === "done" &&
-                      (dragging == null ||
-                        !(
-                          dragging.fieldEvidence &&
-                          dragging.fieldEvidence.length > 0
-                        )));
+                    col.id === "dispatched" &&
+                    (dragging == null || !hasAssignee(dragging));
                   if (block) {
                     e.dataTransfer.dropEffect = "none";
                     return;
@@ -483,15 +468,6 @@ export function IncidentBoard() {
                   if (col.id === "dispatched" && !hasAssignee(report)) {
                     setError(
                       "Assign an officer before moving to Dispatched.",
-                    );
-                    return;
-                  }
-                  if (
-                    col.id === "done" &&
-                    !(report.fieldEvidence && report.fieldEvidence.length > 0)
-                  ) {
-                    setError(
-                      "Upload field photos on the incident before moving to Done.",
                     );
                     return;
                   }

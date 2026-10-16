@@ -24,8 +24,7 @@ const HAZARD_SEED_IDS: Record<ReportHazardHint, string[]> = {
     "first-aid",
     "multicab",
     "drinking-water",
-    "generator-portable",
-    "tarps",
+    "evac-kits",
   ],
   accident: ["first-aid", "multicab"],
   blockage: ["chainsaw", "multicab"],
@@ -68,9 +67,7 @@ export function suggestInventoryForHazard(
       const byCategory =
         hazard === "flood" && item.category === "vehicle"
           ? 20
-          : hazard === "fire" && item.category === "supply"
-            ? 20
-            : 50;
+          : 50;
       const rank = byKey ?? byCategory;
       return {
         item,

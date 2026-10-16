@@ -26,19 +26,40 @@ export function hasRescueUrgency(
   );
 }
 
+/** Fire language in title / notes / voice / AI reason when hint was left as other. */
+export function looksLikeFire(
+  ...parts: Array<string | null | undefined>
+): boolean {
+  const t = parts
+    .map((s) => s?.trim() ?? "")
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  if (!t) return false;
+  return /\bfire\b|\bsunog\b|\bblaz(e|ing)\b|\bflames?\b|\bsmoke\b|\bburning\b|\bnasusunog\b|\bbfp\b|\bapag\b/.test(
+    t,
+  );
+}
+
 /**
  * Legit fire → BFP; crime → PNP; accident → PNP + hospital;
  * road blockage → tanod (+ PNP if people trapped);
  * flood / landslide / typhoon → tanod (+ PNP when rescue urgency, e.g. on roof).
+ * Also routes to BFP when text clearly describes fire even if hazardHint is other.
  */
 export function autoResponderRouteForHazard(
   hint: ReportHazardHint,
   title?: string | null,
   notes?: string | null,
+  extraText?: string | null,
 ): AutoResponderRoute | null {
   const rescue = hasRescueUrgency(title, notes);
+  const effectiveHint: ReportHazardHint =
+    hint === "fire" || looksLikeFire(title, notes, extraText)
+      ? "fire"
+      : hint;
 
-  switch (hint) {
+  switch (effectiveHint) {
     case "fire":
       return { kinds: ["bfp"], alertLabel: "fire" };
     case "crime":
@@ -87,12 +108,19 @@ export async function triggerAutoResponderCall(
     | "notes"
     | "citizenPurok"
     | "autoResponderCallAt"
-  >,
+  > & {
+    voiceTranscript?: string | null;
+    aiReason?: string | null;
+  },
 ): Promise<{ attempted: boolean; ok?: boolean; error?: string }> {
+  const fireText = [report.voiceTranscript, report.aiReason]
+    .filter(Boolean)
+    .join(" ");
   const route = autoResponderRouteForHazard(
     report.hazardHint,
     report.title,
     report.notes,
+    fireText,
   );
   if (!route) return { attempted: false };
   if (report.status !== "legit") return { attempted: false };
