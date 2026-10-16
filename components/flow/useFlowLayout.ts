@@ -157,7 +157,7 @@ function parseSaved(
   hasSaved: boolean;
 } {
   const raw = readRaw(flowId);
-  if (!raw || typeof raw !== "object") {
+  if (!raw || typeof raw !== "object" || raw === null) {
     return {
       nodes: hydrateNodes(defaultsNodes),
       edges: hydrateEdges(defaultsEdges),
@@ -165,10 +165,11 @@ function parseSaved(
     };
   }
 
-  const doc = raw as FlowDocument & LegacySave & PosMap;
+  const bag = raw as Record<string, unknown>;
 
   // v4 full document
-  if ("v" in doc && doc.v === 4) {
+  if (bag.v === 4) {
+    const doc = raw as FlowDocument;
     return {
       nodes: hydrateNodes(defaultsNodes, doc.nodes),
       edges: hydrateEdges(defaultsEdges, doc.edges),
@@ -178,7 +179,8 @@ function parseSaved(
   }
 
   // v2 / v3 layout-only
-  if ("v" in doc && (doc.v === 2 || doc.v === 3)) {
+  if (bag.v === 2 || bag.v === 3) {
+    const doc = raw as LegacySave;
     return {
       nodes: hydrateNodes(defaultsNodes, undefined, doc.positions),
       edges: hydrateEdges(defaultsEdges, undefined, doc.edges),
@@ -192,11 +194,12 @@ function parseSaved(
   }
 
   // Legacy bare positions map
-  if (!("v" in doc) && !("nodes" in doc)) {
+  if (!("v" in bag) && !("nodes" in bag)) {
+    const positions = raw as PosMap;
     return {
-      nodes: hydrateNodes(defaultsNodes, undefined, doc as PosMap),
+      nodes: hydrateNodes(defaultsNodes, undefined, positions),
       edges: hydrateEdges(defaultsEdges),
-      hasSaved: Object.keys(doc as PosMap).length > 0,
+      hasSaved: Object.keys(positions).length > 0,
     };
   }
 
