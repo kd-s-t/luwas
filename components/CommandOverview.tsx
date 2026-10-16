@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { AlertTriangle, Cloud, FileText, Package } from "lucide-react";
 import { FadeIn } from "@/components/motion/primitives";
-import { OverviewMapPanel } from "@/components/OverviewMapPanel";
+import { SituationMap } from "@/components/SituationMap";
 import { useCommandWorkspace } from "@/components/CommandWorkspaceProvider";
+import { useAuth } from "@/lib/auth/AuthProvider";
 import {
   buildAttentionBoard,
   type AttentionItem,
@@ -147,6 +148,7 @@ function AttentionCard({ item, index }: { item: AttentionItem; index: number }) 
 }
 
 export function CommandOverview() {
+  const { user } = useAuth();
   const { scopedReports, weatherOk, weatherHazard, seedReady } =
     useCommandWorkspace();
 
@@ -319,8 +321,15 @@ export function CommandOverview() {
           </div>
         </section>
 
-        <div className="flex min-h-[280px] flex-1 flex-col lg:min-h-0">
-          <OverviewMapPanel items={board.items} fill />
+        <div className="flex min-h-[280px] flex-1 flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-raised)] lg:min-h-0">
+          {user ? (
+            <SituationMap
+              officerUid={user.uid}
+              fillRemaining
+              hideChat
+              hideAreaPanel
+            />
+          ) : null}
         </div>
       </div>
     </div>

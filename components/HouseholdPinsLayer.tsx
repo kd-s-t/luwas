@@ -93,6 +93,14 @@ export function HouseholdPinsLayer({
           headerDisabled
         >
           <div className="dro-gmap-popup">
+            <button
+              type="button"
+              className="dro-gmap-popup-close"
+              aria-label="Close"
+              onClick={() => setOpenId(null)}
+            >
+              ×
+            </button>
             <strong>{openPin.ownerName}</strong>
             {openPin.priority ? (
               <>

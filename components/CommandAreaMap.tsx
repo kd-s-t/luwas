@@ -944,12 +944,14 @@ function CommandAreaMapInner({
           (sp.kind === "school" && sp.isEvacCenter);
         const washOn = floodWashOn(layerFloods);
         const inFlood = facilityInFlood(sp.lat, sp.lng, layerFloods);
+        // Tino flood warning only in Before/During drill — not No storm
+        // (EE baseline flood samples must not mark every EC as flooded).
+        const tinoFloodPhase =
+          scenarioPhase === "before" || scenarioPhase === "during";
         const floodedPin =
           Boolean(isShelter) &&
-          (scenarioPhase === "during" ||
-            washOn ||
-            inFlood ||
-            layerFloods.length > 0);
+          tinoFloodPhase &&
+          (scenarioPhase === "during" || washOn || inFlood);
         const iconKind: FacilityMarkerKind =
           floodedPin && isShelter ? "evac_center" : sp.kind;
         const z =

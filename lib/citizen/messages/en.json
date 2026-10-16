@@ -85,6 +85,8 @@
     "recording": "Recording… tap to stop",
     "stopVoice": "Stop recording",
     "voiceReady": "Voice note saved",
+    "voiceProcessing": "Processing audio…",
+    "voiceTranscribing": "Transcribing…",
     "voicePlay": "Play voice note",
     "voicePause": "Pause",
     "voiceReRecord": "Re-record",
@@ -190,7 +192,7 @@
     "title": "Track your report",
     "subtitle": "Check progress using your reference number. No login needed.",
     "reference": "Report reference number",
-    "placeholder": "LUW-261009-1042",
+    "placeholder": "CEB-CON-NANG-261017-0001",
     "checkUpdates": "Check for updates",
     "checking": "Checking…",
     "lastChecked": "Last checked {when}",
@@ -239,7 +241,7 @@
     "open": "Open",
     "enterRef": "Enter your reference number.",
     "current": "Current",
-    "badFormat": "Reference must look like LUW-261010-9934 (from your confirmation screen).",
+    "badFormat": "Reference must look like CEB-CON-NANG-261017-0001 (from your confirmation screen).",
     "notFound": "No report found for {ref}. Check the number and try again."
   },
   "auth": {

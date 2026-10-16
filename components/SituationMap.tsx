@@ -114,12 +114,24 @@ type SituationMapProps = {
   fullViewport?: boolean;
   /** Fill remaining parent height (command map after hazard lists removed). */
   fillRemaining?: boolean;
+  /** Map only — hide Mangugnai chat (command overview). */
+  hideChat?: boolean;
+  /** Hide barangay picker + stats card (avoids overlap with phase switcher). */
+  hideAreaPanel?: boolean;
+  /** Hide bottom weather pill. */
+  hideWeather?: boolean;
+  /** Hide Before/During/After phase switcher on the map. */
+  hideScenarioSwitcher?: boolean;
 };
 
 export function SituationMap({
   officerUid,
   fullViewport = false,
   fillRemaining = false,
+  hideChat = false,
+  hideAreaPanel = false,
+  hideWeather = false,
+  hideScenarioSwitcher = false,
 }: SituationMapProps) {
   const { profile } = useAuth();
   const defaultArea = useMemo(() => {
@@ -447,24 +459,29 @@ export function SituationMap({
 
   return (
     <section
-      className={`w-full bg-[var(--surface-raised)] ${
+      className={`flex w-full flex-col bg-[var(--surface-raised)] ${
         fullViewport
-          ? "flex h-full max-h-dvh flex-col overflow-hidden border-0"
+          ? "h-full max-h-dvh overflow-hidden border-0"
           : fillRemaining
-            ? "flex min-h-0 flex-1 flex-col overflow-hidden"
+            ? "min-h-0 flex-1 overflow-hidden"
             : "border-b border-[var(--border)]"
       }`}
     >
+      {!hideScenarioSwitcher ? <ScenarioMapOverlay variant="bar" /> : null}
       <div
         className={
-          fullViewport
-            ? "relative z-0 grid min-h-0 flex-1 overflow-hidden grid-cols-1 grid-rows-[minmax(0,1fr)_minmax(0,42%)] md:grid-rows-1 md:grid-cols-[minmax(0,1fr)_minmax(300px,30vw)]"
-            : fillRemaining
-              ? "relative z-0 grid min-h-0 flex-1 overflow-hidden grid-cols-1 grid-rows-[minmax(0,1fr)_minmax(0,42%)] lg:grid-rows-1 lg:grid-cols-[minmax(0,1fr)_minmax(320px,28vw)]"
-              : "relative z-0 grid min-h-0 overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(320px,28vw)]"
+          hideChat
+            ? "relative z-0 flex min-h-0 flex-1 flex-col overflow-hidden"
+            : fullViewport
+              ? "relative z-0 grid min-h-0 flex-1 overflow-hidden grid-cols-1 grid-rows-[minmax(0,1fr)_minmax(0,42%)] md:grid-rows-1 md:grid-cols-[minmax(0,1fr)_minmax(300px,30vw)]"
+              : fillRemaining
+                ? "relative z-0 grid min-h-0 flex-1 overflow-hidden grid-cols-1 grid-rows-[minmax(0,1fr)_minmax(0,42%)] lg:grid-rows-1 lg:grid-cols-[minmax(0,1fr)_minmax(320px,28vw)]"
+                : "relative z-0 grid min-h-0 overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(320px,28vw)]"
         }
       >
-        <div className={`relative z-0 overflow-hidden ${stageH}`}>
+        <div
+          className={`relative z-0 min-h-0 flex-1 overflow-hidden ${hideChat ? "h-full" : stageH}`}
+        >
           <CommandAreaMapMount
             key={`${mapArea.id}-${phase}`}
             area={mapArea}
@@ -482,106 +499,122 @@ export function SituationMap({
             escapeRoutes={mapEscapes}
             scenarioPhase={phase}
           />
-          <ScenarioMapOverlay />
-          {/* Compact weather — map bottom center */}
-          <div className="pointer-events-none absolute inset-x-0 bottom-2 z-[1000] flex justify-center px-2 sm:bottom-3 sm:px-3">
-            <div
-              className={`pointer-events-auto max-w-[min(100%,22rem)] rounded-2xl border px-2.5 py-1.5 shadow-md backdrop-blur-md sm:max-w-none sm:rounded-full sm:px-3 ${
-                hazard
-                  ? "border-[var(--warn)]/50 bg-[var(--surface-raised)]/92"
-                  : "border-[var(--border)] bg-[var(--surface-raised)]/90"
-              }`}
-            >
-              {weatherLoading && !weather ? (
-                <p className="font-mono text-[10px] text-[var(--muted)]">
-                  Weather…
+          {hideChat && !hideAreaPanel ? (
+            <div className="pointer-events-none absolute bottom-14 left-3 z-[1000] max-w-[min(100%,16rem)] sm:bottom-16">
+              <div className="pointer-events-auto space-y-1 rounded-xl border border-white/80 bg-white/95 px-2.5 py-2 shadow-md backdrop-blur-sm">
+                <AreaSearchSelect value={mapArea} onChange={setMapArea} />
+                <p className="text-[10px] leading-snug text-[var(--muted)]">
+                  {areaStats}
                 </p>
-              ) : weatherError && !weather ? (
-                <p className="text-[10px] text-[var(--danger)]">{weatherError}</p>
-              ) : weather ? (
-                <p className="flex flex-wrap items-baseline justify-center gap-x-2 gap-y-0.5 font-mono text-[10px] text-[var(--foreground)] sm:text-[11px]">
-                  <span className="font-[family-name:var(--font-display)] text-sm font-semibold tabular-nums leading-none sm:text-base">
-                    {Math.round(weather.temperatureC)}°
-                  </span>
-                  <span className="text-[var(--muted)]">{weather.label}</span>
-                  <span className="hidden text-[var(--border)] sm:inline">·</span>
-                  <span className="text-[var(--muted)]">
-                    feels {Math.round(weather.feelsLikeC)}°
-                  </span>
-                  <span className="text-[var(--muted)]">
-                    rain {weather.precipitationMm.toFixed(1)}
-                  </span>
-                  <span className="hidden text-[var(--muted)] sm:inline">
-                    wind {Math.round(weather.windKmh)}
-                  </span>
-                  {hazard ? (
-                    <span className="font-semibold tracking-wider text-[var(--warn)] uppercase">
-                      watch
-                    </span>
-                  ) : null}
-                </p>
-              ) : null}
+              </div>
             </div>
-          </div>
+          ) : null}
+          {!hideWeather ? (
+            <div className="pointer-events-none absolute inset-x-0 bottom-2 z-[1000] flex justify-center px-2 sm:bottom-3 sm:px-3">
+              <div
+                className={`pointer-events-auto max-w-[min(100%,22rem)] rounded-2xl border px-2.5 py-1.5 shadow-md backdrop-blur-md sm:max-w-none sm:rounded-full sm:px-3 ${
+                  hazard
+                    ? "border-[var(--warn)]/50 bg-[var(--surface-raised)]/92"
+                    : "border-[var(--border)] bg-[var(--surface-raised)]/90"
+                }`}
+              >
+                {weatherLoading && !weather ? (
+                  <p className="font-mono text-[10px] text-[var(--muted)]">
+                    Weather…
+                  </p>
+                ) : weatherError && !weather ? (
+                  <p className="text-[10px] text-[var(--danger)]">
+                    {weatherError}
+                  </p>
+                ) : weather ? (
+                  <p className="flex flex-wrap items-baseline justify-center gap-x-2 gap-y-0.5 font-mono text-[10px] text-[var(--foreground)] sm:text-[11px]">
+                    <span className="font-[family-name:var(--font-display)] text-sm font-semibold tabular-nums leading-none sm:text-base">
+                      {Math.round(weather.temperatureC)}°
+                    </span>
+                    <span className="text-[var(--muted)]">{weather.label}</span>
+                    <span className="hidden text-[var(--border)] sm:inline">
+                      ·
+                    </span>
+                    <span className="text-[var(--muted)]">
+                      feels {Math.round(weather.feelsLikeC)}°
+                    </span>
+                    <span className="text-[var(--muted)]">
+                      rain {weather.precipitationMm.toFixed(1)}
+                    </span>
+                    <span className="hidden text-[var(--muted)] sm:inline">
+                      wind {Math.round(weather.windKmh)}
+                    </span>
+                    {hazard ? (
+                      <span className="font-semibold tracking-wider text-[var(--warn)] uppercase">
+                        watch
+                      </span>
+                    ) : null}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
         </div>
-        <aside
-          className={`flex min-h-0 flex-col overflow-hidden border-[var(--border)] ${stageH} ${
-            fullViewport
-              ? "border-t md:border-t-0 md:border-l"
-              : "border-t lg:border-t-0 lg:border-l"
-          }`}
-        >
-          <div className="relative z-30 shrink-0 space-y-1 border-b border-[var(--border)] bg-[var(--surface-panel)] px-3 py-2 pr-12 sm:pr-3">
-            <AreaSearchSelect value={mapArea} onChange={setMapArea} />
-            <p className="text-[11px] leading-snug text-[var(--muted)] sm:truncate">
-              {areaStats}
-            </p>
-          </div>
-          <div className="min-h-0 flex-1 overflow-hidden">
-            <MangugnaiChat
-              className="h-full border-0"
-              messages={messages}
-              running={running}
-              result={result}
-              households={mapHouseholds}
-              error={assistError}
-              model={model}
-              onModelChange={setModel}
-              callListVisible={callListVisible}
-              onClearCallList={clearCallList}
-              chats={chats}
-              activeChatId={activeChatId}
-              onNewChat={newChat}
-              onSelectChat={selectChat}
-              onDeleteChat={deleteChat}
-              officerUid={officerUid}
-              onMessageAudio={patchMessageAudio}
-              onSend={(text) =>
-                sendMessage(text, {
-                  households: mapHouseholds,
-                  floods: mapFloods.length
-                    ? mapFloods
-                    : nangkaOps
-                      ? CEBU_FLOOD_SAMPLES
-                      : [],
-                  landslides: pack.landslides.length
-                    ? pack.landslides
-                    : nangkaOps
-                      ? CEBU_LANDSLIDE_SAMPLES
-                      : [],
-                  typhoons: pack.typhoons.length
-                    ? pack.typhoons
-                    : nangkaOps
-                      ? CEBU_TYPHOON_SAMPLES
-                      : [],
-                  weatherLabel: weather?.label,
-                  model,
-                  phase,
-                })
-              }
-            />
-          </div>
-        </aside>
+        {!hideChat ? (
+          <aside
+            className={`flex min-h-0 flex-col overflow-hidden border-[var(--border)] ${stageH} ${
+              fullViewport
+                ? "border-t md:border-t-0 md:border-l"
+                : "border-t lg:border-t-0 lg:border-l"
+            }`}
+          >
+            <div className="relative z-30 shrink-0 space-y-1 border-b border-[var(--border)] bg-[var(--surface-panel)] px-3 py-2 pr-12 sm:pr-3">
+              <AreaSearchSelect value={mapArea} onChange={setMapArea} />
+              <p className="text-[11px] leading-snug text-[var(--muted)] sm:truncate">
+                {areaStats}
+              </p>
+            </div>
+            <div className="min-h-0 flex-1 overflow-hidden">
+              <MangugnaiChat
+                className="h-full border-0"
+                messages={messages}
+                running={running}
+                result={result}
+                households={mapHouseholds}
+                error={assistError}
+                model={model}
+                onModelChange={setModel}
+                callListVisible={callListVisible}
+                onClearCallList={clearCallList}
+                chats={chats}
+                activeChatId={activeChatId}
+                onNewChat={newChat}
+                onSelectChat={selectChat}
+                onDeleteChat={deleteChat}
+                officerUid={officerUid}
+                onMessageAudio={patchMessageAudio}
+                onSend={(text) =>
+                  sendMessage(text, {
+                    households: mapHouseholds,
+                    floods: mapFloods.length
+                      ? mapFloods
+                      : nangkaOps
+                        ? CEBU_FLOOD_SAMPLES
+                        : [],
+                    landslides: pack.landslides.length
+                      ? pack.landslides
+                      : nangkaOps
+                        ? CEBU_LANDSLIDE_SAMPLES
+                        : [],
+                    typhoons: pack.typhoons.length
+                      ? pack.typhoons
+                      : nangkaOps
+                        ? CEBU_TYPHOON_SAMPLES
+                        : [],
+                    weatherLabel: weather?.label,
+                    model,
+                    phase,
+                  })
+                }
+              />
+            </div>
+          </aside>
+        ) : null}
       </div>
 
     </section>

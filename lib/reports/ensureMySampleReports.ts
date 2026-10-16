@@ -240,6 +240,8 @@ export async function ensureMySampleReports(input: {
               summary: buildDispatchSummary(sample.dispatch),
             } satisfies ReportDispatchLog)
           : null,
+      manualDispatchChecked: false,
+      fieldEvidence: [],
       reporterIdVerified: Boolean(input.idVerified),
       reporterEmail: input.email?.trim() || null,
       reporterPhone: input.phone?.trim() || null,

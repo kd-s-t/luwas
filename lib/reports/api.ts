@@ -1,4 +1,5 @@
 import {
+  arrayUnion,
   collection,
   doc,
   getDoc,
@@ -26,6 +27,7 @@ import {
   type ReportTrustBreakdown,
 } from "@/lib/reports/trustScore";
 import type {
+  FieldEvidenceImage,
   HazardReport,
   ReportDraftStep,
   ReportHazardHint,
@@ -36,10 +38,39 @@ import type {
 import { sanitizeGuestReporterPhone } from "@/lib/auth/demoAccount";
 import type { UserProfile } from "@/lib/auth/types";
 import { isCitizen, isOfficer } from "@/lib/auth/types";
+import {
+  newGuestReportId,
+  newPlaceReportId,
+} from "@/lib/reports/reportId";
 import { isStockReportMediaUrl } from "@/lib/reports/stockMedia";
+
+export { newGuestReportId, newPlaceReportId } from "@/lib/reports/reportId";
 
 const COL = "reports";
 const GUEST_UID = "web-guest";
+
+function mapFieldEvidence(raw: unknown): FieldEvidenceImage[] {
+  if (!Array.isArray(raw)) return [];
+  const out: FieldEvidenceImage[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const row = item as Record<string, unknown>;
+    const mediaUrl = resolveReportMediaUrl(String(row.mediaUrl ?? ""));
+    const mediaPath = String(row.mediaPath ?? "");
+    if (!mediaUrl || !mediaPath) continue;
+    out.push({
+      mediaPath,
+      mediaUrl,
+      mediaMime: String(row.mediaMime ?? "image/jpeg"),
+      uploadedAt: String(row.uploadedAt ?? ""),
+      uploadedByUid:
+        row.uploadedByUid != null ? String(row.uploadedByUid) : null,
+      uploadedByName:
+        row.uploadedByName != null ? String(row.uploadedByName) : null,
+    });
+  }
+  return out;
+}
 
 function mapTrustBreakdown(
   raw: unknown,
@@ -183,6 +214,8 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
           ? String(data.autoFireCallAt)
           : null,
     dispatchLog: mapDispatchLog(data.dispatchLog),
+    manualDispatchChecked: Boolean(data.manualDispatchChecked),
+    fieldEvidence: mapFieldEvidence(data.fieldEvidence),
     reporterIdVerified,
     reporterEmail,
     reporterPhone,
@@ -218,7 +251,7 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
 /** Drafts have no evidence yet. Never use a stock scene as placeholder media. */
 const DRAFT_PLACEHOLDER_MEDIA = "draft://pending-photo";
 
-/** Start a draft incident on step 1 — returns LUW-* (guest) or uuid (signed-in). */
+/** Start a draft incident on step 1 — place id (guest) or uuid (signed-in). */
 export async function startIncidentDraft(input: {
   author: UserProfile | null;
   intent: "needHelp" | "reportHazard";
@@ -306,6 +339,8 @@ export async function startIncidentDraft(input: {
     investigatedAt: null,
     autoResponderCallAt: null,
     dispatchLog: null,
+    manualDispatchChecked: false,
+    fieldEvidence: [],
     reactionCounts: { ...EMPTY_REACTION_COUNTS },
     commentCount: 0,
     draftStep: "situation" satisfies ReportDraftStep,
@@ -345,7 +380,7 @@ export async function updateIncidentDraft(
   });
 }
 
-/** Public track / detail — any report id (guest LUW-* or signed-in). */
+/** Public track / detail — any report id (place / legacy LUW / signed-in). */
 export async function getHazardReportById(
   reportId: string,
 ): Promise<HazardReport | null> {
@@ -375,14 +410,7 @@ export function subscribeHazardReportById(
   });
 }
 
-/** Guest web report id — must match Firestore rules `LUW-YYMMDD-####`. */
-export function newGuestReportId(): string {
-  const day = new Date().toISOString().slice(2, 10).replace(/-/g, "");
-  const suffix = String(Math.floor(1000 + Math.random() * 9000));
-  return `LUW-${day}-${suffix}`;
-}
-
-/** Unauthenticated guest create — rules allow LUW-* + citizenUid web-guest. */
+/** Unauthenticated guest create — place id CEB-CON-NANG-* + citizenUid web-guest. */
 export async function createGuestHazardReport(input: {
   id?: string;
   title: string;
@@ -412,7 +440,14 @@ export async function createGuestHazardReport(input: {
   vertexConfidence?: number | null;
 }): Promise<string> {
   const now = new Date().toISOString();
-  const id = input.id ?? newGuestReportId();
+  const place =
+    placeFromCoords(input.lat, input.lng) ?? {
+      barangay: DEFAULT_REPORT_BARANGAY,
+      lgu: DEFAULT_REPORT_LGU,
+    };
+  const id =
+    input.id ??
+    newGuestReportId({ barangay: place.barangay, lgu: place.lgu });
   const status = input.status ?? "queued";
   const aiVerdict = input.aiVerdict ?? null;
   const aiConfidence =
@@ -436,11 +471,6 @@ export async function createGuestHazardReport(input: {
   if (mediaUrl && isStockReportMediaUrl(mediaUrl)) {
     throw new Error("Demo photos cannot be submitted as evidence.");
   }
-  const place =
-    placeFromCoords(input.lat, input.lng) ?? {
-      barangay: DEFAULT_REPORT_BARANGAY,
-      lgu: DEFAULT_REPORT_LGU,
-    };
   await setDoc(doc(getClientDb(), COL, id), {
     citizenUid: GUEST_UID,
     citizenName: "Guest",
@@ -487,6 +517,8 @@ export async function createGuestHazardReport(input: {
     investigatedAt: null,
     autoResponderCallAt: null,
     dispatchLog: null,
+    manualDispatchChecked: false,
+    fieldEvidence: [],
     reactionCounts: { ...EMPTY_REACTION_COUNTS },
     commentCount: 0,
     draftStep: null,
@@ -503,7 +535,7 @@ export async function createGuestHazardReport(input: {
 }
 
 /**
- * Guest update for a LUW-* report already on this device.
+ * Guest update for a place-prefixed (or legacy LUW-*) report already on this device.
  * Rules allow update while status stays queued / needs_review / rejected / draft.
  */
 export async function updateGuestHazardReport(input: {
@@ -619,7 +651,14 @@ export async function createHazardReport(input: {
   reporterEmailVerified?: boolean;
 }): Promise<string> {
   const now = new Date().toISOString();
-  const id = input.id ?? crypto.randomUUID();
+  const place =
+    placeFromCoords(input.lat, input.lng) ?? {
+      barangay: input.barangay?.trim() || DEFAULT_REPORT_BARANGAY,
+      lgu: input.lgu?.trim() || DEFAULT_REPORT_LGU,
+    };
+  const id =
+    input.id ??
+    newPlaceReportId({ barangay: place.barangay, lgu: place.lgu });
   const { id: _unusedId, ...fields } = input;
   void _unusedId;
   const trust = computeReportTrust({
@@ -635,11 +674,6 @@ export async function createHazardReport(input: {
     aiConfidence: null,
     aiVerdict: null,
   });
-  const place =
-    placeFromCoords(input.lat, input.lng) ?? {
-      barangay: input.barangay?.trim() || DEFAULT_REPORT_BARANGAY,
-      lgu: input.lgu?.trim() || DEFAULT_REPORT_LGU,
-    };
   await setDoc(doc(getClientDb(), COL, id), {
     ...fields,
     barangay: place.barangay,
@@ -675,6 +709,8 @@ export async function createHazardReport(input: {
     investigatedAt: null,
     autoResponderCallAt: null,
     dispatchLog: null,
+    manualDispatchChecked: false,
+    fieldEvidence: [],
     reactionCounts: { ...EMPTY_REACTION_COUNTS },
     commentCount: 0,
     draftStep: null,
@@ -729,6 +765,67 @@ export async function assignReportInvestigator(input: {
   }
 
   await updateDoc(ref, patch);
+}
+
+/** Toggle officer “Dispatch someone” checklist (manual, not tied to status). */
+export async function setReportManualDispatchChecked(
+  reportId: string,
+  checked: boolean,
+): Promise<void> {
+  const now = new Date().toISOString();
+  await updateDoc(doc(getClientDb(), COL, reportId), {
+    manualDispatchChecked: checked,
+    updatedAt: now,
+    updatedAtServer: serverTimestamp(),
+  });
+}
+
+/** Upload on-site field photos (images only) and append to the report. */
+export async function addReportFieldEvidence(input: {
+  reportId: string;
+  uploaderUid: string;
+  uploaderName: string | null;
+  files: File[];
+}): Promise<void> {
+  const images = input.files.filter((f) => f.type.startsWith("image/"));
+  if (images.length === 0) {
+    throw new Error("Images only.");
+  }
+  const now = new Date().toISOString();
+  const entries: FieldEvidenceImage[] = [];
+  for (const file of images) {
+    const body = new FormData();
+    body.set("reportId", input.reportId);
+    body.set("citizenUid", input.uploaderUid);
+    body.set("kind", "field");
+    body.set("file", file, file.name || "field.jpg");
+    const res = await fetch("/api/reports/guest-upload", {
+      method: "POST",
+      body,
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      mediaPath?: string;
+      mediaUrl?: string;
+      mediaMime?: string;
+    };
+    if (!res.ok || !data.mediaPath || !data.mediaUrl) {
+      throw new Error(data.error || "Field photo upload failed");
+    }
+    entries.push({
+      mediaPath: data.mediaPath,
+      mediaUrl: data.mediaUrl,
+      mediaMime: data.mediaMime || file.type || "image/jpeg",
+      uploadedAt: now,
+      uploadedByUid: input.uploaderUid,
+      uploadedByName: input.uploaderName,
+    });
+  }
+  await updateDoc(doc(getClientDb(), COL, input.reportId), {
+    fieldEvidence: arrayUnion(...entries),
+    updatedAt: now,
+    updatedAtServer: serverTimestamp(),
+  });
 }
 
 /** Advance ops pipeline: assigned → legit → dispatched → done (or set any allowed status). */

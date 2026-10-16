@@ -12,7 +12,6 @@ import { createPortal } from "react-dom";
 import { useCommandWorkspace } from "@/components/CommandWorkspaceProvider";
 import { OfficerWorkloadInfo } from "@/components/OfficerWorkloadInfo";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
-import { ReportStatusBadge } from "@/components/ReportStatusBadge";
 import { TrustScoreInfo } from "@/components/TrustScoreInfo";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { isOfficer, type OfficerProfile } from "@/lib/auth/types";
@@ -97,7 +96,28 @@ const DRAG_MIME = "application/x-ugnai-report-id";
 export function IncidentBoard() {
   const { profile } = useAuth();
   const { officerBundle, tinoActive } = useScenario();
-  const { scopedReports, activeOfficers, reportScope } = useCommandWorkspace();
+  const { scopedReports, activeOfficers, reportScope, seedReady } =
+    useCommandWorkspace();
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { isSimulationOn } = await import("@/lib/config/simulation");
+        if (!isSimulationOn()) return;
+        const { ensureQueueSampleReports } = await import(
+          "@/lib/reports/ensureQueueSampleReports"
+        );
+        if (cancelled) return;
+        await ensureQueueSampleReports();
+      } catch (err) {
+        console.warn("Queue sample seed failed", err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [seedReady]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -361,7 +381,7 @@ export function IncidentBoard() {
                   if (report) void moveToColumn(report, col);
                 }}
                 className={cn(
-                  "flex h-full min-h-0 min-w-[13.5rem] flex-1 flex-col rounded-lg border bg-[var(--surface-panel)]/40 transition",
+                  "flex h-full min-h-0 w-[17rem] shrink-0 flex-col rounded-lg border bg-[var(--surface-panel)]/40 transition sm:w-[18rem]",
                   dropColId === col.id
                     ? "border-[var(--accent)] bg-[var(--accent)]/5"
                     : "border-[var(--border)]",
@@ -408,31 +428,46 @@ export function IncidentBoard() {
                           )}
                         >
                           <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0 flex-1">
-                              <p
-                                className="font-mono text-[10px] tracking-wide text-[var(--muted)] tabular-nums"
-                                title={r.id}
-                              >
-                                {r.id}
-                              </p>
-                              <Link
-                                href={`/admin/incidents/${encodeURIComponent(r.id)}`}
-                                draggable={false}
-                                onClick={(e) => e.stopPropagation()}
-                                className="mt-0.5 line-clamp-2 block text-sm font-medium leading-snug hover:text-[var(--accent)] hover:underline"
-                              >
-                                {r.title}
-                              </Link>
-                            </div>
-                            <ReportStatusBadge
-                              status={r.status}
-                              className="shrink-0"
-                            />
+                            <p
+                              className="min-w-0 flex-1 truncate font-mono text-[10px] tracking-wide text-[var(--muted)] tabular-nums"
+                              title={r.id}
+                            >
+                              {r.id}
+                            </p>
+                            <span
+                              className={cn(
+                                "shrink-0 rounded-md px-1.5 py-0.5 font-mono text-[9px] tracking-wide uppercase",
+                                r.status === "needs_review" ||
+                                  r.status === "queued" ||
+                                  r.status === "validating"
+                                  ? "bg-[#fff7ed] text-[#c2410c] ring-1 ring-[#fdba74]/70"
+                                  : r.status === "failed" ||
+                                      r.status === "rejected"
+                                    ? "bg-[#fef2f2] text-[#b91c1c] ring-1 ring-[#fecaca]"
+                                    : "bg-[var(--foreground)]/6 text-[var(--muted)] ring-1 ring-[var(--border)]",
+                              )}
+                            >
+                              {r.status === "needs_review"
+                                ? "Review"
+                                : r.status === "queued"
+                                  ? "Queue"
+                                  : r.status === "validating"
+                                    ? "Validating"
+                                    : r.status.replace(/_/g, " ")}
+                            </span>
                           </div>
-                          <p className="mt-1.5 font-mono text-[10px] tracking-wide text-[var(--muted)] uppercase">
+                          <Link
+                            href={`/admin/incidents/${encodeURIComponent(r.id)}`}
+                            draggable={false}
+                            onClick={(e) => e.stopPropagation()}
+                            className="mt-1 line-clamp-2 block text-sm font-medium leading-snug hover:text-[var(--accent)] hover:underline"
+                          >
+                            {r.title}
+                          </Link>
+                          <p className="mt-1.5 truncate font-mono text-[10px] tracking-wide text-[var(--muted)] uppercase">
                             {hazardHintLabel(r.hazardHint)} · Brgy. {r.barangay}
                           </p>
-                          <p className="mt-0.5 text-[11px] text-[var(--muted)]">
+                          <p className="mt-0.5 truncate text-[11px] text-[var(--muted)]">
                             {r.citizenName} ·{" "}
                             {new Date(r.createdAt).toLocaleString()}
                           </p>

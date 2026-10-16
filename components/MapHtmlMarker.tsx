@@ -51,7 +51,17 @@ export function MapHtmlMarker({
           onCloseClick={() => setOpen(false)}
           headerDisabled
         >
-          <div className="dro-gmap-popup">{children}</div>
+          <div className="dro-gmap-popup">
+            <button
+              type="button"
+              className="dro-gmap-popup-close"
+              aria-label="Close"
+              onClick={() => setOpen(false)}
+            >
+              ×
+            </button>
+            {children}
+          </div>
         </InfoWindow>
       ) : null}
     </>

@@ -527,6 +527,41 @@ select:not([multiple]) {
   line-height: 1.4;
 }
 
+/* Compact close — sits on the first content line (no tall Google header). */
+.dro-gmap-popup-close {
+  float: right;
+  margin: -2px 0 0 8px;
+  border: 0;
+  background: transparent;
+  color: #5c6570;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1;
+  padding: 0 2px;
+  cursor: pointer;
+}
+
+.dro-gmap-popup-close:hover {
+  color: #1f2126;
+}
+
+/* Kill leftover Google InfoWindow header padding when header is used. */
+.dro-gmap-root .gm-style-iw-chr {
+  padding: 0 !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+.dro-gmap-root .gm-style-iw-ch {
+  padding: 0 !important;
+  height: 0 !important;
+}
+
+.dro-gmap-root .gm-style-iw-c {
+  padding: 10px 12px !important;
+}
+
 /* Officer hierarchy flow — chrome-free canvas */
 .officer-hierarchy-flow .react-flow__node {
   border: none !important;

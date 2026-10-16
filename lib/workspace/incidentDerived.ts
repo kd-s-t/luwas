@@ -11,6 +11,10 @@ export type IncidentProposal = {
   id: string;
   label: string;
   detail: string;
+  /** Already completed (e.g. investigator assigned). */
+  done?: boolean;
+  /** Officer can toggle this checkbox themselves. */
+  manual?: boolean;
 };
 
 export type ActivityEvent = {
@@ -91,11 +95,30 @@ export function proposalsForReport(report: HazardReport): IncidentProposal[] {
   }
 
   if (report.lat != null && report.lng != null) {
+    const assigned = Boolean(report.investigatorUid);
+    const who = report.investigatorName || "investigator";
     base.push({
       id: "assign",
       label: "Assign field verification",
-      detail:
-        "AI proposal: send a barangay responder for eyes-on confirmation before committing boats, kits, or public alerts.",
+      detail: assigned
+        ? `Assigned to ${who}. They go on-site and mark verified from their phone.`
+        : "AI proposal: assign an officer to go on-site, confirm what happened, and mark field-verified from their phone.",
+      done: assigned,
+    });
+
+    const fieldVerified =
+      report.status === "legit" ||
+      report.status === "dispatched" ||
+      report.status === "done";
+    base.push({
+      id: "field_verify",
+      label: "Mark field-verified",
+      detail: fieldVerified
+        ? `${who} confirmed on-site.`
+        : assigned
+          ? `${who} checks the scene on their phone, then taps Mark field-verified.`
+          : "After assignment, the investigator confirms on-site from their phone before any dispatch.",
+      done: fieldVerified,
     });
   } else {
     base.push({
@@ -105,6 +128,17 @@ export function proposalsForReport(report: HazardReport): IncidentProposal[] {
         "Ask for purok / landmark first. Do not publish escape routes or aid ETAs until location is verified.",
     });
   }
+
+  const dispatched = Boolean(report.manualDispatchChecked);
+  base.push({
+    id: "dispatch",
+    label: "Dispatch someone",
+    detail: dispatched
+      ? "Marked done by officer."
+      : "Check this yourself when you have dispatched someone (manual).",
+    done: dispatched,
+    manual: true,
+  });
 
   return base;
 }

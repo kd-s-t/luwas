@@ -93,6 +93,19 @@ export function CommandWorkspaceProvider({
         const sim = isSimulationOn();
         await Promise.all([
           sim ? ensureAllMapReportsInDb() : Promise.resolve(),
+          // Queue samples (CEB-CON-NANG-261011-9xxx) so Incidents → Queue is not empty.
+          sim
+            ? import("@/lib/reports/ensureQueueSampleReports").then(
+                ({ ensureQueueSampleReports }) => ensureQueueSampleReports(),
+              )
+            : Promise.resolve(),
+          // Verified flood + empty stock → Resources shortage / Find assistance.
+          sim
+            ? import("@/lib/reports/ensureResourceShortageReport").then(
+                ({ ensureResourceShortageReport }) =>
+                  ensureResourceShortageReport(),
+              )
+            : Promise.resolve(),
         ]);
         // Apas starter roster runs in prod (households + staff only).
         if (

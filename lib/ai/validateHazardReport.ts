@@ -114,17 +114,23 @@ export async function validateHazardReport(input: {
   mediaType: ReportMediaType;
   mediaMime: string;
   mediaBase64?: string;
+  /** Speech-to-text of an attached voice note (voice-only reports). */
+  voiceTranscript?: string;
   fileName?: string;
   model?: string;
 }): Promise<HazardValidateResult> {
   const title = input.title.trim();
-  const notes = input.notes.trim();
+  const voiceTranscript = input.voiceTranscript?.trim() || "";
+  const notes = [input.notes.trim(), voiceTranscript ? `Voice transcript: ${voiceTranscript}` : ""]
+    .filter(Boolean)
+    .join("\n");
   const mediaType = input.mediaType === "video" ? "video" : "photo";
   const hazardHint = input.hazardHint ?? "other";
   const mediaMime =
     input.mediaMime ||
     (mediaType === "video" ? "video/mp4" : "image/jpeg");
   const mediaBase64 = input.mediaBase64?.trim() || undefined;
+  const voiceOnly = !mediaBase64 && Boolean(voiceTranscript);
 
   const localE2e =
     process.env.NEXT_PUBLIC_USE_EMULATORS === "true" ||
@@ -161,8 +167,13 @@ export async function validateHazardReport(input: {
 
   const model = resolveGeminiModel(input.model ?? DEFAULT_GEMINI_MODEL);
   const vertexLine = formatVertexSignal(vertex);
+  const evidenceKind = mediaBase64
+    ? "media + text"
+    : voiceOnly
+      ? "voice transcript + text"
+      : "text";
   const prompt = `You are Mangugnai, validating a citizen hazard field report for Brgy. Nangka, Consolacion, Cebu.
-Decide if the ${mediaBase64 ? "media + text" : "text"} look like a genuine on-the-ground hazard report (not spam, meme, unrelated content, or obvious fake).
+Decide if the ${evidenceKind} look like a genuine on-the-ground hazard report (not spam, meme, unrelated content, or obvious fake).
 
 A separate Vertex AI image classifier already scored the photo. Use that as a signal, not the only rule:
 ${vertexLine}
@@ -181,18 +192,19 @@ Rules:
 - If Vertex class is "unrelated" (or equivalent) with high confidence, prefer rejected or needs_review
 - If Vertex class mismatches the hazard claim (e.g. beach vs flood), prefer needs_review
 - If Vertex and claim agree with high confidence, lean legit
+- Voice-only is valid: if the transcript clearly describes an on-the-ground hazard, prefer legit or needs_review (not rejected solely for missing a photo)
 ${
   localE2e
     ? `- LOCAL DEMO / E2E: accept flood/storm/hazard imagery even if it looks like a stock photo or has a watermark — officers are testing the flow with sample media. Prefer legit over rejected when the scene matches the hazard claim.`
     : ""
 }
-${mediaBase64 ? "" : "- No photo bytes were provided; judge from text and hazard hint only, prefer needs_review when unsure."}
+${mediaBase64 ? "" : voiceOnly ? "- No photo bytes; judge from voice transcript + notes + hazard hint." : "- No photo bytes were provided; judge from text and hazard hint only, prefer needs_review when unsure."}
 Guidance for responders.
 
 Hazard hint: ${hazardHint}
 Title: ${title}
 Notes: ${notes}
-Media type: ${mediaType}`;
+Media type: ${mediaType}${voiceOnly ? " (voice-only report)" : ""}`;
 
   try {
     const ai = new GoogleGenAI({ apiKey: key });

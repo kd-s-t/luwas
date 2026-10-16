@@ -76,7 +76,11 @@ export function ReportReceived({
     saveGuestReportId(referenceId);
   }, [referenceId]);
 
-  const shortRef = referenceId.startsWith("LUW-");
+  const shortRef =
+    /^LUW-/i.test(referenceId) ||
+    /^[A-Z]{2,4}-[A-Z0-9]{2,8}-[A-Z0-9]{2,10}-\d{6}-\d{4}$/i.test(
+      referenceId,
+    );
   const receivedAt = useMemo(
     () => formatReceivedWhen(now, language),
     [now, language],

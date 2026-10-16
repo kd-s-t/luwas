@@ -13,8 +13,11 @@ import { EMPTY_REACTION_COUNTS } from "@/lib/reports/socialTypes";
 import { computeReportTrust } from "@/lib/reports/trustScore";
 import type { ReportHazardHint, ReportStatus } from "@/lib/reports/types";
 
-/** Guest seed author — matches firestore.rules LUW-* create path. */
+/** Guest seed author — matches firestore.rules place-id / LUW create path. */
 const GUEST_UID = "web-guest";
+
+/** Nangka place prefix (Cebu · Consolacion · Nangka). */
+const P = "CEB-CON-NANG";
 
 type SampleReport = {
   id: string;
@@ -35,12 +38,12 @@ type SampleReport = {
 
 /**
  * 5 needs_review (human intervention) + 5 rejected sample field reports.
- * IDs use LUW-YYMMDD-#### so guest create rules apply.
+ * IDs use CEB-CON-NANG-YYMMDD-#### so guest create rules apply.
  */
 export const QUEUE_SAMPLE_REPORTS: SampleReport[] = [
   // —— Pending · needs human intervention ——
   {
-    id: "LUW-261011-9001",
+    id: `${P}-261011-9001`,
     status: "needs_review",
     title: "Possible flood · Access Road (unclear depth)",
     notes:
@@ -58,7 +61,7 @@ export const QUEUE_SAMPLE_REPORTS: SampleReport[] = [
       "Low confidence · flood wording vs. photo glare; needs officer ground-truth.",
   },
   {
-    id: "LUW-261011-9002",
+    id: `${P}-261011-9002`,
     status: "needs_review",
     title: "Bank crack · hillside above purok path",
     notes:
@@ -76,7 +79,7 @@ export const QUEUE_SAMPLE_REPORTS: SampleReport[] = [
       "Ambiguous slope risk · photo shows crack but no active debris; human review.",
   },
   {
-    id: "LUW-261011-9003",
+    id: `${P}-261011-9003`,
     status: "needs_review",
     title: "Tree leaning on wires · Access Road east",
     notes:
@@ -94,7 +97,7 @@ export const QUEUE_SAMPLE_REPORTS: SampleReport[] = [
       "Hazard type mixed (tree vs. line) · confidence mid; escalate to tanod check.",
   },
   {
-    id: "LUW-261011-9004",
+    id: `${P}-261011-9004`,
     status: "needs_review",
     title: "Smoke smell · near chapel road",
     notes:
@@ -112,7 +115,7 @@ export const QUEUE_SAMPLE_REPORTS: SampleReport[] = [
       "No flame in media · smell-only report; hold for human confirmation.",
   },
   {
-    id: "LUW-261011-9005",
+    id: `${P}-261011-9005`,
     status: "needs_review",
     title: "EC crowding · Consolacion center #1",
     notes:
@@ -131,7 +134,7 @@ export const QUEUE_SAMPLE_REPORTS: SampleReport[] = [
   },
   // —— Rejected samples ——
   {
-    id: "LUW-261011-9101",
+    id: `${P}-261011-9101`,
     status: "rejected",
     title: "Alien landing · Purok 6",
     notes: "Bright lights in the sky. Definitely not a plane.",
@@ -147,7 +150,7 @@ export const QUEUE_SAMPLE_REPORTS: SampleReport[] = [
     aiReason: "Non-hazard / joke content · auto-rejected.",
   },
   {
-    id: "LUW-261011-9102",
+    id: `${P}-261011-9102`,
     status: "rejected",
     title: "Duplicate flood report (copy-paste)",
     notes: "Same text as earlier post. No new location detail.",
@@ -163,7 +166,7 @@ export const QUEUE_SAMPLE_REPORTS: SampleReport[] = [
     aiReason: "Duplicate / spam pattern · rejected.",
   },
   {
-    id: "LUW-261011-9103",
+    id: `${P}-261011-9103`,
     status: "rejected",
     title: "Stock photo of flood (not Nangka)",
     notes: "Downloaded image from the internet. Location pin random.",
@@ -179,7 +182,7 @@ export const QUEUE_SAMPLE_REPORTS: SampleReport[] = [
     aiReason: "Media fails field-capture checks · rejected.",
   },
   {
-    id: "LUW-261011-9104",
+    id: `${P}-261011-9104`,
     status: "rejected",
     title: "Complaint about neighbor music",
     notes: "Loud karaoke since 10pm. Not a disaster.",
@@ -195,7 +198,7 @@ export const QUEUE_SAMPLE_REPORTS: SampleReport[] = [
     aiReason: "Out of scope for hazard queue · rejected.",
   },
   {
-    id: "LUW-261011-9105",
+    id: `${P}-261011-9105`,
     status: "rejected",
     title: "Empty / gibberish report",
     notes: "asdf asdf test 123 !!!",
@@ -287,6 +290,8 @@ export async function ensureQueueSampleReports(): Promise<{
       validatedAt: now,
       autoResponderCallAt: null,
       dispatchLog: null,
+    manualDispatchChecked: false,
+      fieldEvidence: [],
       reporterIdVerified: false,
       reporterEmail: sample.email,
       reporterPhone: sample.phone,

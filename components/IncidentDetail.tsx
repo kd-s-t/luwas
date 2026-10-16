@@ -27,7 +27,9 @@ import {
   type OfficerProfile,
 } from "@/lib/auth/types";
 import {
+  addReportFieldEvidence,
   assignReportInvestigator,
+  setReportManualDispatchChecked,
   subscribeHazardReportById,
   updateReportStatus,
   updateReportValidation,
@@ -57,6 +59,7 @@ import {
   relatedReports,
   unknownsForReport,
 } from "@/lib/workspace/incidentDerived";
+import { parseReportNeed } from "@/lib/workspace/reportNeed";
 
 type PlanState = {
   notes: string;
@@ -286,6 +289,13 @@ export function IncidentDetail({
     );
   }
 
+  const reportNeed = parseReportNeed(selected);
+  const showResourceShortage =
+    reportNeed.short &&
+    (selected.status === "legit" ||
+      selected.status === "queued" ||
+      selected.status === "assigned");
+
   return (
     <div className="flex flex-col bg-[var(--surface)]">
       <div className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--surface)]/95 px-4 py-3 backdrop-blur sm:px-5">
@@ -337,6 +347,25 @@ export function IncidentDetail({
             ? ` · ${selected.lat.toFixed(5)}, ${selected.lng.toFixed(5)}`
             : ""}
         </p>
+        {showResourceShortage ? (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border border-[var(--warn)]/40 bg-[var(--warn)]/10 px-3 py-2">
+            <div className="min-w-0">
+              <p className="font-mono text-[9px] tracking-wider text-[var(--warn)] uppercase">
+                Resource shortage
+              </p>
+              <p className="mt-0.5 text-sm text-[var(--foreground)]">
+                Local stock cannot cover {reportNeed.neededLabel}.{" "}
+                {reportNeed.householdsLabel}.
+              </p>
+            </div>
+            <Link
+              href={`/admin/resources/assist?report=${encodeURIComponent(selected.id)}`}
+              className="shrink-0 border border-[var(--foreground)] bg-[var(--foreground)] px-3 py-1.5 font-mono text-[10px] tracking-wider text-[var(--background)] uppercase transition hover:opacity-90"
+            >
+              Find assistance
+            </Link>
+          </div>
+        ) : null}
       </div>
 
       <div className="grid lg:grid-cols-2">
@@ -550,9 +579,7 @@ export function IncidentDetail({
                   ) : null}
                 </select>
               </label>
-              {isOfficer(profile) &&
-              (!selected.investigatorUid ||
-                selected.investigatorUid !== profile.uid) ? (
+              {isOfficer(profile) && !selected.investigatorUid ? (
                 <Button
                   type="button"
                   size="sm"
@@ -642,10 +669,56 @@ export function IncidentDetail({
               {proposals.map((p) => (
                 <li
                   key={p.id}
-                  className="border border-[var(--border)] px-3 py-2"
+                  className={cn(
+                    "flex gap-2.5 border border-[var(--border)] px-3 py-2",
+                    p.done && "border-[var(--accent)]/35 bg-[var(--accent)]/5",
+                  )}
                 >
-                  <p className="text-sm font-medium">{p.label}</p>
-                  <p className="mt-0.5 text-xs text-[var(--muted)]">{p.detail}</p>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(p.done)}
+                    disabled={busy || !p.manual}
+                    readOnly={!p.manual}
+                    tabIndex={p.manual ? 0 : -1}
+                    aria-label={
+                      p.manual
+                        ? p.label
+                        : p.done
+                          ? `${p.label} (done)`
+                          : p.label
+                    }
+                    onChange={
+                      p.manual
+                        ? (e) => {
+                            void (async () => {
+                              setBusy(true);
+                              try {
+                                await setReportManualDispatchChecked(
+                                  selected.id,
+                                  e.target.checked,
+                                );
+                              } finally {
+                                setBusy(false);
+                              }
+                            })();
+                          }
+                        : undefined
+                    }
+                    className="mt-0.5 size-3.5 shrink-0 accent-[var(--accent)] disabled:opacity-100"
+                  />
+                  <div className="min-w-0">
+                    <p
+                      className={cn(
+                        "text-sm font-medium",
+                        p.done && "text-[var(--muted)] line-through",
+                      )}
+                    >
+                      {p.label}
+                    </p>
+                    <p className="mt-0.5 text-xs text-[var(--muted)]">
+                      {p.detail}
+                    </p>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -684,6 +757,78 @@ export function IncidentDetail({
           </div>
         </section>
       </div>
+
+      <section className="border-t border-[var(--border)] px-4 py-4 sm:px-5">
+        <p className="font-mono text-[9px] tracking-[0.16em] text-[var(--muted)] uppercase">
+          Field photos
+        </p>
+        <p className="mt-0.5 text-xs text-[var(--muted)]">
+          Upload images of what is happening on site. Images only.
+        </p>
+        <label className="mt-2 block">
+          <span className="sr-only">Upload field photos</span>
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            capture="environment"
+            disabled={busy || !isOfficer(profile)}
+            onChange={(e) => {
+              const list = e.target.files;
+              if (!list?.length || !profile || !isOfficer(profile)) return;
+              const files = Array.from(list).filter((f) =>
+                f.type.startsWith("image/"),
+              );
+              e.target.value = "";
+              if (!files.length) return;
+              void (async () => {
+                setBusy(true);
+                try {
+                  await addReportFieldEvidence({
+                    reportId: selected.id,
+                    uploaderUid: profile.uid,
+                    uploaderName:
+                      profile.displayName || profile.email || null,
+                    files,
+                  });
+                } catch (err) {
+                  console.error(err);
+                } finally {
+                  setBusy(false);
+                }
+              })();
+            }}
+            className="block w-full text-sm text-[var(--muted)] file:mr-3 file:border file:border-[var(--border)] file:bg-[var(--surface)] file:px-3 file:py-1.5 file:text-sm file:text-[var(--fg)] disabled:opacity-50"
+          />
+        </label>
+        {selected.fieldEvidence?.length ? (
+          <ul className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {selected.fieldEvidence.map((img) => (
+              <li
+                key={img.mediaPath}
+                className="overflow-hidden border border-[var(--border)] bg-[var(--surface-raised)]"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={img.mediaUrl}
+                  alt="Field evidence"
+                  className="aspect-[4/3] w-full object-cover"
+                />
+                {img.uploadedByName ? (
+                  <p className="truncate px-2 py-1 text-[10px] text-[var(--muted)]">
+                    {img.uploadedByName}
+                    {img.uploadedAt
+                      ? ` · ${new Date(img.uploadedAt).toLocaleString()}`
+                      : ""}
+                  </p>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-2 text-xs text-[var(--muted)]">No field photos yet.</p>
+        )}
+      </section>
 
       <section className="border-t border-[var(--border)]">
         <button

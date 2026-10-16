@@ -1,12 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FadeIn } from "@/components/motion/primitives";
 import { useCommandWorkspace } from "@/components/CommandWorkspaceProvider";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { isOfficer } from "@/lib/auth/types";
 import { scopeLabel } from "@/lib/reports/barangayScope";
+import {
+  clearAssistanceCommitment,
+  listAssistanceCommitments,
+  type AssistanceCommitment,
+} from "@/lib/workspace/assistanceCommitments";
 import {
   buildResourceBoard,
   type ResourceActivityStatus,
@@ -53,9 +58,6 @@ function NeedCard({ need }: { need: ResourceNeed }) {
     >
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="font-mono text-[11px] tracking-wide text-[var(--muted)]">
-            {need.incidentCode}
-          </span>
           <span
             className={cn(
               "rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide ring-1",
@@ -66,6 +68,9 @@ function NeedCard({ need }: { need: ResourceNeed }) {
           >
             {shortage ? "Shortage" : "Approval needed"}
           </span>
+          <span className="font-mono text-[11px] tracking-wide text-[var(--muted)]">
+            {need.incidentCode}
+          </span>
         </div>
         <h3 className="mt-1.5 text-base font-semibold tracking-tight text-[var(--foreground)]">
           {need.place}
@@ -73,9 +78,18 @@ function NeedCard({ need }: { need: ResourceNeed }) {
         <p className="mt-1 text-sm leading-relaxed text-[var(--muted)]">
           {need.detail}
         </p>
-        <p className="mt-2 text-[11px] text-[var(--muted)]">
-          {need.householdsLabel}
-        </p>
+        <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-[12px] text-[var(--muted)]">
+          <p>
+            <span className="font-medium text-[var(--foreground)]">
+              {need.householdsLabel}
+            </span>
+          </p>
+          <p>
+            <span className="font-medium text-[var(--foreground)]">
+              {need.neededLabel}
+            </span>
+          </p>
+        </div>
       </div>
       <div className="flex shrink-0 items-center sm:pl-2">
         <Link
@@ -99,11 +113,34 @@ export function CommandResources() {
   const { scopedReports, activeOfficers, reportScope } =
     useCommandWorkspace();
   const [query, setQuery] = useState("");
+  const [commitments, setCommitments] = useState<AssistanceCommitment[]>([]);
+
+  function refreshCommitments() {
+    setCommitments(listAssistanceCommitments());
+  }
+
+  useEffect(() => {
+    refreshCommitments();
+    const onFocus = () => refreshCommitments();
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("storage", onFocus);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("storage", onFocus);
+    };
+  }, []);
 
   const board = useMemo(
-    () => buildResourceBoard(scopedReports, activeOfficers.length),
-    [scopedReports, activeOfficers.length],
+    () =>
+      buildResourceBoard(
+        scopedReports,
+        activeOfficers.length,
+        commitments,
+      ),
+    [scopedReports, activeOfficers.length, commitments],
   );
+
+  const lastCommitment = commitments[0] ?? null;
 
   const placeHint = useMemo(() => {
     if (isOfficer(profile)) {
@@ -192,7 +229,7 @@ export function CommandResources() {
         ))}
       </div>
 
-      <div className="mt-4 grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.85fr)]">
+      <div className="mt-4 grid shrink-0 gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,0.85fr)]">
         <section className="min-w-0">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-2">
@@ -223,8 +260,22 @@ export function CommandResources() {
                   No open resource needs
                 </p>
                 <p className="mt-1 text-sm text-[var(--muted)]">
-                  Shortages and partner approvals will show here.
+                  {lastCommitment
+                    ? `${lastCommitment.incidentCode} was approved, so its shortage card (with Find assistance) is off the board.`
+                    : "Shortage cards with Find assistance appear here when stock cannot cover a need."}
                 </p>
+                {lastCommitment ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      clearAssistanceCommitment(lastCommitment.reportId);
+                      refreshCommitments();
+                    }}
+                    className="mt-4 inline-flex rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-sm font-medium text-[var(--foreground)] transition hover:border-[var(--foreground)]/25"
+                  >
+                    Reopen {lastCommitment.incidentCode}
+                  </button>
+                ) : null}
               </div>
             ) : (
               filteredNeeds.map((need) => (
@@ -232,6 +283,26 @@ export function CommandResources() {
               ))
             )}
           </div>
+
+          {board.aiAdvisory ? (
+            <div className="mt-4 rounded-2xl border border-[#93c5fd]/60 bg-[#eff6ff] px-4 py-3.5 sm:px-5">
+              <p className="text-[11px] font-medium tracking-wide text-[#2f5f9e] uppercase">
+                AI Resource Scarcity Intelligence
+              </p>
+              <p className="mt-1 text-sm text-[var(--foreground)]">
+                <span className="font-medium text-[#2f5f9e]">
+                  Advisory only · Human approval required.
+                </span>{" "}
+                {board.aiAdvisory}
+              </p>
+              <Link
+                href="/admin/incidents"
+                className="mt-2 inline-block text-sm font-medium text-[#2f5f9e] hover:underline"
+              >
+                Why this recommendation →
+              </Link>
+            </div>
+          ) : null}
         </section>
 
         <aside className="flex min-w-0 flex-col gap-4">
@@ -261,15 +332,29 @@ export function CommandResources() {
               ))}
             </div>
             <p className="mt-3 text-[11px] leading-snug text-[var(--muted)]">
-              {board.waterLiters} L water available · Assigned stock excluded ·
-              Last check {board.lastCheckLabel}
+              Last checked {board.lastCheckLabel} · Recheck before allocation.{" "}
+              {board.waterLiters} L water available · Assigned stock excluded.
             </p>
           </section>
 
           <section className="rounded-2xl border border-[var(--border)] bg-white p-4 shadow-sm sm:p-5">
-            <h2 className="font-[family-name:var(--font-display)] text-base font-semibold tracking-wide">
-              Partner requests
-            </h2>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="font-[family-name:var(--font-display)] text-base font-semibold tracking-wide">
+                Partner requests
+              </h2>
+              {board.partnerOffersAwaiting > 0 ? (
+                <span className="text-[11px] font-medium text-[var(--muted)]">
+                  {board.partnerOffersAwaiting} awaiting approval
+                </span>
+              ) : (
+                <Link
+                  href="/admin/partners"
+                  className="text-[12px] font-medium text-[#2f5f9e] hover:underline"
+                >
+                  Manage partners →
+                </Link>
+              )}
+            </div>
             <div className="mt-3 space-y-3">
               {board.partnerOffers.length === 0 ? (
                 <p className="text-sm text-[var(--muted)]">
@@ -304,31 +389,17 @@ export function CommandResources() {
         </aside>
       </div>
 
-      {board.aiAdvisory ? (
-        <div className="mt-4 rounded-2xl border border-[#93c5fd]/60 bg-[#eff6ff] px-4 py-3.5 sm:px-5">
-          <p className="text-[11px] font-medium tracking-wide text-[#2f5f9e] uppercase">
-            AI Resource Scarcity Intelligence
-          </p>
-          <p className="mt-1 text-sm text-[var(--foreground)]">
-            <span className="font-medium text-[#2f5f9e]">
-              Advisory only · Human approval required.
-            </span>{" "}
-            {board.aiAdvisory}
-          </p>
-          <Link
-            href="/admin/incidents"
-            className="mt-2 inline-block text-sm font-medium text-[#2f5f9e] hover:underline"
-          >
-            Why this recommendation →
-          </Link>
-        </div>
-      ) : null}
-
       <section className="mt-4 mb-2 overflow-hidden rounded-2xl border border-[var(--border)] bg-white shadow-sm">
-        <div className="border-b border-[var(--border)] px-4 py-3 sm:px-5">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-3 sm:px-5">
           <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-wide">
             Recent resource activity
           </h2>
+          <Link
+            href="/admin/activity"
+            className="text-sm font-medium text-[#2f5f9e] hover:underline"
+          >
+            View all activity →
+          </Link>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-left text-sm">
@@ -384,7 +455,7 @@ export function CommandResources() {
                     <td className="px-4 py-3 whitespace-nowrap sm:px-5">
                       <Link
                         href={row.actionHref}
-                        className="text-sm font-medium text-[#2f5f9e] hover:underline"
+                        className="inline-flex rounded-lg border border-[var(--border)] bg-white px-2.5 py-1.5 text-[12px] font-medium text-[var(--foreground)] transition hover:border-[var(--foreground)]/25"
                       >
                         {row.actionLabel}
                       </Link>

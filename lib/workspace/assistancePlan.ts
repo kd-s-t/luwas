@@ -3,6 +3,9 @@ import {
   buildAttentionBoard,
   type AttentionItem,
 } from "@/lib/workspace/attentionBoard";
+import type { ResourcePartner } from "@/lib/partners/types";
+import { partnerSupplyLabel } from "@/lib/partners/types";
+import { parseReportNeed } from "@/lib/workspace/reportNeed";
 import {
   NANGKA_SAMPLE_INVENTORY,
   type SampleInventoryItem,
@@ -36,6 +39,7 @@ export type PartnerOption = {
   id: string;
   partner: string;
   recommended: boolean;
+  categoryLine: string;
   offerLine: string;
   statusLine: string;
   etaLine: string;
@@ -246,7 +250,7 @@ function localCells(
     inventory.find((i) => i.id === id)?.available ?? 0;
   const food = byId("rice-sacks") + byId("evac-kits");
   const medical = byId("first-aid");
-  const water = 0;
+  const water = byId("water-jugs");
 
   return [
     {
@@ -296,21 +300,98 @@ function pickFocus(
   );
 }
 
+function etaPlusMinutes(mins: number): string {
+  try {
+    const d = new Date(Date.now() + mins * 60_000);
+    return `${clockPht(d)} PHT`;
+  } catch {
+    return "pending recheck";
+  }
+}
+
+function needWantsMedical(focus: AttentionItem): boolean {
+  return /medical|kit|red cross|rc-?\d/i.test(
+    `${focus.headline} ${focus.detail}`,
+  );
+}
+
+function partnerMatchesNeed(
+  partner: ResourcePartner,
+  wantsMedical: boolean,
+): boolean {
+  if (wantsMedical) return partner.supplies.includes("medical");
+  return (
+    partner.supplies.includes("food") || partner.supplies.includes("water")
+  );
+}
+
+function optionFromDirectory(
+  partner: ResourcePartner,
+  focus: AttentionItem,
+  recommended: boolean,
+): PartnerOption {
+  const confirmedAt = clockPht(new Date());
+  const category =
+    partner.supplies.map(partnerSupplyLabel).join(" · ") ||
+    partner.coverage ||
+    "External supply";
+  const medical = partner.supplies.includes("medical");
+  return {
+    id: partner.id,
+    partner: partner.name,
+    recommended,
+    categoryLine: category,
+    offerLine: recommended
+      ? `${neededFromDetail(focus.detail)} confirmed · Recheck before allocation`
+      : `${neededFromDetail(focus.detail)} available on request`,
+    statusLine: recommended
+      ? `Partner confirmed ${confirmedAt} PHT · ${partner.contactName}`
+      : `Unconfirmed · Call ${partner.contactName || partner.phone}`,
+    etaLine: recommended
+      ? `Est. arrival ${etaPlusMinutes(70)}${medical || partner.supplies.includes("transport") ? " · Partner transport" : ""}`
+      : "ETA to be determined",
+    helps: [
+      `${focus.incidentCode} need`,
+      recommended
+        ? "No local stock used"
+        : "Confirm before linking to this incident",
+      partner.notes?.trim() || "Fresh checks still required",
+    ],
+    relatedIncident: focus.incidentCode,
+  };
+}
+
 function buildPartners(
   focus: AttentionItem,
   others: AttentionItem[],
+  directory: ResourcePartner[],
 ): PartnerOption[] {
-  const medical = /medical|kit|red cross|rc-?\d/i.test(
-    `${focus.headline} ${focus.detail}`,
-  );
-  const primary: PartnerOption = medical
+  const wantsMedical = needWantsMedical(focus);
+  const active = directory.filter((p) => p.status === "active");
+
+  if (active.length > 0) {
+    const ranked = [...active].sort((a, b) => {
+      const am = partnerMatchesNeed(a, wantsMedical) ? 0 : 1;
+      const bm = partnerMatchesNeed(b, wantsMedical) ? 0 : 1;
+      if (am !== bm) return am - bm;
+      return a.name.localeCompare(b.name);
+    });
+    return ranked.slice(0, 4).map((p, i) =>
+      optionFromDirectory(p, focus, i === 0 && partnerMatchesNeed(p, wantsMedical)),
+    );
+  }
+
+  // Fallback labels when the directory is empty (demo / first load).
+  const confirmedAt = clockPht(new Date());
+  const primary: PartnerOption = wantsMedical
     ? {
         id: "red-cross",
         partner: "Red Cross Cebu",
         recommended: true,
-        offerLine: `${neededFromDetail(focus.detail)} confirmed`,
-        statusLine: `Partner confirmed ${clockPht(new Date())} PHT`,
-        etaLine: "Est. arrival pending recheck",
+        categoryLine: "Medical and relief supplies",
+        offerLine: `${neededFromDetail(focus.detail)} confirmed · Recheck before allocation`,
+        statusLine: `Partner confirmed ${confirmedAt} PHT`,
+        etaLine: `Est. arrival ${etaPlusMinutes(70)} · Partner transport`,
         helps: [
           `${focus.incidentCode} medical need`,
           "No local medical stock used",
@@ -322,6 +403,7 @@ function buildPartners(
         id: "dswd",
         partner: "DSWD Regional Office",
         recommended: true,
+        categoryLine: "Food and water",
         offerLine: `${neededFromDetail(focus.detail)} requested`,
         statusLine: "Unconfirmed",
         etaLine: "ETA to be determined",
@@ -336,32 +418,41 @@ function buildPartners(
   const secondaryItem =
     others.find((i) => i.reportId !== focus.reportId) || null;
 
-  const secondary: PartnerOption | null = secondaryItem
+  const secondary: PartnerOption = secondaryItem
     ? {
-        id: medical ? "dswd" : "red-cross",
-        partner: medical ? "DSWD Regional Office" : "Red Cross Cebu",
+        id: wantsMedical ? "dswd" : "red-cross",
+        partner: wantsMedical ? "DSWD Regional Office" : "Red Cross Cebu",
         recommended: false,
-        offerLine: medical
+        categoryLine: wantsMedical
+          ? `Food and water · Separate need ${secondaryItem.incidentCode}`
+          : `Medical and relief · ${secondaryItem.incidentCode}`,
+        offerLine: wantsMedical
           ? `${neededFromDetail(secondaryItem.detail)} requested`
           : `${neededFromDetail(secondaryItem.detail)} confirmed`,
-        statusLine: medical
+        statusLine: wantsMedical
           ? "Unconfirmed"
-          : `Partner confirmed ${clockPht(new Date())} PHT`,
-        etaLine: medical ? "ETA to be determined" : "Est. arrival pending recheck",
+          : `Partner confirmed ${confirmedAt} PHT`,
+        etaLine: wantsMedical
+          ? "ETA to be determined"
+          : `Est. arrival ${etaPlusMinutes(90)} · Partner transport`,
         helps: [
           `Separate need for ${secondaryItem.incidentCode}`,
-          secondaryItem.detail.slice(0, 120),
+          "Not a substitute for the selected need",
         ],
         relatedIncident: secondaryItem.incidentCode,
       }
     : {
-        id: medical ? "dswd" : "partner-alt",
-        partner: medical ? "DSWD Regional Office" : "Partner supply desk",
+        id: wantsMedical ? "dswd" : "partner-alt",
+        partner: wantsMedical ? "DSWD Regional Office" : "Partner supply desk",
         recommended: false,
+        categoryLine: "Food and water · Separate desk request",
         offerLine: "Separate food/water desk request",
         statusLine: "Unconfirmed",
         etaLine: "ETA to be determined",
-        helps: ["Not tied to this incident", "Confirm before linking"],
+        helps: [
+          "Separate food/water need",
+          "Add partners under Databases → Partners",
+        ],
         relatedIncident: "—",
       };
 
@@ -373,6 +464,7 @@ export function buildAssistancePlan(
   reports: HazardReport[],
   respondersAvailable: number,
   reportId: string | null,
+  directory: ResourcePartner[] = [],
 ): AssistancePlan | null {
   const attention = buildAttentionBoard(reports);
   const focus = pickFocus(attention.items, reportId);
@@ -382,6 +474,7 @@ export function buildAssistancePlan(
   const partners = buildPartners(
     focus,
     attention.items.filter((i) => i.kind === "resource" || i.kind === "approval"),
+    directory,
   );
   const recommended = partners.find((p) => p.recommended) || partners[0]!;
   const planCode = planCodeFromId(focus.reportId);
@@ -390,26 +483,36 @@ export function buildAssistancePlan(
 
   const completed = buildCompleted(reports);
   const otherUpdates = buildOtherUpdates(attention.items, focus.reportId);
+  const focusReport =
+    reports.find((r) => r.id === focus.reportId) ?? null;
+  const parsedNeed = focusReport
+    ? parseReportNeed(focusReport)
+    : {
+        detail: focus.detail,
+        neededLabel: neededFromDetail(focus.detail),
+        householdsLabel: householdsFromDetail(focus.detail),
+        short: true,
+      };
 
   return {
     planCode,
     reportId: focus.reportId,
     incidentCode: focus.incidentCode,
     place: placeFromItem(focus),
-    detail: focus.detail,
-    householdsLabel: householdsFromDetail(focus.detail),
-    neededLabel: neededFromDetail(focus.detail),
+    detail: parsedNeed.detail,
+    householdsLabel: parsedNeed.householdsLabel,
+    neededLabel: parsedNeed.neededLabel,
     kindLabel: focus.kind === "approval" ? "Approval needed" : "Shortage",
     localStock,
     lastCheckLabel: `${clockPht(new Date())} PHT`,
     partners,
     aiHeadline: `Use the confirmed ${recommended.partner} offer`,
-    aiBody: `${recommended.partner} ${recommended.offerLine.toLowerCase()}, matching ${focus.incidentCode} without drawing down local stock that is already short.`,
+    aiBody: `${recommended.partner} can support “${parsedNeed.neededLabel}” for ${focus.incidentCode} without drawing unavailable local stock. Recheck before commitment.`,
     considerations: [
       medicalLow ? "Local medical kits show 0 available." : null,
-      foodLow ? "Local food packs are limited or unavailable." : null,
-      partners[1]
-        ? `${partners[1].partner} remains unconfirmed for ${partners[1].relatedIncident}.`
+      "Partner confirmation is recent; recheck before commitment.",
+      foodLow || partners[1]
+        ? `A separate food/water need remains ${partners[1]?.statusLine.toLowerCase() ?? "unconfirmed"}.`
         : null,
     ].filter((s): s is string => Boolean(s)),
     nextStepCopy: `Proceed to review ${planCode}: confirm the details, recheck availability, and prepare for human approval. Nothing is assigned yet.`,

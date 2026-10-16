@@ -19,6 +19,8 @@ import { syncCitizenPresenceFromDevice } from "@/lib/households/citizenPresence"
 
 const FIRST = DEMO_CITIZENS[0]!;
 const SIM = isSimulationOn();
+/** Easy-login chips only on local emulators — hidden on prod. */
+const SHOW_EASY_LOGINS = useEmulators;
 
 function safeNextPath(raw: string | null): string {
   if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return "/my-reports";
@@ -30,10 +32,14 @@ function CitizenLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextPath = safeNextPath(searchParams.get("next"));
-  const [email, setEmail] = useState<string>(SIM ? FIRST.email : "");
-  const [password, setPassword] = useState<string>(SIM ? FIRST.password : "");
+  const [email, setEmail] = useState<string>(
+    SHOW_EASY_LOGINS ? FIRST.email : "",
+  );
+  const [password, setPassword] = useState<string>(
+    SHOW_EASY_LOGINS ? FIRST.password : "",
+  );
   const [selectedEmail, setSelectedEmail] = useState<string>(
-    SIM ? FIRST.email : "",
+    SHOW_EASY_LOGINS ? FIRST.email : "",
   );
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -174,7 +180,7 @@ function CitizenLoginForm() {
         }
       >
         <form onSubmit={onSubmit} className="space-y-4">
-          {SIM ? (
+          {SHOW_EASY_LOGINS ? (
             <div className="space-y-2">
               <p className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
                 Demo citizens · password demo1234
@@ -201,16 +207,9 @@ function CitizenLoginForm() {
                   );
                 })}
               </div>
-              {useEmulators ? (
-                <p className="text-[11px] text-[var(--muted)]">
-                  Local emulators · accounts auto-create on first tap.
-                </p>
-              ) : (
-                <p className="text-[11px] text-[var(--muted)]">
-                  Prod demo · tap a name to open citizen reports (auto-creates
-                  if missing).
-                </p>
-              )}
+              <p className="text-[11px] text-[var(--muted)]">
+                Local emulators · accounts auto-create on first tap.
+              </p>
             </div>
           ) : null}
           <label className="block text-sm">

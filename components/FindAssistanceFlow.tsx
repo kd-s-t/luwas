@@ -1,19 +1,32 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { FadeIn } from "@/components/motion/primitives";
 import { useCommandWorkspace } from "@/components/CommandWorkspaceProvider";
 import { useAuth } from "@/lib/auth/AuthProvider";
-import { isOfficer } from "@/lib/auth/types";
+import { isAccountActive, isOfficer } from "@/lib/auth/types";
+import {
+  ensureNangkaPartners,
+  subscribeResourcePartners,
+} from "@/lib/partners/api";
+import {
+  NANGKA_BARANGAY_ID,
+} from "@/lib/partners/nangkaPartners";
+import type { ResourcePartner } from "@/lib/partners/types";
 import { scopeLabel } from "@/lib/reports/barangayScope";
+import {
+  commitmentForReport,
+  saveAssistanceCommitment,
+} from "@/lib/workspace/assistanceCommitments";
 import {
   ASSIST_STEPS,
   buildAssistancePlan,
   type AssistStepId,
   type CompletedDelivery,
   type OtherUpdate,
+  type PartnerOption,
 } from "@/lib/workspace/assistancePlan";
 import { cn } from "@/lib/utils";
 
@@ -43,7 +56,7 @@ function CompletedCard({ item }: { item: CompletedDelivery }) {
           </p>
         </div>
         <span className="rounded-full bg-[#ecfdf3] px-2.5 py-0.5 text-[11px] font-semibold text-[#16794c] ring-1 ring-[#86efac]/60">
-          ✓ Delivered
+          Delivered
         </span>
       </div>
       <p className="mt-3 text-sm font-medium text-[var(--foreground)]">
@@ -156,47 +169,145 @@ function stepIndex(id: AssistStepId): number {
 function Stepper({ current }: { current: AssistStepId }) {
   const currentIdx = stepIndex(current);
   return (
-    <ol className="mt-5 grid gap-2 sm:grid-cols-4">
+    <ol className="mt-5 grid gap-3 sm:grid-cols-4">
       {ASSIST_STEPS.map((step, i) => {
         const done = i < currentIdx;
         const active = i === currentIdx;
         return (
           <li key={step.id} className="min-w-0">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
               <span
                 className={cn(
-                  "flex size-7 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold",
+                  "flex size-8 shrink-0 items-center justify-center rounded-full text-[12px] font-semibold",
                   done && "bg-[#16794c] text-white",
-                  active && "bg-[#2f5f9e] text-white",
-                  !done && !active && "bg-[var(--foreground)]/8 text-[var(--muted)]",
+                  active && "bg-[#2f5f9e] text-white ring-4 ring-[#2f5f9e]/15",
+                  !done &&
+                    !active &&
+                    "bg-[var(--foreground)]/6 text-[var(--muted)]",
                 )}
               >
                 {done ? "✓" : i + 1}
               </span>
-              <span
-                className={cn(
-                  "truncate text-[12px] font-medium",
-                  active
-                    ? "text-[#2f5f9e]"
-                    : done
-                      ? "text-[#16794c]"
-                      : "text-[var(--muted)]",
-                )}
-              >
-                {step.label}
-              </span>
+              <div className="min-w-0">
+                <p
+                  className={cn(
+                    "truncate text-[13px] font-semibold tracking-tight",
+                    active
+                      ? "text-[#2f5f9e]"
+                      : done
+                        ? "text-[#16794c]"
+                        : "text-[var(--muted)]",
+                  )}
+                >
+                  {step.label}
+                </p>
+                <p className="truncate text-[11px] text-[var(--muted)]">
+                  {done ? "Reviewed" : active ? "Current" : "Next"}
+                </p>
+              </div>
             </div>
             <div
               className={cn(
-                "mt-2 h-1 rounded-full",
-                done || active ? "bg-[#2f5f9e]" : "bg-[var(--border)]",
+                "mt-2.5 h-1 rounded-full",
                 done && "bg-[#16794c]",
+                active && "bg-[#2f5f9e]",
+                !done && !active && "bg-[var(--border)]",
               )}
             />
           </li>
         );
       })}
     </ol>
+  );
+}
+
+function PartnerCard({
+  option,
+  active,
+  onSelect,
+}: {
+  option: PartnerOption;
+  active: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={cn(
+        "w-full rounded-2xl border px-4 py-4 text-left transition sm:px-5",
+        active
+          ? "border-[#3b6fb6] bg-[#f8fbff] shadow-sm"
+          : "border-[var(--border)] bg-white hover:border-[var(--foreground)]/20",
+      )}
+    >
+      <div className="flex items-start gap-3 sm:gap-4">
+        <span
+          className={cn(
+            "mt-1 flex size-4 shrink-0 items-center justify-center rounded-full border",
+            active
+              ? "border-[#2f5f9e] bg-[#2f5f9e]"
+              : "border-[var(--border)] bg-white",
+          )}
+          aria-hidden
+        >
+          {active ? (
+            <span className="size-1.5 rounded-full bg-white" />
+          ) : null}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-[15px] font-semibold text-[var(--foreground)]">
+              {option.partner}
+            </p>
+            {option.recommended ? (
+              <span className="rounded-full bg-[#ecfdf3] px-2 py-0.5 text-[10px] font-semibold text-[#16794c] ring-1 ring-[#86efac]/60">
+                Recommended
+              </span>
+            ) : null}
+          </div>
+          <p className="mt-1 text-sm text-[var(--muted)]">
+            {option.categoryLine}
+          </p>
+          <p className="mt-1.5 text-sm text-[var(--foreground)]">
+            {option.offerLine}
+          </p>
+          <p className="mt-1 text-[12px] text-[var(--muted)]">
+            {option.statusLine}
+          </p>
+          <p className="mt-0.5 text-[12px] text-[var(--muted)]">
+            {option.etaLine}
+          </p>
+        </div>
+        <div
+          className={cn(
+            "hidden w-[11.5rem] shrink-0 rounded-xl px-3 py-2.5 text-[11px] leading-snug sm:block",
+            active
+              ? "border border-[#93c5fd]/50 bg-[#eff6ff] text-[#2f5f9e]"
+              : "border border-[var(--border)] bg-[#f8fafc] text-[var(--muted)]",
+          )}
+        >
+          <p className="font-semibold">
+            {active ? "This option helps address" : "Note"}
+          </p>
+          <ul className="mt-1 space-y-0.5">
+            {option.helps.slice(0, 3).map((line) => (
+              <li key={line}>· {line}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+      {active ? (
+        <div className="mt-3 rounded-xl border border-[#93c5fd]/50 bg-[#eff6ff] px-3 py-2 text-[12px] text-[#2f5f9e] sm:hidden">
+          <p className="font-medium">This option helps address</p>
+          <ul className="mt-1 list-disc space-y-0.5 pl-4">
+            {option.helps.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </button>
   );
 }
 
@@ -211,6 +322,34 @@ export function FindAssistanceFlow() {
   const [selectedPartner, setSelectedPartner] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const [approved, setApproved] = useState(false);
+  const [directory, setDirectory] = useState<ResourcePartner[]>([]);
+  const seeded = useRef(false);
+  const hydrated = useRef(false);
+
+  const barangayId = useMemo(() => {
+    if (!isOfficer(profile)) return NANGKA_BARANGAY_ID;
+    const area = (profile.areaId ?? profile.activeBarangayId)?.trim();
+    if (area?.includes("apas")) return area;
+    return NANGKA_BARANGAY_ID;
+  }, [profile]);
+
+  useEffect(() => {
+    if (!isOfficer(profile) || !isAccountActive(profile)) {
+      setDirectory([]);
+      return;
+    }
+    return subscribeResourcePartners(barangayId, setDirectory);
+  }, [profile, barangayId]);
+
+  useEffect(() => {
+    if (!isOfficer(profile) || !isAccountActive(profile)) return;
+    if (barangayId !== NANGKA_BARANGAY_ID) return;
+    if (seeded.current) return;
+    seeded.current = true;
+    void ensureNangkaPartners().catch(() => {
+      seeded.current = false;
+    });
+  }, [profile, barangayId]);
 
   const plan = useMemo(
     () =>
@@ -218,9 +357,30 @@ export function FindAssistanceFlow() {
         scopedReports,
         activeOfficers.length,
         reportParam,
+        directory,
       ),
-    [scopedReports, activeOfficers.length, reportParam],
+    [scopedReports, activeOfficers.length, reportParam, directory],
   );
+
+  useEffect(() => {
+    hydrated.current = false;
+    setApproved(false);
+    setSelectedPartner(null);
+    setNote("");
+    setStep("explore");
+  }, [reportParam]);
+
+  useEffect(() => {
+    if (!plan || hydrated.current) return;
+    hydrated.current = true;
+    const existing = commitmentForReport(plan.reportId);
+    if (existing) {
+      setApproved(true);
+      setSelectedPartner(existing.partnerId);
+      setNote(existing.note);
+      setStep("approve");
+    }
+  }, [plan]);
 
   const placeHint = useMemo(() => {
     if (plan?.place) return plan.place;
@@ -261,8 +421,13 @@ export function FindAssistanceFlow() {
 
   const selected =
     plan.partners.find((p) => p.id === activePartnerId) || plan.partners[0]!;
+  const incidentHref = `/admin/incidents/${encodeURIComponent(plan.reportId)}`;
 
   function onContinue() {
+    if (step === "identify") {
+      setStep("explore");
+      return;
+    }
     if (step === "explore") {
       setStep("review");
       return;
@@ -271,9 +436,25 @@ export function FindAssistanceFlow() {
       setStep("approve");
       return;
     }
-    if (step === "approve") {
+    if (step === "approve" && !approved) {
+      saveAssistanceCommitment({
+        planCode: plan.planCode,
+        reportId: plan.reportId,
+        incidentCode: plan.incidentCode,
+        place: plan.place,
+        partnerId: selected.id,
+        partnerName: selected.partner,
+        offerLine: selected.offerLine,
+        note: note.trim(),
+      });
       setApproved(true);
     }
+  }
+
+  function stepBack() {
+    if (step === "explore") setStep("identify");
+    else if (step === "review") setStep("explore");
+    else if (step === "approve" && !approved) setStep("review");
   }
 
   return (
@@ -295,38 +476,111 @@ export function FindAssistanceFlow() {
         <Stepper current={step} />
       </FadeIn>
 
-      <div className="mt-5 grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,0.85fr)]">
+      <div className="mt-5 grid shrink-0 gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,0.85fr)]">
         <div className="min-w-0 space-y-4">
           <section className="rounded-2xl border border-[#fecaca] bg-[#fff7f7] p-4 shadow-sm sm:p-5">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="rounded-full bg-[#f59e0b]/12 px-2 py-0.5 text-[10px] font-semibold text-[#b45309] ring-1 ring-[#f59e0b]/25">
-                {plan.kindLabel}
-              </span>
-              <span className="font-mono text-[11px] tracking-wide text-[var(--muted)]">
-                {plan.incidentCode}
-              </span>
-              <span className="text-[11px] text-[var(--muted)]">
-                From incident
-              </span>
-            </div>
-            <h2 className="mt-2 text-base font-semibold tracking-tight">
-              Selected need · {plan.place}
-            </h2>
-            <p className="mt-1 text-sm leading-relaxed text-[var(--muted)]">
-              {plan.detail}
-            </p>
-            <div className="mt-3 flex flex-wrap gap-4 text-[12px] text-[var(--muted)]">
-              <span>{plan.householdsLabel}</span>
-              <span>
-                Needed ·{" "}
-                <span className="font-medium text-[var(--foreground)]">
-                  {plan.neededLabel}
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="rounded-full bg-[#f59e0b]/12 px-2 py-0.5 text-[10px] font-semibold text-[#b45309] ring-1 ring-[#f59e0b]/25">
+                  {plan.kindLabel}
                 </span>
-              </span>
+                <span className="font-mono text-[11px] tracking-wide text-[var(--muted)]">
+                  {plan.incidentCode}
+                </span>
+                <span className="text-[11px] text-[var(--muted)]">
+                  From incident
+                </span>
+              </div>
+              <Link
+                href={incidentHref}
+                className="text-sm font-medium text-[#2f5f9e] hover:underline"
+              >
+                View incident →
+              </Link>
+            </div>
+            <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0 flex-1">
+                <h2 className="text-base font-semibold tracking-tight">
+                  Selected need · {plan.place}
+                </h2>
+                <p className="mt-1 text-sm leading-relaxed text-[var(--muted)]">
+                  {plan.detail}
+                </p>
+              </div>
+              <div className="flex shrink-0 flex-wrap gap-x-6 gap-y-2 text-[12px] sm:flex-col sm:items-end sm:text-right">
+                <div>
+                  <p className="text-[var(--muted)]">Households</p>
+                  <p className="mt-0.5 font-semibold text-[var(--foreground)]">
+                    {plan.householdsLabel.match(/\d+/)?.[0] ??
+                      plan.householdsLabel}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[var(--muted)]">Needed</p>
+                  <p className="mt-0.5 font-semibold text-[var(--foreground)]">
+                    {plan.neededLabel}
+                  </p>
+                </div>
+              </div>
             </div>
           </section>
 
-          {(step === "explore" || step === "identify") && (
+          {step === "identify" ? (
+            <section className="rounded-2xl border border-[var(--border)] bg-white p-4 shadow-sm sm:p-5">
+              <h2 className="font-[family-name:var(--font-display)] text-base font-semibold tracking-wide">
+                Identify shortage
+              </h2>
+              <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
+                Confirm this is the gap to fill before exploring local stock and
+                partner offers. Local inventory is scarce for food, water, and
+                medical kits.
+              </p>
+              <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-[var(--border)] bg-[#f8fafc] px-3.5 py-3">
+                  <dt className="text-[11px] text-[var(--muted)]">Incident</dt>
+                  <dd className="mt-0.5 font-mono text-sm font-semibold">
+                    {plan.incidentCode}
+                  </dd>
+                </div>
+                <div className="rounded-xl border border-[var(--border)] bg-[#f8fafc] px-3.5 py-3">
+                  <dt className="text-[11px] text-[var(--muted)]">Place</dt>
+                  <dd className="mt-0.5 text-sm font-semibold">{plan.place}</dd>
+                </div>
+                <div className="rounded-xl border border-[var(--border)] bg-[#f8fafc] px-3.5 py-3">
+                  <dt className="text-[11px] text-[var(--muted)]">Need</dt>
+                  <dd className="mt-0.5 text-sm font-semibold">
+                    {plan.neededLabel}
+                  </dd>
+                </div>
+                <div className="rounded-xl border border-[var(--border)] bg-[#f8fafc] px-3.5 py-3">
+                  <dt className="text-[11px] text-[var(--muted)]">Kind</dt>
+                  <dd className="mt-0.5 text-sm font-semibold">
+                    {plan.kindLabel}
+                  </dd>
+                </div>
+              </dl>
+              <div className="mt-4 grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+                {plan.localStock.map((cell) => (
+                  <div
+                    key={cell.id}
+                    className="rounded-xl border border-[var(--border)] bg-[#f8fafc] px-3 py-3"
+                  >
+                    <p className="text-[11px] text-[var(--muted)]">{cell.label}</p>
+                    <p
+                      className={cn(
+                        "mt-1 text-sm font-semibold",
+                        cell.ok ? "text-[#16794c]" : "text-[#c2410c]",
+                      )}
+                    >
+                      {cell.available} available
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          {step === "explore" ? (
             <>
               <section className="rounded-2xl border border-[var(--border)] bg-white p-4 shadow-sm sm:p-5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -354,7 +608,12 @@ export function FindAssistanceFlow() {
                       >
                         {cell.available} available
                       </p>
-                      <p className="mt-0.5 text-[11px] text-[var(--muted)]">
+                      <p
+                        className={cn(
+                          "mt-0.5 text-[11px]",
+                          cell.ok ? "text-[#16794c]" : "text-[#c2410c]",
+                        )}
+                      >
                         {cell.hint}
                       </p>
                     </div>
@@ -367,77 +626,27 @@ export function FindAssistanceFlow() {
               </section>
 
               <section className="rounded-2xl border border-[var(--border)] bg-white p-4 shadow-sm sm:p-5">
-                <h2 className="font-[family-name:var(--font-display)] text-base font-semibold tracking-wide">
-                  Partner and external options
-                  <span className="ml-2 text-[12px] font-normal text-[var(--muted)]">
-                    ({plan.partners.length} sources)
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="font-[family-name:var(--font-display)] text-base font-semibold tracking-wide">
+                    Partner and external options
+                  </h2>
+                  <span className="text-[12px] text-[var(--muted)]">
+                    {plan.partners.length} sources
                   </span>
-                </h2>
+                </div>
                 <div className="mt-3 space-y-3">
-                  {plan.partners.map((option) => {
-                    const active = option.id === activePartnerId;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setSelectedPartner(option.id)}
-                        className={cn(
-                          "w-full rounded-2xl border px-4 py-3.5 text-left transition",
-                          active
-                            ? "border-[#3b6fb6] bg-[#f8fbff] shadow-sm"
-                            : "border-[var(--border)] bg-white hover:border-[var(--foreground)]/20",
-                        )}
-                      >
-                        <div className="flex items-start gap-3">
-                          <span
-                            className={cn(
-                              "mt-1 flex size-4 shrink-0 items-center justify-center rounded-full border",
-                              active
-                                ? "border-[#2f5f9e] bg-[#2f5f9e]"
-                                : "border-[var(--border)] bg-white",
-                            )}
-                            aria-hidden
-                          >
-                            {active ? (
-                              <span className="size-1.5 rounded-full bg-white" />
-                            ) : null}
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <p className="font-medium text-[var(--foreground)]">
-                                {option.partner}
-                              </p>
-                              {option.recommended ? (
-                                <span className="rounded-full bg-[#3b6fb6]/10 px-2 py-0.5 text-[10px] font-semibold text-[#2f5f9e] ring-1 ring-[#3b6fb6]/20">
-                                  Recommended
-                                </span>
-                              ) : null}
-                            </div>
-                            <p className="mt-1 text-sm text-[var(--muted)]">
-                              {option.offerLine} · {option.statusLine} ·{" "}
-                              {option.etaLine}
-                            </p>
-                            {active ? (
-                              <div className="mt-2 rounded-xl border border-[#93c5fd]/50 bg-[#eff6ff] px-3 py-2 text-[12px] text-[#2f5f9e]">
-                                <p className="font-medium">
-                                  This option helps address
-                                </p>
-                                <ul className="mt-1 list-disc space-y-0.5 pl-4">
-                                  {option.helps.map((line) => (
-                                    <li key={line}>{line}</li>
-                                  ))}
-                                </ul>
-                              </div>
-                            ) : null}
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })}
+                  {plan.partners.map((option) => (
+                    <PartnerCard
+                      key={option.id}
+                      option={option}
+                      active={option.id === activePartnerId}
+                      onSelect={() => setSelectedPartner(option.id)}
+                    />
+                  ))}
                 </div>
               </section>
             </>
-          )}
+          ) : null}
 
           {step === "review" ? (
             <section className="rounded-2xl border border-[var(--border)] bg-white p-4 shadow-sm sm:p-5">
@@ -457,6 +666,10 @@ export function FindAssistanceFlow() {
                   <dt className="text-[var(--muted)]">Offer</dt>
                   <dd className="text-right font-medium">{selected.offerLine}</dd>
                 </div>
+                <div className="flex justify-between gap-4 border-b border-[var(--border)] py-2">
+                  <dt className="text-[var(--muted)]">ETA</dt>
+                  <dd className="text-right">{selected.etaLine}</dd>
+                </div>
                 <div className="flex justify-between gap-4 py-2">
                   <dt className="text-[var(--muted)]">Status</dt>
                   <dd className="text-right">{selected.statusLine}</dd>
@@ -475,10 +688,19 @@ export function FindAssistanceFlow() {
                 Approve and track · {plan.planCode}
               </h2>
               {approved ? (
-                <p className="mt-3 rounded-xl border border-[#86efac]/60 bg-[#ecfdf3] px-3 py-3 text-sm text-[#16794c]">
-                  Commitment recorded as approved draft. Tracking stays on the
-                  incident until field evidence is attached.
-                </p>
+                <div className="mt-3 space-y-3">
+                  <p className="rounded-xl border border-[#86efac]/60 bg-[#ecfdf3] px-3 py-3 text-sm text-[#16794c]">
+                    {plan.planCode} approved. {selected.partner} is committed for{" "}
+                    {plan.incidentCode}. The need leaves the open Resources
+                    board and appears in activity as assistance approved.
+                  </p>
+                  <Link
+                    href="/admin/resources"
+                    className="inline-flex rounded-xl bg-[#2f5f9e] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#244a7c]"
+                  >
+                    Back to Resources desk →
+                  </Link>
+                </div>
               ) : (
                 <p className="mt-3 text-sm text-[var(--muted)]">
                   Human approval commits {selected.partner} against{" "}
@@ -493,77 +715,76 @@ export function FindAssistanceFlow() {
             </section>
           ) : null}
 
-          <details
-            open
-            className="group rounded-2xl border border-[var(--border)] bg-white px-4 py-3 shadow-sm sm:px-5"
-          >
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-2 [&::-webkit-details-marker]:hidden">
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="font-[family-name:var(--font-display)] text-base font-semibold tracking-wide">
-                    Completed
-                  </h2>
-                  <span className="rounded-full bg-[#ecfdf3] px-2 py-0.5 text-[11px] font-medium text-[#16794c] ring-1 ring-[#86efac]/60">
-                    {plan.completed.length}{" "}
-                    {plan.completed.length === 1 ? "item" : "items"}
+          {step === "approve" || step === "review" ? (
+            <>
+              <details className="group rounded-2xl border border-[var(--border)] bg-white px-4 py-3 shadow-sm sm:px-5">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-2 [&::-webkit-details-marker]:hidden">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="font-[family-name:var(--font-display)] text-base font-semibold tracking-wide">
+                        Completed
+                      </h2>
+                      <span className="rounded-full bg-[#ecfdf3] px-2 py-0.5 text-[11px] font-medium text-[#16794c] ring-1 ring-[#86efac]/60">
+                        {plan.completed.length}{" "}
+                        {plan.completed.length === 1 ? "item" : "items"}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 text-[12px] text-[var(--muted)]">
+                      Delivered assistance with recorded evidence.
+                    </p>
+                  </div>
+                  <span className="text-[var(--muted)] group-open:rotate-180">
+                    ▾
                   </span>
+                </summary>
+                <div className="mt-3 space-y-3">
+                  {plan.completed.length === 0 ? (
+                    <p className="text-sm text-[var(--muted)]">
+                      No completed deliveries in scope yet.
+                    </p>
+                  ) : (
+                    plan.completed.map((item) => (
+                      <CompletedCard key={item.id} item={item} />
+                    ))
+                  )}
                 </div>
-                <p className="mt-0.5 text-[12px] text-[var(--muted)]">
-                  Delivered assistance with recorded evidence.
-                </p>
-              </div>
-              <span className="text-[var(--muted)] group-open:rotate-180">
-                ▾
-              </span>
-            </summary>
-            <div className="mt-3 space-y-3">
-              {plan.completed.length === 0 ? (
-                <p className="text-sm text-[var(--muted)]">
-                  No completed deliveries in scope yet.
-                </p>
-              ) : (
-                plan.completed.map((item) => (
-                  <CompletedCard key={item.id} item={item} />
-                ))
-              )}
-            </div>
-          </details>
+              </details>
 
-          <details
-            open
-            className="group rounded-2xl border border-[var(--border)] bg-white px-4 py-3 shadow-sm sm:px-5"
-          >
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-2 [&::-webkit-details-marker]:hidden">
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="font-[family-name:var(--font-display)] text-base font-semibold tracking-wide">
-                    Other updates
-                  </h2>
-                  <span className="rounded-full bg-[var(--foreground)]/6 px-2 py-0.5 text-[11px] font-medium text-[var(--muted)] ring-1 ring-[var(--border)]">
-                    {plan.otherUpdates.length}{" "}
-                    {plan.otherUpdates.length === 1 ? "item" : "items"}
+              <details className="group rounded-2xl border border-[var(--border)] bg-white px-4 py-3 shadow-sm sm:px-5">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-2 [&::-webkit-details-marker]:hidden">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="font-[family-name:var(--font-display)] text-base font-semibold tracking-wide">
+                        Other updates
+                      </h2>
+                      <span className="rounded-full bg-[var(--foreground)]/6 px-2 py-0.5 text-[11px] font-medium text-[var(--muted)] ring-1 ring-[var(--border)]">
+                        {plan.otherUpdates.length}{" "}
+                        {plan.otherUpdates.length === 1 ? "item" : "items"}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 text-[12px] text-[var(--muted)]">
+                      Approvals, unassigned incidents and other important
+                      updates.
+                    </p>
+                  </div>
+                  <span className="text-[var(--muted)] group-open:rotate-180">
+                    ▾
                   </span>
+                </summary>
+                <div className="mt-3 space-y-3">
+                  {plan.otherUpdates.length === 0 ? (
+                    <p className="text-sm text-[var(--muted)]">
+                      No other updates beside this need.
+                    </p>
+                  ) : (
+                    plan.otherUpdates.map((item) => (
+                      <OtherUpdateCard key={item.id} item={item} />
+                    ))
+                  )}
                 </div>
-                <p className="mt-0.5 text-[12px] text-[var(--muted)]">
-                  Approvals, unassigned incidents and other important updates.
-                </p>
-              </div>
-              <span className="text-[var(--muted)] group-open:rotate-180">
-                ▾
-              </span>
-            </summary>
-            <div className="mt-3 space-y-3">
-              {plan.otherUpdates.length === 0 ? (
-                <p className="text-sm text-[var(--muted)]">
-                  No other updates beside this need.
-                </p>
-              ) : (
-                plan.otherUpdates.map((item) => (
-                  <OtherUpdateCard key={item.id} item={item} />
-                ))
-              )}
-            </div>
-          </details>
+              </details>
+            </>
+          ) : null}
 
           <p className="pb-2 text-center text-[11px] text-[var(--muted)]">
             Conceptual exercise data · Not a live emergency feed.
@@ -593,6 +814,12 @@ export function FindAssistanceFlow() {
                 </ul>
               </div>
             ) : null}
+            <Link
+              href="/admin/partners"
+              className="mt-4 inline-flex w-full items-center justify-center rounded-xl border border-[#93c5fd] bg-white px-4 py-2.5 text-sm font-medium text-[#2f5f9e] transition hover:border-[#3b6fb6]"
+            >
+              Request backup source
+            </Link>
           </section>
 
           <section className="rounded-2xl border border-[var(--border)] bg-white p-4 shadow-sm sm:p-5">
@@ -600,48 +827,66 @@ export function FindAssistanceFlow() {
               Next step
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
+              {step === "identify" &&
+                "Confirm the shortage details, then explore local stock and partner options."}
               {step === "explore" && plan.nextStepCopy}
               {step === "review" &&
                 `Confirm ${plan.planCode} with ${selected.partner}, then continue to human approval.`}
               {step === "approve" &&
                 (approved
-                  ? "Approval saved. Return to resources or open the incident for tracking."
+                  ? "Approval saved. Return to Resources to see the board update."
                   : `Approve ${plan.planCode} to commit ${selected.partner} for ${plan.incidentCode}.`)}
             </p>
-            <button
-              type="button"
-              onClick={onContinue}
-              disabled={step === "approve" && approved}
-              className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-[#2f5f9e] px-4 py-3 text-sm font-medium text-white transition hover:bg-[#244a7c] disabled:cursor-default disabled:opacity-60"
-            >
-              {step === "explore"
-                ? `Continue to review ${plan.planCode}`
-                : step === "review"
-                  ? "Continue to approval"
-                  : approved
-                    ? "Approved"
-                    : `Approve ${plan.planCode}`}
-            </button>
-            <label className="mt-3 block">
-              <span className="sr-only">Coordinator note</span>
-              <textarea
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                rows={2}
-                placeholder="Optional coordinator note"
-                className="w-full resize-none rounded-xl border border-[var(--border)] bg-[#f8fafc] px-3 py-2 text-sm outline-none placeholder:text-[var(--muted)] focus:border-[#3b6fb6]/50"
-              />
-            </label>
-            {step !== "explore" ? (
+            {approved ? (
+              <Link
+                href="/admin/resources"
+                className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-[#2f5f9e] px-4 py-3 text-sm font-medium text-white transition hover:bg-[#244a7c]"
+              >
+                Return to Resources
+              </Link>
+            ) : (
               <button
                 type="button"
-                onClick={() =>
-                  setStep(step === "approve" ? "review" : "explore")
-                }
+                onClick={onContinue}
+                className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-[#2f5f9e] px-4 py-3 text-sm font-medium text-white transition hover:bg-[#244a7c]"
+              >
+                {step === "identify"
+                  ? "Continue to explore options"
+                  : step === "explore"
+                    ? "Continue to review plan"
+                    : step === "review"
+                      ? "Continue to approval"
+                      : `Approve ${plan.planCode}`}
+              </button>
+            )}
+            {step === "explore" && !approved ? (
+              <Link
+                href="/admin/resources"
+                className="mt-2 inline-flex w-full items-center justify-center rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-sm font-medium text-[var(--foreground)] transition hover:border-[var(--foreground)]/25"
+              >
+                Other requests & urgent transport needs
+              </Link>
+            ) : null}
+            {step !== "explore" && !approved ? (
+              <button
+                type="button"
+                onClick={stepBack}
                 className="mt-2 text-sm font-medium text-[#2f5f9e] hover:underline"
               >
                 ← Back
               </button>
+            ) : null}
+            {!approved ? (
+              <label className="mt-3 block">
+                <span className="sr-only">Coordinator note</span>
+                <textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  rows={2}
+                  placeholder="Optional coordinator note"
+                  className="w-full resize-none rounded-xl border border-[var(--border)] bg-[#f8fafc] px-3 py-2 text-sm outline-none placeholder:text-[var(--muted)] focus:border-[#3b6fb6]/50"
+                />
+              </label>
             ) : null}
           </section>
         </aside>

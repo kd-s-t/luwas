@@ -3,7 +3,9 @@ import {
   buildAttentionBoard,
   type AttentionItem,
 } from "@/lib/workspace/attentionBoard";
+import type { AssistanceCommitment } from "@/lib/workspace/assistanceCommitments";
 import { assistHref } from "@/lib/workspace/assistancePlan";
+import { parseReportNeed } from "@/lib/workspace/reportNeed";
 import {
   NANGKA_SAMPLE_INVENTORY,
   type SampleInventoryItem,
@@ -18,6 +20,7 @@ export type ResourceNeed = {
   place: string;
   detail: string;
   householdsLabel: string;
+  neededLabel: string;
   ctaLabel: string;
   ctaHref: string;
   primaryCta: boolean;
@@ -77,23 +80,25 @@ function placeFromItem(item: AttentionItem): string {
   return item.headline;
 }
 
-function householdsFromDetail(detail: string): string {
-  const packs = detail.match(/(\d+)\s+food\s+packs/i);
-  if (packs?.[1]) return `${packs[1]} households`;
-  const kits = detail.match(/(\d+)\s+(?:medical\s+)?kits?/i);
-  if (kits?.[1]) return `${Math.max(20, Number(kits[1]) * 40)} households`;
-  return "Households TBD";
-}
+function toNeed(
+  item: AttentionItem,
+  reportById: Map<string, HazardReport>,
+): ResourceNeed | null {
+  const report = reportById.get(item.reportId);
+  const parsed = report ? parseReportNeed(report) : null;
+  const householdsLabel = parsed?.householdsLabel ?? "Households TBD";
+  const neededCore = parsed?.neededLabel ?? item.meta ?? "Response TBD";
+  const detail = parsed?.detail ?? item.detail;
 
-function toNeed(item: AttentionItem): ResourceNeed | null {
   if (item.kind === "resource") {
     return {
       id: item.id,
       kind: "shortage",
       incidentCode: item.incidentCode,
       place: placeFromItem(item),
-      detail: item.detail,
-      householdsLabel: householdsFromDetail(item.detail),
+      detail,
+      householdsLabel,
+      neededLabel: `Needed: ${neededCore}`,
       ctaLabel: "Find assistance",
       ctaHref: assistHref(item.reportId),
       primaryCta: true,
@@ -106,8 +111,9 @@ function toNeed(item: AttentionItem): ResourceNeed | null {
       kind: "approval",
       incidentCode: item.incidentCode,
       place: placeFromItem(item),
-      detail: item.detail,
-      householdsLabel: householdsFromDetail(item.detail),
+      detail,
+      householdsLabel,
+      neededLabel: `Proposed: ${neededCore}`,
       ctaLabel: "View inventory",
       ctaHref: "#inventory",
       primaryCta: false,
@@ -143,7 +149,7 @@ function localStockFromInventory(
       ),
       stockCell("medical", "Medical kits", byId("first-aid")),
     ],
-    waterLiters: 0,
+    waterLiters: byId("water-jugs"),
   };
 }
 
@@ -151,14 +157,18 @@ function partnerFromApproval(item: AttentionItem): PartnerOffer {
   const medical = /medical|kit|red cross|rc-?\d/i.test(
     `${item.headline} ${item.detail}`,
   );
+  const kits = item.detail.match(/(\d+)\s+(?:medical\s+)?kits?/i)?.[1] ?? "2";
+  const time = item.timeLabel.replace(" PHT", "");
   return {
     id: `partner-${item.id}`,
     partner: medical ? "Red Cross Cebu" : "Partner supply",
     title: medical
       ? `Medical supplies offer · ${item.incidentCode}`
       : `Supply offer · ${item.incidentCode}`,
-    detail: "Requires coordinator approval before commitment.",
-    href: item.ctaHref,
+    detail: medical
+      ? `${kits} kits confirmed at ${time} by C. Lim. Requires coordinator approval.`
+      : "Requires coordinator approval before commitment.",
+    href: assistHref(item.reportId),
   };
 }
 
@@ -177,16 +187,19 @@ function activityFromItem(item: AttentionItem): ResourceActivityRow {
     };
   }
   if (item.kind === "approval") {
+    const kits = item.detail.match(/(\d+)\s+(?:medical\s+)?kits?/i)?.[1];
     return {
       id: `act-${item.id}`,
       timeLabel: item.timeLabel.replace(" PHT", ""),
       community: placeFromItem(item),
       incidentCode: item.incidentCode,
-      detail: item.detail,
+      detail: kits
+        ? `Red Cross Cebu confirmed ${kits} medical kits. Human approval pending.`
+        : item.detail,
       status: "pending",
       statusLabel: "Pending approval",
       actionLabel: "Review plan",
-      actionHref: item.ctaHref,
+      actionHref: assistHref(item.reportId),
     };
   }
   return {
@@ -246,21 +259,106 @@ function formatLastCheck(date: Date): string {
   }
 }
 
-/** Build the Resources desk from scoped reports + sample stock. */
+function commitmentActivity(c: AssistanceCommitment): ResourceActivityRow {
+  let timeLabel = "—";
+  try {
+    timeLabel = new Intl.DateTimeFormat("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: "Asia/Manila",
+    }).format(new Date(c.approvedAt));
+  } catch {
+    /* keep dash */
+  }
+  return {
+    id: `commit-${c.id}`,
+    timeLabel,
+    community: c.place,
+    incidentCode: c.incidentCode,
+    detail: `${c.partnerName} committed via ${c.planCode}. ${c.offerLine}`,
+    status: "completed",
+    statusLabel: "Assistance approved",
+    actionLabel: "View plan",
+    actionHref: assistHref(c.reportId),
+  };
+}
+
+function needFromReport(report: HazardReport): ResourceNeed {
+  const parsed = parseReportNeed(report);
+  const codeTail = report.id
+    .replace(/[^a-zA-Z0-9]/g, "")
+    .slice(-3)
+    .toUpperCase();
+  return {
+    id: `shortage-${report.id}`,
+    kind: "shortage",
+    incidentCode: `INC-${codeTail || "041"}`,
+    place: report.citizenPurok || report.barangay || "Nangka",
+    detail: parsed.detail,
+    householdsLabel: parsed.householdsLabel,
+    neededLabel: `Needed: ${parsed.neededLabel}`,
+    ctaLabel: "Find assistance",
+    ctaHref: assistHref(report.id),
+    primaryCta: true,
+    reportId: report.id,
+  };
+}
+
+function demoNeeds(reports: HazardReport[]): ResourceNeed[] {
+  const open = reports.filter(
+    (r) => r.status !== "rejected" && r.status !== "done",
+  );
+  if (open.length === 0) return [];
+  return open.slice(0, 2).map(needFromReport);
+}
+
+/** Build the Resources desk from scoped reports + live sample stock. */
 export function buildResourceBoard(
   reports: HazardReport[],
   respondersAvailable: number,
+  commitments: AssistanceCommitment[] = [],
 ): ResourceBoard {
   const attention = buildAttentionBoard(reports);
-  const needs = attention.items
-    .map(toNeed)
+  const reportById = new Map(reports.map((r) => [r.id, r]));
+  // Keep shortage cards visible even after approval so Find assistance stays findable.
+  const openItems = attention.items;
+  let needs = openItems
+    .map((item) => toNeed(item, reportById))
     .filter((n): n is ResourceNeed => Boolean(n));
+
+  // Prefer a clear shortage from Verified/Queue reports when stock is empty.
+  const verifiedShort = reports.filter(
+    (r) =>
+      (r.status === "legit" || r.status === "queued" || r.status === "assigned") &&
+      parseReportNeed(r).short &&
+      !/medical|kit|red cross/i.test(`${r.title ?? ""} ${r.notes ?? ""}`),
+  );
+  for (const report of verifiedShort) {
+    if (needs.some((n) => n.reportId === report.id && n.kind === "shortage")) {
+      continue;
+    }
+    needs.unshift(needFromReport(report));
+  }
+
+  if (needs.length === 0) {
+    needs = demoNeeds(reports);
+  }
+
+  // De-dupe by reportId+kind, prefer shortage.
+  const seen = new Set<string>();
+  needs = needs.filter((n) => {
+    const key = `${n.reportId}:${n.kind}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 
   const shortageCommunities = new Set(
     needs.filter((n) => n.kind === "shortage").map((n) => n.place),
   ).size;
   const plansAwaiting = needs.filter((n) => n.kind === "approval").length;
-  const approvalItems = attention.items.filter((i) => i.kind === "approval");
+  const approvalItems = openItems.filter((i) => i.kind === "approval");
   const partnerOffers = approvalItems.map(partnerFromApproval);
 
   const { cells, waterLiters } = localStockFromInventory(
@@ -268,30 +366,34 @@ export function buildResourceBoard(
     respondersAvailable,
   );
 
+  const kitOffer = approvalItems.find((i) =>
+    /kit|medical|red cross|rc-?\d/i.test(`${i.headline} ${i.detail}`),
+  );
   const aiAdvisory =
-    approvalItems[0] != null
+    kitOffer != null
       ? "RC-7 matches the open kit need without using an unavailable local vehicle. The plan still needs fresh checks."
-      : attention.shortages > 0
+      : needs.some((n) => n.kind === "shortage")
         ? "Local stock cannot cover open shortages. Confirm partner supply before committing packs or water."
         : null;
 
   const activity: ResourceActivityRow[] = [
-    ...attention.items.map(activityFromItem),
+    ...commitments.slice(0, 3).map(commitmentActivity),
+    ...openItems.map(activityFromItem),
     ...reports
       .filter((r) => r.status === "done" || r.status === "dispatched")
       .slice(0, 4)
       .map(activityFromDone),
   ].slice(0, 6);
 
-  // Prefer a follow-up style row first when a shortage exists.
-  const shortage = attention.items.find((i) => i.kind === "resource");
+  const shortage = openItems.find((i) => i.kind === "resource");
   if (shortage) {
     const followup: ResourceActivityRow = {
       id: `followup-${shortage.id}`,
       timeLabel: shortage.timeLabel.replace(" PHT", ""),
       community: placeFromItem(shortage),
       incidentCode: shortage.incidentCode,
-      detail: "DSWD follow-up overdue. Confirm supply before committing packs.",
+      detail:
+        "DSWD follow-up overdue. Confirm supply before committing packs.",
       status: "followup",
       statusLabel: "Needs follow-up",
       actionLabel: "Find assistance",

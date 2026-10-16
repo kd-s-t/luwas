@@ -6,6 +6,16 @@ export type ReportMediaType = "photo" | "video";
 /** How media entered the form — camera-first field vs desk file upload. */
 export type ReportMediaSource = "mobile-camera" | "desktop-file";
 
+/** Officer on-site photos of what is happening (images only). */
+export type FieldEvidenceImage = {
+  mediaPath: string;
+  mediaUrl: string;
+  mediaMime: string;
+  uploadedAt: string;
+  uploadedByUid: string | null;
+  uploadedByName: string | null;
+};
+
 export type ReportHazardHint =
   | "flood"
   | "landslide"
@@ -138,6 +148,10 @@ export type HazardReport = {
   autoResponderCallAt: string | null;
   /** Who was called / texted after verification (dispatch audit). */
   dispatchLog: ReportDispatchLog | null;
+  /** Officer manually checked “Dispatch someone” on the incident checklist. */
+  manualDispatchChecked: boolean;
+  /** On-site photos uploaded by the investigator (images only). */
+  fieldEvidence: FieldEvidenceImage[];
   /** Reporter signals used for trust scoring. */
   reporterIdVerified: boolean;
   reporterEmail: string | null;
