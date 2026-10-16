@@ -854,7 +854,8 @@ export function CitizenReportForm({
         mediaMime: existingMediaMime || "image/jpeg",
       };
     } else {
-      throw new Error(t(language, "errors.photoRequired"));
+      // Photo optional — voice-only / text-only reports are allowed (same as iOS).
+      uploaded = { mediaPath: "", mediaUrl: "", mediaMime: "" };
     }
 
     let voicePath: string | null = draft?.voicePath ?? null;
@@ -1023,10 +1024,7 @@ export function CitizenReportForm({
               mediaUrl: existingMediaUrl,
               mediaMime: existingMediaMime || "image/jpeg",
             }
-          : null;
-      if (!uploaded) {
-        throw new Error(t(language, "errors.photoRequired"));
-      }
+          : { mediaPath: "", mediaUrl: "", mediaMime: "" };
 
       let voicePath: string | null = null;
       let voiceUrl: string | null = null;
@@ -1092,8 +1090,11 @@ export function CitizenReportForm({
       await markReportValidating(id);
 
       const canInline =
-        mediaType === "photo" && file.size <= 3.5 * 1024 * 1024;
-      const mediaBase64 = canInline ? await fileToBase64(file) : undefined;
+        Boolean(file) &&
+        mediaType === "photo" &&
+        (file?.size ?? 0) <= 3.5 * 1024 * 1024;
+      const mediaBase64 =
+        canInline && file ? await fileToBase64(file) : undefined;
       const res = await fetch("/api/ai/validate-report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1102,9 +1103,9 @@ export function CitizenReportForm({
           notes,
           hazardHint,
           mediaType,
-          mediaMime: uploaded.mediaMime,
+          mediaMime: uploaded.mediaMime || undefined,
           mediaBase64,
-          fileName: file.name,
+          fileName: file?.name,
         }),
       });
 
