@@ -65,6 +65,10 @@ export async function POST(req: Request) {
     investigatedAt: r.investigatedAt ?? null,
     autoResponderCallAt: r.autoResponderCallAt ?? null,
     dispatchLog: r.dispatchLog ?? null,
+    manualDispatchChecked: Boolean(r.manualDispatchChecked),
+    fieldEvidence: Array.isArray(r.fieldEvidence)
+      ? (r.fieldEvidence as HazardReport["fieldEvidence"])
+      : [],
     reporterIdVerified: Boolean(r.reporterIdVerified),
     reporterEmail: r.reporterEmail ?? null,
     reporterPhone: r.reporterPhone ?? null,
