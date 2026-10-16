@@ -6,9 +6,14 @@ export type ServiceAreaPlace = {
   lgu: string;
   lat: number;
   lng: number;
+  /** Landmark name shown instead of "Brgy. …". */
+  landmark?: string;
+  /** Extra search phrases (e.g. "sm consolacion"). */
+  aliases?: string[];
 };
 
 export function placeLabel(p: ServiceAreaPlace): string {
+  if (p.landmark?.trim()) return `${p.landmark.trim()}, ${p.lgu}`;
   return `Brgy. ${p.barangay}, ${p.lgu}`;
 }
 
@@ -18,6 +23,21 @@ export const NANGKA_HALL = {
 } as const;
 
 export const SERVICE_AREA_PLACES: ServiceAreaPlace[] = [
+  {
+    id: "consolacion/sm-consolacion",
+    barangay: "Poblacion Occidental",
+    lgu: "Consolacion",
+    lat: 10.379876090660447,
+    lng: 123.96408121585092,
+    landmark: "SM Consolacion",
+    aliases: [
+      "sm consolacion",
+      "sm city consolacion",
+      "sm lacion",
+      "sm conso",
+      "smc consolacion",
+    ],
+  },
   {
     id: "consolacion/nangka",
     barangay: "Nangka",
@@ -90,15 +110,67 @@ export const SERVICE_AREA_PLACES: ServiceAreaPlace[] = [
   },
 ];
 
+function placeSearchBlob(p: ServiceAreaPlace): string {
+  return [
+    placeLabel(p),
+    p.barangay,
+    p.lgu,
+    p.landmark ?? "",
+    ...(p.aliases ?? []),
+  ]
+    .join(" ")
+    .toLowerCase();
+}
+
+/** Resolve typed search to one curated place (label, landmark, or alias). */
+export function matchPlace(query: string): ServiceAreaPlace | null {
+  const q = query.trim().toLowerCase();
+  if (!q) return null;
+  const exactLabel = SERVICE_AREA_PLACES.find(
+    (p) => placeLabel(p).toLowerCase() === q,
+  );
+  if (exactLabel) return exactLabel;
+  const exactLandmark = SERVICE_AREA_PLACES.find(
+    (p) => p.landmark?.trim().toLowerCase() === q,
+  );
+  if (exactLandmark) return exactLandmark;
+  const aliasHit = SERVICE_AREA_PLACES.find((p) =>
+    (p.aliases ?? []).some((a) => {
+      const alias = a.trim().toLowerCase();
+      return (
+        alias === q ||
+        (q.length >= 3 && alias.startsWith(q)) ||
+        (q.length >= alias.length && q.includes(alias))
+      );
+    }),
+  );
+  if (aliasHit) return aliasHit;
+  if (q.length >= 3) {
+    const byBarangay = SERVICE_AREA_PLACES.find(
+      (p) => !p.landmark && p.barangay.toLowerCase() === q,
+    );
+    if (byBarangay) return byBarangay;
+  }
+  return null;
+}
+
 export function filterPlaces(query: string): ServiceAreaPlace[] {
   const q = query.trim().toLowerCase();
   if (!q) return SERVICE_AREA_PLACES.slice(0, 8);
-  const hits = SERVICE_AREA_PLACES.filter(
-    (p) =>
-      placeLabel(p).toLowerCase().includes(q) ||
-      p.barangay.toLowerCase().includes(q) ||
-      p.lgu.toLowerCase().includes(q),
-  );
+  const matched = matchPlace(q);
+  const tokens = q.split(/\s+/).filter(Boolean);
+  const hits = SERVICE_AREA_PLACES.filter((p) => {
+    const blob = placeSearchBlob(p);
+    if (blob.includes(q)) return true;
+    // Multi-word queries: every token must appear (e.g. "sm consolacion").
+    if (tokens.length > 1 && tokens.every((t) => blob.includes(t))) return true;
+    return false;
+  });
+  if (matched && !hits.some((h) => h.id === matched.id)) {
+    hits.unshift(matched);
+  } else if (matched) {
+    hits.sort((a, b) => (a.id === matched.id ? -1 : b.id === matched.id ? 1 : 0));
+  }
   return hits.slice(0, 8);
 }
 

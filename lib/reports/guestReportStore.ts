@@ -20,16 +20,31 @@ function writeIds(ids: string[]) {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(ids.slice(0, MAX_IDS)));
 }
 
-/** Persist a report reference on this device (newest first). */
+/** YYMMDD + sequence from place-prefixed / LUW ids → newest first. */
+export function compareGuestReportIdsNewestFirst(a: string, b: string): number {
+  const parse = (id: string): { day: number; seq: number } => {
+    const m = id.trim().toUpperCase().match(/(\d{6})-(\d{4,})$/);
+    if (!m) return { day: 0, seq: 0 };
+    return { day: Number(m[1]), seq: Number(m[2]) };
+  };
+  const pa = parse(a);
+  const pb = parse(b);
+  if (pa.day !== pb.day) return pb.day - pa.day;
+  if (pa.seq !== pb.seq) return pb.seq - pa.seq;
+  return b.localeCompare(a);
+}
+
+/** Persist a report reference on this device. Does not reshuffle on re-open. */
 export function saveGuestReportId(reportId: string) {
   const id = reportId.trim();
   if (!id) return;
-  const next = [id, ...readIds().filter((x) => x !== id)];
-  writeIds(next);
+  const existing = readIds();
+  if (existing.includes(id)) return;
+  writeIds([id, ...existing].slice(0, MAX_IDS));
 }
 
 export function listGuestReportIds(): string[] {
-  return readIds();
+  return [...readIds()].sort(compareGuestReportIdsNewestFirst);
 }
 
 export function hasGuestReportId(reportId: string): boolean {
@@ -39,5 +54,5 @@ export function hasGuestReportId(reportId: string): boolean {
 }
 
 export function latestGuestReportId(): string | null {
-  return readIds()[0] ?? null;
+  return listGuestReportIds()[0] ?? null;
 }
