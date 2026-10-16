@@ -12,7 +12,10 @@ import {
 } from "firebase/firestore";
 import { getClientDb } from "@/lib/firebase/client";
 import { ACTIVE_INVENTORY_BARANGAYS } from "@/lib/inventory/activeBarangays";
-import { INVENTORY_SEEDS_BY_BARANGAY } from "@/lib/inventory/seed";
+import {
+  INVENTORY_DEMO_STATE_VERSION,
+  INVENTORY_SEEDS_BY_BARANGAY,
+} from "@/lib/inventory/seed";
 import type {
   InventoryCategory,
   InventoryDispatch,
@@ -60,12 +63,17 @@ function mapDispatch(raw: unknown): InventoryDispatch | null {
   const at = String(d.at ?? "").trim();
   const qty = Number(d.qty);
   if (!byUid || !byName || !at || !Number.isFinite(qty) || qty <= 0) return null;
+  const reportId =
+    typeof d.reportId === "string" && d.reportId.trim()
+      ? d.reportId.trim()
+      : undefined;
   return {
     qty,
     byUid,
     byName,
     at,
     note: typeof d.note === "string" && d.note.trim() ? d.note.trim() : undefined,
+    reportId,
   };
 }
 
@@ -81,6 +89,10 @@ function mapHistoryEvent(raw: unknown): InventoryHistoryEvent | null {
   if (!kind || !byUid || !byName || !at || !Number.isFinite(qty) || qty <= 0) {
     return null;
   }
+  const reportId =
+    typeof d.reportId === "string" && d.reportId.trim()
+      ? d.reportId.trim()
+      : undefined;
   return {
     id,
     kind,
@@ -89,6 +101,7 @@ function mapHistoryEvent(raw: unknown): InventoryHistoryEvent | null {
     byName,
     at,
     note: typeof d.note === "string" && d.note.trim() ? d.note.trim() : undefined,
+    reportId,
   };
 }
 
@@ -110,6 +123,7 @@ function mapHistory(raw: unknown, lastDispatch: InventoryDispatch | null): Inven
       byName: lastDispatch.byName,
       at: lastDispatch.at,
       note: lastDispatch.note,
+      reportId: lastDispatch.reportId,
     },
   ];
 }
@@ -137,6 +151,7 @@ function mapDoc(id: string, data: Record<string, unknown>): InventoryItem {
         byName: latestDispatch.byName,
         at: latestDispatch.at,
         note: latestDispatch.note,
+        reportId: latestDispatch.reportId,
       }
     : lastDispatch;
   return {
@@ -252,6 +267,7 @@ export async function dispatchBarangayInventoryItem(input: {
   byUid: string;
   byName: string;
   note?: string;
+  reportId?: string;
 }): Promise<void> {
   const qty = input.qty ?? 1;
   if (!Number.isFinite(qty) || qty <= 0) {
@@ -271,6 +287,7 @@ export async function dispatchBarangayInventoryItem(input: {
 
   const now = new Date().toISOString();
   const note = input.note?.trim() || undefined;
+  const reportId = input.reportId?.trim() || undefined;
   const event: InventoryHistoryEvent = {
     id: `dispatch-${now}-${byUid}`,
     kind: "dispatch",
@@ -279,6 +296,7 @@ export async function dispatchBarangayInventoryItem(input: {
     byName,
     at: now,
     note,
+    reportId,
   };
   const lastDispatch: InventoryDispatch = {
     qty,
@@ -286,11 +304,14 @@ export async function dispatchBarangayInventoryItem(input: {
     byName,
     at: now,
     note,
+    reportId,
   };
+  const remaining = onHand - qty;
   await setDoc(
     ref,
     {
-      available: onHand - qty,
+      available: remaining,
+      // Stay "dispatched" while any units are still out (remaining can be > 0).
       dispatchStatus: "dispatched",
       lastDispatch,
       history: prependHistory(data.history, event),
@@ -351,6 +372,16 @@ export async function returnBarangayInventoryItem(input: {
 
 /** Idempotent seed for every active barangay inventory. */
 export async function ensureActiveBarangayInventory(): Promise<number> {
+  // Ensure linked incident tickets exist before inventory demos reference them.
+  await Promise.all([
+    import("@/lib/reports/ensureResourceShortageReport").then((m) =>
+      m.ensureResourceShortageReport(),
+    ),
+    import("@/lib/reports/ensureQueueSampleReports").then((m) =>
+      m.ensureQueueSampleReports(),
+    ),
+  ]).catch(() => {});
+
   const db = getClientDb();
   let written = 0;
   const now = new Date().toISOString();
@@ -365,6 +396,7 @@ export async function ensureActiveBarangayInventory(): Promise<number> {
         const data = existing.data() as {
           imageUrl?: unknown;
           location?: unknown;
+          demoStateVersion?: unknown;
         };
         const patch: Record<string, unknown> = {};
         if (
@@ -378,6 +410,13 @@ export async function ensureActiveBarangayInventory(): Promise<number> {
           (typeof data.location !== "string" || !data.location.trim())
         ) {
           patch.location = seed.location;
+        }
+        if (data.demoStateVersion !== INVENTORY_DEMO_STATE_VERSION) {
+          patch.available = seed.available;
+          patch.dispatchStatus = seed.dispatchStatus ?? "on_hand";
+          patch.lastDispatch = seed.lastDispatch ?? null;
+          patch.history = seed.history ?? [];
+          patch.demoStateVersion = INVENTORY_DEMO_STATE_VERSION;
         }
         if (Object.keys(patch).length > 0) {
           await setDoc(
@@ -402,9 +441,10 @@ export async function ensureActiveBarangayInventory(): Promise<number> {
         location: seed.location ?? null,
         notes: seed.notes ?? null,
         status: seed.status ?? "active",
-        dispatchStatus: "on_hand",
-        lastDispatch: null,
-        history: [],
+        dispatchStatus: seed.dispatchStatus ?? "on_hand",
+        lastDispatch: seed.lastDispatch ?? null,
+        history: seed.history ?? [],
+        demoStateVersion: INVENTORY_DEMO_STATE_VERSION,
         barangayId: brgy.barangayId,
         orgName: brgy.orgName,
         createdAt: now,
