@@ -266,7 +266,7 @@ export function PublicReportsFeed() {
             <select
               value={scopeSelectValue}
               onChange={(e) => setScopePick(e.target.value)}
-              className="mt-1.5 w-full border border-[var(--border)] bg-[var(--input)] px-3 py-2 font-mono text-xs outline-none focus:border-[var(--accent)]"
+              className="mt-1.5 w-full border border-[var(--border)] bg-[var(--input)] py-2 pr-9 pl-3 font-mono text-xs outline-none focus:border-[var(--accent)]"
             >
               <option value="all">All barangays</option>
               {brgyOptions.map((s) => (
@@ -287,7 +287,7 @@ export function PublicReportsFeed() {
                 const v = e.target.value;
                 setYear(v === "all" ? "all" : Number(v));
               }}
-              className="mt-1.5 w-full border border-[var(--border)] bg-[var(--input)] px-3 py-2 font-mono text-xs outline-none focus:border-[var(--accent)]"
+              className="mt-1.5 w-full border border-[var(--border)] bg-[var(--input)] py-2 pr-9 pl-3 font-mono text-xs outline-none focus:border-[var(--accent)]"
             >
               <option value="all">All years</option>
               {years.map((y) => (
@@ -307,7 +307,7 @@ export function PublicReportsFeed() {
               onChange={(e) =>
                 setCategory(e.target.value as "all" | ReportHazardHint)
               }
-              className="mt-1.5 w-full border border-[var(--border)] bg-[var(--input)] px-3 py-2 font-mono text-xs outline-none focus:border-[var(--accent)]"
+              className="mt-1.5 w-full border border-[var(--border)] bg-[var(--input)] py-2 pr-9 pl-3 font-mono text-xs outline-none focus:border-[var(--accent)]"
             >
               {HAZARD_FILTERS.map((h) => (
                 <option key={h.id} value={h.id}>
