@@ -431,8 +431,10 @@ export async function createGuestHazardReport(input: {
     aiConfidence,
     aiVerdict,
   });
-  if (isStockReportMediaUrl(input.mediaUrl)) {
-    throw new Error("A real scene photo is required before submitting.");
+  // Photo is optional (voice-only / text-only OK). Block bundled demo images only.
+  const mediaUrl = input.mediaUrl?.trim() || "";
+  if (mediaUrl && isStockReportMediaUrl(mediaUrl)) {
+    throw new Error("Demo photos cannot be submitted as evidence.");
   }
   const place =
     placeFromCoords(input.lat, input.lng) ?? {
