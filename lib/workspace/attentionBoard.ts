@@ -203,7 +203,7 @@ function buildItem(
       timeLabel: timeLabelPht(report.createdAt),
       meta: "1 request",
       ctaLabel: "Find assistance",
-      ctaHref: "/admin/households",
+      ctaHref: `/admin/resources/assist?report=${encodeURIComponent(report.id)}`,
       primaryCta: false,
       lat: report.lat,
       lng: report.lng,

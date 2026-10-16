@@ -177,7 +177,7 @@ export function CommandOverview() {
     {
       label: "Resource shortages",
       value: board.shortages,
-      href: "/admin/households",
+      href: "/admin/resources",
       Icon: Package,
       iconClass: "bg-[#f59e0b]/12 text-[#d97706]",
     },

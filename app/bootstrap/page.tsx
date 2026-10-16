@@ -105,6 +105,7 @@ const HAZARD_ROWS = [
 const NAV_LINKS = [
   { href: "/admin/overview", label: "Overview" },
   { href: "/admin/incidents", label: "Incidents" },
+  { href: "/admin/resources", label: "Resources" },
   { href: "/admin/households", label: "House owners" },
   { href: "/bootstrap#email", label: "Templates" },
   { href: "/barangays", label: "Barangays" },
