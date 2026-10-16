@@ -61,47 +61,22 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
   const aiConfidence =
     typeof data.aiConfidence === "number" ? data.aiConfidence : null;
   const aiVerdict = (data.aiVerdict as HazardReport["aiVerdict"]) ?? null;
-  const phoneWasSanitized =
-    citizenUid === GUEST_UID && rawPhone != null && reporterPhone == null;
-  const recomputed = phoneWasSanitized
-    ? computeReportTrust({
-        registered: false,
-        idVerified: Boolean(data.reporterIdVerified),
-        email: null,
-        phone: reporterPhone,
-        emailVerified: false,
-        mediaSource,
-        lat,
-        lng,
-        locationAccuracyM,
-        aiConfidence,
-        aiVerdict,
-      })
-    : null;
-  const storedTrust =
-    typeof data.trustScore === "number" ? data.trustScore : null;
-  const trustScore = recomputed?.total ?? storedTrust;
-  const trustBreakdown = recomputed
-    ? recomputed
-    : data.trustBreakdown && typeof data.trustBreakdown === "object"
-      ? {
-          identity: Number(
-            (data.trustBreakdown as { identity?: number }).identity ?? 0,
-          ),
-          contact: Number(
-            (data.trustBreakdown as { contact?: number }).contact ?? 0,
-          ),
-          capture: Number(
-            (data.trustBreakdown as { capture?: number }).capture ?? 0,
-          ),
-          ai: Number((data.trustBreakdown as { ai?: number }).ai ?? 0),
-          total: Number(
-            (data.trustBreakdown as { total?: number }).total ??
-              data.trustScore ??
-              0,
-          ),
-        }
-      : null;
+  const trustBreakdown = computeReportTrust({
+    registered: Boolean(citizenUid) && citizenUid !== GUEST_UID,
+    idVerified: Boolean(data.reporterIdVerified),
+    email: citizenUid === GUEST_UID ? null : (
+      data.reporterEmail != null ? String(data.reporterEmail) : null
+    ),
+    phone: reporterPhone,
+    emailVerified: Boolean(data.reporterEmailVerified),
+    mediaSource,
+    lat,
+    lng,
+    locationAccuracyM,
+    aiConfidence,
+    aiVerdict,
+  });
+  const trustScore = trustBreakdown.total;
   return {
     id,
     citizenUid,

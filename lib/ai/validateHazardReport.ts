@@ -14,6 +14,10 @@ import {
   parsePriorityFactors,
   parseReportPriority,
 } from "@/lib/reports/priority";
+import {
+  inferHazard,
+  parseHazardHint,
+} from "@/lib/reports/inferHazard";
 import type {
   ReportHazardHint,
   ReportMediaType,
@@ -28,6 +32,8 @@ export type HazardValidateResult = {
   source: "gemini" | "local";
   model: string | null;
   status: "legit" | "rejected" | "needs_review";
+  /** Hazard type detected from media / voice / text (may correct citizen hint). */
+  hazardHint: ReportHazardHint;
   priority: ReportPriority;
   priorityFactors: ReportPriorityFactors;
   vertexClass: string | null;
@@ -39,6 +45,7 @@ function parseVerdict(text: string): {
   verdict: "legit" | "rejected" | "needs_review";
   confidence: number;
   reason: string;
+  hazardHint: ReportHazardHint | null;
   priority: ReportPriority | null;
   priorityFactors: ReportPriorityFactors | null;
 } | null {
@@ -49,6 +56,7 @@ function parseVerdict(text: string): {
       verdict?: string;
       confidence?: number;
       reason?: string;
+      hazardHint?: string;
       priority?: string;
       priorityFactors?: unknown;
     };
@@ -67,12 +75,36 @@ function parseVerdict(text: string): {
       verdict,
       confidence,
       reason: String(parsed.reason ?? "No reason provided."),
+      hazardHint: parseHazardHint(parsed.hazardHint),
       priority: parseReportPriority(parsed.priority),
       priorityFactors: parsePriorityFactors(parsed.priorityFactors),
     };
   } catch {
     return null;
   }
+}
+
+function resolveHazardHint(input: {
+  claimed: ReportHazardHint;
+  fromModel: ReportHazardHint | null;
+  vertexClass: string | null;
+  title: string;
+  notes: string;
+  voiceTranscript: string;
+  reason: string;
+}): ReportHazardHint {
+  if (input.fromModel && input.fromModel !== "other") return input.fromModel;
+  const fromVertex = parseHazardHint(input.vertexClass);
+  if (fromVertex && fromVertex !== "other") return fromVertex;
+  const inferred = inferHazard(
+    input.title,
+    input.notes,
+    input.voiceTranscript,
+    input.reason,
+  );
+  if (inferred !== "other") return inferred;
+  if (input.fromModel) return input.fromModel;
+  return input.claimed || "other";
 }
 
 function withVertex(
@@ -100,6 +132,7 @@ function localFallback(input: {
   localE2e: boolean;
   extraReason: string;
   vertex: VertexClassifyResult;
+  voiceTranscript?: string;
 }): HazardValidateResult {
   const local = runLocalValidate({
     title: input.title,
@@ -111,22 +144,32 @@ function localFallback(input: {
   });
   const verdict =
     input.localE2e && local.verdict === "rejected" ? "legit" : local.verdict;
+  const reason = `${local.reason} ${input.extraReason} ${formatVertexSignal(input.vertex)}`.trim();
+  const detected = resolveHazardHint({
+    claimed: input.hazardHint,
+    fromModel: null,
+    vertexClass: input.vertex.className,
+    title: input.title,
+    notes: input.notes,
+    voiceTranscript: input.voiceTranscript ?? "",
+    reason,
+  });
   const ranked = localPriorityForReport({
     title: input.title,
     notes: input.notes,
-    hazardHint: input.hazardHint,
+    hazardHint: detected,
     verdict,
   });
-  const vertexLine = formatVertexSignal(input.vertex);
   return withVertex(
     {
       ...local,
       verdict,
       status: verdict,
       model: null,
+      hazardHint: detected,
       priority: ranked.priority,
       priorityFactors: ranked.factors,
-      reason: `${local.reason} ${input.extraReason} ${vertexLine}`.trim(),
+      reason,
     },
     input.vertex,
   );
@@ -164,14 +207,17 @@ export async function validateHazardReport(input: {
 
   const vertex =
     mediaType === "photo" && mediaBase64
-      ? await classifyImageWithVertex({ imageBase64: mediaBase64 })
+      ? await classifyImageWithVertex({
+          imageBase64: mediaBase64,
+          mimeType: mediaMime,
+        })
       : ({
           className: null,
           confidence: null,
           displayNames: [],
           confidences: [],
           source: "skipped" as const,
-          reason: "Vertex runs on photo bytes only.",
+          reason: "Image class needs photo bytes (inline base64).",
         } satisfies VertexClassifyResult);
 
   const key = process.env.GEMINI_API_KEY?.trim();
@@ -188,6 +234,7 @@ export async function validateHazardReport(input: {
         ? ""
         : "(no media bytes — text heuristics only)",
       vertex,
+      voiceTranscript,
     });
   }
 
@@ -209,6 +256,7 @@ Return ONLY JSON:
   "verdict": "legit" | "rejected" | "needs_review",
   "confidence": number between 0 and 1,
   "reason": string,
+  "hazardHint": "flood" | "landslide" | "typhoon" | "fire" | "crime" | "accident" | "blockage" | "evac" | "other",
   "priority": "critical" | "high" | "medium" | "low",
   "priorityFactors": {
     "immediateSeverity": string,
@@ -223,6 +271,7 @@ Rules:
 - legit: clear evidence of flood/landslide/storm/fire/damage matching the claim
 - rejected: spam, joke, unrelated, stock meme, or clearly fabricated
 - needs_review: unclear, low quality, or mismatch between text and media
+- hazardHint: the actual hazard visible/heard in the evidence. If the citizen hint is "other" but the photo or voice clearly shows fire (or flood, etc.), set hazardHint to that type — do not keep "other"
 - If Vertex class is "unrelated" (or equivalent) with high confidence, prefer rejected or needs_review
 - If Vertex class mismatches the hazard claim (e.g. beach vs flood), prefer needs_review
 - If Vertex and claim agree with high confidence, lean legit
@@ -283,6 +332,7 @@ Media type: ${mediaType}${voiceOnly ? " (voice-only report)" : ""}`;
         localE2e,
         extraReason: "(Gemini parse fallback)",
         vertex,
+        voiceTranscript,
       });
     }
 
@@ -295,10 +345,24 @@ Media type: ${mediaType}${voiceOnly ? " (voice-only report)" : ""}`;
         ? "legit"
         : parsed.verdict;
 
+    const reason =
+      verdict !== parsed.verdict
+        ? `Local e2e · accepted for demo. ${parsed.reason}`
+        : parsed.reason;
+    const detected = resolveHazardHint({
+      claimed: hazardHint,
+      fromModel: parsed.hazardHint,
+      vertexClass: vertex.className,
+      title,
+      notes,
+      voiceTranscript,
+      reason,
+    });
+
     const fallbackRank = localPriorityForReport({
       title,
       notes,
-      hazardHint,
+      hazardHint: detected,
       verdict,
     });
     const priority = parsed.priority ?? fallbackRank.priority;
@@ -311,12 +375,10 @@ Media type: ${mediaType}${voiceOnly ? " (voice-only report)" : ""}`;
         source: "gemini",
         model,
         status: verdict,
+        hazardHint: detected,
         priority,
         priorityFactors,
-        reason:
-          verdict !== parsed.verdict
-            ? `Local e2e · accepted for demo. ${parsed.reason}`
-            : parsed.reason,
+        reason,
       },
       vertex,
     );
@@ -331,6 +393,7 @@ Media type: ${mediaType}${voiceOnly ? " (voice-only report)" : ""}`;
       localE2e,
       extraReason: "(Gemini unavailable — local queue rules used.)",
       vertex,
+      voiceTranscript,
     });
   }
 }

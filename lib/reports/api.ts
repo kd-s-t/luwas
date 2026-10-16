@@ -27,10 +27,7 @@ import {
   parseReportPriority,
 } from "@/lib/reports/priority";
 import { EMPTY_REACTION_COUNTS } from "@/lib/reports/socialTypes";
-import {
-  computeReportTrust,
-  type ReportTrustBreakdown,
-} from "@/lib/reports/trustScore";
+import { computeReportTrust } from "@/lib/reports/trustScore";
 import type {
   FieldEvidenceImage,
   HazardReport,
@@ -57,6 +54,14 @@ export { newGuestReportId, newPlaceReportId } from "@/lib/reports/reportId";
 const COL = "reports";
 const GUEST_UID = "web-guest";
 
+function mapCitizenPurok(raw: unknown): string {
+  const value = String(raw ?? "").trim();
+  if (value === "Demo · no login" || value === "Demo · no login.") {
+    return "no login";
+  }
+  return value;
+}
+
 function mapFieldEvidence(raw: unknown): FieldEvidenceImage[] {
   if (!Array.isArray(raw)) return [];
   const out: FieldEvidenceImage[] = [];
@@ -78,31 +83,6 @@ function mapFieldEvidence(raw: unknown): FieldEvidenceImage[] {
     });
   }
   return out;
-}
-
-function mapTrustBreakdown(
-  raw: unknown,
-  fallbackTotal: number | null,
-): ReportTrustBreakdown | null {
-  if (!raw || typeof raw !== "object") {
-    return fallbackTotal != null
-      ? {
-          identity: 0,
-          contact: 0,
-          capture: 0,
-          ai: 0,
-          total: fallbackTotal,
-        }
-      : null;
-  }
-  const b = raw as Record<string, unknown>;
-  return {
-    identity: Number(b.identity ?? 0),
-    contact: Number(b.contact ?? 0),
-    capture: Number(b.capture ?? 0),
-    ai: Number(b.ai ?? 0),
-    total: Number(b.total ?? fallbackTotal ?? 0),
-  };
 }
 
 function mapReport(id: string, data: Record<string, unknown>): HazardReport {
@@ -137,10 +117,6 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
       ? sanitizeGuestReporterPhone(rawPhone)
       : rawPhone;
   const reporterEmailVerified = Boolean(data.reporterEmailVerified);
-  const storedTrust =
-    typeof data.trustScore === "number" ? data.trustScore : null;
-  const phoneWasSanitized =
-    citizenUid === GUEST_UID && rawPhone != null && reporterPhone == null;
   const trustInput = {
     registered: Boolean(citizenUid) && citizenUid !== GUEST_UID,
     idVerified: reporterIdVerified,
@@ -154,18 +130,14 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
     aiConfidence,
     aiVerdict,
   };
-  const recomputed =
-    storedTrust == null || phoneWasSanitized
-      ? computeReportTrust(trustInput)
-      : null;
-  const trustScore = recomputed?.total ?? storedTrust ?? null;
-  const trustBreakdown =
-    recomputed ?? mapTrustBreakdown(data.trustBreakdown, trustScore);
+  // Always recompute so TRUST_CAPS changes apply on read.
+  const trustBreakdown = computeReportTrust(trustInput);
+  const trustScore = trustBreakdown.total;
   return {
     id,
     citizenUid,
     citizenName: String(data.citizenName ?? ""),
-    citizenPurok: String(data.citizenPurok ?? ""),
+    citizenPurok: mapCitizenPurok(data.citizenPurok),
     barangay: place.barangay,
     lgu: place.lgu,
     citizenPhotoURL:
@@ -301,7 +273,7 @@ export async function startIncidentDraft(input: {
     ? "Guest"
     : input.author!.displayName || "Citizen";
   const citizenPurok = isGuest
-    ? "Demo · no login"
+    ? "no login"
     : isCitizen(input.author!)
       ? input.author!.purok
       : isOfficer(input.author!)
@@ -493,7 +465,7 @@ export async function createGuestHazardReport(input: {
   await setDoc(doc(getClientDb(), COL, id), {
     citizenUid: GUEST_UID,
     citizenName: "Guest",
-    citizenPurok: "Demo · no login",
+    citizenPurok: "no login",
     barangay: place.barangay,
     lgu: place.lgu,
     citizenPhotoURL: null,
@@ -925,6 +897,7 @@ export async function updateReportValidation(
     aiReason: string | null;
     aiSource: HazardReport["aiSource"];
     aiModel: string | null;
+    hazardHint?: ReportHazardHint;
     aiPriority?: ReportPriority | null;
     aiPriorityFactors?: ReportPriorityFactors | null;
     vertexClass?: string | null;

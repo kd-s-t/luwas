@@ -46,17 +46,20 @@ export async function POST(req: Request) {
 
   const isGuest = isGuestReportId(reportId);
   const guestReportId = isGuest ? reportId.toUpperCase() : "";
+  const hasUploader = CITIZEN_UID.test(citizenUid);
   const isCitizen =
-    !isGuest && CITIZEN_UID.test(citizenUid) && REPORT_ID.test(reportId);
+    !isGuest && hasUploader && REPORT_ID.test(reportId);
+  /** Officer field photos on guest/place reports (CEB-CON-NANG-*). */
+  const isFieldOnGuest = kind === "field" && isGuest && hasUploader;
 
-  if (kind === "field" && !isCitizen) {
+  if (kind === "field" && !isCitizen && !isFieldOnGuest) {
     return NextResponse.json(
       { error: "field photos require signed-in uploader" },
       { status: 400 },
     );
   }
 
-  if (!isGuest && !isCitizen) {
+  if (!isGuest && !isCitizen && !isFieldOnGuest) {
     return NextResponse.json({ error: "reportId required" }, { status: 400 });
   }
 
@@ -97,24 +100,28 @@ export async function POST(req: Request) {
                   : "jpg");
 
   const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const objectPath = isGuest
-    ? `reports/web-guest/${guestReportId}/${kind}.${ext}`
-    : kind === "field"
-      ? `reports/${citizenUid}/${reportId}/field/${stamp}.${ext}`
-      : `reports/${citizenUid}/${reportId}/${kind}.${ext}`;
+  const fieldReportKey = isFieldOnGuest ? guestReportId : reportId;
+  const objectPath =
+    kind === "field"
+      ? `reports/${citizenUid}/${fieldReportKey}/field/${stamp}.${ext}`
+      : isGuest
+        ? `reports/web-guest/${guestReportId}/${kind}.${ext}`
+        : `reports/${citizenUid}/${reportId}/${kind}.${ext}`;
 
   try {
     if (firestoreEmulatorHost()) {
-      const relDir = isGuest
-        ? path.join("reports", "guest")
-        : kind === "field"
-          ? path.join("reports", citizenUid, reportId, "field")
-          : path.join("reports", citizenUid, reportId);
-      const fileName = isGuest
-        ? `${guestReportId}-${kind}.${ext}`
-        : kind === "field"
+      const relDir =
+        kind === "field"
+          ? path.join("reports", citizenUid, fieldReportKey, "field")
+          : isGuest
+            ? path.join("reports", "guest")
+            : path.join("reports", citizenUid, reportId);
+      const fileName =
+        kind === "field"
           ? `${stamp}.${ext}`
-          : `${kind}.${ext}`;
+          : isGuest
+            ? `${guestReportId}-${kind}.${ext}`
+            : `${kind}.${ext}`;
       const absDir = path.join(process.cwd(), "public", relDir);
       await mkdir(absDir, { recursive: true });
       await writeFile(path.join(absDir, fileName), bytes);

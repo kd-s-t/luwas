@@ -285,12 +285,23 @@ export async function ensureQueueSampleReports(): Promise<{
       aiReason: sample.aiReason,
       aiSource: "local",
       aiModel: "sample-seed",
-      aiPriority:
-        sample.status === "needs_review"
-          ? "high"
-          : sample.hazardHint === "flood" || sample.hazardHint === "landslide"
+      aiPriority: (() => {
+        if (sample.status === "rejected") {
+          return sample.hazardHint === "flood" ||
+            sample.hazardHint === "landslide"
             ? "critical"
-            : "medium",
+            : "medium";
+        }
+        // Spread P1–P4 across the 5 needs_review seeds.
+        const byId: Record<string, "critical" | "high" | "medium" | "low"> = {
+          [`${P}-261011-9001`]: "critical",
+          [`${P}-261011-9002`]: "critical",
+          [`${P}-261011-9003`]: "high",
+          [`${P}-261011-9004`]: "medium",
+          [`${P}-261011-9005`]: "low",
+        };
+        return byId[sample.id] ?? "high";
+      })(),
       aiPriorityFactors: {
         immediateSeverity: "Sample seed · review severity on scene.",
         peopleAffected: "Sample seed · confirm household count.",

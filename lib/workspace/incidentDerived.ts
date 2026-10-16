@@ -1,3 +1,11 @@
+import {
+  autoResponderRouteForHazard,
+  looksLikeFire,
+} from "@/lib/alerts/autoResponderCall";
+import {
+  resolveResponderCalls,
+  responderKindLabel,
+} from "@/lib/alerts/responderCall";
 import type { HazardReport } from "@/lib/reports/types";
 import { hazardHintLabel } from "@/lib/reports/types";
 
@@ -15,6 +23,8 @@ export type IncidentProposal = {
   done?: boolean;
   /** Officer can toggle this checkbox themselves. */
   manual?: boolean;
+  /** Small brand mark (e.g. Twilio for call/SMS outreach). */
+  brand?: "twilio";
 };
 
 export type ActivityEvent = {
@@ -77,6 +87,15 @@ export function unknownsForReport(report: HazardReport): IncidentUnknown[] {
 /** Explainable next-step drafts — never authorized until an officer records a plan. */
 export function proposalsForReport(report: HazardReport): IncidentProposal[] {
   const hazard = hazardHintLabel(report.hazardHint);
+  const fireLike =
+    report.hazardHint === "fire" ||
+    looksLikeFire(
+      report.title,
+      report.notes,
+      report.voiceTranscript,
+      report.aiReason,
+    );
+  const effectiveHint = fireLike ? ("fire" as const) : report.hazardHint;
   const base: IncidentProposal[] = [
     {
       id: "contact",
@@ -129,13 +148,69 @@ export function proposalsForReport(report: HazardReport): IncidentProposal[] {
     });
   }
 
+  const route = autoResponderRouteForHazard(
+    effectiveHint,
+    report.title,
+    report.notes,
+    [report.voiceTranscript, report.aiReason].filter(Boolean).join(" "),
+  );
+  if (route) {
+    const dials = resolveResponderCalls({
+      lgu: report.lgu || "Consolacion",
+      barangay: report.barangay || "Nangka",
+      kinds: route.kinds,
+      near:
+        report.lat != null && report.lng != null
+          ? { lat: report.lat, lng: report.lng }
+          : null,
+    });
+    const log = report.dispatchLog;
+    const outreachDone = Boolean(
+      report.autoResponderCallAt ||
+        (log && (log.called.length > 0 || log.texted.length > 0)),
+    );
+    for (const dial of dials) {
+      const kindLabel = responderKindLabel(dial.kind);
+      const shortName =
+        dial.kind === "bfp"
+          ? "BFP"
+          : dial.kind === "pnp"
+            ? "PNP"
+            : dial.kind === "hospital"
+              ? "Hospital"
+              : "Tanod";
+      base.push({
+        id: `alert-${dial.kind}`,
+        label: outreachDone
+          ? `Called & texted ${shortName} · ${dial.phoneDisplay}`
+          : `Call & text ${shortName} · ${dial.phoneDisplay}`,
+        detail: outreachDone
+          ? [
+              `${dial.stationName} · ${kindLabel}`,
+              log?.summary || "Auto-sent after field-verified.",
+              log?.called?.length
+                ? `Called: ${log.called.join(", ")}`
+                : null,
+              log?.texted?.length
+                ? `Texted: ${log.texted.join(", ")}`
+                : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")
+          : `After Mark field-verified: voice + SMS to ${dial.stationName} at ${dial.phoneDisplay}.`,
+        done: outreachDone,
+        brand: "twilio",
+      });
+    }
+  }
+
   const dispatched = Boolean(report.manualDispatchChecked);
   base.push({
     id: "dispatch",
     label: "Dispatch someone",
     detail: dispatched
-      ? "Marked done by officer."
-      : "Check this yourself when you have dispatched someone (manual).",
+      ? "Marked dispatched · auto-dispatch ran."
+      : "Check to mark dispatched, then auto-dispatch runs.",
     done: dispatched,
     manual: true,
   });

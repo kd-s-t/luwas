@@ -2,7 +2,13 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useCommandWorkspace } from "@/components/CommandWorkspaceProvider";
 import { CommandContentSkeleton } from "@/components/PageLoadSkeleton";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
@@ -24,20 +30,17 @@ import {
   APAS_BARANGAY_DOC_ID,
   APAS_STAFF_SEED,
 } from "@/lib/staff/apasStaff";
+import { subscribeBarangayStaff } from "@/lib/staff/api";
 import {
   NANGKA_BARANGAY_ID,
   NANGKA_STAFF_SEED,
 } from "@/lib/staff/nangkaStaff";
-
-const HallPinMap = dynamic(() => import("@/components/HallPinMap"), {
-  ssr: false,
-  loading: () => (
-    <div className="flex h-[200px] w-full items-center justify-center border border-[var(--border)] bg-[var(--surface)] font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase sm:h-[240px]">
-      Loading map…
-    </div>
-  ),
-});
-import { triggerAutoResponderCall } from "@/lib/alerts/autoResponderCall";
+import type { StaffMember } from "@/lib/staff/types";
+import { STAFF_RANK_ORDER } from "@/lib/staff/types";
+import {
+  looksLikeFire,
+  triggerAutoResponderCall,
+} from "@/lib/alerts/autoResponderCall";
 import { triggerInvestigatorNotify } from "@/lib/alerts/notifyInvestigator";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import {
@@ -84,6 +87,38 @@ import {
   unknownsForReport,
 } from "@/lib/workspace/incidentDerived";
 import { parseReportNeed } from "@/lib/workspace/reportNeed";
+import {
+  matchPlace,
+  nearestPlace,
+} from "@/lib/reports/serviceAreaPlaces";
+import { doc, updateDoc } from "firebase/firestore";
+import { getClientDb } from "@/lib/firebase/client";
+
+const HallPinMap = dynamic(() => import("@/components/HallPinMap"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-[120px] w-full max-w-xs items-center justify-center border border-[var(--border)] bg-[var(--surface)] font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+      Loading map…
+    </div>
+  ),
+});
+
+function pinCenterForReport(
+  report: HazardReport,
+): { lat: number; lng: number } | null {
+  const label = report.locationLabel?.trim() ?? "";
+  if (label) {
+    const matched = matchPlace(label);
+    if (matched) return { lat: matched.lat, lng: matched.lng };
+  }
+  if (report.lat == null || report.lng == null) return null;
+  // Manual map pin (no GPS accuracy) is the pin itself.
+  if (report.locationAccuracyM == null) {
+    return { lat: report.lat, lng: report.lng };
+  }
+  const nearest = nearestPlace(report.lat, report.lng);
+  return { lat: nearest.lat, lng: nearest.lng };
+}
 
 type PlanState = {
   notes: string;
@@ -111,10 +146,18 @@ export function IncidentDetail({
   const [activityOpen, setActivityOpen] = useState(true);
   const [plan, setPlan] = useState<PlanState>({ notes: "", recordedAt: null });
   const [planDraft, setPlanDraft] = useState("");
+  const [fieldReport, setFieldReport] = useState<PlanState>({
+    notes: "",
+    recordedAt: null,
+  });
+  const [fieldReportDraft, setFieldReportDraft] = useState("");
   const [directReport, setDirectReport] = useState<HazardReport | null>(null);
   const [directReady, setDirectReady] = useState(false);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [inventoryBusy, setInventoryBusy] = useState(false);
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [staffRows, setStaffRows] = useState<StaffMember[]>([]);
+  const assignWrapRef = useRef<HTMLDivElement | null>(null);
 
   const scoped = scopedReports;
   const officers = activeOfficers;
@@ -126,6 +169,8 @@ export function IncidentDetail({
     if (areaId.includes("apas")) return APAS_BARANGAY_DOC_ID;
     return NANGKA_BARANGAY_ID;
   }, [profile]);
+
+  const isApasArea = inventoryBarangayId === APAS_BARANGAY_DOC_ID;
 
   useEffect(() => {
     setDirectReady(false);
@@ -145,6 +190,83 @@ export function IncidentDetail({
     return subscribeBarangayInventory(inventoryBarangayId, setInventory);
   }, [profile, inventoryBarangayId]);
 
+  useEffect(() => {
+    if (!isOfficer(profile)) {
+      setStaffRows([]);
+      return;
+    }
+    return subscribeBarangayStaff(inventoryBarangayId, setStaffRows);
+  }, [profile, inventoryBarangayId]);
+
+  /** Active staff roster for Assign (not only logged-in app accounts). */
+  const assignOptions = useMemo(() => {
+    type Opt = { uid: string; name: string; title: string; staffId: string };
+    const seed = (
+      isApasArea ? APAS_STAFF_SEED : NANGKA_STAFF_SEED
+    ).filter((s) => s.status === "active" && s.scope === "barangay");
+    const live = staffRows.filter(
+      (s) => s.status === "active" && s.scope === "barangay",
+    );
+    const roster = live.length > 0 ? live : seed;
+
+    const byEmail = new Map(
+      officers.map((o) => [o.email.trim().toLowerCase(), o] as const),
+    );
+    const byStaffId = new Map(
+      officers
+        .filter((o) => o.staffId)
+        .map((o) => [o.staffId!, o] as const),
+    );
+
+    const out = new Map<string, Opt>();
+    for (const s of roster) {
+      const email = (s.accountEmail ?? s.email).trim().toLowerCase();
+      const account =
+        byStaffId.get(s.id) || (email ? byEmail.get(email) : undefined);
+      const uid = account?.uid ?? `staff:${s.id}`;
+      out.set(uid, {
+        uid,
+        name: s.displayName,
+        title: s.title,
+        staffId: s.id,
+      });
+    }
+    for (const o of officers) {
+      if (out.has(o.uid)) continue;
+      out.set(o.uid, {
+        uid: o.uid,
+        name: o.displayName || o.email,
+        title: o.officerTitle || "",
+        staffId: o.staffId || "",
+      });
+    }
+    return [...out.values()].sort((a, b) => {
+      const seedA = seed.find((s) => s.id === a.staffId);
+      const seedB = seed.find((s) => s.id === b.staffId);
+      const ra = seedA ? (STAFF_RANK_ORDER[seedA.rank] ?? 99) : 99;
+      const rb = seedB ? (STAFF_RANK_ORDER[seedB.rank] ?? 99) : 99;
+      if (ra !== rb) return ra - rb;
+      return a.name.localeCompare(b.name);
+    });
+  }, [staffRows, officers, isApasArea]);
+
+  useEffect(() => {
+    if (!assignOpen) return;
+    function onPointerDown(e: PointerEvent) {
+      const el = assignWrapRef.current;
+      if (el && !el.contains(e.target as Node)) setAssignOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setAssignOpen(false);
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [assignOpen]);
+
   const fromList = useMemo(
     () => scoped.find((r) => r.id === reportId) ?? null,
     [scoped, reportId],
@@ -160,10 +282,51 @@ export function IncidentDetail({
   useEffect(() => {
     if (!selected) {
       setPlanDraft("");
+      setPlan({ notes: "", recordedAt: null });
+      setFieldReportDraft("");
+      setFieldReport({ notes: "", recordedAt: null });
       return;
     }
-    setPlanDraft(plan.notes);
-  }, [selected?.id]); // eslint-disable-line react-hooks/exhaustive-deps -- reset draft when incident changes
+    setPlanDraft("");
+    setPlan({ notes: "", recordedAt: null });
+    setFieldReportDraft("");
+    setFieldReport({ notes: "", recordedAt: null });
+  }, [selected?.id]); // eslint-disable-line react-hooks/exhaustive-deps -- reset when incident changes
+
+  const fireBackfillRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!selected || !isOfficer(profile)) return;
+    if (selected.status !== "legit") return;
+    if (selected.autoResponderCallAt) return;
+    const fire =
+      selected.hazardHint === "fire" ||
+      looksLikeFire(
+        selected.title,
+        selected.notes,
+        selected.voiceTranscript,
+        selected.aiReason,
+      );
+    if (!fire) return;
+    if (fireBackfillRef.current === selected.id) return;
+    fireBackfillRef.current = selected.id;
+    void (async () => {
+      if (selected.hazardHint !== "fire") {
+        await updateDoc(doc(getClientDb(), "reports", selected.id), {
+          hazardHint: "fire",
+          updatedAt: new Date().toISOString(),
+        });
+      }
+      await triggerAutoResponderCall({
+        ...selected,
+        hazardHint: "fire",
+        status: "legit",
+        autoResponderCallAt: null,
+      });
+    })().catch((err) => {
+      console.warn("Fire BFP backfill failed", err);
+      fireBackfillRef.current = null;
+    });
+  }, [selected, profile]);
 
   const unknowns = selected ? unknownsForReport(selected) : [];
   const proposals = selected ? proposalsForReport(selected) : [];
@@ -223,9 +386,15 @@ export function IncidentDetail({
         const row = next.find((a) => a.uid === notifyUid);
         if (row) {
           const officer = officers.find((o) => o.uid === row.uid);
+          const opt = assignOptions.find((o) => o.uid === row.uid);
+          const staffId =
+            officer?.staffId ||
+            opt?.staffId ||
+            (row.uid.startsWith("staff:") ? row.uid.slice(6) : null);
           const staff =
-            APAS_STAFF_SEED.find((s) => s.id === officer?.staffId) ||
-            NANGKA_STAFF_SEED.find((s) => s.id === officer?.staffId) ||
+            APAS_STAFF_SEED.find((s) => s.id === staffId) ||
+            NANGKA_STAFF_SEED.find((s) => s.id === staffId) ||
+            staffRows.find((s) => s.id === staffId) ||
             [...APAS_STAFF_SEED, ...NANGKA_STAFF_SEED].find(
               (s) =>
                 s.displayName.toLowerCase() === row.name.trim().toLowerCase(),
@@ -235,7 +404,7 @@ export function IncidentDetail({
             investigatorUid: row.uid,
             investigatorName: row.name,
             phone: staff?.phone ?? null,
-            staffId: officer?.staffId ?? staff?.id ?? null,
+            staffId: staffId ?? staff?.id ?? null,
             email: officer?.email ?? staff?.email ?? null,
           });
         }
@@ -276,6 +445,15 @@ export function IncidentDetail({
     setBusy(true);
     try {
       const validatedAt = new Date().toISOString();
+      const fire =
+        selected.hazardHint === "fire" ||
+        looksLikeFire(
+          selected.title,
+          selected.notes,
+          selected.voiceTranscript,
+          selected.aiReason,
+        );
+      const hazardHint = fire ? ("fire" as const) : selected.hazardHint;
       await updateReportValidation(selected.id, {
         status: verdict,
         aiVerdict: verdict,
@@ -284,6 +462,7 @@ export function IncidentDetail({
           `Officer override → ${verdict}. ${selected.aiReason ?? ""}`.trim(),
         aiSource: selected.aiSource,
         aiModel: selected.aiModel,
+        ...(hazardHint !== selected.hazardHint ? { hazardHint } : {}),
         validatedAt,
         trustInput: {
           registered: Boolean(selected.citizenUid),
@@ -308,6 +487,7 @@ export function IncidentDetail({
         ...selected,
         status: verdict,
         aiVerdict: verdict,
+        hazardHint,
         validatedAt,
         ...(verdict === "rejected" && isOfficer(profile)
           ? {
@@ -327,6 +507,7 @@ export function IncidentDetail({
       if (verdict === "legit") {
         void triggerAutoResponderCall({
           ...selected,
+          hazardHint,
           status: "legit",
           autoResponderCallAt: selected.autoResponderCallAt ?? null,
         });
@@ -350,11 +531,8 @@ export function IncidentDetail({
       setStatusError("Assign an officer before marking dispatched.");
       return;
     }
-    if (
-      next === "done" &&
-      !(selected.fieldEvidence && selected.fieldEvidence.length > 0)
-    ) {
-      setStatusError("Upload at least one field photo before marking done.");
+    if (next === "done" && !fieldReport.recordedAt && !fieldReportDraft.trim()) {
+      setStatusError("Fill the field report before marking done.");
       return;
     }
     setStatusError(null);
@@ -374,6 +552,16 @@ export function IncidentDetail({
           profile.displayName || profile.email,
         );
         return;
+      }
+      if (
+        next === "done" &&
+        !fieldReport.recordedAt &&
+        fieldReportDraft.trim()
+      ) {
+        setFieldReport({
+          notes: fieldReportDraft.trim(),
+          recordedAt: new Date().toISOString(),
+        });
       }
       await updateReportStatus(selected.id, next);
     } finally {
@@ -527,6 +715,29 @@ export function IncidentDetail({
             )}
           </div>
 
+          <div className="mt-3 border border-[var(--border)] bg-[var(--surface-raised)] px-2.5 py-2">
+            <div className="flex items-center gap-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/brands/vertex-ai.svg"
+                alt=""
+                title="Vertex AI"
+                className="h-4 w-auto shrink-0"
+              />
+              <p className="font-mono text-[9px] tracking-wider text-[var(--muted)] uppercase">
+                Vertex AI · image class
+              </p>
+            </div>
+            <p className="mt-1.5 text-sm text-[var(--foreground)]">
+              {selected.vertexClass?.trim()
+                ? selected.vertexClass.trim()
+                : "No classification yet"}
+              {selected.vertexConfidence != null
+                ? ` · ${Math.round(selected.vertexConfidence * 100)}%`
+                : ""}
+            </p>
+          </div>
+
           {(() => {
             const notes = displayReportNotes(selected.notes);
             return notes ? (
@@ -554,7 +765,7 @@ export function IncidentDetail({
                   controls
                   preload="metadata"
                   src={selected.voiceUrl}
-                  className="h-9 w-full max-w-md"
+                  className="h-9 w-full"
                 >
                   <track kind="captions" />
                 </audio>
@@ -568,24 +779,37 @@ export function IncidentDetail({
           ) : null}
 
           <dl className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
-            <Meta
-              label="AI check"
-              value={
-                selected.aiReason
-                  ? `${
-                      selected.aiSource === "gemini"
-                        ? "Gemini"
-                        : selected.aiSource === "local"
-                          ? "local rules"
-                          : (selected.aiSource ?? "AI")
-                    }${
-                      selected.aiConfidence != null
-                        ? ` · ${Math.round(selected.aiConfidence * 100)}%`
-                        : ""
-                    }`
-                  : "Pending"
-              }
-            />
+            <div className="border border-[var(--border)] bg-[var(--surface-raised)] px-2.5 py-2">
+              <dt className="font-mono text-[9px] tracking-wider text-[var(--muted)] uppercase">
+                AI check
+              </dt>
+              <dd className="mt-0.5 flex items-center gap-1.5 text-[var(--foreground)]">
+                {selected.aiSource === "gemini" ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src="/brands/gemini.png"
+                    alt=""
+                    title="Gemini"
+                    className="h-3.5 w-auto shrink-0 opacity-80"
+                  />
+                ) : null}
+                <span>
+                  {selected.aiReason
+                    ? `${
+                        selected.aiSource === "gemini"
+                          ? "Gemini"
+                          : selected.aiSource === "local"
+                            ? "local rules"
+                            : (selected.aiSource ?? "AI")
+                      }${
+                        selected.aiConfidence != null
+                          ? ` · ${Math.round(selected.aiConfidence * 100)}%`
+                          : ""
+                      }`
+                    : "Pending"}
+                </span>
+              </dd>
+            </div>
             <Meta
               label="Priority"
               value={
@@ -596,75 +820,111 @@ export function IncidentDetail({
             />
           </dl>
 
-          {selected.aiPriorityFactors ? (
-            <div className="mt-3 rounded-xl border border-[var(--border)] bg-white px-3 py-3">
-              <p className="font-mono text-[9px] tracking-[0.16em] text-[var(--muted)] uppercase">
-                Priority factors · AI draft
-              </p>
-              <dl className="mt-2 space-y-2 text-[12px]">
-                {(
-                  [
-                    ["Immediate severity", selected.aiPriorityFactors.immediateSeverity],
-                    ["People affected", selected.aiPriorityFactors.peopleAffected],
-                    ["Existing coverage", selected.aiPriorityFactors.existingCoverage],
-                    ["Delivery feasibility", selected.aiPriorityFactors.deliveryFeasibility],
-                    ["Evidence quality", selected.aiPriorityFactors.evidenceQuality],
-                  ] as const
-                ).map(([label, value]) =>
-                  value ? (
-                    <div key={label}>
-                      <dt className="font-medium text-[var(--foreground)]">
-                        {label}
-                      </dt>
-                      <dd className="text-[var(--muted)]">{value}</dd>
-                    </div>
-                  ) : null,
-                )}
-              </dl>
-            </div>
-          ) : null}
-
           <div className="mt-3">
             <p className="mb-1.5 font-mono text-[9px] tracking-wider text-[var(--muted)] uppercase">
               Location
             </p>
-            {selected.lat != null && selected.lng != null ? (
-              <>
-                <HallPinMap
-                  center={{ lat: selected.lat, lng: selected.lng }}
-                  zoom={16}
-                  readOnly
-                  className="relative h-[200px] w-full overflow-hidden border border-[var(--border)] sm:h-[240px]"
-                />
-                <p className="mt-1.5 font-mono text-xs tabular-nums text-[var(--foreground)]">
-                  {selected.lat.toFixed(5)}, {selected.lng.toFixed(5)}
-                  {selected.locationAccuracyM != null
-                    ? ` · ±${Math.round(selected.locationAccuracyM)} m`
-                    : ""}
-                </p>
-                {selected.locationLabel ? (
-                  <p className="mt-0.5 text-xs text-[var(--muted)]">
-                    {selected.locationLabel}
-                  </p>
+            <dl className="grid gap-3 text-xs sm:grid-cols-2">
+              {(() => {
+                const pin = pinCenterForReport(selected);
+                const pinLabel =
+                  selected.locationLabel?.trim() ||
+                  [
+                    selected.citizenPurok?.trim(),
+                    selected.barangay
+                      ? `Brgy. ${selected.barangay}`
+                      : null,
+                    selected.lgu?.trim(),
+                  ]
+                    .filter(Boolean)
+                    .join(", ") ||
+                  "Place not provided";
+                return (
+                  <div>
+                    <dt className="font-mono text-[9px] tracking-wider text-[var(--muted)] uppercase">
+                      Reported place
+                    </dt>
+                    <dd className="mt-0.5 text-[var(--foreground)]">
+                      {pinLabel}
+                    </dd>
+                    {pin ? (
+                      <>
+                        <dd className="mt-0.5 font-mono tabular-nums text-[var(--muted)]">
+                          {pin.lat.toFixed(5)}, {pin.lng.toFixed(5)}
+                        </dd>
+                        <dd className="mt-1.5">
+                          <HallPinMap
+                            center={pin}
+                            zoom={15}
+                            readOnly
+                            className="relative h-[120px] w-full overflow-hidden border border-[var(--border)]"
+                          />
+                        </dd>
+                      </>
+                    ) : (
+                      <dd className="mt-1.5 border border-[var(--border)] bg-[var(--surface-raised)] px-2.5 py-3 font-mono text-[10px] text-[var(--muted)]">
+                        Place not available
+                      </dd>
+                    )}
+                  </div>
+                );
+              })()}
+              <div>
+                <dt className="font-mono text-[9px] tracking-wider text-[var(--muted)] uppercase">
+                  Location of the pin
+                </dt>
+                <dd className="mt-0.5 font-mono tabular-nums text-[var(--foreground)]">
+                  {selected.lat != null && selected.lng != null
+                    ? `${selected.lat.toFixed(5)}, ${selected.lng.toFixed(5)}${
+                        selected.locationAccuracyM != null
+                          ? ` · ±${Math.round(selected.locationAccuracyM)} m`
+                          : ""
+                      }`
+                    : "Pin not captured"}
+                </dd>
+                {selected.device?.trim() ? (
+                  <dd className="mt-0.5 text-[var(--muted)]">
+                    {selected.device.trim()}
+                  </dd>
                 ) : null}
-              </>
-            ) : (
-              <div className="border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-3 font-mono text-xs text-[var(--muted)]">
-                Coordinates not provided
+                {selected.lat != null && selected.lng != null ? (
+                  <dd className="mt-1.5">
+                    <HallPinMap
+                      center={{ lat: selected.lat, lng: selected.lng }}
+                      zoom={16}
+                      readOnly
+                      className="relative h-[120px] w-full overflow-hidden border border-[var(--border)]"
+                    />
+                  </dd>
+                ) : (
+                  <dd className="mt-1.5 border border-[var(--border)] bg-[var(--surface-raised)] px-2.5 py-3 font-mono text-[10px] text-[var(--muted)]">
+                    Pin not captured
+                  </dd>
+                )}
               </div>
-            )}
+            </dl>
           </div>
 
           <TrustMeter
             score={selected.trustScore}
             breakdown={selected.trustBreakdown}
+            aiSource={selected.aiSource}
           />
 
           {selected.aiReason ? (
             <div className="mt-3 border border-dashed border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2">
-              <p className="font-mono text-[9px] tracking-wider text-[var(--warn)] uppercase">
-                AI interpretation · proposal only
-              </p>
+              <div className="flex items-center gap-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/brands/gemini.png"
+                  alt=""
+                  title="Gemini"
+                  className="h-3.5 w-auto shrink-0"
+                />
+                <p className="font-mono text-[9px] tracking-wider text-[var(--warn)] uppercase">
+                  AI interpretation · proposal only
+                </p>
+              </div>
               <p className="mt-1 text-sm">{selected.aiReason}</p>
             </div>
           ) : null}
@@ -713,69 +973,110 @@ export function IncidentDetail({
             <p className="text-xs text-[var(--muted)]">
               Select one or more officers. Multiple assignees are allowed.
             </p>
-            <ul className="max-h-48 space-y-1 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--input)] p-1.5">
-              {isOfficer(profile) ? (
-                <li>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() =>
-                      void toggleAssignee(
-                        profile.uid,
-                        profile.displayName || profile.email,
-                      )
-                    }
-                    className={cn(
-                      "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition hover:bg-[var(--surface-panel)] disabled:opacity-50",
-                      assigneesOf(selected).some((a) => a.uid === profile.uid) &&
-                        "bg-[var(--accent)]/10",
-                    )}
-                  >
-                    <span className="min-w-0 flex-1 truncate">
-                      Me · {profile.displayName || profile.email}
-                    </span>
-                    {assigneesOf(selected).some((a) => a.uid === profile.uid) ? (
-                      <span className="text-[11px] font-semibold text-[#16794c]">
-                        ✓
-                      </span>
-                    ) : null}
-                  </button>
-                </li>
-              ) : null}
-              {officers
-                .filter((o) => o.uid !== profile?.uid)
-                .map((o) => {
-                  const on = assigneesOf(selected).some((a) => a.uid === o.uid);
-                  return (
-                    <li key={o.uid}>
+            <div ref={assignWrapRef} className="relative">
+              <button
+                type="button"
+                disabled={busy}
+                aria-haspopup="listbox"
+                aria-expanded={assignOpen}
+                onClick={() => setAssignOpen((v) => !v)}
+                className="flex w-full items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--input)] px-2.5 py-2 text-left text-sm transition hover:border-[var(--accent)] disabled:opacity-50"
+              >
+                <span className="min-w-0 flex-1 truncate">
+                  {assigneesOf(selected).length > 0
+                    ? assigneeLabel(assigneesOf(selected))
+                    : "Select officers…"}
+                </span>
+                <span
+                  className="shrink-0 text-[10px] text-[var(--muted)]"
+                  aria-hidden
+                >
+                  {assignOpen ? "▴" : "▾"}
+                </span>
+              </button>
+              {assignOpen ? (
+                <ul
+                  role="listbox"
+                  className="absolute z-20 mt-1 max-h-48 w-full space-y-1 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] p-1.5 shadow-md"
+                >
+                  {isOfficer(profile) ? (
+                    <li>
                       <button
                         type="button"
+                        role="option"
+                        aria-selected={assigneesOf(selected).some(
+                          (a) => a.uid === profile.uid,
+                        )}
                         disabled={busy}
                         onClick={() =>
                           void toggleAssignee(
-                            o.uid,
-                            o.displayName || o.email,
+                            profile.uid,
+                            profile.displayName || profile.email,
                           )
                         }
                         className={cn(
                           "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition hover:bg-[var(--surface-panel)] disabled:opacity-50",
-                          on && "bg-[var(--accent)]/10",
+                          assigneesOf(selected).some(
+                            (a) => a.uid === profile.uid,
+                          ) && "bg-[var(--accent)]/10",
                         )}
                       >
                         <span className="min-w-0 flex-1 truncate">
-                          {o.displayName || o.email}
-                          {o.officerTitle ? ` · ${o.officerTitle}` : ""}
+                          Me · {profile.displayName || profile.email}
                         </span>
-                        {on ? (
+                        {assigneesOf(selected).some(
+                          (a) => a.uid === profile.uid,
+                        ) ? (
                           <span className="text-[11px] font-semibold text-[#16794c]">
                             ✓
                           </span>
                         ) : null}
                       </button>
                     </li>
-                  );
-                })}
-            </ul>
+                  ) : null}
+                  {assignOptions
+                    .filter((o) => o.uid !== profile?.uid)
+                    .map((o) => {
+                      const on = assigneesOf(selected).some(
+                        (a) => a.uid === o.uid,
+                      );
+                      return (
+                        <li key={o.uid}>
+                          <button
+                            type="button"
+                            role="option"
+                            aria-selected={on}
+                            disabled={busy}
+                            onClick={() =>
+                              void toggleAssignee(o.uid, o.name)
+                            }
+                            className={cn(
+                              "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition hover:bg-[var(--surface-panel)] disabled:opacity-50",
+                              on && "bg-[var(--accent)]/10",
+                            )}
+                          >
+                            <span className="min-w-0 flex-1 truncate">
+                              {o.name}
+                              {o.title ? ` · ${o.title}` : ""}
+                            </span>
+                            {on ? (
+                              <span className="text-[11px] font-semibold text-[#16794c]">
+                                ✓
+                              </span>
+                            ) : null}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  {assignOptions.filter((o) => o.uid !== profile?.uid).length ===
+                    0 && !isOfficer(profile) ? (
+                    <li className="px-2 py-2 text-xs text-[var(--muted)]">
+                      No officers available.
+                    </li>
+                  ) : null}
+                </ul>
+              ) : null}
+            </div>
             {assigneesOf(selected).length > 0 ? (
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-xs text-[var(--muted)]">
@@ -808,10 +1109,8 @@ export function IncidentDetail({
                   (pipelineNext.status === "dispatched" &&
                     !reportHasAssignee(selected)) ||
                   (pipelineNext.status === "done" &&
-                    !(
-                      selected.fieldEvidence &&
-                      selected.fieldEvidence.length > 0
-                    ))
+                    !fieldReport.recordedAt &&
+                    !fieldReportDraft.trim())
                 }
                 onClick={() => void advanceStatus(pipelineNext.status)}
               >
@@ -842,9 +1141,10 @@ export function IncidentDetail({
               Assign an officer before marking dispatched.
             </p>
           ) : pipelineNext?.status === "done" &&
-            !(selected.fieldEvidence && selected.fieldEvidence.length > 0) ? (
+            !fieldReport.recordedAt &&
+            !fieldReportDraft.trim() ? (
             <p className="mt-2 text-xs text-[var(--muted)]">
-              Upload field photos below before marking done.
+              Fill the field report before marking done.
             </p>
           ) : null}
 
@@ -902,13 +1202,42 @@ export function IncidentDetail({
                     onChange={
                       p.manual
                         ? (e) => {
+                            const checked = e.target.checked;
                             void (async () => {
                               setBusy(true);
                               try {
-                                await setReportManualDispatchChecked(
-                                  selected.id,
-                                  e.target.checked,
-                                );
+                                if (checked && p.id === "dispatch") {
+                                  await setReportManualDispatchChecked(
+                                    selected.id,
+                                    true,
+                                  );
+                                  if (
+                                    selected.status === "legit" ||
+                                    selected.status === "assigned"
+                                  ) {
+                                    await updateReportStatus(
+                                      selected.id,
+                                      "dispatched",
+                                    );
+                                  }
+                                  // After mark dispatch → auto-dispatch responders.
+                                  await triggerAutoResponderCall({
+                                    ...selected,
+                                    status: "legit",
+                                    autoResponderCallAt:
+                                      selected.autoResponderCallAt ?? null,
+                                  });
+                                } else if (p.id === "dispatch") {
+                                  await setReportManualDispatchChecked(
+                                    selected.id,
+                                    false,
+                                  );
+                                } else {
+                                  await setReportManualDispatchChecked(
+                                    selected.id,
+                                    checked,
+                                  );
+                                }
                               } finally {
                                 setBusy(false);
                               }
@@ -918,15 +1247,26 @@ export function IncidentDetail({
                     }
                     className="mt-0.5 size-3.5 shrink-0 accent-[var(--accent)] disabled:opacity-100"
                   />
-                  <div className="min-w-0">
-                    <p
-                      className={cn(
-                        "text-sm font-medium",
-                        p.done && "text-[var(--muted)] line-through",
-                      )}
-                    >
-                      {p.label}
-                    </p>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <p
+                        className={cn(
+                          "text-sm font-medium",
+                          p.done && "text-[var(--muted)] line-through",
+                        )}
+                      >
+                        {p.label}
+                      </p>
+                      {p.brand === "twilio" ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src="/brands/twilio.png"
+                          alt="Twilio"
+                          title="Twilio"
+                          className="mt-0.5 h-3.5 w-auto shrink-0 opacity-55"
+                        />
+                      ) : null}
+                    </div>
                     <p className="mt-0.5 text-xs text-[var(--muted)]">
                       {p.detail}
                     </p>
@@ -1075,8 +1415,8 @@ export function IncidentDetail({
               Authorized response plan
             </p>
             <p className="mt-1 text-xs text-[var(--muted)]">
-              Edit the draft, then record. This is the human-approved plan,
-              distinct from AI proposals above.
+              Edit the draft, then record. Human-approved plan, distinct from AI
+              proposals and the field report.
             </p>
             <textarea
               value={planDraft}
@@ -1101,15 +1441,53 @@ export function IncidentDetail({
               ) : null}
             </div>
           </div>
+
+          <div className="mt-4 border border-[var(--border)] bg-[var(--surface-raised)] p-3">
+            <p className="font-mono text-[9px] tracking-[0.16em] text-[var(--accent)] uppercase">
+              Field report · required before done
+            </p>
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              What the officer found on site. Required to mark done. Not the
+              authorized plan.
+            </p>
+            <textarea
+              value={fieldReportDraft}
+              onChange={(e) => setFieldReportDraft(e.target.value)}
+              rows={3}
+              placeholder="e.g. Fire out · structure damaged · no injuries · BFP cleared scene…"
+              className="mt-2 w-full resize-y border border-[var(--border)] bg-[var(--input)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+            />
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                disabled={!fieldReportDraft.trim()}
+                onClick={() => {
+                  if (!fieldReportDraft.trim()) return;
+                  setFieldReport({
+                    notes: fieldReportDraft.trim(),
+                    recordedAt: new Date().toISOString(),
+                  });
+                }}
+              >
+                Record field report
+              </Button>
+              {fieldReport.recordedAt ? (
+                <span className="text-[11px] text-[var(--muted)]">
+                  Recorded {new Date(fieldReport.recordedAt).toLocaleString()}
+                </span>
+              ) : null}
+            </div>
+          </div>
         </section>
       </div>
 
       <section className="border-t border-[var(--border)] px-4 py-4 sm:px-5">
         <p className="font-mono text-[9px] tracking-[0.16em] text-[var(--muted)] uppercase">
-          Field photos · required before done
+          Field photos · optional
         </p>
         <p className="mt-0.5 text-xs text-[var(--muted)]">
-          Upload on-site images before marking this incident done. Images only.
+          On-site images if available. Not required to mark done.
         </p>
         <label className="mt-2 block">
           <span className="sr-only">Upload field photos</span>
@@ -1257,9 +1635,11 @@ function Meta({ label, value }: { label: string; value: string }) {
 function TrustMeter({
   score,
   breakdown,
+  aiSource,
 }: {
   score: number | null;
   breakdown: ReportTrustBreakdown | null;
+  aiSource?: HazardReport["aiSource"];
 }) {
   const total = score ?? 0;
   const slices = [
@@ -1267,21 +1647,25 @@ function TrustMeter({
       key: "ID",
       value: breakdown?.identity ?? 0,
       cap: TRUST_CAPS.identity,
+      brand: null as "gemini" | null,
     },
     {
       key: "Contact",
       value: breakdown?.contact ?? 0,
       cap: TRUST_CAPS.contact,
+      brand: null as "gemini" | null,
     },
     {
       key: "Allow location · Mobile camera",
       value: breakdown?.capture ?? 0,
       cap: TRUST_CAPS.capture,
+      brand: null as "gemini" | null,
     },
     {
       key: "AI",
       value: breakdown?.ai ?? 0,
       cap: TRUST_CAPS.ai,
+      brand: (aiSource === "gemini" ? "gemini" : null) as "gemini" | null,
     },
   ] as const;
 
@@ -1332,7 +1716,16 @@ function TrustMeter({
           return (
             <li key={s.key} className="min-w-0">
               <div className="flex items-baseline justify-between gap-2 text-xs">
-                <span className="font-medium text-[var(--foreground)]">
+                <span className="inline-flex items-center gap-1 font-medium text-[var(--foreground)]">
+                  {s.brand === "gemini" ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src="/brands/gemini.png"
+                      alt=""
+                      title="Gemini"
+                      className="h-3 w-auto shrink-0 opacity-80"
+                    />
+                  ) : null}
                   {s.key}
                 </span>
                 <span className="font-mono tabular-nums text-[var(--muted)]">
