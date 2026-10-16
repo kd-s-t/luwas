@@ -55,6 +55,7 @@ import {
   createHazardReport,
   markReportValidating,
   newGuestReportId,
+  startIncidentDraft,
   updateGuestHazardReport,
   updateIncidentDraft,
   updateReportValidation,
@@ -478,10 +479,34 @@ export function CitizenReportForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- persist when the wizard step changes
   }, [draftId, step]);
 
-  function beginReport(nextIntent: Intent) {
+  async function beginReport(nextIntent: Intent) {
     setError(null);
     setIntent(nextIntent);
-    setStep("situation");
+    if (draftId) {
+      setStep("situation");
+      return;
+    }
+    setStatus(t(language, "common.saving"));
+    try {
+      const id = await startIncidentDraft({
+        author: author ?? null,
+        intent: nextIntent,
+        reportFor,
+      });
+      setDraftId(id);
+      saveGuestReportId(id);
+      setStep("situation");
+      router.replace(`/report-incident/${encodeURIComponent(id)}`);
+    } catch (err) {
+      console.error("[ugnai] startIncidentDraft failed", err);
+      setError(
+        err instanceof Error ? err.message : t(language, "errors.submitFailed"),
+      );
+      // Local wizard still works if draft create fails (offline / rules).
+      setStep("situation");
+    } finally {
+      setStatus(null);
+    }
   }
 
   function clearSavedVoice() {
@@ -1334,7 +1359,7 @@ export function CitizenReportForm({
                     aria-hidden
                   />
                 }
-                onClick={() => beginReport("needHelp")}
+                onClick={() => void beginReport("needHelp")}
               />
               <p className="px-1 text-sm text-[var(--muted)]">
                 {t(language, "home.needHelpHint")}
@@ -1346,7 +1371,7 @@ export function CitizenReportForm({
                 title={t(language, "home.reportHazard")}
                 style="outline"
                 icon={<AlertTriangle className="size-[18px]" aria-hidden />}
-                onClick={() => beginReport("reportHazard")}
+                onClick={() => void beginReport("reportHazard")}
               />
               <p className="px-1 text-sm text-[var(--muted)]">
                 {t(language, "home.reportHazardHint")}
