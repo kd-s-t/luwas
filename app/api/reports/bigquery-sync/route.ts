@@ -56,10 +56,13 @@ export async function POST(req: Request) {
     aiReason: r.aiReason ?? null,
     aiSource: r.aiSource ?? null,
     aiModel: r.aiModel ?? null,
+    aiPriority: r.aiPriority ?? null,
+    aiPriorityFactors: r.aiPriorityFactors ?? null,
     vertexClass: r.vertexClass ?? null,
     vertexConfidence:
       typeof r.vertexConfidence === "number" ? r.vertexConfidence : null,
     validatedAt: r.validatedAt ?? null,
+    assignees: Array.isArray(r.assignees) ? r.assignees : [],
     investigatorUid: r.investigatorUid ?? null,
     investigatorName: r.investigatorName ?? null,
     investigatedAt: r.investigatedAt ?? null,

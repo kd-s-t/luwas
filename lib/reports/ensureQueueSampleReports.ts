@@ -285,6 +285,19 @@ export async function ensureQueueSampleReports(): Promise<{
       aiReason: sample.aiReason,
       aiSource: "local",
       aiModel: "sample-seed",
+      aiPriority:
+        sample.status === "needs_review"
+          ? "high"
+          : sample.hazardHint === "flood" || sample.hazardHint === "landslide"
+            ? "critical"
+            : "medium",
+      aiPriorityFactors: {
+        immediateSeverity: "Sample seed · review severity on scene.",
+        peopleAffected: "Sample seed · confirm household count.",
+        existingCoverage: "Sample seed · check Resources stock.",
+        deliveryFeasibility: "Sample seed · confirm access route.",
+        evidenceQuality: sample.aiReason,
+      },
       vertexClass: null,
       vertexConfidence: null,
       validatedAt: now,

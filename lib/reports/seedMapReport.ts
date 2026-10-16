@@ -11,6 +11,11 @@ import {
   DEFAULT_REPORT_BARANGAY,
   DEFAULT_REPORT_LGU,
 } from "@/lib/reports/barangayScope";
+import { mapReportAssignees } from "@/lib/reports/assignees";
+import {
+  parsePriorityFactors,
+  parseReportPriority,
+} from "@/lib/reports/priority";
 import { EMPTY_REACTION_COUNTS } from "@/lib/reports/socialTypes";
 import { computeReportTrust } from "@/lib/reports/trustScore";
 import type {
@@ -176,6 +181,8 @@ export async function ensureMapReportInDb(
       aiReason: data.aiReason != null ? String(data.aiReason) : pin.sourceLabel,
       aiSource: (data.aiSource as HazardReport["aiSource"]) ?? "local",
       aiModel: data.aiModel != null ? String(data.aiModel) : null,
+      aiPriority: parseReportPriority(data.aiPriority) ?? "medium",
+      aiPriorityFactors: parsePriorityFactors(data.aiPriorityFactors),
       vertexClass:
         data.vertexClass != null ? String(data.vertexClass) : null,
       vertexConfidence:
@@ -190,6 +197,12 @@ export async function ensureMapReportInDb(
         data.investigatorName != null ? String(data.investigatorName) : null,
       investigatedAt:
         data.investigatedAt != null ? String(data.investigatedAt) : null,
+      assignees: mapReportAssignees(
+        data.assignees,
+        data.investigatorUid != null ? String(data.investigatorUid) : null,
+        data.investigatorName != null ? String(data.investigatorName) : null,
+        data.investigatedAt != null ? String(data.investigatedAt) : null,
+      ),
       autoResponderCallAt:
         data.autoResponderCallAt != null
           ? String(data.autoResponderCallAt)
@@ -302,9 +315,12 @@ export async function ensureMapReportInDb(
     aiReason: "Seeded from map image report",
     aiSource: "local" as const,
     aiModel: null,
+    aiPriority: null,
+    aiPriorityFactors: null,
     vertexClass: null,
     vertexConfidence: null,
     validatedAt: pin.reportedAt,
+    assignees: [],
     investigatorUid: null,
     investigatorName: null,
     investigatedAt: null,
@@ -333,5 +349,7 @@ export async function ensureMapReportInDb(
     ...row,
     citizenPhotoURL: null,
     aiModel: null,
+    aiPriority: null,
+    aiPriorityFactors: null,
   };
 }

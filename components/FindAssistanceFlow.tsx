@@ -168,56 +168,76 @@ function stepIndex(id: AssistStepId): number {
 
 function Stepper({ current }: { current: AssistStepId }) {
   const currentIdx = stepIndex(current);
+  const progressTo = Math.max(0, currentIdx);
+  const last = ASSIST_STEPS.length - 1;
+
   return (
-    <ol className="mt-5 grid gap-3 sm:grid-cols-4">
-      {ASSIST_STEPS.map((step, i) => {
-        const done = i < currentIdx;
-        const active = i === currentIdx;
-        return (
-          <li key={step.id} className="min-w-0">
-            <div className="flex items-center gap-2.5">
-              <span
+    <div className="mt-5 overflow-x-auto pb-1">
+      <ol className="mx-auto grid min-w-[28rem] grid-cols-4 gap-0 px-1">
+        <li className="relative col-span-4 h-8" aria-hidden>
+          <span className="absolute top-1/2 right-[12.5%] left-[12.5%] h-0.5 -translate-y-1/2 bg-[var(--border)]" />
+          <span
+            className="absolute top-1/2 left-[12.5%] h-0.5 -translate-y-1/2 bg-[#86efac]"
+            style={{
+              width:
+                last <= 0 ? "0%" : `${(progressTo / last) * 75}%`,
+            }}
+          />
+          <ol className="relative z-[1] grid h-full grid-cols-4">
+            {ASSIST_STEPS.map((step, i) => {
+              const done = i < currentIdx;
+              const active = i === currentIdx;
+              return (
+                <li
+                  key={`${step.id}-dot`}
+                  className="flex items-center justify-center"
+                >
+                  <span
+                    className={cn(
+                      "flex size-8 shrink-0 items-center justify-center rounded-full text-[12px] font-semibold",
+                      done && "bg-[#16794c] text-white",
+                      active &&
+                        "bg-[#2f5f9e] text-white ring-4 ring-[#2f5f9e]/15",
+                      !done &&
+                        !active &&
+                        "bg-[var(--foreground)]/6 text-[var(--muted)]",
+                    )}
+                  >
+                    {done ? "✓" : i + 1}
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
+        </li>
+        {ASSIST_STEPS.map((step, i) => {
+          const done = i < currentIdx;
+          const active = i === currentIdx;
+          return (
+            <li
+              key={step.id}
+              className="mt-2.5 min-w-0 px-1 text-center"
+            >
+              <p
                 className={cn(
-                  "flex size-8 shrink-0 items-center justify-center rounded-full text-[12px] font-semibold",
-                  done && "bg-[#16794c] text-white",
-                  active && "bg-[#2f5f9e] text-white ring-4 ring-[#2f5f9e]/15",
-                  !done &&
-                    !active &&
-                    "bg-[var(--foreground)]/6 text-[var(--muted)]",
+                  "text-[12px] font-semibold tracking-tight sm:text-[13px]",
+                  active
+                    ? "text-[#2f5f9e]"
+                    : done
+                      ? "text-[#16794c]"
+                      : "text-[var(--muted)]",
                 )}
               >
-                {done ? "✓" : i + 1}
-              </span>
-              <div className="min-w-0">
-                <p
-                  className={cn(
-                    "truncate text-[13px] font-semibold tracking-tight",
-                    active
-                      ? "text-[#2f5f9e]"
-                      : done
-                        ? "text-[#16794c]"
-                        : "text-[var(--muted)]",
-                  )}
-                >
-                  {step.label}
-                </p>
-                <p className="truncate text-[11px] text-[var(--muted)]">
-                  {done ? "Reviewed" : active ? "Current" : "Next"}
-                </p>
-              </div>
-            </div>
-            <div
-              className={cn(
-                "mt-2.5 h-1 rounded-full",
-                done && "bg-[#16794c]",
-                active && "bg-[#2f5f9e]",
-                !done && !active && "bg-[var(--border)]",
-              )}
-            />
-          </li>
-        );
-      })}
-    </ol>
+                {step.label}
+              </p>
+              <p className="mt-0.5 text-[11px] text-[var(--muted)]">
+                {done ? "Reviewed" : active ? "Current" : "Next"}
+              </p>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
   );
 }
 

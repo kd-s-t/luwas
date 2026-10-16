@@ -233,6 +233,19 @@ async function ensureApasReports(): Promise<number> {
       aiReason: sample.aiReason,
       aiSource: "local",
       aiModel: "apas-sample-seed",
+      aiPriority:
+        sample.status === "rejected"
+          ? "low"
+          : sample.hazardHint === "flood" || sample.hazardHint === "fire"
+            ? "high"
+            : "medium",
+      aiPriorityFactors: {
+        immediateSeverity: "Apas sample seed.",
+        peopleAffected: "Confirm on scene.",
+        existingCoverage: "Check local stock.",
+        deliveryFeasibility: "Confirm access.",
+        evidenceQuality: sample.aiReason,
+      },
       vertexClass: null,
       vertexConfidence: null,
       validatedAt: sample.status === "queued" ? null : now,

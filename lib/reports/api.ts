@@ -21,6 +21,11 @@ import {
 } from "@/lib/reports/barangayScope";
 import { mapDispatchLog } from "@/lib/reports/dispatchLog";
 import { resolveReportMediaUrl } from "@/lib/reports/mediaUrl";
+import { mapReportAssignees } from "@/lib/reports/assignees";
+import {
+  parsePriorityFactors,
+  parseReportPriority,
+} from "@/lib/reports/priority";
 import { EMPTY_REACTION_COUNTS } from "@/lib/reports/socialTypes";
 import {
   computeReportTrust,
@@ -29,10 +34,13 @@ import {
 import type {
   FieldEvidenceImage,
   HazardReport,
+  ReportAssignee,
   ReportDraftStep,
   ReportHazardHint,
   ReportMediaSource,
   ReportMediaType,
+  ReportPriority,
+  ReportPriorityFactors,
   ReportStatus,
 } from "@/lib/reports/types";
 import { sanitizeGuestReporterPhone } from "@/lib/auth/demoAccount";
@@ -193,6 +201,8 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
     aiReason: data.aiReason != null ? String(data.aiReason) : null,
     aiSource: (data.aiSource as HazardReport["aiSource"]) ?? null,
     aiModel: data.aiModel != null ? String(data.aiModel) : null,
+    aiPriority: parseReportPriority(data.aiPriority),
+    aiPriorityFactors: parsePriorityFactors(data.aiPriorityFactors),
     vertexClass: data.vertexClass != null ? String(data.vertexClass) : null,
     vertexConfidence:
       typeof data.vertexConfidence === "number"
@@ -207,6 +217,12 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
       data.investigatorName != null ? String(data.investigatorName) : null,
     investigatedAt:
       data.investigatedAt != null ? String(data.investigatedAt) : null,
+    assignees: mapReportAssignees(
+      data.assignees,
+      data.investigatorUid != null ? String(data.investigatorUid) : null,
+      data.investigatorName != null ? String(data.investigatorName) : null,
+      data.investigatedAt != null ? String(data.investigatedAt) : null,
+    ),
     autoResponderCallAt:
       data.autoResponderCallAt != null
         ? String(data.autoResponderCallAt)
@@ -331,9 +347,12 @@ export async function startIncidentDraft(input: {
     aiReason: null,
     aiSource: null,
     aiModel: null,
+    aiPriority: null,
+    aiPriorityFactors: null,
     vertexClass: null,
     vertexConfidence: null,
     validatedAt: null,
+    assignees: [],
     investigatorUid: null,
     investigatorName: null,
     investigatedAt: null,
@@ -509,9 +528,12 @@ export async function createGuestHazardReport(input: {
     aiReason: input.aiReason?.trim() || null,
     aiSource: aiVerdict ? "gemini" : "local",
     aiModel: null,
+    aiPriority: null,
+    aiPriorityFactors: null,
     vertexClass: input.vertexClass ?? null,
     vertexConfidence: input.vertexConfidence ?? null,
     validatedAt: aiVerdict ? now : null,
+    assignees: [],
     investigatorUid: null,
     investigatorName: null,
     investigatedAt: null,
@@ -606,6 +628,8 @@ export async function updateGuestHazardReport(input: {
     aiReason: null,
     aiSource: null,
     aiModel: null,
+    aiPriority: null,
+    aiPriorityFactors: null,
     vertexClass: null,
     vertexConfidence: null,
     validatedAt: null,
@@ -701,9 +725,12 @@ export async function createHazardReport(input: {
     aiReason: null,
     aiSource: null,
     aiModel: null,
+    aiPriority: null,
+    aiPriorityFactors: null,
     vertexClass: null,
     vertexConfidence: null,
     validatedAt: null,
+    assignees: [],
     investigatorUid: null,
     investigatorName: null,
     investigatedAt: null,
@@ -731,7 +758,60 @@ const QUEUE_FOR_ASSIGN = new Set<ReportStatus>([
   "failed",
 ]);
 
-/** Assign (or clear) the officer who will investigate this incident. */
+/** Replace the full assignee list (multi-assign). Lead fields mirror the first. */
+export async function setReportAssignees(input: {
+  reportId: string;
+  assignees: { uid: string; name: string; assignedAt?: string }[];
+  /** When true (default), move queue → assigned when any officer is set. */
+  advanceStatus?: boolean;
+}): Promise<void> {
+  const now = new Date().toISOString();
+  const ref = doc(getClientDb(), COL, input.reportId);
+  const snap = await getDoc(ref);
+  const data = (snap.data() ?? {}) as Record<string, unknown>;
+  const existing = mapReportAssignees(
+    data.assignees,
+    data.investigatorUid != null ? String(data.investigatorUid) : null,
+    data.investigatorName != null ? String(data.investigatorName) : null,
+    data.investigatedAt != null ? String(data.investigatedAt) : null,
+  );
+  const priorAt = new Map(existing.map((a) => [a.uid, a.assignedAt]));
+
+  const cleaned: ReportAssignee[] = [];
+  for (const row of input.assignees) {
+    const uid = row.uid.trim();
+    if (!uid || cleaned.some((a) => a.uid === uid)) continue;
+    cleaned.push({
+      uid,
+      name: row.name.trim().slice(0, 120) || uid,
+      assignedAt: row.assignedAt || priorAt.get(uid) || now,
+    });
+  }
+
+  const lead = cleaned[0] ?? null;
+  const patch: Record<string, unknown> = {
+    assignees: cleaned,
+    investigatorUid: lead?.uid ?? null,
+    investigatorName: lead?.name ?? null,
+    investigatedAt: lead?.assignedAt ?? null,
+    updatedAt: now,
+    updatedAtServer: serverTimestamp(),
+  };
+
+  const cur = (data.status as ReportStatus | undefined) ?? "queued";
+  if (input.advanceStatus !== false && cleaned.length > 0) {
+    if (QUEUE_FOR_ASSIGN.has(cur)) {
+      patch.status = "assigned";
+    }
+  }
+  if (cleaned.length === 0 && cur === "assigned") {
+    patch.status = "queued";
+  }
+
+  await updateDoc(ref, patch);
+}
+
+/** Assign (or clear) a single lead investigator. Prefer setReportAssignees for multi. */
 export async function assignReportInvestigator(input: {
   reportId: string;
   investigatorUid: string | null;
@@ -739,32 +819,24 @@ export async function assignReportInvestigator(input: {
   /** When true (default), move queue → assigned on first assign. */
   advanceStatus?: boolean;
 }): Promise<void> {
-  const now = new Date().toISOString();
-  const ref = doc(getClientDb(), COL, input.reportId);
-  const patch: Record<string, unknown> = {
-    investigatorUid: input.investigatorUid,
-    investigatorName: input.investigatorName?.trim().slice(0, 120) || null,
-    investigatedAt: input.investigatorUid ? now : null,
-    updatedAt: now,
-    updatedAtServer: serverTimestamp(),
-  };
-
-  if (input.advanceStatus !== false && input.investigatorUid) {
-    const snap = await getDoc(ref);
-    const cur = (snap.data()?.status as ReportStatus | undefined) ?? "queued";
-    if (QUEUE_FOR_ASSIGN.has(cur)) {
-      patch.status = "assigned";
-    }
-  }
   if (!input.investigatorUid) {
-    const snap = await getDoc(ref);
-    const cur = (snap.data()?.status as ReportStatus | undefined) ?? null;
-    if (cur === "assigned") {
-      patch.status = "queued";
-    }
+    await setReportAssignees({
+      reportId: input.reportId,
+      assignees: [],
+      advanceStatus: input.advanceStatus,
+    });
+    return;
   }
-
-  await updateDoc(ref, patch);
+  await setReportAssignees({
+    reportId: input.reportId,
+    assignees: [
+      {
+        uid: input.investigatorUid,
+        name: input.investigatorName?.trim() || input.investigatorUid,
+      },
+    ],
+    advanceStatus: input.advanceStatus,
+  });
 }
 
 /** Toggle officer “Dispatch someone” checklist (manual, not tied to status). */
@@ -853,6 +925,8 @@ export async function updateReportValidation(
     aiReason: string | null;
     aiSource: HazardReport["aiSource"];
     aiModel: string | null;
+    aiPriority?: ReportPriority | null;
+    aiPriorityFactors?: ReportPriorityFactors | null;
     vertexClass?: string | null;
     vertexConfidence?: number | null;
     validatedAt: string | null;

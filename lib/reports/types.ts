@@ -27,6 +27,38 @@ export type ReportHazardHint =
   | "evac"
   | "other";
 
+/** Officer assigned to investigate / respond on an incident. */
+export type ReportAssignee = {
+  uid: string;
+  name: string;
+  assignedAt: string;
+};
+
+/** Gemini resource / response priority for an incident report. */
+export type ReportPriority = "critical" | "high" | "medium" | "low";
+
+/** Why Gemini chose a priority (resource allocation factors). */
+export type ReportPriorityFactors = {
+  immediateSeverity: string;
+  peopleAffected: string;
+  existingCoverage: string;
+  deliveryFeasibility: string;
+  evidenceQuality: string;
+};
+
+export function reportPriorityLabel(priority: ReportPriority): string {
+  switch (priority) {
+    case "critical":
+      return "P1 Critical";
+    case "high":
+      return "P2 High";
+    case "medium":
+      return "P3 Medium";
+    case "low":
+      return "P4 Low";
+  }
+}
+
 /**
  * Situation is locked to Tino (Rai) / Cat 5 peak (CAT5_DURING).
  * Show storm name + SSHS category on typhoon reports.
@@ -136,11 +168,20 @@ export type HazardReport = {
   aiReason: string | null;
   aiSource: "gemini" | "local" | null;
   aiModel: string | null;
+  /** Gemini (or local fallback) response priority. */
+  aiPriority: ReportPriority | null;
+  /** Factor notes behind aiPriority. */
+  aiPriorityFactors: ReportPriorityFactors | null;
   /** Vertex AutoML top class (e.g. flood, accident, unrelated). */
   vertexClass: string | null;
   vertexConfidence: number | null;
   validatedAt: string | null;
-  /** Officer assigned to investigate this incident. */
+  /**
+   * Officers assigned to this incident (multi-assign).
+   * `investigatorUid` / `investigatorName` mirror the lead (first) assignee.
+   */
+  assignees: ReportAssignee[];
+  /** Lead investigator (first assignee). Kept for older readers. */
   investigatorUid: string | null;
   investigatorName: string | null;
   investigatedAt: string | null;

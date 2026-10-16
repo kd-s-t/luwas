@@ -36,6 +36,8 @@ export function HomeNav({ overlay = false }: HomeNavProps) {
     pathname === "/reports" || pathname.startsWith("/reports/");
   const onTrackReport =
     pathname === "/track-report" || pathname.startsWith("/track-report/");
+  const onEvacCenters =
+    pathname === "/evac-centers" || pathname.startsWith("/evac-centers/");
   const onOverview = pathname.startsWith("/admin");
   const onReportIncident =
     pathname === "/report-incident" ||
@@ -133,6 +135,9 @@ export function HomeNav({ overlay = false }: HomeNavProps) {
 
         {/* Desktop links */}
         <nav className="relative z-10 ml-auto hidden items-center justify-end gap-x-4 text-sm md:flex">
+          <Link href="/evac-centers" className={navLinkClass(onEvacCenters)}>
+            Evac centers
+          </Link>
           <Link href="/reports" className={navLinkClass(onReports)}>
             Reports
           </Link>
@@ -193,6 +198,13 @@ export function HomeNav({ overlay = false }: HomeNavProps) {
             id={menuId}
             className="absolute inset-x-3 top-full z-50 mt-1 flex flex-col gap-3 border border-[var(--border)] bg-[var(--surface)] px-4 py-4 text-sm shadow-sm md:hidden"
           >
+            <Link
+              href="/evac-centers"
+              className={navLinkClass(onEvacCenters)}
+              onClick={() => setMenuOpen(false)}
+            >
+              Evac centers
+            </Link>
             <Link
               href="/reports"
               className={navLinkClass(onReports)}

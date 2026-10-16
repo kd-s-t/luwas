@@ -24,7 +24,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { BrandLogoOnDark } from "@/components/BrandLogo";
-import { CommandBarangaySwitcher } from "@/components/CommandBarangaySwitcher";
 import { CommandNotifications } from "@/components/CommandNotifications";
 import {
   CommandWorkspaceProvider,
@@ -114,6 +113,12 @@ const SECONDARY: {
     label: "Inventory",
     icon: Boxes,
     match: (p) => p.startsWith("/admin/inventory"),
+  },
+  {
+    href: "/admin/evac-centers",
+    label: "Evac centers",
+    icon: Home,
+    match: (p) => p.startsWith("/admin/evac-centers"),
   },
 ];
 
@@ -226,7 +231,7 @@ function CommandShellInner({ children, fill = false }: CommandShellProps) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex items-center justify-between rounded-lg px-3 py-2 text-[13px] transition",
+                  "flex shrink-0 items-center justify-between rounded-lg px-3 py-2 text-[13px] transition",
                   active
                     ? "bg-white/12 text-white"
                     : "text-white/55 hover:bg-white/8 hover:text-white/90",
@@ -242,10 +247,8 @@ function CommandShellInner({ children, fill = false }: CommandShellProps) {
             );
           })}
         </div>
-      </nav>
 
-      <div className="mt-auto shrink-0 space-y-3 px-3 pb-4">
-        <div className="rounded-xl border border-[#2a4a7a]/50 bg-[#16325a]/80 px-3.5 py-3 text-[11px] leading-relaxed text-white/80">
+        <div className="mt-4 shrink-0 rounded-xl border border-[#2a4a7a]/50 bg-[#16325a]/80 px-3.5 py-3 text-[11px] leading-relaxed text-white/80">
           <p className="flex items-start gap-2">
             <Shield className="mt-0.5 size-3.5 shrink-0 text-[#7eb6ff]" aria-hidden />
             <span>
@@ -254,11 +257,9 @@ function CommandShellInner({ children, fill = false }: CommandShellProps) {
             </span>
           </p>
         </div>
+      </nav>
 
-        <div className="px-1">
-          <CommandBarangaySwitcher tone="dark" className="block w-full max-w-none" />
-        </div>
-
+      <div className="mt-auto shrink-0 border-t border-white/10 px-3 pt-3 pb-4">
         <div className="flex items-center gap-2.5 rounded-lg px-2 py-2">
           <ProfileAvatar
             name={displayName}
@@ -330,7 +331,6 @@ function CommandShellInner({ children, fill = false }: CommandShellProps) {
           </Link>
           <div className="ml-auto flex items-center gap-2">
             <CommandNotifications />
-            <CommandBarangaySwitcher />
           </div>
         </div>
 
