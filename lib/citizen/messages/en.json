@@ -16,7 +16,8 @@
     "copied": "Copied",
     "removePhoto": "Remove photo",
     "pending": "Pending",
-    "saving": "Saving to UGNAI…"
+    "saving": "Saving to UGNAI…",
+    "submitting": "Submitting to UGNAI…"
   },
   "errors": {
     "situationShort": "Describe what’s happening (optional).",

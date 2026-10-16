@@ -1,30 +1,53 @@
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
-import { getClientStorage } from "@/lib/firebase/client";
-
 const MAX_BYTES = 28 * 1024 * 1024;
 
+/**
+ * Upload report photo/voice via same-origin API (Admin GCS).
+ * Avoids browser → Firebase Storage CORS on the custom media bucket.
+ */
 export async function uploadReportMedia(input: {
   citizenUid: string;
   reportId: string;
   file: File;
+  kind?: "photo" | "voice";
 }): Promise<{ mediaPath: string; mediaUrl: string; mediaMime: string }> {
   if (input.file.size > MAX_BYTES) {
     throw new Error("Media must be under 28 MB.");
   }
 
-  const safeName = input.file.name.replace(/[^\w.\-]+/g, "_").slice(0, 80);
-  const mediaPath = `reports/${input.citizenUid}/${input.reportId}/${safeName}`;
-  const storageRef = ref(getClientStorage(), mediaPath);
+  const kind =
+    input.kind ??
+    (input.file.type.startsWith("audio/") || input.file.type.includes("webm")
+      ? "voice"
+      : "photo");
 
-  await uploadBytes(storageRef, input.file, {
-    contentType: input.file.type || "application/octet-stream",
+  const body = new FormData();
+  body.set("reportId", input.reportId);
+  body.set("citizenUid", input.citizenUid);
+  body.set("kind", kind);
+  body.set(
+    "file",
+    input.file,
+    input.file.name || `${kind}.bin`,
+  );
+
+  const res = await fetch("/api/reports/guest-upload", {
+    method: "POST",
+    body,
   });
+  const data = (await res.json().catch(() => ({}))) as {
+    error?: string;
+    mediaPath?: string;
+    mediaUrl?: string;
+    mediaMime?: string;
+  };
+  if (!res.ok || !data.mediaUrl || !data.mediaPath) {
+    throw new Error(data.error || "Media upload failed");
+  }
 
-  const mediaUrl = await getDownloadURL(storageRef);
   return {
-    mediaPath,
-    mediaUrl,
-    mediaMime: input.file.type || "application/octet-stream",
+    mediaPath: data.mediaPath,
+    mediaUrl: data.mediaUrl,
+    mediaMime: data.mediaMime || input.file.type || "application/octet-stream",
   };
 }
 
