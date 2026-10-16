@@ -13,9 +13,10 @@ type BrandLogoProps = {
   wordmarkClassName?: string;
 };
 
-const LOGO_SRC = "/brand/ugnai-logo.jpg";
+/** Transparent shield mark (no white canvas). */
+const LOGO_MARK_SRC = "/brand/ugnai-logo-mark.png";
 
-/** Official UGNAI mark from `public/brand/ugnai-logo.jpg`. */
+/** Official UGNAI mark — transparent PNG for light and dark chrome. */
 export function BrandMark({
   className,
   size = 28,
@@ -25,9 +26,9 @@ export function BrandMark({
   tone?: BrandTone;
 }) {
   return (
-    // eslint-disable-next-line @next/next/no-img-element -- brand mark from single jpg asset
+    // eslint-disable-next-line @next/next/no-img-element -- brand mark asset
     <img
-      src={LOGO_SRC}
+      src={LOGO_MARK_SRC}
       alt=""
       width={size}
       height={size}
