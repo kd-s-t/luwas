@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   useEffect,
   useMemo,
@@ -19,20 +20,26 @@ import {
   updateBarangayInventoryQty,
 } from "@/lib/inventory/api";
 import { ACTIVE_INVENTORY_BARANGAYS } from "@/lib/inventory/activeBarangays";
+import { INVENTORY_STATE_EXAMPLES } from "@/lib/inventory/seed";
 import {
   formatInventoryDispatchWhen,
   inventoryCategoryLabel,
   inventoryDispatchStatusLabel,
   inventoryHistoryKindLabel,
+  netDispatchedQty,
+  openDispatchReportIds,
   type InventoryCategory,
   type InventoryItem,
 } from "@/lib/inventory/types";
+import { getHazardReportById } from "@/lib/reports/api";
 import { APAS_BARANGAY_DOC_ID } from "@/lib/staff/apasStaff";
 import {
   NANGKA_BARANGAY_ID,
   NANGKA_ORG_NAME,
 } from "@/lib/staff/nangkaStaff";
 import { cn } from "@/lib/utils";
+
+type TicketMeta = { id: string; title: string };
 
 const CATEGORY_OPTIONS: InventoryCategory[] = [
   "vehicle",
@@ -84,6 +91,7 @@ export function InventoryPanel() {
   const [timelineOpen, setTimelineOpen] = useState<Record<string, boolean>>(
     {},
   );
+  const [tickets, setTickets] = useState<Record<string, TicketMeta>>({});
 
   const [label, setLabel] = useState("");
   const [category, setCategory] = useState<InventoryCategory>("supply");
@@ -119,10 +127,71 @@ export function InventoryPanel() {
     if (!isOfficer(profile) || !isAccountActive(profile)) return;
     if (seeded.current) return;
     seeded.current = true;
-    void ensureActiveBarangayInventory().catch(() => {
-      seeded.current = false;
-    });
+    void ensureActiveBarangayInventory()
+      .catch(() => {
+        seeded.current = false;
+      });
   }, [profile]);
+
+  const linkedReportIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const row of rows) {
+      if (row.lastDispatch?.reportId) ids.add(row.lastDispatch.reportId);
+      for (const h of row.history) {
+        if (h.reportId) ids.add(h.reportId);
+      }
+    }
+    return [...ids];
+  }, [rows]);
+
+  useEffect(() => {
+    if (linkedReportIds.length === 0) return;
+    let cancelled = false;
+    void (async () => {
+      const next: Record<string, TicketMeta> = {};
+      await Promise.all(
+        linkedReportIds.map(async (id) => {
+          try {
+            const report = await getHazardReportById(id);
+            if (report) {
+              next[id] = {
+                id: report.id,
+                title: report.title?.trim() || report.id,
+              };
+            }
+          } catch {
+            /* ignore missing ticket */
+          }
+        }),
+      );
+      if (!cancelled) {
+        setTickets((prev) => ({ ...prev, ...next }));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [linkedReportIds]);
+
+  function ticketLink(reportId: string) {
+    const meta = tickets[reportId];
+    return (
+      <p className="text-[12px]">
+        <span className="text-[var(--muted)]">Incident ticket · </span>
+        <Link
+          href={`/admin/incidents/${encodeURIComponent(reportId)}`}
+          className="font-medium text-[var(--accent)] underline-offset-2 hover:underline"
+        >
+          {meta?.title ?? reportId}
+        </Link>
+        {meta ? (
+          <span className="mt-0.5 block font-mono text-[10px] text-[var(--muted)]">
+            {reportId}
+          </span>
+        ) : null}
+      </p>
+    );
+  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -243,6 +312,34 @@ export function InventoryPanel() {
           </button>
         </div>
       </FadeIn>
+
+      <div className="rounded-2xl border border-[var(--border)] bg-white px-4 py-3 shadow-sm sm:px-5">
+        <p className="font-mono text-[9px] tracking-wider text-[var(--muted)] uppercase">
+          Status examples
+        </p>
+        <ul className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          {INVENTORY_STATE_EXAMPLES.map((s) => (
+            <li
+              key={s.id}
+              className="rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2"
+            >
+              <span
+                className={cn(
+                  "inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1",
+                  s.tone === "out"
+                    ? "bg-[#fff7ed] text-[#c2410c] ring-[#fdba74]/70"
+                    : s.tone === "warn"
+                      ? "bg-[#fffbeb] text-[#b45309] ring-[#fcd34d]/70"
+                      : "bg-[#ecfdf3] text-[#16794c] ring-[#86efac]/60",
+                )}
+              >
+                {s.label}
+              </span>
+              <p className="mt-1.5 text-[12px] text-[var(--muted)]">{s.detail}</p>
+            </li>
+          ))}
+        </ul>
+      </div>
 
       {msg ? (
         <p className="rounded-xl border border-[#86efac]/60 bg-[#ecfdf3] px-3 py-2 text-sm text-[#16794c]">
@@ -422,24 +519,69 @@ export function InventoryPanel() {
                                   item.dispatchStatus,
                                 )}
                               </span>
+                              {item.dispatchStatus === "on_hand" &&
+                              item.available <= 0 ? (
+                                <span className="rounded-full bg-[#fffbeb] px-2 py-0.5 text-[10px] font-semibold text-[#b45309] ring-1 ring-[#fcd34d]/70">
+                                  Short
+                                </span>
+                              ) : null}
+                              {item.dispatchStatus === "on_hand" &&
+                              item.history.some((h) => h.kind === "return") ? (
+                                <span className="rounded-full bg-[#eff6ff] px-2 py-0.5 text-[10px] font-semibold text-[#1d4ed8] ring-1 ring-[#93c5fd]/70">
+                                  Returned
+                                </span>
+                              ) : null}
                             </div>
-                            <p className="mt-0.5 text-[12px] text-[var(--foreground)]">
-                              Stored at {item.location?.trim() || "Location TBD"}
+                            <p className="mt-1.5 font-mono text-[9px] tracking-wider text-[var(--muted)] uppercase">
+                              Location
+                            </p>
+                            <p className="text-sm font-medium text-[var(--foreground)]">
+                              {item.location?.trim() || "Location TBD"}
                             </p>
                             {item.notes ? (
-                              <p className="mt-0.5 text-[12px] text-[var(--muted)]">
+                              <p className="mt-1 text-[12px] text-[var(--muted)]">
                                 {item.notes}
                               </p>
                             ) : null}
-                            {item.lastDispatch ? (
-                              <p className="mt-1 text-[12px] text-[var(--foreground)]">
-                                Latest: {item.lastDispatch.qty} {item.unit} by{" "}
-                                {item.lastDispatch.byName} ·{" "}
-                                {formatInventoryDispatchWhen(
-                                  item.lastDispatch.at,
-                                )}
-                              </p>
-                            ) : null}
+                            {(() => {
+                              const outQty = netDispatchedQty(item.history);
+                              const openTickets = openDispatchReportIds(
+                                item.history,
+                              );
+                              if (outQty <= 0 && !item.lastDispatch) return null;
+                              return (
+                                <div className="mt-2 space-y-1.5">
+                                  {outQty > 0 ? (
+                                    <p className="text-[12px] font-medium text-[var(--foreground)]">
+                                      {item.available} {item.unit} on hand ·{" "}
+                                      {outQty} {item.unit} out · fleet{" "}
+                                      {item.available + outQty}
+                                    </p>
+                                  ) : item.lastDispatch ? (
+                                    <p className="text-[12px] text-[var(--foreground)]">
+                                      Latest: {item.lastDispatch.qty}{" "}
+                                      {item.unit} by {item.lastDispatch.byName}{" "}
+                                      ·{" "}
+                                      {formatInventoryDispatchWhen(
+                                        item.lastDispatch.at,
+                                      )}
+                                    </p>
+                                  ) : null}
+                                  {openTickets.length > 0 ? (
+                                    <div className="space-y-1">
+                                      <p className="font-mono text-[9px] tracking-wider text-[var(--muted)] uppercase">
+                                        Out on incident tickets
+                                      </p>
+                                      {openTickets.map((id) => (
+                                        <div key={id}>{ticketLink(id)}</div>
+                                      ))}
+                                    </div>
+                                  ) : item.lastDispatch?.reportId ? (
+                                    ticketLink(item.lastDispatch.reportId)
+                                  ) : null}
+                                </div>
+                              );
+                            })()}
                           </div>
                         </div>
                         <div className="flex flex-col items-end gap-2">
@@ -555,6 +697,11 @@ export function InventoryPanel() {
                                     {formatInventoryDispatchWhen(event.at)}
                                     {event.note ? ` · ${event.note}` : ""}
                                   </p>
+                                  {event.reportId ? (
+                                    <div className="mt-0.5">
+                                      {ticketLink(event.reportId)}
+                                    </div>
+                                  ) : null}
                                 </li>
                               ))}
                             </ol>

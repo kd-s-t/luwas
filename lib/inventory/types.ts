@@ -20,6 +20,8 @@ export type InventoryHistoryEvent = {
   byName: string;
   at: string;
   note?: string;
+  /** Linked incident ticket when dispatched for a report. */
+  reportId?: string;
 };
 
 /** @deprecated Prefer InventoryHistoryEvent; kept for last-dispatch summary. */
@@ -29,6 +31,7 @@ export type InventoryDispatch = {
   byName: string;
   at: string;
   note?: string;
+  reportId?: string;
 };
 
 export type InventoryItemInput = {
@@ -96,4 +99,75 @@ export function formatInventoryDispatchWhen(iso: string): string {
   } catch {
     return iso;
   }
+}
+
+/** Open dispatch tickets (not yet returned for that report). Newest first. */
+export function openDispatchReportIds(
+  history: InventoryHistoryEvent[],
+): string[] {
+  const returned = new Set<string>();
+  const open: string[] = [];
+  for (const e of history) {
+    if (!e.reportId) continue;
+    if (e.kind === "return") {
+      returned.add(e.reportId);
+      continue;
+    }
+    if (e.kind === "dispatch" && !returned.has(e.reportId) && !open.includes(e.reportId)) {
+      open.push(e.reportId);
+    }
+  }
+  return open;
+}
+
+/** Units currently out (dispatches minus returns). */
+export function netDispatchedQty(history: InventoryHistoryEvent[]): number {
+  let n = 0;
+  for (const e of [...history].reverse()) {
+    if (e.kind === "dispatch") n += e.qty;
+    else n = Math.max(0, n - e.qty);
+  }
+  return n;
+}
+
+/** Units still out for one incident ticket (dispatch − return for that reportId). */
+export function qtyOutForReport(
+  history: InventoryHistoryEvent[],
+  reportId: string,
+): number {
+  let n = 0;
+  for (const e of [...history].reverse()) {
+    if (e.reportId !== reportId) continue;
+    if (e.kind === "dispatch") n += e.qty;
+    else n = Math.max(0, n - e.qty);
+  }
+  return n;
+}
+
+export type InventoryAssignedToReport = {
+  item: InventoryItem;
+  qty: number;
+  /** Latest open dispatch event for this report. */
+  event: InventoryHistoryEvent;
+};
+
+/** Inventory currently assigned / out on this incident ticket. */
+export function inventoryAssignedToReport(
+  inventory: InventoryItem[],
+  reportId: string,
+): InventoryAssignedToReport[] {
+  const id = reportId.trim();
+  if (!id) return [];
+  const out: InventoryAssignedToReport[] = [];
+  for (const item of inventory) {
+    const qty = qtyOutForReport(item.history, id);
+    if (qty <= 0) continue;
+    const event =
+      item.history.find(
+        (e) => e.kind === "dispatch" && e.reportId === id,
+      ) ?? null;
+    if (!event) continue;
+    out.push({ item, qty, event });
+  }
+  return out.sort((a, b) => a.item.label.localeCompare(b.item.label));
 }

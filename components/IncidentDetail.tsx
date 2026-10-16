@@ -15,7 +15,11 @@ import {
   subscribeBarangayInventory,
 } from "@/lib/inventory/api";
 import { suggestInventoryForHazard } from "@/lib/inventory/suggestForHazard";
-import type { InventoryItem } from "@/lib/inventory/types";
+import {
+  formatInventoryDispatchWhen,
+  inventoryAssignedToReport,
+  type InventoryItem,
+} from "@/lib/inventory/types";
 import {
   APAS_BARANGAY_DOC_ID,
   APAS_STAFF_SEED,
@@ -160,6 +164,9 @@ export function IncidentDetail({
   const inventorySuggestions = selected
     ? suggestInventoryForHazard(selected.hazardHint, inventory)
     : [];
+  const inventoryOnThisTicket = selected
+    ? inventoryAssignedToReport(inventory, selected.id)
+    : [];
 
   async function dispatchSuggestedStock(item: InventoryItem) {
     if (!isOfficer(profile) || inventoryBusy) return;
@@ -170,6 +177,7 @@ export function IncidentDetail({
         qty: 1,
         byUid: profile.uid,
         byName: profile.displayName?.trim() || profile.email || "Officer",
+        reportId: selected?.id,
         note: selected ? `Incident ${selected.id}` : undefined,
       });
     } finally {
@@ -777,6 +785,64 @@ export function IncidentDetail({
           <div className="mt-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="font-mono text-[9px] tracking-[0.16em] text-[var(--warn)] uppercase">
+                Assigned inventory · on this ticket
+              </p>
+              <Link
+                href="/admin/inventory"
+                className="font-mono text-[10px] tracking-wider text-[var(--accent)] uppercase hover:underline"
+              >
+                Open inventory
+              </Link>
+            </div>
+            {inventoryOnThisTicket.length === 0 ? (
+              <p className="mt-2 text-xs text-[var(--muted)]">
+                No barangay stock dispatched to this incident yet.
+              </p>
+            ) : (
+              <ul className="mt-2 space-y-2">
+                {inventoryOnThisTicket.map(({ item, qty, event }) => (
+                  <li
+                    key={item.id}
+                    className="flex flex-wrap items-center gap-3 border border-[#fdba74]/50 bg-[#fff7ed]/40 px-3 py-2"
+                  >
+                    <div className="relative h-12 w-16 shrink-0 overflow-hidden border border-[var(--border)] bg-[var(--surface-raised)]">
+                      {item.imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={item.imageUrl}
+                          alt={item.label}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : null}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-medium">{item.label}</p>
+                        <span className="rounded-full bg-[#fff7ed] px-2 py-0.5 text-[10px] font-semibold text-[#c2410c] ring-1 ring-[#fdba74]/70">
+                          Dispatched
+                        </span>
+                      </div>
+                      <p className="text-xs text-[var(--foreground)]">
+                        {qty} {item.unit} on this ticket
+                        {item.location
+                          ? ` · from ${item.location}`
+                          : ""}
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-[var(--muted)]">
+                        by {event.byName} ·{" "}
+                        {formatInventoryDispatchWhen(event.at)}
+                        {event.note ? ` · ${event.note}` : ""}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="mt-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="font-mono text-[9px] tracking-[0.16em] text-[var(--warn)] uppercase">
                 Suggested inventory · barangay stock
               </p>
               <Link
@@ -819,8 +885,10 @@ export function IncidentDetail({
                           ? "Short / unavailable locally"
                           : `${item.available} ${item.unit} on hand`}
                       </p>
-                      <p className="mt-0.5 text-xs text-[var(--foreground)]">
-                        Stored at{" "}
+                      <p className="mt-1 font-mono text-[9px] tracking-wider text-[var(--muted)] uppercase">
+                        Location
+                      </p>
+                      <p className="text-xs font-medium text-[var(--foreground)]">
                         {item.location?.trim() || "Location TBD"}
                       </p>
                     </div>
