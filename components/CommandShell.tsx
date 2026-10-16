@@ -14,6 +14,7 @@ import {
   AlertTriangle,
   LayoutDashboard,
   LogOut,
+  Package,
   Shield,
 } from "lucide-react";
 import { BrandLogoOnDark } from "@/components/BrandLogo";
@@ -30,7 +31,7 @@ import { isOfficer } from "@/lib/auth/types";
 import { scopeForProfile, scopeLabel } from "@/lib/reports/barangayScope";
 import { cn } from "@/lib/utils";
 
-type NavId = "overview" | "incidents" | "activity";
+type NavId = "overview" | "incidents" | "resources" | "activity";
 
 type PrimaryNav = {
   id: NavId;
@@ -54,6 +55,13 @@ const PRIMARY: PrimaryNav[] = [
     label: "Incidents",
     icon: AlertTriangle,
     match: (p) => p.startsWith("/admin/incidents"),
+  },
+  {
+    id: "resources",
+    href: "/admin/resources",
+    label: "Resources",
+    icon: Package,
+    match: (p) => p.startsWith("/admin/resources"),
   },
   {
     id: "activity",
