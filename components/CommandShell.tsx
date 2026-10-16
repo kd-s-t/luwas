@@ -12,10 +12,16 @@ import {
 import {
   Activity,
   AlertTriangle,
+  Boxes,
+  Handshake,
+  Home,
   LayoutDashboard,
   LogOut,
   Package,
   Shield,
+  UserRound,
+  Users,
+  type LucideIcon,
 } from "lucide-react";
 import { BrandLogoOnDark } from "@/components/BrandLogo";
 import { CommandBarangaySwitcher } from "@/components/CommandBarangaySwitcher";
@@ -72,30 +78,44 @@ const PRIMARY: PrimaryNav[] = [
   },
 ];
 
-const SECONDARY: { href: string; label: string; match: (p: string) => boolean }[] =
-  [
-    {
-      href: "/admin/households",
-      label: "Home owners",
-      match: (p) => p.startsWith("/admin/households"),
-    },
-    {
-      href: "/admin/citizens",
-      label: "Citizens",
-      match: (p) =>
-        p.startsWith("/admin/citizens") || p.startsWith("/admin/users"),
-    },
-    {
-      href: "/admin/officers",
-      label: "Officers",
-      match: (p) => p.startsWith("/admin/officers"),
-    },
-    {
-      href: "/admin/partners",
-      label: "Partners",
-      match: (p) => p.startsWith("/admin/partners"),
-    },
-  ];
+const SECONDARY: {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  match: (p: string) => boolean;
+}[] = [
+  {
+    href: "/admin/households",
+    label: "Home owners",
+    icon: Home,
+    match: (p) => p.startsWith("/admin/households"),
+  },
+  {
+    href: "/admin/citizens",
+    label: "Citizens",
+    icon: Users,
+    match: (p) =>
+      p.startsWith("/admin/citizens") || p.startsWith("/admin/users"),
+  },
+  {
+    href: "/admin/officers",
+    label: "Officers",
+    icon: UserRound,
+    match: (p) => p.startsWith("/admin/officers"),
+  },
+  {
+    href: "/admin/partners",
+    label: "Partners",
+    icon: Handshake,
+    match: (p) => p.startsWith("/admin/partners"),
+  },
+  {
+    href: "/admin/inventory",
+    label: "Inventory",
+    icon: Boxes,
+    match: (p) => p.startsWith("/admin/inventory"),
+  },
+];
 
 type CommandShellProps = {
   children: ReactNode;

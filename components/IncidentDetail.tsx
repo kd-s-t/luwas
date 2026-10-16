@@ -9,6 +9,21 @@ import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { ReportStatusBadge } from "@/components/ReportStatusBadge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  dispatchBarangayInventoryItem,
+  ensureActiveBarangayInventory,
+  subscribeBarangayInventory,
+} from "@/lib/inventory/api";
+import { suggestInventoryForHazard } from "@/lib/inventory/suggestForHazard";
+import type { InventoryItem } from "@/lib/inventory/types";
+import {
+  APAS_BARANGAY_DOC_ID,
+  APAS_STAFF_SEED,
+} from "@/lib/staff/apasStaff";
+import {
+  NANGKA_BARANGAY_ID,
+  NANGKA_STAFF_SEED,
+} from "@/lib/staff/nangkaStaff";
 
 const HallPinMap = dynamic(() => import("@/components/HallPinMap"), {
   ssr: false,
@@ -34,8 +49,6 @@ import {
   updateReportStatus,
   updateReportValidation,
 } from "@/lib/reports/api";
-import { APAS_STAFF_SEED } from "@/lib/staff/apasStaff";
-import { NANGKA_STAFF_SEED } from "@/lib/staff/nangkaStaff";
 import { reportInScope } from "@/lib/reports/barangayScope";
 import { syncHazardReportToBigQuery } from "@/lib/reports/bigquerySync";
 import {
@@ -88,10 +101,19 @@ export function IncidentDetail({
   const [planDraft, setPlanDraft] = useState("");
   const [directReport, setDirectReport] = useState<HazardReport | null>(null);
   const [directReady, setDirectReady] = useState(false);
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [inventoryBusy, setInventoryBusy] = useState(false);
 
   const scoped = scopedReports;
   const officers = activeOfficers;
   const globalView = isDeveloper(profile);
+
+  const inventoryBarangayId = useMemo(() => {
+    if (!isOfficer(profile)) return NANGKA_BARANGAY_ID;
+    const areaId = (profile.areaId ?? profile.activeBarangayId)?.trim() ?? "";
+    if (areaId.includes("apas")) return APAS_BARANGAY_DOC_ID;
+    return NANGKA_BARANGAY_ID;
+  }, [profile]);
 
   useEffect(() => {
     setDirectReady(false);
@@ -101,6 +123,15 @@ export function IncidentDetail({
       setDirectReady(true);
     });
   }, [reportId]);
+
+  useEffect(() => {
+    if (!isOfficer(profile)) {
+      setInventory([]);
+      return;
+    }
+    void ensureActiveBarangayInventory().catch(() => {});
+    return subscribeBarangayInventory(inventoryBarangayId, setInventory);
+  }, [profile, inventoryBarangayId]);
 
   const fromList = useMemo(
     () => scoped.find((r) => r.id === reportId) ?? null,
@@ -126,6 +157,25 @@ export function IncidentDetail({
   const proposals = selected ? proposalsForReport(selected) : [];
   const related = selected ? relatedReports(selected, scoped) : [];
   const activity = selected ? activityForReport(selected) : [];
+  const inventorySuggestions = selected
+    ? suggestInventoryForHazard(selected.hazardHint, inventory)
+    : [];
+
+  async function dispatchSuggestedStock(item: InventoryItem) {
+    if (!isOfficer(profile) || inventoryBusy) return;
+    setInventoryBusy(true);
+    try {
+      await dispatchBarangayInventoryItem({
+        id: item.id,
+        qty: 1,
+        byUid: profile.uid,
+        byName: profile.displayName?.trim() || profile.email || "Officer",
+        note: selected ? `Incident ${selected.id}` : undefined,
+      });
+    } finally {
+      setInventoryBusy(false);
+    }
+  }
 
   async function assignInvestigator(
     investigatorUid: string | null,
@@ -360,7 +410,7 @@ export function IncidentDetail({
             </div>
             <Link
               href={`/admin/resources/assist?report=${encodeURIComponent(selected.id)}`}
-              className="shrink-0 border border-[var(--foreground)] bg-[var(--foreground)] px-3 py-1.5 font-mono text-[10px] tracking-wider text-[var(--background)] uppercase transition hover:opacity-90"
+              className="shrink-0 border border-[var(--foreground)] bg-[var(--foreground)] px-3 py-1.5 font-mono text-[10px] tracking-wider text-white uppercase transition hover:opacity-90"
             >
               Find assistance
             </Link>
@@ -722,6 +772,80 @@ export function IncidentDetail({
                 </li>
               ))}
             </ul>
+          </div>
+
+          <div className="mt-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="font-mono text-[9px] tracking-[0.16em] text-[var(--warn)] uppercase">
+                Suggested inventory · barangay stock
+              </p>
+              <Link
+                href="/admin/inventory"
+                className="font-mono text-[10px] tracking-wider text-[var(--accent)] uppercase hover:underline"
+              >
+                Open inventory
+              </Link>
+            </div>
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              Matched to {hazardHintLabel(selected.hazardHint)}. Proposal only.
+              Confirm before dispatch.
+            </p>
+            {inventorySuggestions.length === 0 ? (
+              <p className="mt-2 text-xs text-[var(--muted)]">
+                No matching barangay inventory yet. Add stock under Databases →
+                Inventory.
+              </p>
+            ) : (
+              <ul className="mt-2 space-y-2">
+                {inventorySuggestions.map(({ item, short }) => (
+                  <li
+                    key={item.id}
+                    className="flex flex-wrap items-center gap-3 border border-[var(--border)] px-3 py-2"
+                  >
+                    <div className="relative h-12 w-16 shrink-0 overflow-hidden border border-[var(--border)] bg-[var(--surface-raised)]">
+                      {item.imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={item.imageUrl}
+                          alt={item.label}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : null}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium">{item.label}</p>
+                      <p className="text-xs text-[var(--muted)]">
+                        {short
+                          ? "Short / unavailable locally"
+                          : `${item.available} ${item.unit} on hand`}
+                      </p>
+                      <p className="mt-0.5 text-xs text-[var(--foreground)]">
+                        Stored at{" "}
+                        {item.location?.trim() || "Location TBD"}
+                      </p>
+                    </div>
+                    {short ? (
+                      <Link
+                        href={`/admin/resources/assist?report=${encodeURIComponent(selected.id)}`}
+                        className="shrink-0 border border-[var(--border)] px-2.5 py-1 font-mono text-[10px] tracking-wider uppercase transition hover:border-[var(--accent)]"
+                      >
+                        Find assistance
+                      </Link>
+                    ) : (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={inventoryBusy || busy}
+                        onClick={() => void dispatchSuggestedStock(item)}
+                      >
+                        Dispatch 1
+                      </Button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           <div className="mt-4 border border-[var(--border)] bg-[var(--surface-raised)] p-3">
