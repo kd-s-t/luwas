@@ -419,9 +419,11 @@ export function FindAssistanceFlow() {
     );
   }
 
+  const activePlan = plan;
   const selected =
-    plan.partners.find((p) => p.id === activePartnerId) || plan.partners[0]!;
-  const incidentHref = `/admin/incidents/${encodeURIComponent(plan.reportId)}`;
+    activePlan.partners.find((p) => p.id === activePartnerId) ||
+    activePlan.partners[0]!;
+  const incidentHref = `/admin/incidents/${encodeURIComponent(activePlan.reportId)}`;
 
   function onContinue() {
     if (step === "identify") {
@@ -438,10 +440,10 @@ export function FindAssistanceFlow() {
     }
     if (step === "approve" && !approved) {
       saveAssistanceCommitment({
-        planCode: plan.planCode,
-        reportId: plan.reportId,
-        incidentCode: plan.incidentCode,
-        place: plan.place,
+        planCode: activePlan.planCode,
+        reportId: activePlan.reportId,
+        incidentCode: activePlan.incidentCode,
+        place: activePlan.place,
         partnerId: selected.id,
         partnerName: selected.partner,
         offerLine: selected.offerLine,
