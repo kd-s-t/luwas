@@ -50,7 +50,7 @@ export type OnboardDraft = {
   resolvingHall: boolean;
 };
 
-export const PREFERRED_AREA_KEY = "luwas.command.preferredArea";
+export const PREFERRED_AREA_KEY = "ugnai.command.preferredArea";
 
 export function emptyChecklist(): OnboardChecklist {
   return {

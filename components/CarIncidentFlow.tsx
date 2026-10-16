@@ -186,7 +186,7 @@ function SiteGroupNode(_props: NodeProps) {
         className="absolute top-3 right-3 size-6 object-contain"
       />
       <p className="absolute top-3 left-3 font-mono text-[11px] tracking-wider text-[var(--muted)] uppercase">
-        Luwasph.com
+        Ugnaiph.com
       </p>
     </div>
   );

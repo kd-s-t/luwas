@@ -138,7 +138,7 @@ function CommandShellInner({ children, fill = false }: CommandShellProps) {
         <Link
           href="/"
           className="inline-flex transition hover:opacity-90"
-          aria-label="LUWAS home"
+          aria-label="UGNAI home"
         >
           <BrandLogoOnDark
             size={28}
@@ -296,7 +296,7 @@ function CommandShellInner({ children, fill = false }: CommandShellProps) {
           <Link
             href="/"
             className="inline-flex transition hover:opacity-90"
-            aria-label="LUWAS home"
+            aria-label="UGNAI home"
           >
             <BrandLogoOnDark
               size={24}

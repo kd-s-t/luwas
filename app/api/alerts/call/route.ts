@@ -150,7 +150,7 @@ async function postResponderCalls(body: Body) {
         lng: near?.lng ?? null,
       })
     : (
-        `LUWAS MDRRMO · Brgy ${barangay}, ${lgu}: ` +
+        `UGNAI MDRRMO · Brgy ${barangay}, ${lgu}: ` +
         `${body.reason?.trim() || "Please stand by for barangay coordination."} ` +
         `Tino simulation.`
       );

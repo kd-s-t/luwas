@@ -15,7 +15,7 @@ type CacheEntry = { at: number; weather: AreaWeather };
 declare global {
   // Persist across hot reloads in next dev
   // eslint-disable-next-line no-var
-  var __luwasWeatherCache: CacheEntry | undefined;
+  var __ugnaiWeatherCache: CacheEntry | undefined;
 }
 
 function cacheHeaders() {
@@ -29,7 +29,7 @@ function cacheHeaders() {
  * In-memory + HTTP cache (~30 min) so refreshes reuse the last payload.
  */
 export async function GET() {
-  const cached = globalThis.__luwasWeatherCache;
+  const cached = globalThis.__ugnaiWeatherCache;
   if (cached && Date.now() - cached.at < CACHE_MS) {
     return NextResponse.json(cached.weather, { headers: cacheHeaders() });
   }
@@ -41,7 +41,7 @@ export async function GET() {
       ? await fetchGoogleCebuWeather(key)
       : await fetchOpenMeteoCebuWeather();
 
-    globalThis.__luwasWeatherCache = { at: Date.now(), weather };
+    globalThis.__ugnaiWeatherCache = { at: Date.now(), weather };
     return NextResponse.json(weather, { headers: cacheHeaders() });
   } catch (err) {
     if (cached) {

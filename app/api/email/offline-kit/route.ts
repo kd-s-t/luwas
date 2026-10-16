@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   const template = isEmailTemplateId(raw) ? raw : "typhoon_alert";
   const built = buildEmailTemplate(template);
   const autoPrint = searchParams.get("print") !== "0";
-  const titleBase = `LUWAS-${template.replace(/_/g, "-")}-offline`;
+  const titleBase = `UGNAI-${template.replace(/_/g, "-")}-offline`;
   const bodyInner =
     built.html.match(/<body[^>]*>([\s\S]*)<\/body>/i)?.[1] ?? built.html;
 
@@ -104,7 +104,7 @@ export async function GET(request: Request) {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
       "Cache-Control": "private, max-age=60",
-      "X-LUWAS-Offline-Kit": template,
+      "X-UGNAI-Offline-Kit": template,
     },
   });
 }

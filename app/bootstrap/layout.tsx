@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "LUWAS UI Bootstrap (Dev)",
+  title: "UGNAI UI Bootstrap (Dev)",
   description:
-    "LUWAS design-system gallery — Tailwind, shadcn/ui, Lucide, and Framer Motion.",
+    "UGNAI design-system gallery — Tailwind, shadcn/ui, Lucide, and Framer Motion.",
 };
 
 export default function BootstrapLayout({

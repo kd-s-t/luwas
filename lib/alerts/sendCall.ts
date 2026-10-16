@@ -138,7 +138,7 @@ export async function sendCallBatch(
     const dialTargets = sandboxTos.length > 0 ? sandboxTos : [r.to];
     const script =
       sandboxTos.length > 0
-        ? `LUWAS sandbox. Intended for ${detail.phoneDisplay}. ${r.body}`
+        ? `UGNAI sandbox. Intended for ${detail.phoneDisplay}. ${r.body}`
         : r.body;
 
     for (const dialTo of dialTargets) {

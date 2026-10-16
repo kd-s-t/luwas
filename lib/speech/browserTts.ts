@@ -1,7 +1,7 @@
 /** Browser Web Speech API only — no cloud TTS. */
 
-const VOICE_MUTE_KEY = "luwas.mangluluwas.ttsMute";
-const VOICE_URI_KEY = "luwas.mangluluwas.ttsVoiceUri";
+const VOICE_MUTE_KEY = "ugnai.mangugnai.ttsMute";
+const VOICE_URI_KEY = "ugnai.mangugnai.ttsVoiceUri";
 
 export type TtsVoiceOption = {
   voiceURI: string;
@@ -80,7 +80,7 @@ function scoreVoice(v: SpeechSynthesisVoice): number {
   if (v.localService) s += 40;
   else s -= 25;
 
-  // Strong picks for LUWAS (local when available).
+  // Strong picks for UGNAI (local when available).
   if (/^(Samantha|Karen|Moira|Tessa|Daniel|Alex|Fred|Victoria)\b/i.test(name)) {
     s += 45;
   }

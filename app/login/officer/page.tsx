@@ -193,7 +193,7 @@ export default function LoginPage() {
     <AuthGate mode="guest">
       <AuthCard
         title="Officer login"
-        subtitle="Nangka, Apas, MDRRMO, or LGU: sign in to LUWAS command."
+        subtitle="Nangka, Apas, MDRRMO, or LGU: sign in to UGNAI command."
         footer={
           <>
             <Link href="/login" className="text-[var(--accent)] hover:underline">

@@ -1,12 +1,12 @@
 variable "project_id" {
   type        = string
-  description = "GCP / Firebase project ID (globally unique, e.g. luwas-drrm)"
+  description = "GCP / Firebase project ID (globally unique, e.g. ugnai-drrm)"
 }
 
 variable "project_name" {
   type        = string
   description = "Human-readable project name"
-  default     = "Luwas"
+  default     = "Ugnai"
 }
 
 variable "create_project" {

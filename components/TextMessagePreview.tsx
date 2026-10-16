@@ -45,7 +45,7 @@ export function TextMessagePreview({ preview }: { preview: TextPreview }) {
               Messages
             </p>
             <p className="mt-0.5 text-[13px] font-semibold text-white">
-              LUWAS Alerts
+              UGNAI Alerts
             </p>
           </div>
 

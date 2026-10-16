@@ -116,7 +116,7 @@ export function CommandHeader() {
           <Link
             href="/"
             className="shrink-0 transition hover:opacity-90"
-            aria-label="LUWAS home"
+            aria-label="UGNAI home"
           >
             <BrandLogo
               tone="blue"

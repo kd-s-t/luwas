@@ -261,7 +261,7 @@ export type ChatSummary = {
   preview: string;
 };
 
-type MangluluwasChatProps = {
+type MangugnaiChatProps = {
   messages: ChatMessage[];
   running: boolean;
   result: AssistResult | null;
@@ -295,7 +295,7 @@ type MangluluwasChatProps = {
   className?: string;
 };
 
-export function MangluluwasChat({
+export function MangugnaiChat({
   messages,
   running,
   result,
@@ -314,7 +314,7 @@ export function MangluluwasChat({
   officerUid = null,
   onMessageAudio,
   className,
-}: MangluluwasChatProps) {
+}: MangugnaiChatProps) {
   const [draft, setDraft] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [callListOpen, setCallListOpen] = useState(false);
@@ -492,15 +492,15 @@ export function MangluluwasChat({
       <header className="shrink-0 space-y-2.5 border-b border-[var(--border)] bg-[var(--surface-panel)] px-3 py-3 sm:px-4">
         <div className="flex items-center gap-2">
           <Image
-            src="/mangluluwas.jpg"
-            alt="Mangluluwas"
+            src="/mangugnai.jpg"
+            alt="Mangugnai"
             width={40}
             height={40}
             className="size-10 shrink-0 rounded-full object-cover ring-2 ring-[var(--accent)]/35"
           />
           <div className="min-w-0 flex-1">
             <p className="font-[family-name:var(--font-display)] text-base font-semibold tracking-wide">
-              Mangluluwas
+              Mangugnai
             </p>
             <p className="truncate font-mono text-[10px] tracking-[0.16em] text-[var(--accent)] uppercase">
               {chats.find((c) => c.id === activeChatId)?.title ?? "New chat"}
@@ -699,7 +699,7 @@ export function MangluluwasChat({
             className="min-h-0 flex-1 overflow-y-auto px-3 py-3 sm:px-4"
             role="log"
             aria-live="polite"
-            aria-label="Mangluluwas chat"
+            aria-label="Mangugnai chat"
           >
             <div className="flex flex-col gap-3">
               {messages.map((m) => (
@@ -712,7 +712,7 @@ export function MangluluwasChat({
                 >
                   {m.role === "assistant" ? (
                     <Image
-                      src="/mangluluwas.jpg"
+                      src="/mangugnai.jpg"
                       alt=""
                       width={28}
                       height={28}
@@ -797,7 +797,7 @@ export function MangluluwasChat({
               {running ? (
                 <div className="flex items-center gap-2 text-sm text-[var(--muted)]">
                   <Image
-                    src="/mangluluwas.jpg"
+                    src="/mangugnai.jpg"
                     alt=""
                     width={28}
                     height={28}
@@ -845,10 +845,10 @@ export function MangluluwasChat({
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={onKeyDown}
                 rows={1}
-                placeholder="Ask Mangluluwas…"
+                placeholder="Ask Mangugnai…"
                 disabled={running}
                 className="min-h-10 max-h-28 flex-1 resize-none border border-[var(--border)] bg-[var(--input)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)] disabled:opacity-60"
-                aria-label="Message Mangluluwas"
+                aria-label="Message Mangugnai"
               />
               <Button
                 type="submit"

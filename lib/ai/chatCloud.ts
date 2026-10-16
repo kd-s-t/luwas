@@ -14,11 +14,11 @@ import { titleFromMessages } from "@/lib/ai/chatHistory";
 const META_ID = "meta";
 
 function threadsCol(db: Firestore, uid: string) {
-  return collection(db, "users", uid, "mangluluwasThreads");
+  return collection(db, "users", uid, "mangugnaiThreads");
 }
 
 function metaRef(db: Firestore, uid: string) {
-  return doc(db, "users", uid, "mangluluwasThreads", META_ID);
+  return doc(db, "users", uid, "mangugnaiThreads", META_ID);
 }
 
 /** Drop heavy flood footprints before cloud write (same as localStorage). */

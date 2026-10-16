@@ -186,7 +186,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         );
       });
     } catch (err) {
-      console.error("[luwas] Firebase Auth failed to initialize", err);
+      console.error("[ugnai] Firebase Auth failed to initialize", err);
       setUser(null);
       setProfile(null);
       setLoading(false);

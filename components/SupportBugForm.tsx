@@ -110,7 +110,7 @@ export function SupportBugForm() {
       ) : null}
       {done ? (
         <p className="text-sm text-[var(--accent)]" role="status">
-          Thanks. Sent to LUWAS developers. They will follow up if needed.
+          Thanks. Sent to UGNAI developers. They will follow up if needed.
         </p>
       ) : null}
 

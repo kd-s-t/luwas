@@ -128,7 +128,7 @@ export async function validateHazardReport(input: {
 
   const localE2e =
     process.env.NEXT_PUBLIC_USE_EMULATORS === "true" ||
-    process.env.LUWAS_E2E_ACCEPT_REPORTS === "true";
+    process.env.UGNAI_E2E_ACCEPT_REPORTS === "true";
 
   const vertex =
     mediaType === "photo" && mediaBase64
@@ -161,7 +161,7 @@ export async function validateHazardReport(input: {
 
   const model = resolveGeminiModel(input.model ?? DEFAULT_GEMINI_MODEL);
   const vertexLine = formatVertexSignal(vertex);
-  const prompt = `You are Mangluluwas, validating a citizen hazard field report for Brgy. Nangka, Consolacion, Cebu.
+  const prompt = `You are Mangugnai, validating a citizen hazard field report for Brgy. Nangka, Consolacion, Cebu.
 Decide if the ${mediaBase64 ? "media + text" : "text"} look like a genuine on-the-ground hazard report (not spam, meme, unrelated content, or obvious fake).
 
 A separate Vertex AI image classifier already scored the photo. Use that as a signal, not the only rule:

@@ -164,8 +164,8 @@ export function PublicSituationMap() {
     reload();
     const onStorage = (e: StorageEvent) => {
       if (
-        e.key === `luwas.barangay.publicMap.v1:${area.id}` ||
-        e.key === "luwas.nangka.publicMap.v1"
+        e.key === `ugnai.barangay.publicMap.v1:${area.id}` ||
+        e.key === "ugnai.nangka.publicMap.v1"
       ) {
         reload();
       }

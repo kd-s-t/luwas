@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import Image from "next/image";
+import { BrandLogo } from "@/components/BrandLogo";
 import {
   Background,
   Controls,
@@ -30,7 +31,7 @@ function StepNode({ data }: NodeProps) {
     label: string;
     note?: string;
     lines?: string[];
-    logo: string;
+    logo?: string;
     in?: boolean;
     out?: boolean;
     outTop?: boolean;
@@ -70,13 +71,17 @@ function StepNode({ data }: NodeProps) {
           className={DOT}
         />
       ) : null}
-      <Image
-        src={d.logo}
-        alt=""
-        width={40}
-        height={40}
-        className="size-10 object-contain"
-      />
+      {d.logo ? (
+        <Image
+          src={d.logo}
+          alt=""
+          width={40}
+          height={40}
+          className="size-10 object-contain"
+        />
+      ) : (
+        <BrandLogo size={18} wordmarkClassName="text-sm" />
+      )}
       <p className={flowLabelClass}>{d.label}</p>
       {d.lines?.map((line) => (
         <p key={line} className={flowMetaClass}>
@@ -154,7 +159,6 @@ function EarthEngineFlowCanvas() {
         position: { x: 24, y: 130 },
         data: {
           label: "Dev run",
-          logo: "/brand/luwas-logo.png",
           lines: ["ee:dem · ee:hazards"],
           out: true,
         },

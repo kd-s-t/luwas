@@ -1,4 +1,4 @@
-# Luwas features
+# Ugnai features
 
 Disaster reporting for citizens. Command desk for barangay officers.
 
@@ -51,9 +51,9 @@ Home area: Brgy. Nangka, Consolacion, Cebu. Other barangays can be added (e.g. B
 ## Behind the scenes
 
 - Firebase for login, live data, and photo storage
-- App hosted at luwasph.com
+- App hosted at ugnaiph.com
 - Optional BigQuery copy of finished reports
-- Monthly BigQuery → GCS Vertex labels CSV (`luwas-vision-ingest/`)
+- Monthly BigQuery → GCS Vertex labels CSV (`ugnai-vision-ingest/`)
 
 ---
 

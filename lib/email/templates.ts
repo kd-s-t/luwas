@@ -291,18 +291,18 @@ export function buildRegisterEmail(
 ): BrandedEmailParts {
   const verifyUrl = `${appOrigin()}/register/citizen?verify=preview`;
   return buildBrandedEmail({
-    subject: "Verify your LUWAS citizen account",
+    subject: "Verify your UGNAI citizen account",
     eyebrow: "Registration",
     headline: "Confirm your email",
     greetingName: ctx.name,
-    textBody: `Thanks for registering with LUWAS for ${ctx.barangay}, ${ctx.lgu}.
+    textBody: `Thanks for registering with UGNAI for ${ctx.barangay}, ${ctx.lgu}.
 
 Open this link to verify your email and finish setup:
 ${verifyUrl}
 
 If you did not create this account, you can ignore this message.`,
     htmlBody: `
-      ${p(`Thanks for registering with LUWAS for <strong>${escapeHtml(ctx.barangay)}</strong>, ${escapeHtml(ctx.lgu)}.`)}
+      ${p(`Thanks for registering with UGNAI for <strong>${escapeHtml(ctx.barangay)}</strong>, ${escapeHtml(ctx.lgu)}.`)}
       ${p("Tap the button below to verify your email and finish setup.")}
       ${muted("If you did not create this account, you can ignore this message.")}
     `,
@@ -315,7 +315,7 @@ export function buildVerifiedEmail(
 ): BrandedEmailParts {
   const loginUrl = `${appOrigin()}/login/citizen`;
   return buildBrandedEmail({
-    subject: "Your LUWAS email is verified",
+    subject: "Your UGNAI email is verified",
     eyebrow: "Account verified",
     headline: "You're confirmed",
     greetingName: ctx.name,
@@ -337,18 +337,18 @@ export function buildAccountApprovedEmail(
 ): BrandedEmailParts {
   const loginUrl = `${appOrigin()}/login/citizen`;
   return buildBrandedEmail({
-    subject: `LUWAS · Account approved · ${ctx.barangay}`,
+    subject: `UGNAI · Account approved · ${ctx.barangay}`,
     eyebrow: "Registration approved",
     headline: "You're verified",
     greetingName: ctx.name,
-    textBody: `Your LUWAS registration for ${ctx.barangay} (${ctx.lgu}) was approved.
+    textBody: `Your UGNAI registration for ${ctx.barangay} (${ctx.lgu}) was approved.
 
 You can sign in and file hazard reports for your barangay.
 
 Sign in: ${loginUrl}`,
     htmlBody: `
       ${p(
-        `Your LUWAS registration for <strong>${escapeHtml(ctx.barangay)}</strong> (${escapeHtml(ctx.lgu)}) was <strong>approved</strong>.`,
+        `Your UGNAI registration for <strong>${escapeHtml(ctx.barangay)}</strong> (${escapeHtml(ctx.lgu)}) was <strong>approved</strong>.`,
       )}
       ${p("You can sign in and file hazard reports for your barangay.")}
     `,
@@ -360,16 +360,16 @@ export function buildAccountRejectedEmail(
   ctx: EmailSampleContext = DEFAULT_EMAIL_SAMPLE,
 ): BrandedEmailParts {
   return buildBrandedEmail({
-    subject: `LUWAS · Registration not approved · ${ctx.barangay}`,
+    subject: `UGNAI · Registration not approved · ${ctx.barangay}`,
     eyebrow: "Registration update",
     headline: "Not approved",
     greetingName: ctx.name,
-    textBody: `Your LUWAS registration for ${ctx.barangay} (${ctx.lgu}) was not approved.
+    textBody: `Your UGNAI registration for ${ctx.barangay} (${ctx.lgu}) was not approved.
 
 Contact your barangay MDRRMO if you believe this is a mistake.`,
     htmlBody: `
       ${p(
-        `Your LUWAS registration for <strong>${escapeHtml(ctx.barangay)}</strong> (${escapeHtml(ctx.lgu)}) was <strong>not approved</strong>.`,
+        `Your UGNAI registration for <strong>${escapeHtml(ctx.barangay)}</strong> (${escapeHtml(ctx.lgu)}) was <strong>not approved</strong>.`,
       )}
       ${p(
         "Contact your barangay MDRRMO if you believe this is a mistake.",
@@ -383,11 +383,11 @@ export function buildWelcomeEmail(
 ): BrandedEmailParts {
   const citizenUrl = `${appOrigin()}/report-incident`;
   return buildBrandedEmail({
-    subject: `Welcome to LUWAS · ${ctx.barangay}`,
+    subject: `Welcome to UGNAI · ${ctx.barangay}`,
     eyebrow: "Welcome",
     headline: "You're on the roster",
     greetingName: ctx.name,
-    textBody: `Welcome to LUWAS.
+    textBody: `Welcome to UGNAI.
 
 Your citizen profile is ready for ${ctx.barangay} (${ctx.purok}).
 We'll send SMS and email when MDRRMO issues evacuate / prepare / monitor guidance.
@@ -432,7 +432,7 @@ export function buildEqAlertEmail(
   const bfp = nearbyBfpCopy(ctx);
 
   return buildBrandedEmail({
-    subject: `LUWAS · EARTHQUAKE ${magLabel} · ${distLabel} away`,
+    subject: `UGNAI · EARTHQUAKE ${magLabel} · ${distLabel} away`,
     eyebrow: "Earthquake · Immediate",
     headline: `${magLabel} tremor detected`,
     headerVariant: "warning",
@@ -502,7 +502,7 @@ export function buildFireAlertEmail(
   const bfp = nearbyBfpCopy(ctx);
 
   return buildBrandedEmail({
-    subject: `LUWAS · FIRE ALERT · ${distLabel} from you`,
+    subject: `UGNAI · FIRE ALERT · ${distLabel} from you`,
     eyebrow: "Fire · Immediate",
     headline: "Fire reported nearby",
     headerVariant: "warning",
@@ -536,7 +536,7 @@ Situation map: ${mapUrl}`,
         "Keep exits clear and prepare to evacuate if directed.",
       ])}
       ${bfp.htmlBlock}
-      ${muted("Distance measured to your household pin · LUWAS DRRM alert.")}
+      ${muted("Distance measured to your household pin · UGNAI DRRM alert.")}
     `,
     cta: { label: "Open situation map", url: mapUrl },
   });
@@ -565,7 +565,7 @@ export function buildTyphoonAlertEmail(
     .join("\n");
 
   return buildBrandedEmail({
-    subject: `LUWAS · TYPHOON WATCH · ${ctx.barangay} · ~3 days`,
+    subject: `UGNAI · TYPHOON WATCH · ${ctx.barangay} · ~3 days`,
     eyebrow: "Typhoon · ~3 days out",
     headline: "Storm approaching",
     headerVariant: "warning",
@@ -576,8 +576,8 @@ Track guidance for ${ctx.barangay}, ${ctx.lgu}:
 • Charge your phone fully. Charge flashlights, power banks, and rechargeable batteries now — while power is still up.
 • Stock drinking water, ready-to-eat food (3 days), medicines, cooking fuel, and cash.
 • Secure roofs, windows, and outdoor items.
-• Download / save a PDF of this email while you still have signal. During landfall you may be on your own — no network, no LUWAS, no live map.
-• Monitor LUWAS and PAGASA updates — do not wait for the last minute.
+• Download / save a PDF of this email while you still have signal. During landfall you may be on your own — no network, no UGNAI, no live map.
+• Monitor UGNAI and PAGASA updates — do not wait for the last minute.
 
 Where to evacuate (distance from your home in ${ctx.purok}):
 ${destText}
@@ -588,7 +588,7 @@ Download offline PDF (Print → Save as PDF): ${offlinePdfUrl}
 Situation map: ${mapUrl}
 
 Good luck — and hope you survive.
-LUWAS · Brgy. Nangka MDRRMO`,
+UGNAI · Brgy. Nangka MDRRMO`,
     htmlBody: `
       ${p(`<strong>About 3 days</strong> before estimated landfall / closest approach to Consolacion.`)}
       ${p(`Prepare now for <strong>${escapeHtml(ctx.barangay)}</strong> (${escapeHtml(ctx.purok)}).`)}
@@ -600,13 +600,13 @@ LUWAS · Brgy. Nangka MDRRMO`,
       </div>
       <div style="margin:0 0 20px;padding:14px 16px;border-radius:10px;background:#fef2f2;border:1px solid #fecaca;">
         <p style="margin:0 0 6px;font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:#991b1b;font-weight:700;">Save this offline</p>
-        <p style="margin:0;font-size:15px;line-height:1.5;color:#1f2126;"><strong>Download a PDF of this email now</strong> (tap the button below → Print → Save as PDF). During landfall you may be on your own — no signal, no LUWAS, no live map. Paper or offline PDF is what you will have.</p>
+        <p style="margin:0;font-size:15px;line-height:1.5;color:#1f2126;"><strong>Download a PDF of this email now</strong> (tap the button below → Print → Save as PDF). During landfall you may be on your own — no signal, no UGNAI, no live map. Paper or offline PDF is what you will have.</p>
       </div>
       ${bulletList([
         "Stock drinking water, ready-to-eat food (3 days), medicines, cooking fuel, and some cash.",
         "Secure roofs, windows, and outdoor items.",
         "Know your numbered escape options and call numbers above if floods threaten your purok.",
-        "Monitor LUWAS and PAGASA updates — do not wait for the last minute.",
+        "Monitor UGNAI and PAGASA updates — do not wait for the last minute.",
       ])}
       ${p("<strong>Good luck — and hope you survive.</strong>")}
       ${muted("Advance warning so households can prepare before the storm window.")}
@@ -623,7 +623,7 @@ export function buildEvacuateAlertEmail(
   const mapUrl = `${appOrigin()}/admin/overview`;
   const place = ctx.purok ? ` (${ctx.purok})` : "";
   return buildBrandedEmail({
-    subject: `LUWAS ALERT · ${ctx.barangay} · EVACUATE NOW`,
+    subject: `UGNAI ALERT · ${ctx.barangay} · EVACUATE NOW`,
     eyebrow: "Evacuate · Immediate",
     headline: "Evacuate now",
     headerVariant: "warning",
@@ -632,7 +632,7 @@ export function buildEvacuateAlertEmail(
 
 Please evacuate immediately to Consolacion Evacuation Center, Evacuation Center 2, or Nangka Elementary.
 
-• Follow road escape routes on the LUWAS situation map.
+• Follow road escape routes on the UGNAI situation map.
 • Bring go-bag, IDs, medicines, drinking water, and ready-to-eat food.
 • Do not wait for flood water to rise further.
 • For life-threatening emergencies call local PNP / BFP / barangay.
@@ -644,7 +644,7 @@ Guidance for responders · Tino DRRM simulation.`,
       ${p(`<strong>Evacuate now</strong> from <strong>${escapeHtml(ctx.barangay)}</strong>${place ? ` · ${escapeHtml(ctx.purok)}` : ""}.`)}
       ${p("Go to <strong>Consolacion Evacuation Center</strong>, <strong>Evacuation Center 2</strong>, or <strong>Nangka Elementary</strong>.")}
       ${bulletList([
-        "Follow road escape routes on the LUWAS situation map.",
+        "Follow road escape routes on the UGNAI situation map.",
         "Bring go-bag, IDs, medicines, drinking water, and ready-to-eat food.",
         "Do not wait for flood water to rise further.",
         "For life-threatening emergencies call local PNP / BFP / barangay.",
@@ -662,7 +662,7 @@ export function buildPrepareAlertEmail(
   const mapUrl = `${appOrigin()}/admin/overview`;
   const place = ctx.purok ? ` (${ctx.purok})` : "";
   return buildBrandedEmail({
-    subject: `LUWAS ALERT · ${ctx.barangay} · PREPARE`,
+    subject: `UGNAI ALERT · ${ctx.barangay} · PREPARE`,
     eyebrow: "Prepare · Shelter in place",
     headline: "Prepare and stock up",
     headerVariant: "warning",
@@ -702,7 +702,7 @@ export function buildReportVerifiedEmail(
   const notes = report.notes?.trim();
 
   return buildBrandedEmail({
-    subject: `LUWAS · Report verified · ${report.title}`,
+    subject: `UGNAI · Report verified · ${report.title}`,
     eyebrow: "Field report · Verified",
     headline: "Your report was verified",
     greetingName: ctx.name,
@@ -738,11 +738,11 @@ export function buildOfficerAddExistingEmail(
   const loginUrl = `${appOrigin()}/login`;
   const officer = ctx.officer ?? DEFAULT_EMAIL_SAMPLE.officer!;
   return buildBrandedEmail({
-    subject: `You're now a LUWAS officer · ${ctx.barangay}`,
+    subject: `You're now a UGNAI officer · ${ctx.barangay}`,
     eyebrow: "Staff access",
     headline: "Officer access granted",
     greetingName: ctx.name,
-    textBody: `${officer.addedByName} added you as a barangay officer in LUWAS for ${ctx.barangay}, ${ctx.lgu}.
+    textBody: `${officer.addedByName} added you as a barangay officer in UGNAI for ${ctx.barangay}, ${ctx.lgu}.
 
 Your house-owner record is now linked to a command login.
 
@@ -755,7 +755,7 @@ Sign in at: ${loginUrl}
 Change your password after first login. If you did not expect this, contact ${officer.addedByName} at the barangay hall.`,
     htmlBody: `
       ${p(
-        `<strong>${escapeHtml(officer.addedByName)}</strong> added you as a barangay officer in LUWAS for <strong>${escapeHtml(ctx.barangay)}</strong>, ${escapeHtml(ctx.lgu)}.`,
+        `<strong>${escapeHtml(officer.addedByName)}</strong> added you as a barangay officer in UGNAI for <strong>${escapeHtml(ctx.barangay)}</strong>, ${escapeHtml(ctx.lgu)}.`,
       )}
       ${p(
         "Your <strong>house-owner</strong> record is now linked to a command login so you can use officer tools.",
@@ -780,11 +780,11 @@ export function buildOfficerAddNewEmail(
   const loginUrl = `${appOrigin()}/login`;
   const officer = ctx.officer ?? DEFAULT_EMAIL_SAMPLE.officer!;
   return buildBrandedEmail({
-    subject: `Your LUWAS officer account · ${ctx.barangay}`,
+    subject: `Your UGNAI officer account · ${ctx.barangay}`,
     eyebrow: "New staff account",
     headline: "Welcome to the command team",
     greetingName: ctx.name,
-    textBody: `${officer.addedByName} created a new LUWAS officer account for you in ${ctx.barangay}, ${ctx.lgu}.
+    textBody: `${officer.addedByName} created a new UGNAI officer account for you in ${ctx.barangay}, ${ctx.lgu}.
 
 Role: ${officer.title}
 Login email: ${ctx.email}
@@ -795,7 +795,7 @@ Sign in at: ${loginUrl}
 Use command to view the situation map, validate reports, and support DRRM operations. Change your password after first login.`,
     htmlBody: `
       ${p(
-        `<strong>${escapeHtml(officer.addedByName)}</strong> created a new LUWAS officer account for you in <strong>${escapeHtml(ctx.barangay)}</strong>, ${escapeHtml(ctx.lgu)}.`,
+        `<strong>${escapeHtml(officer.addedByName)}</strong> created a new UGNAI officer account for you in <strong>${escapeHtml(ctx.barangay)}</strong>, ${escapeHtml(ctx.lgu)}.`,
       )}
       ${bulletList([
         `<strong>Role:</strong> ${escapeHtml(officer.title)}`,

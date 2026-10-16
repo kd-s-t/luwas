@@ -1,4 +1,4 @@
-# Luwas docs
+# Ugnai docs
 
 Day-to-day local setup lives in the root [README.md](../README.md). This folder is deeper ops / Cup notes.
 

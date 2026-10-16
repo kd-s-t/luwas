@@ -14,7 +14,7 @@ export const ELEVENLABS_VOICE_SI_AIRMAC = "V9wXgxyhEFNo2WPR5uBy";
 /** Bertch - Travel Buddy — Filipino / Cebuano library voice (needs paid API plan). */
 export const ELEVENLABS_VOICE_BERTCH = "2YPDVPh2YeXiRMgJXtvc";
 
-/** Default Mangluluwas voice (Si Airmac — paid Starter+ library voice). */
+/** Default Mangugnai voice (Si Airmac — paid Starter+ library voice). */
 export const ELEVENLABS_NARRATION_VOICE = ELEVENLABS_VOICE_SI_AIRMAC;
 
 /** Free-tier safe premade voice when library voices return paid_plan_required. */

@@ -5,7 +5,7 @@ export type SpeakEmotion =
   | "encouraging"
   | "calm";
 
-/** Infer delivery emotion from Mangluluwas reply text. */
+/** Infer delivery emotion from Mangugnai reply text. */
 export function inferSpeakEmotion(raw: string): SpeakEmotion {
   const t = raw.toLowerCase();
   if (

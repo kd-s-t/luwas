@@ -893,7 +893,7 @@ export function CitizenReportForm({
         ? (captured?.locationAccuracyM ?? null)
         : null,
       locationLabel: placeQuery.trim(),
-      device: captured?.device ?? "web-luwas-citizen",
+      device: captured?.device ?? "web-ugnai-citizen",
       reporterPhone: mobileNumber.trim() || null,
     };
 

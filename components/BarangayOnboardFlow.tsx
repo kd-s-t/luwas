@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import Image from "next/image";
+import { BrandLogo } from "@/components/BrandLogo";
 import {
   Background,
   Controls,
@@ -28,7 +29,7 @@ function StepNode({ data }: NodeProps) {
   const d = data as {
     label: string;
     lines?: string[];
-    logo: string;
+    logo?: string;
     logos?: string[];
     inLeft?: boolean;
     outRight?: boolean;
@@ -37,7 +38,7 @@ function StepNode({ data }: NodeProps) {
     inTop?: boolean;
     inBot?: boolean;
   };
-  const logos = d.logos ?? [d.logo];
+  const logos = d.logos ?? (d.logo ? [d.logo] : []);
   return (
     <div className={`relative ${flowNodeClass}`} style={{ width: 148 }}>
       {d.inLeft ? (
@@ -62,16 +63,20 @@ function StepNode({ data }: NodeProps) {
         />
       ) : null}
       <div className="flex items-center justify-center gap-1.5">
-        {logos.map((src) => (
-          <Image
-            key={src}
-            src={src}
-            alt=""
-            width={36}
-            height={36}
-            className="size-9 object-contain"
-          />
-        ))}
+        {logos.length === 0 ? (
+          <BrandLogo size={18} wordmarkClassName="text-sm" />
+        ) : (
+          logos.map((src) => (
+            <Image
+              key={src}
+              src={src}
+              alt=""
+              width={36}
+              height={36}
+              className="size-9 object-contain"
+            />
+          ))
+        )}
       </div>
       <p className={flowLabelClass}>{d.label}</p>
       {d.lines?.map((line) => (
@@ -115,7 +120,6 @@ function BarangayOnboardFlowCanvas() {
         position: { x: 16, y: 160 },
         data: {
           label: "Developer",
-          logo: "/brand/luwas-logo.png",
           lines: ["/dev/onboard"],
           outRight: true,
         },
@@ -126,8 +130,7 @@ function BarangayOnboardFlowCanvas() {
         position: { x: 200, y: 160 },
         data: {
           label: "Orientation",
-          logo: "/brand/luwas-logo.png",
-          lines: ["What LUWAS is"],
+          lines: ["What UGNAI is"],
           inLeft: true,
           outRight: true,
         },
@@ -211,7 +214,6 @@ function BarangayOnboardFlowCanvas() {
         position: { x: 1488, y: 72 },
         data: {
           label: "Command center",
-          logo: "/brand/luwas-logo.png",
           lines: ["Map prefers area"],
           inLeft: true,
         },

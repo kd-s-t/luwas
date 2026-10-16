@@ -1,6 +1,6 @@
 import type { HazardReport, ReportHazardHint } from "@/lib/reports/types";
 
-/** Vertex AutoML single-label classes for LUWAS hazard photos. */
+/** Vertex AutoML single-label classes for UGNAI hazard photos. */
 export type VertexVisionClass =
   | "flood"
   | "accident"
@@ -159,7 +159,7 @@ export async function downloadVertexMonthZip(
   zip.file(
     "README.txt",
     [
-      `LUWAS → Vertex AI vision batch (${ym})`,
+      `UGNAI → Vertex AI vision batch (${ym})`,
       `Images packed: ${packed}`,
       ``,
       `Vertex import (recommended):`,

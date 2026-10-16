@@ -7,8 +7,8 @@ import type { FloodSample } from "@/lib/hazards/floodSamples";
 import type { Household } from "@/lib/households/types";
 import { DEFAULT_MAP_AREA } from "@/lib/geo/mapAreas";
 
-const LEGACY_NANGKA_KEY = "luwas.nangka.publicMap.v1";
-const KEY_PREFIX = "luwas.barangay.publicMap.v1:";
+const LEGACY_NANGKA_KEY = "ugnai.nangka.publicMap.v1";
+const KEY_PREFIX = "ugnai.barangay.publicMap.v1:";
 
 export type BarangayMapSnapshot = {
   areaId: string;

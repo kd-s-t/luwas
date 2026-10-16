@@ -41,13 +41,13 @@ export default function HomePage() {
 
           <FadeItem>
             <h1 className="mt-2 font-[family-name:var(--font-display)] text-[2.75rem] font-semibold leading-[0.95] tracking-wide text-[var(--foreground)] sm:mt-3 sm:text-6xl md:text-7xl lg:text-8xl">
-              LUWAS
+              UGNAI
             </h1>
           </FadeItem>
 
           <FadeItem>
             <p className="mt-3 max-w-lg font-mono text-[10px] leading-relaxed tracking-[0.12em] text-[var(--accent)] uppercase sm:mt-4 sm:text-xs sm:tracking-[0.14em]">
-              Logistics &amp; Unified Workflow for Aid &amp; Safety
+              Unified Guidance for Needs, Alerts &amp; Incidents
             </p>
           </FadeItem>
 

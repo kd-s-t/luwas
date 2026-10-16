@@ -1,5 +1,5 @@
 /** Device-local report reference ids (guest + signed-in). */
-const STORAGE_KEY = "luwas.guestReportIds";
+const STORAGE_KEY = "ugnai.guestReportIds";
 const MAX_IDS = 20;
 
 function readIds(): string[] {

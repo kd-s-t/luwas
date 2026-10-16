@@ -1,6 +1,6 @@
 /**
  * Slim ElevenLabs client aligned with chapter-studio
- * (`src/integrations/elevenlabs/ElevenLabsClient.ts`) — TTS only for Luwas.
+ * (`src/integrations/elevenlabs/ElevenLabsClient.ts`) — TTS only for Ugnai.
  */
 
 import { ElevenLabsClient as ElevenLabsSdk } from "@elevenlabs/elevenlabs-js";

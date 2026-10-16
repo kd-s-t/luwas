@@ -110,10 +110,10 @@ export async function POST(req: Request) {
       headers: {
         "Content-Type": cached.mimeType,
         "Cache-Control": "no-store",
-        "X-Luwas-TTS-Emotion": cached.emotion,
-        "X-Luwas-TTS-Provider": "elevenlabs",
-        "X-Luwas-TTS-Voice": cached.voiceId,
-        "X-Luwas-TTS-Cache": "hit",
+        "X-Ugnai-TTS-Emotion": cached.emotion,
+        "X-Ugnai-TTS-Provider": "elevenlabs",
+        "X-Ugnai-TTS-Voice": cached.voiceId,
+        "X-Ugnai-TTS-Cache": "hit",
       },
     });
   }
@@ -144,10 +144,10 @@ export async function POST(req: Request) {
       headers: {
         "Content-Type": audio.mimeType,
         "Cache-Control": "no-store",
-        "X-Luwas-TTS-Emotion": emotion,
-        "X-Luwas-TTS-Provider": "elevenlabs",
-        "X-Luwas-TTS-Voice": audio.voiceId,
-        "X-Luwas-TTS-Cache": "miss",
+        "X-Ugnai-TTS-Emotion": emotion,
+        "X-Ugnai-TTS-Provider": "elevenlabs",
+        "X-Ugnai-TTS-Voice": audio.voiceId,
+        "X-Ugnai-TTS-Cache": "miss",
       },
     });
   } catch (err) {

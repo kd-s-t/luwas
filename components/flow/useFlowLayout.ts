@@ -42,7 +42,7 @@ type LegacySave = {
 };
 
 function storageKey(flowId: string) {
-  return `luwas.dev.flow.layout.${flowId}`;
+  return `ugnai.dev.flow.layout.${flowId}`;
 }
 
 function serializeNode(n: Node): Node {

@@ -246,7 +246,7 @@ export function useAiAssist(opts: UseAiAssistOpts = {}) {
     ): Promise<{ reply: string; smsLog: SmsLogEntry[] }> => {
       const assist = resultRef.current;
       if (!assist?.actions.length) {
-        throw new Error("No triage list yet — ask Mangluluwas to run triage first.");
+        throw new Error("No triage list yet — ask Mangugnai to run triage first.");
       }
       const enriched = enrichActionsWithContacts(assist.actions, households);
       const res = await fetch("/api/alerts/sms", {
@@ -336,7 +336,7 @@ export function useAiAssist(opts: UseAiAssistOpts = {}) {
     ): Promise<{ reply: string; smsLog: SmsLogEntry[] }> => {
       const assist = resultRef.current;
       if (!assist?.actions.length) {
-        throw new Error("No triage list yet — ask Mangluluwas to run triage first.");
+        throw new Error("No triage list yet — ask Mangugnai to run triage first.");
       }
       const enriched = enrichActionsWithContacts(assist.actions, households);
       const res = await fetch("/api/alerts/call", {

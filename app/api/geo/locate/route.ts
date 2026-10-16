@@ -37,7 +37,7 @@ export async function GET(req: Request) {
     const res = await fetch(url.toString(), {
       headers: {
         Accept: "application/json",
-        "User-Agent": "LuwasDRRM/0.1 (citizen location to barangay; local demo)",
+        "User-Agent": "UgnaiDRRM/0.1 (citizen location to barangay; local demo)",
       },
       cache: "no-store",
     });

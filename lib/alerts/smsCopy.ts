@@ -12,19 +12,19 @@ export function buildEvacSmsBody(input: {
 
   if (input.priority === "evacuate") {
     return (
-      `LUWAS ALERT · ${brgy}: ${name}${place}, please EVACUATE now to Consolacion Evacuation Center (or Center 2 / Nangka Elementary). ` +
+      `UGNAI ALERT · ${brgy}: ${name}${place}, please EVACUATE now to Consolacion Evacuation Center (or Center 2 / Nangka Elementary). ` +
       `Follow road escape routes. Tino simulation for responders. ` +
       `For emergencies call local PNP/BFP/barangay.`
     );
   }
   if (input.priority === "prepare") {
     return (
-      `LUWAS ALERT · ${brgy}: ${name}${place}, PREPARE — stock water, food, cooking fuel; watch flood/wind. ` +
+      `UGNAI ALERT · ${brgy}: ${name}${place}, PREPARE — stock water, food, cooking fuel; watch flood/wind. ` +
       `Tino simulation — call local responders if in danger.`
     );
   }
   return (
-    `LUWAS ALERT · ${brgy}: ${name}${place}, MONITOR — check welfare and keep phone on. ` +
+    `UGNAI ALERT · ${brgy}: ${name}${place}, MONITOR — check welfare and keep phone on. ` +
     `Tino simulation — call local responders if in danger.`
   );
 }
@@ -43,8 +43,8 @@ export function buildInvestigatorAssignSmsBody(input: {
   const title = (input.title ?? "citizen report").trim().slice(0, 50);
   const ref = input.reportId?.trim() ? ` Ref ${input.reportId.trim()}.` : "";
   return (
-    `LUWAS · ${brgy}: ${name}, you are ASSIGNED investigator for ${hazard}: ${title}.${ref} ` +
-    `Open Incidents in LUWAS. Tino simulation.`
+    `UGNAI · ${brgy}: ${name}, you are ASSIGNED investigator for ${hazard}: ${title}.${ref} ` +
+    `Open Incidents in UGNAI. Tino simulation.`
   );
 }
 
@@ -70,7 +70,7 @@ export function buildIncidentAlertSmsBody(input: {
       : "";
 
   return (
-    `LUWAS ${input.alertLabel.toUpperCase()}: ${situation} @ ${place}${pin}. ` +
+    `UGNAI ${input.alertLabel.toUpperCase()}: ${situation} @ ${place}${pin}. ` +
     `Please dispatch. Tino simulation.`
   );
 }

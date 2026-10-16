@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Provision Luwas Firebase / Firestore via Terraform (Spark-friendly).
+# Provision Ugnai Firebase / Firestore via Terraform (Spark-friendly).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"

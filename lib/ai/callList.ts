@@ -83,11 +83,11 @@ export function formatAssistCallReply(
   return sections.join("\n");
 }
 
-/** Injected into chat replies — MangluluwasChat renders a color legend. */
-export const MAP_LEGEND_MARKER = "[[LUWAS_MAP_LEGEND]]";
+/** Injected into chat replies — MangugnaiChat renders a color legend. */
+export const MAP_LEGEND_MARKER = "[[UGNAI_MAP_LEGEND]]";
 
-/** Injected into chat replies — MangluluwasChat renders a stock checklist. */
-export const STOCK_LIST_MARKER = "[[LUWAS_STOCK_LIST]]";
+/** Injected into chat replies — MangugnaiChat renders a stock checklist. */
+export const STOCK_LIST_MARKER = "[[UGNAI_STOCK_LIST]]";
 
 export const MAP_LEGEND_ITEMS = [
   {

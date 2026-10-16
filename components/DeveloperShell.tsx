@@ -68,7 +68,7 @@ export function DeveloperShell({
         <Link
           href="/dev"
           className="inline-flex transition hover:opacity-90"
-          aria-label="LUWAS developers"
+          aria-label="UGNAI developers"
         >
           <BrandLogoOnDark size={28} wordmarkClassName="text-2xl" />
         </Link>

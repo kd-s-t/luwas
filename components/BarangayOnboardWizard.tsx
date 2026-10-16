@@ -52,8 +52,8 @@ const STEPS: { id: OnboardStep; label: string }[] = [
 
 const ORIENTATION_POINTS = [
   {
-    title: "What LUWAS is",
-    body: "LUWAS is the barangay command layer for DRRM — situation map, household roster, staff directory, and alert templates in one place.",
+    title: "What UGNAI is",
+    body: "UGNAI is the barangay command layer for DRRM — situation map, household roster, staff directory, and alert templates in one place.",
   },
   {
     title: "What you’ll set up",
@@ -64,8 +64,8 @@ const ORIENTATION_POINTS = [
     body: "Punong Barangay, MDRRMO officers, and barangay staff who will run evacuate / prepare / monitor during typhoon and other hazards.",
   },
   {
-    title: "From the LUWAS Devs",
-    body: "UgnAI Labs sells LUWAS as a paid product. Subscribing barangays activate the same way. If something’s unclear, note it for Support — we iterate with paying customers.",
+    title: "From the UGNAI Devs",
+    body: "UgnAI Labs sells UGNAI as a paid product. Subscribing barangays activate the same way. If something’s unclear, note it for Support — we iterate with paying customers.",
   },
 ] as const;
 
@@ -381,10 +381,10 @@ export function BarangayOnboardWizard({ defaultOrgName = "" }: Props) {
             Go-live playbook
           </p>
           <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-wide">
-            Add a barangay to LUWAS ops
+            Add a barangay to UGNAI ops
           </h1>
           <p className="mt-1 max-w-xl text-sm text-[var(--muted)]">
-            Start with a short orientation from the LUWAS Devs, then activate a
+            Start with a short orientation from the UGNAI Devs, then activate a
             Cebu barangay: hall pin, MDRRMO profile, households / staff /
             templates.
           </p>
@@ -441,7 +441,7 @@ export function BarangayOnboardWizard({ defaultOrgName = "" }: Props) {
       {draft.step === "orientation" ? (
         <section className="border border-[var(--border)] bg-[var(--surface-raised)] p-4 sm:p-5">
           <p className="font-mono text-[10px] tracking-[0.16em] text-[var(--accent)]">
-            From the LUWAS Devs · UgnAI Labs
+            From the UGNAI Devs · UgnAI Labs
           </p>
           <h2 className="mt-1 font-[family-name:var(--font-display)] text-xl font-semibold">
             Orientation

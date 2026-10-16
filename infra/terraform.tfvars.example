@@ -1,6 +1,6 @@
 # Globally unique project id (lowercase, digits, hyphens)
-project_id         = "luwas-drrm"
-project_name       = "Luwas"
+project_id         = "ugnai-drrm"
+project_name       = "Ugnai"
 create_project     = true
 # Optional — leave empty for Spark free; set if Firestore/API enable fails without billing
 # billing_account  = "01XXXX-XXXXXX-XXXXXX"

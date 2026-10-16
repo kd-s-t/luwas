@@ -1,5 +1,5 @@
 {
-  "brand": "Luwas",
+  "brand": "Ugnai",
   "common": {
     "change": "Change",
     "edit": "Edit",
@@ -16,7 +16,7 @@
     "copied": "Copied",
     "removePhoto": "Remove photo",
     "pending": "Pending",
-    "saving": "Saving to LUWAS…"
+    "saving": "Saving to UGNAI…"
   },
   "errors": {
     "situationShort": "Describe what’s happening (optional).",
@@ -30,7 +30,7 @@
   "home": {
     "badge": "For every community",
     "tagline": "A safer next step, together.",
-    "blurb": "Tell us what happened and where. LUWAS helps organize your report for disaster responders.",
+    "blurb": "Tell us what happened and where. UGNAI helps organize your report for disaster responders.",
     "noLoginNeeded": "No login. No perfect report needed.",
     "whatToDo": "What do you need to do?",
     "reportFor": "Who are you reporting this incident for?",
@@ -56,7 +56,7 @@
     "call911": "Call 911"
   },
   "footer": {
-    "tagline": "LUWAS · Community disaster reporting",
+    "tagline": "UGNAI · Community disaster reporting",
     "accessibility": "Accessibility",
     "privacy": "Privacy"
   },
@@ -162,7 +162,7 @@
     "saveEvenMissing": "You can save even if some details are missing.",
     "nextTitle": "What happens next?",
     "nextBody": "Your report is received for review. Assignment depends on available responders and resources.",
-    "disclaimer": "LUWAS will not present unverified rescue or aid as confirmed."
+    "disclaimer": "UGNAI will not present unverified rescue or aid as confirmed."
   },
   "confirm": {
     "title": "Your report was received",
@@ -243,7 +243,7 @@
   },
   "auth": {
     "loginTitle": "Citizen login",
-    "loginSubtitle": "For residents only. Officers use the LUWAS web command center.",
+    "loginSubtitle": "For residents only. Officers use the UGNAI web command center.",
     "email": "Email",
     "password": "Password",
     "signingIn": "Signing in…",

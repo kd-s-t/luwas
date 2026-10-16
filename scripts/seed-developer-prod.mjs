@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Create / refresh the four LUWAS developer Auth + Firestore users (About us team).
+ * Create / refresh the four UGNAI developer Auth + Firestore users (About us team).
  *
  * Usage: node scripts/seed-developer-prod.mjs
  * Password: demo1234
@@ -19,22 +19,22 @@ const DEMO_PASSWORD = "demo1234";
 
 const DEVELOPERS = [
   {
-    email: "ken@luwas.demo",
+    email: "ken@ugnai.demo",
     displayName: "Ken Dan Tinio",
     title: "Fullstack Engineer",
   },
   {
-    email: "don@luwas.demo",
+    email: "don@ugnai.demo",
     displayName: "Don Sebial",
     title: "Product Designer",
   },
   {
-    email: "jean@luwas.demo",
+    email: "jean@ugnai.demo",
     displayName: "Jeanilou Labajo",
     title: "System Analyst",
   },
   {
-    email: "pat@luwas.demo",
+    email: "pat@ugnai.demo",
     displayName: "Patricia Abrenica",
     title: "Application Support Analyst",
   },

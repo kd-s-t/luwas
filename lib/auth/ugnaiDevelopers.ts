@@ -1,6 +1,6 @@
-/** The only LUWAS developer accounts (About us team). */
+/** The only UGNAI developer accounts (About us team). */
 
-export type LuwasDeveloper = {
+export type UgnaiDeveloper = {
   id: string;
   slug: string;
   name: string;
@@ -12,7 +12,7 @@ export type LuwasDeveloper = {
   bio: string;
 };
 
-export const LUWAS_DEVELOPERS: readonly LuwasDeveloper[] = [
+export const UGNAI_DEVELOPERS: readonly UgnaiDeveloper[] = [
   {
     id: "ken",
     slug: "ken-dan-tinio",
@@ -20,9 +20,9 @@ export const LUWAS_DEVELOPERS: readonly LuwasDeveloper[] = [
     short: "Ken",
     role: "Fullstack Engineer",
     focus: "Product and platform",
-    email: "ken@luwas.demo",
+    email: "ken@ugnai.demo",
     password: "demo1234",
-    bio: "Owns the LUWAS web stack end to end: Next.js command center and citizen flows, Firebase auth and Firestore, Cloud Run / Hosting deploy, AI triage and validation wiring (Gemini + Vertex), alerts (SMS, email, voice), and the APIs that keep field reports moving from guest ingest to officer queue.",
+    bio: "Owns the UGNAI web stack end to end: Next.js command center and citizen flows, Firebase auth and Firestore, Cloud Run / Hosting deploy, AI triage and validation wiring (Gemini + Vertex), alerts (SMS, email, voice), and the APIs that keep field reports moving from guest ingest to officer queue.",
   },
   {
     id: "don",
@@ -31,9 +31,9 @@ export const LUWAS_DEVELOPERS: readonly LuwasDeveloper[] = [
     short: "Don",
     role: "Product Designer",
     focus: "UI/UX and Graphic Design",
-    email: "don@luwas.demo",
+    email: "don@ugnai.demo",
     password: "demo1234",
-    bio: "Shapes how LUWAS looks and feels: brand direction, map and command layout, citizen report UX, motion, and graphic assets so officers and residents can read urgency at a glance without clutter.",
+    bio: "Shapes how UGNAI looks and feels: brand direction, map and command layout, citizen report UX, motion, and graphic assets so officers and residents can read urgency at a glance without clutter.",
   },
   {
     id: "jean",
@@ -42,7 +42,7 @@ export const LUWAS_DEVELOPERS: readonly LuwasDeveloper[] = [
     short: "Jean",
     role: "System Analyst",
     focus: "Quality and field checks",
-    email: "jean@luwas.demo",
+    email: "jean@ugnai.demo",
     password: "demo1234",
     bio: "Runs quality passes across citizen and officer paths: registration and login, guest and signed-in reporting, triage and map layers, and regression checks before a release so demo and ops scenarios stay trustworthy.",
   },
@@ -53,23 +53,23 @@ export const LUWAS_DEVELOPERS: readonly LuwasDeveloper[] = [
     short: "Pat",
     role: "Application Support Analyst",
     focus: "Support and acceptance",
-    email: "pat@luwas.demo",
+    email: "pat@ugnai.demo",
     password: "demo1234",
     bio: "An Accenture Custom Software Engineer designs, codes, tests, and enhances custom software solutions and applications using modern frameworks and agile methodologies.",
   },
 ] as const;
 
-export function findLuwasDeveloper(
+export function findUgnaiDeveloper(
   email: string,
   password?: string,
-): LuwasDeveloper | null {
+): UgnaiDeveloper | null {
   const mail = email.trim().toLowerCase();
-  const hit = LUWAS_DEVELOPERS.find((d) => d.email.toLowerCase() === mail);
+  const hit = UGNAI_DEVELOPERS.find((d) => d.email.toLowerCase() === mail);
   if (!hit) return null;
   if (password != null && password !== hit.password) return null;
   return hit;
 }
 
-export function isLuwasDeveloperEmail(email: string): boolean {
-  return Boolean(findLuwasDeveloper(email));
+export function isUgnaiDeveloperEmail(email: string): boolean {
+  return Boolean(findUgnaiDeveloper(email));
 }

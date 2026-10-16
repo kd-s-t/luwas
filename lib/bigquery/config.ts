@@ -16,7 +16,7 @@ export function bigQueryConfig(): BigQueryConfig | null {
   if (!projectId || projectId === "demo-dro") return null;
   return {
     projectId,
-    dataset: process.env.BIGQUERY_DATASET?.trim() || "luwas",
+    dataset: process.env.BIGQUERY_DATASET?.trim() || "ugnai",
     table: process.env.BIGQUERY_TABLE?.trim() || "hazard_reports",
   };
 }

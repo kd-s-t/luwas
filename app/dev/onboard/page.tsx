@@ -11,7 +11,7 @@ export default function DeveloperOnboardPage() {
       <DeveloperShell>
         <FadeIn delay={0.04} y={10}>
           <div className="mx-auto max-w-3xl">
-            <BarangayOnboardWizard defaultOrgName="LUWAS Developers" />
+            <BarangayOnboardWizard defaultOrgName="UGNAI Developers" />
           </div>
         </FadeIn>
       </DeveloperShell>

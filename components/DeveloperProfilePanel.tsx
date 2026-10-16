@@ -54,7 +54,7 @@ export function DeveloperProfilePanel() {
         doc(getClientDb(), "users", user.uid),
         {
           displayName: name,
-          orgName: orgName.trim() || "LUWAS Developers",
+          orgName: orgName.trim() || "UGNAI Developers",
           photoURL: photo,
           updatedAt: new Date().toISOString(),
           updatedAtServer: serverTimestamp(),

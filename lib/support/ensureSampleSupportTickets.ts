@@ -75,7 +75,7 @@ export const SAMPLE_SUPPORT_TICKETS: SampleTicket[] = [
   {
     id: "sup-sample-005",
     status: "open",
-    email: "guest@luwas.local",
+    email: "guest@ugnai.local",
     pageUrl: "/support",
     summary: "Support form rejects long details past ~4k chars",
     details:
@@ -112,7 +112,7 @@ export async function ensureSampleSupportTickets(): Promise<{
       details: sample.details,
       uid: sample.uid,
       status: sample.status,
-      userAgent: "LUWAS sample seed",
+      userAgent: "UGNAI sample seed",
       createdAt: now,
       createdAtServer: serverTimestamp(),
       assignedToUid: sample.assignedToUid,
