@@ -85,6 +85,8 @@
     "recording": "Nagre-record… i-tap para huminto",
     "stopVoice": "Ihinto ang recording",
     "voiceReady": "Nai-save ang voice note",
+    "voiceProcessing": "Pineproseso ang audio…",
+    "voiceTranscribing": "Tini-transcribe…",
     "voicePlay": "I-play ang voice note",
     "voicePause": "I-pause",
     "voiceReRecord": "I-record muli",
@@ -190,7 +192,7 @@
     "title": "Subaybayan ang iyong ulat",
     "subtitle": "Tingnan ang progreso gamit ang reference number. Walang login na kailangan.",
     "reference": "Reference number ng ulat",
-    "placeholder": "LUW-261009-1042",
+    "placeholder": "CEB-CON-NANG-261017-0001",
     "checkUpdates": "Tingnan ang mga update",
     "checking": "Tinitingnan…",
     "lastChecked": "Huling tingin {when}",
@@ -239,7 +241,7 @@
     "open": "Buksan",
     "enterRef": "Ilagay ang reference number.",
     "current": "Kasalukuyan",
-    "badFormat": "Dapat mukhang LUW-261010-9934 ang reference (mula sa confirmation screen).",
+    "badFormat": "Dapat mukhang CEB-CON-NANG-261017-0001 ang reference (mula sa confirmation screen).",
     "notFound": "Walang ulat para sa {ref}. Suriin ang numero at subukan muli."
   },
   "auth": {

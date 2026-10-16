@@ -1,10 +1,7 @@
 import type { HazardReport } from "@/lib/reports/types";
 import { hazardHintLabel } from "@/lib/reports/types";
-import {
-  matchInventoryForHazard,
-  NANGKA_SAMPLE_INVENTORY,
-} from "@/lib/workspace/sampleInventory";
 import { unknownsForReport } from "@/lib/workspace/incidentDerived";
+import { parseReportNeed } from "@/lib/workspace/reportNeed";
 
 export type AttentionKind = "critical" | "resource" | "approval";
 
@@ -101,40 +98,19 @@ function isUnverified(report: HazardReport): boolean {
   );
 }
 
-function inventoryShortfall(report: HazardReport): {
-  short: boolean;
-  detail: string;
-} {
-  const matches = matchInventoryForHazard(
-    report.hazardHint,
-    NANGKA_SAMPLE_INVENTORY,
-  ).filter((m) => m.shortfall > 0 || !m.canFulfill);
-  if (matches.length === 0) {
-    const zeroStock = NANGKA_SAMPLE_INVENTORY.filter(
-      (i) => i.available === 0 && i.hazards.includes(report.hazardHint),
-    );
-    if (zeroStock.length === 0) return { short: false, detail: "" };
-    return {
-      short: true,
-      detail: `${zeroStock[0]!.label} stock is 0. Confirm partner supply before committing.`,
-    };
-  }
-  const top = matches[0]!;
-  return {
-    short: true,
-    detail: `${top.shortfall || top.requested} ${top.item.unit} of ${top.item.label.toLowerCase()} still needed. Available stock is unconfirmed for full request.`,
-  };
-}
-
 function classify(report: HazardReport): AttentionKind | null {
   if (report.status === "rejected") return null;
 
-  const short = inventoryShortfall(report);
+  const need = parseReportNeed(report);
+  const short = { short: need.short, detail: need.detail };
   const awaitingPlan =
     report.status === "legit" && !report.autoResponderCallAt;
   const inQueue = QUEUE.has(report.status);
   const urgentHazard = URGENT_HAZARDS.has(report.hazardHint);
   const unverified = isUnverified(report);
+  const medicalOffer = /medical|kit|red cross|rc-?\d/i.test(
+    `${report.title ?? ""} ${report.notes ?? ""}`,
+  );
 
   if (
     report.status === "needs_review" ||
@@ -143,10 +119,18 @@ function classify(report: HazardReport): AttentionKind | null {
   ) {
     return "critical";
   }
-  if (short.short && (inQueue || report.status === "legit")) {
+  // Medical / partner offers stay on approval. Other stock gaps are shortages
+  // so Resources shows Find assistance cards.
+  if (medicalOffer && (awaitingPlan || report.status === "legit")) {
+    return "approval";
+  }
+  if (short.short && (inQueue || report.status === "legit" || awaitingPlan)) {
     return "resource";
   }
-  if (awaitingPlan || (inQueue && report.aiVerdict === "legit")) {
+  if (awaitingPlan) {
+    return "approval";
+  }
+  if (inQueue && report.aiVerdict === "legit") {
     return "approval";
   }
   if (inQueue && urgentHazard) return "critical";
@@ -162,7 +146,7 @@ function buildItem(
   const code = incidentCode(report, index);
   const place = placeLine(report);
   const unverified = isUnverified(report);
-  const short = inventoryShortfall(report);
+  const short = parseReportNeed(report);
   const href = `/admin/incidents/${encodeURIComponent(report.id)}`;
 
   if (kind === "critical") {
@@ -198,10 +182,10 @@ function buildItem(
       reportId: report.id,
       incidentCode: code,
       tags: [{ label: "Resource shortage", tone: "warn" }],
-      headline: report.title || `${place} needs additional supplies.`,
-      detail: short.detail || report.notes || "Supply gap vs sample stock.",
+      headline: report.title || `${place} needs additional support.`,
+      detail: short.detail,
       timeLabel: timeLabelPht(report.createdAt),
-      meta: "1 request",
+      meta: short.neededLabel,
       ctaLabel: "Find assistance",
       ctaHref: `/admin/resources/assist?report=${encodeURIComponent(report.id)}`,
       primaryCta: false,
@@ -217,11 +201,9 @@ function buildItem(
     incidentCode: code,
     tags: [{ label: "Approval needed", tone: "info" }],
     headline: report.title || "Commitment awaiting approval.",
-    detail:
-      report.notes?.trim() ||
-      "AI or partner proposal is ready; commitment approval is pending.",
+    detail: short.detail || "Partner or plan proposal awaiting human approval.",
     timeLabel: timeLabelPht(report.updatedAt || report.createdAt),
-    meta: "Pending plan",
+    meta: short.neededLabel,
     ctaLabel: "Review plan",
     ctaHref: href,
     primaryCta: false,

@@ -16,14 +16,23 @@ import {
   UGNAI_DEVELOPERS,
   type UgnaiDeveloper,
 } from "@/lib/auth/ugnaiDevelopers";
-import { getClientAuth, getClientDb } from "@/lib/firebase/client";
+import { getClientAuth, getClientDb, useEmulators } from "@/lib/firebase/client";
+
+/** Easy-login roster only on local emulators — hidden on prod. */
+const SHOW_EASY_LOGINS = useEmulators;
 
 export default function DeveloperLoginPage() {
   const { login } = useAuth();
   const router = useRouter();
-  const [email, setEmail] = useState(UGNAI_DEVELOPERS[0]!.email);
-  const [password, setPassword] = useState(UGNAI_DEVELOPERS[0]!.password);
-  const [selectedId, setSelectedId] = useState(UGNAI_DEVELOPERS[0]!.id);
+  const [email, setEmail] = useState(
+    SHOW_EASY_LOGINS ? UGNAI_DEVELOPERS[0]!.email : "",
+  );
+  const [password, setPassword] = useState(
+    SHOW_EASY_LOGINS ? UGNAI_DEVELOPERS[0]!.password : "",
+  );
+  const [selectedId, setSelectedId] = useState(
+    SHOW_EASY_LOGINS ? UGNAI_DEVELOPERS[0]!.id : "",
+  );
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -142,58 +151,62 @@ export default function DeveloperLoginPage() {
         }
       >
         <form onSubmit={onSubmit} className="space-y-5">
-          <div className="space-y-2">
-            <p className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
-              Developers · password demo1234
-            </p>
-            <ul className="divide-y divide-[var(--border)] border border-[var(--border)]">
-              {UGNAI_DEVELOPERS.map((d) => {
-                const selected = selectedId === d.id;
-                return (
-                  <li key={d.id}>
-                    <button
-                      type="button"
-                      onClick={() => void loginAs(d)}
-                      disabled={submitting}
-                      className={`flex w-full items-center gap-3 px-3 py-2.5 text-left transition disabled:opacity-60 ${
-                        selected
-                          ? "bg-[var(--accent)]/5"
-                          : "hover:bg-[var(--surface-raised)]"
-                      }`}
-                    >
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-medium text-[var(--foreground)]">
-                          {d.name}
-                        </span>
-                        <span className="mt-0.5 block truncate text-[11px] text-[var(--muted)]">
-                          {d.role} · {d.focus}
-                        </span>
-                      </span>
-                      <span
-                        className={`shrink-0 rounded-md px-2.5 py-1 font-mono text-[10px] tracking-wider uppercase ${
-                          selected
-                            ? "bg-[var(--accent)] text-white"
-                            : "border border-[var(--border)] text-[var(--muted)]"
-                        }`}
-                      >
-                        Enter
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-            <p className="text-[11px] text-[var(--muted)]">
-              Accounts auto-create on first Enter.
-            </p>
-          </div>
+          {SHOW_EASY_LOGINS ? (
+            <>
+              <div className="space-y-2">
+                <p className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+                  Developers · password demo1234
+                </p>
+                <ul className="divide-y divide-[var(--border)] border border-[var(--border)]">
+                  {UGNAI_DEVELOPERS.map((d) => {
+                    const selected = selectedId === d.id;
+                    return (
+                      <li key={d.id}>
+                        <button
+                          type="button"
+                          onClick={() => void loginAs(d)}
+                          disabled={submitting}
+                          className={`flex w-full items-center gap-3 px-3 py-2.5 text-left transition disabled:opacity-60 ${
+                            selected
+                              ? "bg-[var(--accent)]/5"
+                              : "hover:bg-[var(--surface-raised)]"
+                          }`}
+                        >
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-sm font-medium text-[var(--foreground)]">
+                              {d.name}
+                            </span>
+                            <span className="mt-0.5 block truncate text-[11px] text-[var(--muted)]">
+                              {d.role} · {d.focus}
+                            </span>
+                          </span>
+                          <span
+                            className={`shrink-0 rounded-md px-2.5 py-1 font-mono text-[10px] tracking-wider uppercase ${
+                              selected
+                                ? "bg-[var(--accent)] text-white"
+                                : "border border-[var(--border)] text-[var(--muted)]"
+                            }`}
+                          >
+                            Enter
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <p className="text-[11px] text-[var(--muted)]">
+                  Local emulators · accounts auto-create on first Enter.
+                </p>
+              </div>
 
-          <div className="relative py-1">
-            <div className="absolute inset-x-0 top-1/2 border-t border-[var(--border)]" />
-            <p className="relative mx-auto w-fit bg-[var(--surface)] px-2 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
-              Or email
-            </p>
-          </div>
+              <div className="relative py-1">
+                <div className="absolute inset-x-0 top-1/2 border-t border-[var(--border)]" />
+                <p className="relative mx-auto w-fit bg-[var(--surface)] px-2 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+                  Or email
+                </p>
+              </div>
+            </>
+          ) : null}
 
           <label className="block">
             <span className="mb-1.5 block text-sm text-[var(--muted)]">

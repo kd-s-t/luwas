@@ -19,13 +19,21 @@ import type { UserProfile } from "@/lib/auth/types";
 
 const CAPTAIN =
   DEMO_OFFICERS.find((o) => o.id === "captain") ?? DEMO_OFFICERS[0]!;
+/** Easy-login roster only on local emulators — hidden on prod. */
+const SHOW_EASY_LOGINS = useEmulators;
 
 export default function LoginPage() {
   const { login, register } = useAuth();
   const router = useRouter();
-  const [email, setEmail] = useState<string>(CAPTAIN.email);
-  const [password, setPassword] = useState<string>(CAPTAIN.password);
-  const [selectedDemoId, setSelectedDemoId] = useState<string>(CAPTAIN.id);
+  const [email, setEmail] = useState<string>(
+    SHOW_EASY_LOGINS ? CAPTAIN.email : "",
+  );
+  const [password, setPassword] = useState<string>(
+    SHOW_EASY_LOGINS ? CAPTAIN.password : "",
+  );
+  const [selectedDemoId, setSelectedDemoId] = useState<string>(
+    SHOW_EASY_LOGINS ? CAPTAIN.id : "",
+  );
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -218,75 +226,77 @@ export default function LoginPage() {
         }
       >
         <form onSubmit={onSubmit} className="space-y-5">
-          <div className="space-y-2">
-            <p className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
-              Officer roles · password demo1234
-            </p>
-            <ul className="divide-y divide-[var(--border)] border border-[var(--border)]">
-              {DEMO_OFFICERS.map((o) => {
-                const selected = selectedDemoId === o.id;
-                return (
-                  <li key={o.id}>
-                    <button
-                      type="button"
-                      onClick={() => void loginAs(o)}
-                      disabled={submitting}
-                      className={`flex w-full items-center gap-3 px-3 py-2.5 text-left transition disabled:opacity-60 ${
-                        selected
-                          ? "bg-[var(--accent)]/5"
-                          : "hover:bg-[var(--surface-raised)]"
-                      }`}
-                    >
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-medium text-[var(--foreground)]">
-                          {o.label}
-                          {o.id === "captain" ? (
-                            <span className="font-normal text-[var(--muted)]">
-                              {" "}
-                              · Nangka
+          {SHOW_EASY_LOGINS ? (
+            <>
+              <div className="space-y-2">
+                <p className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+                  Officer roles · password demo1234
+                </p>
+                <ul className="divide-y divide-[var(--border)] border border-[var(--border)]">
+                  {DEMO_OFFICERS.map((o) => {
+                    const selected = selectedDemoId === o.id;
+                    return (
+                      <li key={o.id}>
+                        <button
+                          type="button"
+                          onClick={() => void loginAs(o)}
+                          disabled={submitting}
+                          className={`flex w-full items-center gap-3 px-3 py-2.5 text-left transition disabled:opacity-60 ${
+                            selected
+                              ? "bg-[var(--accent)]/5"
+                              : "hover:bg-[var(--surface-raised)]"
+                          }`}
+                        >
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-sm font-medium text-[var(--foreground)]">
+                              {o.label}
+                              {o.id === "captain" ? (
+                                <span className="font-normal text-[var(--muted)]">
+                                  {" "}
+                                  · Nangka
+                                </span>
+                              ) : null}
+                              {o.id === "apas-captain" ? (
+                                <span className="font-normal text-[var(--muted)]">
+                                  {" "}
+                                  · Cebu City
+                                </span>
+                              ) : null}
                             </span>
-                          ) : null}
-                          {o.id === "apas-captain" ? (
-                            <span className="font-normal text-[var(--muted)]">
-                              {" "}
-                              · Cebu City
+                            <span className="mt-0.5 block truncate font-mono text-[10px] text-[var(--muted)]">
+                              {o.displayName}
                             </span>
-                          ) : null}
-                        </span>
-                        <span className="mt-0.5 block truncate font-mono text-[10px] text-[var(--muted)]">
-                          {o.displayName}
-                        </span>
-                      </span>
-                      <span
-                        className={`shrink-0 font-mono text-[10px] tracking-wider uppercase ${
-                          selected
-                            ? "text-[var(--accent)]"
-                            : "text-[var(--muted)]"
-                        }`}
-                      >
-                        {submitting && selected ? "…" : "Enter"}
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-            <p className="text-[11px] text-[var(--muted)]">
-              {useEmulators
-                ? "Local emulators · accounts auto-create on first Enter."
-                : "Prod · tap Apas or Nangka Captain to open that barangay command."}
-            </p>
-          </div>
+                          </span>
+                          <span
+                            className={`shrink-0 font-mono text-[10px] tracking-wider uppercase ${
+                              selected
+                                ? "text-[var(--accent)]"
+                                : "text-[var(--muted)]"
+                            }`}
+                          >
+                            {submitting && selected ? "…" : "Enter"}
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <p className="text-[11px] text-[var(--muted)]">
+                  Local emulators · accounts auto-create on first Enter.
+                </p>
+              </div>
 
-          <div className="relative">
-            <div
-              className="absolute inset-x-0 top-1/2 border-t border-[var(--border)]"
-              aria-hidden
-            />
-            <p className="relative mx-auto w-fit bg-[var(--surface)] px-2 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
-              Or email
-            </p>
-          </div>
+              <div className="relative">
+                <div
+                  className="absolute inset-x-0 top-1/2 border-t border-[var(--border)]"
+                  aria-hidden
+                />
+                <p className="relative mx-auto w-fit bg-[var(--surface)] px-2 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+                  Or email
+                </p>
+              </div>
+            </>
+          ) : null}
 
           <div className="space-y-3">
             <label className="block text-sm">

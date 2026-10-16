@@ -90,6 +90,11 @@ const SECONDARY: { href: string; label: string; match: (p: string) => boolean }[
       label: "Officers",
       match: (p) => p.startsWith("/admin/officers"),
     },
+    {
+      href: "/admin/partners",
+      label: "Partners",
+      match: (p) => p.startsWith("/admin/partners"),
+    },
   ];
 
 type CommandShellProps = {

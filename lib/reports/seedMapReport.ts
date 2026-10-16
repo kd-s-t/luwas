@@ -13,7 +13,11 @@ import {
 } from "@/lib/reports/barangayScope";
 import { EMPTY_REACTION_COUNTS } from "@/lib/reports/socialTypes";
 import { computeReportTrust } from "@/lib/reports/trustScore";
-import type { HazardReport, ReportHazardHint } from "@/lib/reports/types";
+import type {
+  FieldEvidenceImage,
+  HazardReport,
+  ReportHazardHint,
+} from "@/lib/reports/types";
 import type { ScenarioReportPin } from "@/lib/scenarios/types";
 import { CAT5_DURING } from "@/lib/scenarios";
 
@@ -211,6 +215,12 @@ export async function ensureMapReportInDb(
               ),
             }
           : null,
+      manualDispatchChecked: Boolean((data as { manualDispatchChecked?: unknown }).manualDispatchChecked),
+      fieldEvidence: Array.isArray(
+        (data as { fieldEvidence?: unknown }).fieldEvidence,
+      )
+        ? ((data as { fieldEvidence: FieldEvidenceImage[] }).fieldEvidence)
+        : [],
       reporterIdVerified: Boolean(data.reporterIdVerified ?? true),
       reporterEmail:
         data.reporterEmail != null
@@ -300,6 +310,8 @@ export async function ensureMapReportInDb(
     investigatedAt: null,
     autoResponderCallAt: null,
     dispatchLog: null,
+    manualDispatchChecked: false,
+    fieldEvidence: [],
     reporterIdVerified: true,
     reporterEmail: citizen.email,
     reporterPhone: citizen.phone,

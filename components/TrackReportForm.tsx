@@ -22,7 +22,6 @@ import {
 } from "@/lib/reports/types";
 import { cn } from "@/lib/utils";
 
-const LUW_RE = /^LUW-\d{6}-\d{4}$/i;
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -31,7 +30,12 @@ function normalizeRef(raw: string): string {
 }
 
 function isValidRef(ref: string): boolean {
-  return LUW_RE.test(ref) || UUID_RE.test(ref);
+  const upper = ref.toUpperCase();
+  return (
+    /^LUW-\d{6}-\d{4}$/.test(upper) ||
+    /^[A-Z]{2,4}-[A-Z0-9]{2,8}-[A-Z0-9]{2,10}-\d{6}-\d{4}$/.test(upper) ||
+    UUID_RE.test(ref)
+  );
 }
 
 function formatWhen(iso: string, language: CitizenLang, short = false): string {
@@ -309,7 +313,7 @@ export function TrackReportForm() {
   useEffect(() => {
     const q = searchParams.get("ref")?.trim();
     if (q) {
-      setValue(q.toUpperCase().startsWith("LUW") ? q.toUpperCase() : q);
+      setValue(isValidRef(q) && !UUID_RE.test(q) ? q.toUpperCase() : q);
       void load(q);
       return;
     }
@@ -382,9 +386,10 @@ export function TrackReportForm() {
             value={value}
             onChange={(e) => {
               const next = e.target.value.trimStart();
+              const upper = next.toUpperCase();
               setValue(
-                next.toUpperCase().startsWith("LUW")
-                  ? next.toUpperCase()
+                upper.startsWith("LUW") || upper.startsWith("CEB-")
+                  ? upper
                   : next,
               );
               setError(null);

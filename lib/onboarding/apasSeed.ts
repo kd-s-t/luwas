@@ -47,7 +47,7 @@ type ApasSample = {
 /** Sample field reports pinned near Apas hall (Cebu City). */
 export const APAS_QUEUE_SAMPLES: ApasSample[] = [
   {
-    id: "LUW-261016-8001",
+    id: "CEB-CC-APAS-261016-8001",
     status: "needs_review",
     title: "Street flooding · Generoso St near hall",
     notes:
@@ -64,7 +64,7 @@ export const APAS_QUEUE_SAMPLES: ApasSample[] = [
     aiReason: "Flood wording vs glare · needs ground check.",
   },
   {
-    id: "LUW-261016-8002",
+    id: "CEB-CC-APAS-261016-8002",
     status: "needs_review",
     title: "Smoke near chapel · wind toward houses",
     notes:
@@ -81,7 +81,7 @@ export const APAS_QUEUE_SAMPLES: ApasSample[] = [
     aiReason: "Smell/smoke only · hold for human confirmation.",
   },
   {
-    id: "LUW-261016-8003",
+    id: "CEB-CC-APAS-261016-8003",
     status: "queued",
     title: "Fallen branch on wires · north lane",
     notes: "Branch resting on secondary line after wind. No sparks yet.",
@@ -97,7 +97,7 @@ export const APAS_QUEUE_SAMPLES: ApasSample[] = [
     aiReason: "Tree vs line hazard mix · mid confidence.",
   },
   {
-    id: "LUW-261016-8004",
+    id: "CEB-CC-APAS-261016-8004",
     status: "needs_review",
     title: "Evac center capacity claim unverified",
     notes:
@@ -114,7 +114,7 @@ export const APAS_QUEUE_SAMPLES: ApasSample[] = [
     aiReason: "Capacity claim unverified · needs ops count.",
   },
   {
-    id: "LUW-261016-8101",
+    id: "CEB-CC-APAS-261016-8101",
     status: "rejected",
     title: "Complaint about neighbor karaoke",
     notes: "Loud music since 11pm. Not a disaster.",
@@ -238,6 +238,8 @@ async function ensureApasReports(): Promise<number> {
       validatedAt: sample.status === "queued" ? null : now,
       autoResponderCallAt: null,
       dispatchLog: null,
+    manualDispatchChecked: false,
+      fieldEvidence: [],
       reporterIdVerified: false,
       reporterEmail: sample.email,
       reporterPhone: sample.phone,

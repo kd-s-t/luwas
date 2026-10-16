@@ -12,6 +12,8 @@ type Body = {
   mediaMime: string;
   /** Base64 without data: prefix — preferred for emulator Storage. */
   mediaBase64?: string;
+  /** Speech-to-text for voice-only / voice+photo reports. */
+  voiceTranscript?: string;
   fileName?: string;
   model?: string;
 };
@@ -36,6 +38,10 @@ export async function POST(req: Request) {
     mediaType: body.mediaType === "video" ? "video" : "photo",
     mediaMime: body.mediaMime || "",
     mediaBase64: body.mediaBase64,
+    voiceTranscript:
+      typeof body.voiceTranscript === "string"
+        ? body.voiceTranscript.trim()
+        : undefined,
     fileName: body.fileName,
     model: body.model,
   });

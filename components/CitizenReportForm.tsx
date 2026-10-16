@@ -276,6 +276,9 @@ export function CitizenReportForm({
     () => draft?.voiceTranscript ?? null,
   );
   const [voiceTranscribing, setVoiceTranscribing] = useState(false);
+  /** Blob/file still settling — hide play until the browser can load it. */
+  const [voiceProcessing, setVoiceProcessing] = useState(false);
+  const [voiceAudioReady, setVoiceAudioReady] = useState(false);
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [existingMediaUrl] = useState(() => draft?.mediaUrl ?? null);
   const [existingMediaPath] = useState(() => draft?.mediaPath ?? null);
@@ -439,11 +442,41 @@ export function CitizenReportForm({
   useEffect(() => {
     if (!voiceFile) {
       setVoicePreviewUrl(draft?.voiceUrl ?? null);
+      setVoiceProcessing(false);
+      setVoiceAudioReady(Boolean(draft?.voiceUrl));
       return;
     }
+    setVoiceProcessing(true);
+    setVoiceAudioReady(false);
     const url = URL.createObjectURL(voiceFile);
     setVoicePreviewUrl(url);
+
+    const probe = new Audio();
+    probe.preload = "auto";
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      setVoiceProcessing(false);
+      setVoiceAudioReady(true);
+    };
+    probe.addEventListener("canplaythrough", finish);
+    probe.addEventListener("loadeddata", finish);
+    probe.addEventListener("error", finish);
+    probe.src = url;
+    try {
+      probe.load();
+    } catch {
+      finish();
+    }
+    const timeout = window.setTimeout(finish, 6000);
+
     return () => {
+      window.clearTimeout(timeout);
+      probe.removeEventListener("canplaythrough", finish);
+      probe.removeEventListener("loadeddata", finish);
+      probe.removeEventListener("error", finish);
+      probe.src = "";
       URL.revokeObjectURL(url);
     };
   }, [voiceFile, draft?.voiceUrl]);
@@ -514,6 +547,8 @@ export function CitizenReportForm({
     setVoiceFile(null);
     setVoiceTranscript(null);
     setVoiceTranscribing(false);
+    setVoiceProcessing(false);
+    setVoiceAudioReady(false);
   }
 
   function stopVoiceCapture(saveLabel: boolean) {
@@ -706,6 +741,8 @@ export function CitizenReportForm({
           const file = new File([blob], `voice-note.${ext}`, {
             type: mimeType.split(";")[0] || "audio/webm",
           });
+          setVoiceProcessing(true);
+          setVoiceAudioReady(false);
           setVoiceFile(file);
           setVoiceTranscript(null);
           void transcribeVoiceFile(file).then((text) => {
@@ -714,6 +751,8 @@ export function CitizenReportForm({
         } else {
           setVoiceFile(null);
           setVoiceTranscript(null);
+          setVoiceProcessing(false);
+          setVoiceAudioReady(false);
         }
       };
 
@@ -929,77 +968,77 @@ export function CitizenReportForm({
       ? await updateGuestHazardReport(payload)
       : await createGuestHazardReport({ ...payload, status: "queued" });
 
-    // AI after save — guest update rules allow it without login.
-    const canInline =
-      file != null &&
-      mediaType === "photo" &&
-      file.size <= 3.5 * 1024 * 1024;
-    if (canInline && file) {
-      void (async () => {
-        try {
-          const mediaBase64 = await fileToBase64(file);
-          const res = await fetch("/api/ai/validate-report", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              title,
-              notes,
-              hazardHint,
-              mediaType: "photo",
-              mediaMime: uploaded.mediaMime,
-              mediaBase64,
-              fileName: file.name,
-            }),
-          });
-          if (!res.ok) return;
-          const data = (await res.json()) as {
-            status: "legit" | "rejected" | "needs_review";
-            verdict: "legit" | "rejected" | "needs_review";
-            confidence: number;
-            reason: string;
-            source: "gemini" | "local";
-            model?: string;
-            vertexClass?: string | null;
-            vertexConfidence?: number | null;
-          };
-          const status =
-            data.verdict === "rejected"
-              ? "rejected"
-              : data.verdict === "needs_review"
-                ? "needs_review"
-                : "queued";
-          await updateReportValidation(id, {
-            status,
-            aiVerdict: data.verdict,
-            aiConfidence: data.confidence,
-            aiReason: data.reason,
-            aiSource: data.source,
-            aiModel: data.model ?? null,
-            vertexClass: data.vertexClass ?? null,
-            vertexConfidence:
-              typeof data.vertexConfidence === "number"
-                ? data.vertexConfidence
-                : null,
-            validatedAt: new Date().toISOString(),
-            trustInput: {
-              registered: false,
-              idVerified: false,
-              email: null,
-              phone: mobileNumber.trim() || null,
-              emailVerified: false,
-              mediaSource,
-              lat,
-              lng,
-              locationAccuracyM: fromGps
-                ? (captured?.locationAccuracyM ?? null)
-                : null,
-            },
-          });
-        } catch {
-          // ignore — report already queued
-        }
-      })();
-    }
+    // AI after save — photo and/or voice transcript (voice-only must still get a verdict).
+    void (async () => {
+      try {
+        const canInline =
+          file != null &&
+          mediaType === "photo" &&
+          file.size <= 3.5 * 1024 * 1024;
+        const mediaBase64 =
+          canInline && file ? await fileToBase64(file) : undefined;
+        const res = await fetch("/api/ai/validate-report", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title,
+            notes,
+            hazardHint,
+            mediaType: mediaType === "video" ? "video" : "photo",
+            mediaMime: uploaded.mediaMime || undefined,
+            mediaBase64,
+            voiceTranscript: transcript || undefined,
+            fileName: file?.name,
+          }),
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as {
+          status: "legit" | "rejected" | "needs_review";
+          verdict: "legit" | "rejected" | "needs_review";
+          confidence: number;
+          reason: string;
+          source: "gemini" | "local";
+          model?: string;
+          vertexClass?: string | null;
+          vertexConfidence?: number | null;
+        };
+        const status =
+          data.verdict === "rejected"
+            ? "rejected"
+            : data.verdict === "needs_review"
+              ? "needs_review"
+              : "queued";
+        await updateReportValidation(id, {
+          status,
+          aiVerdict: data.verdict,
+          aiConfidence: data.confidence,
+          aiReason: data.reason,
+          aiSource: data.source,
+          aiModel: data.model ?? null,
+          vertexClass: data.vertexClass ?? null,
+          vertexConfidence:
+            typeof data.vertexConfidence === "number"
+              ? data.vertexConfidence
+              : null,
+          validatedAt: new Date().toISOString(),
+          trustInput: {
+            registered: false,
+            idVerified: false,
+            email: null,
+            phone: mobileNumber.trim() || null,
+            emailVerified: false,
+            mediaSource,
+            lat,
+            lng,
+            locationAccuracyM: fromGps
+              ? (captured?.locationAccuracyM ?? null)
+              : null,
+          },
+        });
+      } catch {
+        // ignore — report already queued
+      }
+    })();
 
     saveGuestReportId(id);
     setStatus(null);
@@ -1136,6 +1175,7 @@ export function CitizenReportForm({
           mediaType,
           mediaMime: uploaded.mediaMime || undefined,
           mediaBase64,
+          voiceTranscript: transcript || undefined,
           fileName: file?.name,
         }),
       });
@@ -1497,7 +1537,9 @@ export function CitizenReportForm({
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold">
-                    {t(language, "situation.voiceReady")}
+                    {voiceProcessing
+                      ? t(language, "situation.voiceProcessing")
+                      : t(language, "situation.voiceReady")}
                   </p>
                   <p className="truncate font-mono text-[10px] text-[var(--muted)]">
                     {voiceNoteLabel ?? voiceFile.name}
@@ -1505,21 +1547,49 @@ export function CitizenReportForm({
                 </div>
                 <button
                   type="button"
-                  disabled={voiceBusy}
+                  disabled={voiceBusy || voiceProcessing || voiceTranscribing}
                   className="shrink-0 rounded-lg border border-[var(--border)] px-2.5 py-1.5 text-xs font-semibold disabled:opacity-60"
                   onClick={() => void toggleVoiceRecording()}
                 >
                   {t(language, "situation.voiceReRecord")}
                 </button>
               </div>
-              <audio
-                controls
-                src={voicePreviewUrl}
-                className="w-full"
-                preload="metadata"
-              >
-                {t(language, "situation.voicePlay")}
-              </audio>
+              {voiceProcessing ? (
+                <div className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-3 text-sm text-[var(--muted)]">
+                  <Loader2
+                    className="size-4 shrink-0 animate-spin"
+                    aria-hidden
+                  />
+                  {t(language, "situation.voiceProcessing")}
+                </div>
+              ) : (
+                <audio
+                  key={voicePreviewUrl}
+                  controls
+                  src={voicePreviewUrl}
+                  className="w-full"
+                  preload="auto"
+                  onCanPlay={() => setVoiceAudioReady(true)}
+                >
+                  {t(language, "situation.voicePlay")}
+                </audio>
+              )}
+              {voiceTranscribing ? (
+                <div className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2.5 text-sm text-[var(--muted)]">
+                  <Loader2
+                    className="size-4 shrink-0 animate-spin"
+                    aria-hidden
+                  />
+                  {t(language, "situation.voiceTranscribing")}
+                </div>
+              ) : voiceTranscript ? (
+                <p className="rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2.5 text-sm leading-relaxed">
+                  <span className="block font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+                    Transcript
+                  </span>
+                  {voiceTranscript}
+                </p>
+              ) : null}
             </div>
           ) : (
             <div className="space-y-2">
@@ -1543,9 +1613,7 @@ export function CitizenReportForm({
                 )}
                 {recording
                   ? t(language, "situation.recording")
-                  : voiceTranscribing
-                    ? "Transcribing…"
-                    : t(language, "situation.recordVoice")}
+                  : t(language, "situation.recordVoice")}
               </button>
               {!recording ? (
                 <p className="text-xs text-[var(--muted)]">
@@ -1554,14 +1622,6 @@ export function CitizenReportForm({
               ) : null}
             </div>
           )}
-          {voiceTranscript ? (
-            <p className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm leading-relaxed">
-              <span className="block font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
-                Transcript
-              </span>
-              {voiceTranscript}
-            </p>
-          ) : null}
 
           <div className="space-y-2.5">
             <p className="text-sm font-semibold">

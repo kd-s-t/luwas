@@ -85,6 +85,8 @@
     "recording": "Nagrekord… i-tap aron mohunong",
     "stopVoice": "Hunonga ang recording",
     "voiceReady": "Na-save ang voice note",
+    "voiceProcessing": "Giproseso ang audio…",
+    "voiceTranscribing": "Gina-transcribe…",
     "voicePlay": "I-play ang voice note",
     "voicePause": "I-pause",
     "voiceReRecord": "I-rekord pag-usab",
@@ -190,7 +192,7 @@
     "title": "Sunda ang imong report",
     "subtitle": "Tan-awa ang progreso gamit ang reference number. Walay login nga gikinahanglan.",
     "reference": "Reference number sa report",
-    "placeholder": "LUW-261009-1042",
+    "placeholder": "CEB-CON-NANG-261017-0001",
     "checkUpdates": "Tan-awa ang mga update",
     "checking": "Nagsusi…",
     "lastChecked": "Katapusang susi {when}",
@@ -239,7 +241,7 @@
     "open": "Ablihi",
     "enterRef": "Ibutang ang reference number.",
     "current": "Karon",
-    "badFormat": "Ang reference kinahanglan sama sa LUW-261010-9934 (gikan sa confirmation screen).",
+    "badFormat": "Ang reference kinahanglan sama sa CEB-CON-NANG-261017-0001 (gikan sa confirmation screen).",
     "notFound": "Walay report para sa {ref}. Susihon ang numero ug sulayi pag-usab."
   },
   "auth": {

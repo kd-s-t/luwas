@@ -1,6 +1,6 @@
 import type { ReportHazardHint } from "@/lib/reports/types";
 
-/** Small deterministic sample stock for competition MVP demos. */
+/** Live desk stock for competition MVP demos (scarce by design). */
 export type SampleInventoryItem = {
   id: string;
   label: string;
@@ -14,28 +14,28 @@ export const NANGKA_SAMPLE_INVENTORY: SampleInventoryItem[] = [
     id: "evac-kits",
     label: "Evacuation kits",
     unit: "kits",
-    available: 12,
+    available: 0,
     hazards: ["flood", "typhoon", "landslide", "other"],
   },
   {
     id: "rice-sacks",
     label: "Rice sacks (5kg)",
     unit: "sacks",
-    available: 40,
+    available: 0,
     hazards: ["flood", "typhoon", "fire", "other"],
   },
   {
     id: "rescue-boats",
     label: "Rescue boats",
     unit: "boats",
-    available: 1,
+    available: 0,
     hazards: ["flood"],
   },
   {
     id: "first-aid",
     label: "First-aid packs",
     unit: "packs",
-    available: 8,
+    available: 0,
     hazards: ["fire", "landslide", "typhoon", "flood", "accident", "other"],
   },
   {
@@ -44,6 +44,13 @@ export const NANGKA_SAMPLE_INVENTORY: SampleInventoryItem[] = [
     unit: "pcs",
     available: 0,
     hazards: ["typhoon", "fire", "other"],
+  },
+  {
+    id: "water-jugs",
+    label: "Drinking water",
+    unit: "L",
+    available: 0,
+    hazards: ["flood", "typhoon", "fire", "landslide", "other"],
   },
 ];
 

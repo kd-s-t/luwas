@@ -156,6 +156,10 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
           ? String(data.autoFireCallAt)
           : null,
     dispatchLog: mapDispatchLog(data.dispatchLog),
+    manualDispatchChecked: Boolean(data.manualDispatchChecked),
+    fieldEvidence: Array.isArray(data.fieldEvidence)
+      ? (data.fieldEvidence as HazardReport["fieldEvidence"])
+      : [],
     reporterIdVerified: Boolean(data.reporterIdVerified),
     reporterEmail:
       data.reporterEmail != null ? String(data.reporterEmail) : null,

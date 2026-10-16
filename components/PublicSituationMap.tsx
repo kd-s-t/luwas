@@ -446,7 +446,7 @@ export function PublicSituationMap() {
               scenarioPhase={bundle.phase}
               scrollWheelZoom={false}
             />
-            <ScenarioMapOverlay />
+            <ScenarioMapOverlay variant="float" />
           </div>
           <div className="-mx-px flex gap-2 overflow-x-auto overscroll-x-contain border-t border-[var(--border)] px-3 py-2.5 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase [-ms-overflow-style:none] [scrollbar-width:none] sm:flex-wrap sm:overflow-visible sm:px-4 sm:py-3 [&::-webkit-scrollbar]:hidden">
             {userLocation ? (

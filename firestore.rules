@@ -194,6 +194,20 @@ service cloud.firestore {
       allow delete: if isOfficer();
     }
 
+    // External resource partners (NGO / DSWD / LGU) — directory only, no login.
+    match /resourcePartners/{partnerId} {
+      allow read: if isOfficer();
+      allow create, update: if isOfficer()
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.barangayId is string
+        && request.resource.data.barangayId.size() > 0
+        && request.resource.data.type is string
+        && request.resource.data.contactName is string
+        && request.resource.data.phone is string;
+      allow delete: if isOfficer();
+    }
+
     match /reports/{reportId} {
       // Public feed can list reports; writers stay authenticated.
       allow read: if true;
@@ -219,8 +233,11 @@ service cloud.firestore {
           && request.resource.data.mediaUrl.size() > 0
         )
         || (
-          // Guest reports from UGNAI Citizen iOS / web (reference LUW-YYMMDD-####).
-          reportId.matches('LUW-[0-9]{6}-[0-9]{4}')
+          // Guest reports: place id CEB-CON-NANG-YYMMDD-#### or legacy LUW-YYMMDD-####.
+          (
+            reportId.matches('LUW-[0-9]{6}-[0-9]{4}')
+            || reportId.matches('[A-Z]{2,4}-[A-Z0-9]{2,8}-[A-Z0-9]{2,10}-[0-9]{6}-[0-9]{4}')
+          )
           && request.resource.data.citizenUid in ["ios-guest", "web-guest"]
           && request.resource.data.source in ["ios", "web"]
           && request.resource.data.status in ["draft", "queued", "needs_review", "rejected"]
@@ -230,6 +247,16 @@ service cloud.firestore {
           && request.resource.data.mediaUrl.size() > 0
           && request.resource.data.barangay is string
           && request.resource.data.lgu is string
+        )
+        || (
+          // Place-prefixed demo seeds (legit) for Resources / map desk.
+          reportId.matches('[A-Z]{2,4}-[A-Z0-9]{2,8}-[A-Z0-9]{2,10}-[0-9]{6}-[0-9]{4}')
+          && request.resource.data.citizenUid == "demo-map-seed"
+          && request.resource.data.status == "legit"
+          && request.resource.data.title is string
+          && request.resource.data.title.size() > 0
+          && request.resource.data.mediaUrl is string
+          && request.resource.data.mediaUrl.size() > 0
         )
         || (
           // Demo “My reports” seeds for the signed-in user.
@@ -245,7 +272,10 @@ service cloud.firestore {
       );
       // Allow re-sync of the same guest reference (idempotent write).
       allow update: if (
-        reportId.matches('LUW-[0-9]{6}-[0-9]{4}')
+        (
+          reportId.matches('LUW-[0-9]{6}-[0-9]{4}')
+          || reportId.matches('[A-Z]{2,4}-[A-Z0-9]{2,8}-[A-Z0-9]{2,10}-[0-9]{6}-[0-9]{4}')
+        )
         && resource.data.citizenUid in ["ios-guest", "web-guest"]
         && request.resource.data.citizenUid == resource.data.citizenUid
         && request.resource.data.source in ["ios", "web"]

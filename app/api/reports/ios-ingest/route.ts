@@ -9,6 +9,11 @@ import {
   placeFromCoords,
 } from "@/lib/reports/barangayScope";
 import {
+  isGuestReportId,
+  newPlaceReportId,
+  normalizeReportId,
+} from "@/lib/reports/reportId";
+import {
   firestoreEmulatorHost,
   putGuestReportDoc,
   uploadGuestMediaBytes,
@@ -105,16 +110,6 @@ export async function POST(req: Request) {
   const situationRaw =
     typeof body.situation === "string" ? body.situation.trim() : "";
 
-  const referenceRaw =
-    typeof body.reference === "string" ? body.reference.trim().toUpperCase() : "";
-  const reference = /^LUW-\d{6}-\d{4}$/.test(referenceRaw)
-    ? referenceRaw
-    : (() => {
-        const day = new Date().toISOString().slice(2, 10).replace(/-/g, "");
-        const suffix = String(Math.floor(1000 + Math.random() * 9000));
-        return `LUW-${day}-${suffix}`;
-      })();
-
   const lat = typeof body.latitude === "number" ? body.latitude : null;
   const lng = typeof body.longitude === "number" ? body.longitude : null;
   const resolvedPlace =
@@ -122,6 +117,15 @@ export async function POST(req: Request) {
       barangay: DEFAULT_REPORT_BARANGAY,
       lgu: DEFAULT_REPORT_LGU,
     };
+
+  const referenceRaw =
+    typeof body.reference === "string" ? body.reference.trim() : "";
+  const reference = isGuestReportId(referenceRaw)
+    ? normalizeReportId(referenceRaw)
+    : newPlaceReportId({
+        barangay: resolvedPlace.barangay,
+        lgu: resolvedPlace.lgu,
+      });
   const placeLabel =
     typeof body.placeLabel === "string" && body.placeLabel.trim()
       ? body.placeLabel.trim()
@@ -397,6 +401,8 @@ export async function POST(req: Request) {
     validatedAt: now,
     autoResponderCallAt: null,
     dispatchLog: null,
+    manualDispatchChecked: false,
+    fieldEvidence: [],
     reactionCounts: { ...EMPTY_REACTION_COUNTS },
     commentCount: 0,
     source,
@@ -462,6 +468,8 @@ export async function POST(req: Request) {
     investigatedAt: null,
     autoResponderCallAt: null,
     dispatchLog: null,
+    manualDispatchChecked: false,
+    fieldEvidence: [],
     reporterIdVerified: false,
     reporterEmail: null,
     reporterPhone: phone || null,
