@@ -811,7 +811,9 @@ export function CitizenReportForm({
   }
 
   async function submitGuestReport(file: File | null) {
-    setStatus(t(language, "common.saving"));
+    setStatus(
+      t(language, editMode ? "common.saving" : "common.submitting"),
+    );
     const reportId = draftId ?? newGuestReportId();
     const hazardHint = inferHazard(situation);
     const title = titleFromSituation(situation, intent, reportFor);
@@ -1008,7 +1010,9 @@ export function CitizenReportForm({
     if (submitting) return;
     setError(null);
     setSubmitting(true);
-    setStatus(t(language, "common.saving"));
+    setStatus(
+      t(language, editMode ? "common.saving" : "common.submitting"),
+    );
 
     try {
       const file: File | null = photos[0]?.file ?? null;
@@ -1039,6 +1043,7 @@ export function CitizenReportForm({
             citizenUid: author.uid,
             reportId,
             file,
+            kind: "photo",
           })
         : editMode &&
             existingMediaUrl &&
@@ -1059,6 +1064,7 @@ export function CitizenReportForm({
           citizenUid: author.uid,
           reportId,
           file: voiceFile,
+          kind: "voice",
         });
         voicePath = voiceUploaded.mediaPath;
         voiceUrl = voiceUploaded.mediaUrl;
@@ -2229,7 +2235,10 @@ export function CitizenReportForm({
                 <Loader2 className="size-4 animate-spin" aria-hidden />
               ) : null}
               {submitting
-                ? t(language, "common.saving")
+                ? t(
+                    language,
+                    editMode ? "common.saving" : "common.submitting",
+                  )
                 : t(language, editMode ? "review.save" : "review.submit")}
             </button>
             <p className="text-center text-xs text-[var(--muted)]">

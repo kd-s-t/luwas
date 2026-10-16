@@ -16,7 +16,8 @@
     "copied": "Nakopya",
     "removePhoto": "Alisin ang larawan",
     "pending": "Nakabinbin",
-    "saving": "Sine-save sa UGNAI…"
+    "saving": "Sine-save sa UGNAI…",
+    "submitting": "Isinusumite sa UGNAI…"
   },
   "errors": {
     "situationShort": "Ilarawan ang nangyayari (opsyonal).",

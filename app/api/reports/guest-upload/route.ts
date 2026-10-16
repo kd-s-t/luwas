@@ -8,8 +8,14 @@ import path from "node:path";
 
 export const runtime = "nodejs";
 
+const GUEST_REPORT_ID = /^LUW-\d{6}-\d{4}$/;
+const CITIZEN_UID = /^[A-Za-z0-9_-]{6,128}$/;
+const REPORT_ID = /^[A-Za-z0-9_-]{8,128}$/;
+
 /**
- * Guest media upload (no login). Uses ADC on prod; local public/ under emulators.
+ * Report media upload. Guests use LUW-* ids (path reports/web-guest/...).
+ * Signed-in users pass citizenUid + report id (path reports/{uid}/{id}/...).
+ * Uses ADC on prod so the browser never talks to GCS (avoids Storage CORS).
  */
 export async function POST(req: Request) {
   let form: FormData;
@@ -21,8 +27,17 @@ export async function POST(req: Request) {
 
   const reportIdRaw = form.get("reportId");
   const reportId =
-    typeof reportIdRaw === "string" ? reportIdRaw.trim().toUpperCase() : "";
-  if (!/^LUW-\d{6}-\d{4}$/.test(reportId)) {
+    typeof reportIdRaw === "string" ? reportIdRaw.trim() : "";
+  const citizenUidRaw = form.get("citizenUid");
+  const citizenUid =
+    typeof citizenUidRaw === "string" ? citizenUidRaw.trim() : "";
+
+  const isGuest = GUEST_REPORT_ID.test(reportId.toUpperCase());
+  const guestReportId = isGuest ? reportId.toUpperCase() : "";
+  const isCitizen =
+    !isGuest && CITIZEN_UID.test(citizenUid) && REPORT_ID.test(reportId);
+
+  if (!isGuest && !isCitizen) {
     return NextResponse.json({ error: "reportId required" }, { status: 400 });
   }
 
@@ -58,14 +73,22 @@ export async function POST(req: Request) {
                 ? "webm"
                 : "jpg");
 
+  const objectPath = isGuest
+    ? `reports/web-guest/${guestReportId}/${kind}.${ext}`
+    : `reports/${citizenUid}/${reportId}/${kind}.${ext}`;
+
   try {
     if (firestoreEmulatorHost()) {
-      const relDir = path.join("reports", "guest");
-      const fileName = `${reportId}-${kind}.${ext}`;
+      const relDir = isGuest
+        ? path.join("reports", "guest")
+        : path.join("reports", citizenUid, reportId);
+      const fileName = isGuest
+        ? `${guestReportId}-${kind}.${ext}`
+        : `${kind}.${ext}`;
       const absDir = path.join(process.cwd(), "public", relDir);
       await mkdir(absDir, { recursive: true });
       await writeFile(path.join(absDir, fileName), bytes);
-      const mediaUrl = `/${relDir}/${fileName}`;
+      const mediaUrl = `/${relDir}/${fileName}`.replace(/\\/g, "/");
       return NextResponse.json({
         ok: true,
         mediaPath: mediaUrl,
@@ -75,7 +98,7 @@ export async function POST(req: Request) {
     }
 
     const uploaded = await uploadGuestMediaBytes({
-      objectPath: `reports/web-guest/${reportId}/${kind}.${ext}`,
+      objectPath,
       bytes,
       contentType,
     });
