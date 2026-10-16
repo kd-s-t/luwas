@@ -107,6 +107,13 @@ export function CommandWorkspaceProvider({
               )
             : Promise.resolve(),
         ]);
+        // Barangay inventory (Nangka + Apas) for Databases → Inventory.
+        if (canSync && profile && isOfficer(profile)) {
+          const { ensureActiveBarangayInventory } = await import(
+            "@/lib/inventory/api"
+          );
+          await ensureActiveBarangayInventory();
+        }
         // Apas starter roster runs in prod (households + staff only).
         if (
           canSync &&

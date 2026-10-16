@@ -208,6 +208,21 @@ service cloud.firestore {
       allow delete: if isOfficer();
     }
 
+    // Barangay-owned disaster inventory (vehicles, generators, supplies).
+    match /barangayInventory/{itemId} {
+      allow read: if isOfficer();
+      allow create, update: if isOfficer()
+        && request.resource.data.label is string
+        && request.resource.data.label.size() > 0
+        && request.resource.data.barangayId is string
+        && request.resource.data.barangayId.size() > 0
+        && request.resource.data.category is string
+        && request.resource.data.unit is string
+        && request.resource.data.available is number
+        && request.resource.data.available >= 0;
+      allow delete: if isOfficer();
+    }
+
     match /reports/{reportId} {
       // Public feed can list reports; writers stay authenticated.
       allow read: if true;
