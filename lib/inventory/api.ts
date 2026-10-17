@@ -379,15 +379,18 @@ export async function returnBarangayInventoryItem(input: {
 
 /** Idempotent seed for every active barangay inventory. */
 export async function ensureActiveBarangayInventory(): Promise<number> {
-  // Ensure linked incident tickets exist before inventory demos reference them.
-  await Promise.all([
-    import("@/lib/reports/ensureResourceShortageReport").then((m) =>
-      m.ensureResourceShortageReport(),
-    ),
-    import("@/lib/reports/ensureQueueSampleReports").then((m) =>
-      m.ensureQueueSampleReports(),
-    ),
-  ]).catch(() => {});
+  // Demo incident tickets only when simulation is on (never on prod).
+  const { isSimulationOn } = await import("@/lib/config/simulation");
+  if (isSimulationOn()) {
+    await Promise.all([
+      import("@/lib/reports/ensureResourceShortageReport").then((m) =>
+        m.ensureResourceShortageReport(),
+      ),
+      import("@/lib/reports/ensureQueueSampleReports").then((m) =>
+        m.ensureQueueSampleReports(),
+      ),
+    ]).catch(() => {});
+  }
 
   const db = getClientDb();
   let written = 0;
