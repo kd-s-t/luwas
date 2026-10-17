@@ -607,6 +607,7 @@ export function PartnersPanel() {
                       onClick={() =>
                         void copyText("contact", inspect.contactName)
                       }
+                      aria-label="Copy contact name"
                       className="h-10 w-[4.5rem] shrink-0 rounded-xl border border-[var(--border)] bg-white text-sm font-semibold text-[var(--foreground)] transition hover:border-[#2f5f9e]/40 hover:text-[#2f5f9e]"
                     >
                       {copiedKey === "contact" ? "Copied" : "Copy"}
@@ -631,6 +632,7 @@ export function PartnersPanel() {
                     <button
                       type="button"
                       onClick={() => void copyText("phone", inspect.phone)}
+                      aria-label="Copy phone"
                       className="h-10 w-[4.5rem] shrink-0 rounded-xl border border-[var(--border)] bg-white text-sm font-semibold text-[var(--foreground)] transition hover:border-[#2f5f9e]/40 hover:text-[#2f5f9e]"
                     >
                       {copiedKey === "phone" ? "Copied" : "Copy"}
@@ -656,6 +658,7 @@ export function PartnersPanel() {
                     <button
                       type="button"
                       onClick={() => void copyText("email", inspect.email)}
+                      aria-label="Copy email"
                       className="h-10 w-[4.5rem] shrink-0 rounded-xl border border-[var(--border)] bg-white text-sm font-semibold text-[var(--foreground)] transition hover:border-[#2f5f9e]/40 hover:text-[#2f5f9e]"
                     >
                       {copiedKey === "email" ? "Copied" : "Copy"}

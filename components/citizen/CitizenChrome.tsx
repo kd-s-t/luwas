@@ -11,6 +11,9 @@ import { cn } from "@/lib/utils";
 
 export type { CitizenLang };
 
+const focusRing =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]";
+
 const LANG_LABEL: Record<CitizenLang, string> = {
   en: "English",
   fil: "Filipino",
@@ -78,6 +81,8 @@ export function CitizenHeader({
         </div>
         {onLanguageChange ? (
           <div
+            role="group"
+            aria-label="Language"
             style={fullBleed}
             className="box-border flex flex-wrap items-center justify-end gap-2 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 sm:px-5"
           >
@@ -91,8 +96,10 @@ export function CitizenHeader({
                 key={lang}
                 type="button"
                 onClick={() => onLanguageChange(lang)}
+                aria-pressed={language === lang}
                 className={cn(
                   "inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-semibold transition",
+                  focusRing,
                   language === lang
                     ? "bg-[#dbeafe] text-[#1d4ed8]"
                     : "bg-transparent text-[var(--muted)]",
@@ -111,7 +118,10 @@ export function CitizenHeader({
             <button
               type="button"
               onClick={onBack}
-              className="inline-flex items-center gap-1 text-sm font-semibold text-[var(--foreground)]"
+              className={cn(
+                "inline-flex items-center gap-1 text-sm font-semibold text-[var(--foreground)]",
+                focusRing,
+              )}
               aria-label={t(language, "common.back")}
             >
               <ChevronLeft className="size-4" strokeWidth={2.5} aria-hidden />
@@ -129,7 +139,10 @@ export function CitizenHeader({
         <button
           type="button"
           onClick={goWhereYouCameFrom}
-          className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--muted)] transition hover:text-[var(--foreground)]"
+          className={cn(
+            "inline-flex items-center gap-1 text-xs font-semibold text-[var(--muted)] transition hover:text-[var(--foreground)]",
+            focusRing,
+          )}
         >
           <ChevronLeft className="size-3.5" strokeWidth={2.5} aria-hidden />
           Back
@@ -140,10 +153,13 @@ export function CitizenHeader({
           <button
             type="button"
             onClick={onBack}
-            className="flex size-9 shrink-0 items-center justify-center text-[var(--foreground)]"
+            className={cn(
+              "flex size-9 shrink-0 items-center justify-center text-[var(--foreground)]",
+              focusRing,
+            )}
             aria-label={t(language, "common.back")}
           >
-            <ChevronLeft className="size-5" strokeWidth={2.5} />
+            <ChevronLeft className="size-5" strokeWidth={2.5} aria-hidden />
           </button>
         ) : null}
         <Link
@@ -167,14 +183,16 @@ export function CitizenHeader({
       </div>
 
       {onLanguageChange ? (
-        <div className="flex flex-wrap gap-1.5">
+        <div role="group" aria-label="Language" className="flex flex-wrap gap-1.5">
           {(Object.keys(LANG_LABEL) as CitizenLang[]).map((lang) => (
             <button
               key={lang}
               type="button"
               onClick={() => onLanguageChange(lang)}
+              aria-pressed={language === lang}
               className={cn(
                 "rounded-full px-2.5 py-1.5 text-xs font-semibold transition",
+                focusRing,
                 language === lang
                   ? "bg-[var(--foreground)] text-white"
                   : "bg-transparent text-[var(--muted)]",

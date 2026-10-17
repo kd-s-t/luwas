@@ -50,6 +50,15 @@ import {
 import { CommandContentSkeleton } from "@/components/PageLoadSkeleton";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 function statusLabel(u: UserProfile): string {
@@ -263,6 +272,7 @@ function OfficerCard({
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder="Reason (optional)"
+            aria-label="Fire reason"
             className="w-full bg-[var(--input)] px-2 py-1 text-xs outline-none ring-1 ring-[var(--border)] focus:ring-[var(--accent)]"
           />
           <div className="flex flex-wrap gap-1">
@@ -861,8 +871,6 @@ function AddExistingOfficerModal({
       .slice(0, 80);
   }, [households, officerEmails, search]);
 
-  if (!open) return null;
-
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     const hh = households.find((h) => h.id === householdId);
@@ -891,30 +899,26 @@ function AddExistingOfficerModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center">
-      <div
-        role="dialog"
-        aria-labelledby="add-existing-officer-title"
-        className="w-full max-w-lg border border-[var(--border)] bg-[var(--surface-raised)] shadow-lg"
-      >
-        <div className="border-b border-[var(--border)] px-4 py-3">
+    <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
           <p className="font-mono text-[9px] tracking-[0.2em] text-[var(--accent)] uppercase">
             Existing house owner
           </p>
-          <h3
-            id="add-existing-officer-title"
-            className="font-[family-name:var(--font-display)] text-lg font-semibold"
-          >
-            Add existing officer
-          </h3>
-          <p className="text-xs text-[var(--muted)]">
+          <DialogTitle className="text-lg">Add existing officer</DialogTitle>
+          <DialogDescription className="text-xs">
             Pick someone already on the house-owner roster — creates / links
             their officer login.
-          </p>
-        </div>
-        <form onSubmit={onSubmit} className="space-y-3 px-4 py-4">
+          </DialogDescription>
+        </DialogHeader>
+        <DialogBody>
+        <form id="add-existing-officer-form" onSubmit={onSubmit} className="space-y-3">
           {error ? (
-            <p className="text-sm text-[var(--danger)]" role="alert">
+            <p
+              id="add-existing-officer-error"
+              className="text-sm text-[var(--danger)]"
+              role="alert"
+            >
               {error}
             </p>
           ) : null}
@@ -945,6 +949,10 @@ function AddExistingOfficerModal({
                 required
                 value={householdId}
                 onChange={(e) => setHouseholdId(e.target.value)}
+                aria-invalid={!!error}
+                aria-describedby={
+                  error ? "add-existing-officer-error" : undefined
+                }
                 className="mt-1 w-full border border-[var(--border)] bg-[var(--input)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
               >
                 <option value="">Select…</option>
@@ -982,7 +990,10 @@ function AddExistingOfficerModal({
               className="mt-1 w-full border border-[var(--border)] bg-[var(--input)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
             />
           </label>
-          <div className="flex flex-wrap justify-end gap-2 pt-1">
+        </form>
+        </DialogBody>
+        <DialogFooter>
+          <div className="flex flex-wrap justify-end gap-2">
             <Button
               type="button"
               variant="outline"
@@ -994,15 +1005,16 @@ function AddExistingOfficerModal({
             </Button>
             <Button
               type="submit"
+              form="add-existing-officer-form"
               size="sm"
               disabled={busy || !householdId || loadingHh}
             >
               {busy ? "Adding…" : "Add as officer"}
             </Button>
           </div>
-        </form>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -1023,8 +1035,6 @@ function AddNewOfficerModal({
   const [password, setPassword] = useState("demo1234");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  if (!open) return null;
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -1051,29 +1061,25 @@ function AddNewOfficerModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center">
-      <div
-        role="dialog"
-        aria-labelledby="add-new-officer-title"
-        className="w-full max-w-md border border-[var(--border)] bg-[var(--surface-raised)] shadow-lg"
-      >
-        <div className="border-b border-[var(--border)] px-4 py-3">
+    <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
+      <DialogContent>
+        <DialogHeader>
           <p className="font-mono text-[9px] tracking-[0.2em] text-[var(--accent)] uppercase">
             New officer
           </p>
-          <h3
-            id="add-new-officer-title"
-            className="font-[family-name:var(--font-display)] text-lg font-semibold"
-          >
-            Add new officer
-          </h3>
-          <p className="text-xs text-[var(--muted)]">
+          <DialogTitle className="text-lg">Add new officer</DialogTitle>
+          <DialogDescription className="text-xs">
             Create a new staff login for Brgy. {officerScopeBarangay(captain)}.
-          </p>
-        </div>
-        <form onSubmit={onSubmit} className="space-y-3 px-4 py-4">
+          </DialogDescription>
+        </DialogHeader>
+        <DialogBody>
+        <form id="add-new-officer-form" onSubmit={onSubmit} className="space-y-3">
           {error ? (
-            <p className="text-sm text-[var(--danger)]" role="alert">
+            <p
+              id="add-new-officer-error"
+              className="text-sm text-[var(--danger)]"
+              role="alert"
+            >
               {error}
             </p>
           ) : null}
@@ -1085,6 +1091,8 @@ function AddNewOfficerModal({
               required
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
+              aria-invalid={!!error}
+              aria-describedby={error ? "add-new-officer-error" : undefined}
               className="mt-1 w-full border border-[var(--border)] bg-[var(--input)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
             />
           </label>
@@ -1125,7 +1133,10 @@ function AddNewOfficerModal({
               className="mt-1 w-full border border-[var(--border)] bg-[var(--input)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
             />
           </label>
-          <div className="flex flex-wrap justify-end gap-2 pt-1">
+        </form>
+        </DialogBody>
+        <DialogFooter>
+          <div className="flex flex-wrap justify-end gap-2">
             <Button
               type="button"
               variant="outline"
@@ -1135,13 +1146,13 @@ function AddNewOfficerModal({
             >
               Cancel
             </Button>
-            <Button type="submit" size="sm" disabled={busy}>
+            <Button type="submit" form="add-new-officer-form" size="sm" disabled={busy}>
               {busy ? "Adding…" : "Add new officer"}
             </Button>
           </div>
-        </form>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -1374,7 +1385,11 @@ export function BarangayUsersPanel({
       </div>
 
       {error ? (
-        <p className="text-sm text-[var(--danger)]" role="alert">
+        <p
+          id="barangay-users-panel-error"
+          className="text-sm text-[var(--danger)]"
+          role="alert"
+        >
           {error}
         </p>
       ) : null}

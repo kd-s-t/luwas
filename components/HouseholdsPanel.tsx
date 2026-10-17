@@ -419,7 +419,11 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
         </div>
 
         {error && !open ? (
-          <p className="mb-3 text-sm text-[var(--danger)]" role="alert">
+          <p
+            id="household-list-error"
+            className="mb-3 text-sm text-[var(--danger)]"
+            role="alert"
+          >
             {error}
           </p>
         ) : null}
@@ -445,6 +449,10 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search name, address, phone…"
                 aria-label="Search households"
+                aria-invalid={!!error && !open}
+                aria-describedby={
+                  error && !open ? "household-list-error" : undefined
+                }
                 className="min-w-[12rem] flex-1 border border-[var(--border)] bg-[var(--input)] px-3 py-1.5 text-sm outline-none focus:border-[var(--accent)]"
               />
               <select
@@ -740,6 +748,8 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
                 required
                 value={form.ownerName}
                 onChange={(v) => setForm((f) => ({ ...f, ownerName: v }))}
+                invalid={!!error}
+                errorId={error ? "household-form-error" : undefined}
               />
               <Field
                 label="Address / landmark"
@@ -780,7 +790,11 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
               </label>
 
               {error ? (
-                <p className="text-sm text-[var(--danger)]" role="alert">
+                <p
+                  id="household-form-error"
+                  className="text-sm text-[var(--danger)]"
+                  role="alert"
+                >
                   {error}
                 </p>
               ) : null}
@@ -904,6 +918,7 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
                               );
                             }}
                             placeholder="Name"
+                            aria-label={`Member ${idx + 1} name`}
                             className="w-full min-w-[7rem] bg-[var(--input)] px-2 py-1.5 text-sm outline-none ring-1 ring-[var(--border)] focus:ring-[var(--accent)]"
                           />
                         </td>
@@ -919,6 +934,7 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
                               );
                             }}
                             placeholder="Partner, dog…"
+                            aria-label={`Member ${idx + 1} relation`}
                             className="w-full min-w-[6rem] bg-[var(--input)] px-2 py-1.5 text-sm outline-none ring-1 ring-[var(--border)] focus:ring-[var(--accent)]"
                           />
                         </td>
@@ -934,6 +950,7 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
                               );
                             }}
                             placeholder="Optional"
+                            aria-label={`Member ${idx + 1} phone`}
                             className="w-full min-w-[7rem] bg-[var(--input)] px-2 py-1.5 font-mono text-xs outline-none ring-1 ring-[var(--border)] focus:ring-[var(--accent)]"
                           />
                         </td>
@@ -950,6 +967,7 @@ export function HouseholdsPanel({ officerUid, orgName }: HouseholdsPanelProps) {
                               );
                             }}
                             placeholder="Optional"
+                            aria-label={`Member ${idx + 1} email`}
                             className="w-full min-w-[10rem] bg-[var(--input)] px-2 py-1.5 font-mono text-xs outline-none ring-1 ring-[var(--border)] focus:ring-[var(--accent)]"
                           />
                         </td>
@@ -1056,6 +1074,8 @@ function Field({
   required,
   type = "text",
   placeholder,
+  invalid,
+  errorId,
 }: {
   label: string;
   value: string;
@@ -1063,6 +1083,8 @@ function Field({
   required?: boolean;
   type?: string;
   placeholder?: string;
+  invalid?: boolean;
+  errorId?: string;
 }) {
   return (
     <label className="block text-sm">
@@ -1073,6 +1095,8 @@ function Field({
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
+        aria-invalid={invalid}
+        aria-describedby={errorId}
         className="w-full border border-[var(--border)] bg-[var(--input)] px-3 py-2 outline-none focus:border-[var(--accent)] placeholder:text-[var(--muted)]/50"
       />
     </label>

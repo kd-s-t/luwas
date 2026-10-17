@@ -220,6 +220,8 @@ function CitizenLoginForm() {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              aria-invalid={!!error}
+              aria-describedby={error ? "login-error" : undefined}
               className="w-full border border-[var(--border)] bg-[var(--input)] px-3 py-2.5 outline-none focus:border-[var(--accent)]"
             />
           </label>
@@ -232,11 +234,17 @@ function CitizenLoginForm() {
               minLength={6}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              aria-invalid={!!error}
+              aria-describedby={error ? "login-error" : undefined}
               className="w-full border border-[var(--border)] bg-[var(--input)] px-3 py-2.5 outline-none focus:border-[var(--accent)]"
             />
           </label>
           {error ? (
-            <p className="text-sm text-[var(--danger)]" role="alert">
+            <p
+              id="login-error"
+              className="text-sm text-[var(--danger)]"
+              role="alert"
+            >
               {error}
             </p>
           ) : null}

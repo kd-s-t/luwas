@@ -211,6 +211,7 @@ export function DeveloperUsersPanel() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search name, email, barangay…"
+          aria-label="Search users"
           className="min-w-[14rem] flex-1 rounded-md border border-[var(--border)] bg-white px-3 py-1.5 text-sm outline-none focus:border-[#1d4ed8]"
         />
       </div>

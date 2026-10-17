@@ -617,6 +617,7 @@ export default function BootstrapKitPage() {
                 readOnly
                 rows={2}
                 placeholder="Ask Agent Nangka…"
+                aria-label="Ask Agent Nangka"
                 className="mt-3 w-full border border-[var(--border)] bg-[var(--input)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
               />
             </Section>
@@ -754,11 +755,23 @@ export default function BootstrapKitPage() {
                         New chat
                       </p>
                     </div>
-                    <Button type="button" variant="outline" size="icon" className="size-8">
-                      <History className="size-3.5" />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="size-8"
+                      aria-label="Chat history"
+                    >
+                      <History className="size-3.5" aria-hidden />
                     </Button>
-                    <Button type="button" variant="outline" size="icon" className="size-8">
-                      <Plus className="size-3.5" />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="size-8"
+                      aria-label="New chat"
+                    >
+                      <Plus className="size-3.5" aria-hidden />
                     </Button>
                   </div>
                   <label className="flex items-center gap-2 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
@@ -821,6 +834,7 @@ export default function BootstrapKitPage() {
                       onChange={(e) => setDraft(e.target.value)}
                       rows={1}
                       placeholder="Ask Agent Nangka…"
+                      aria-label="Ask Agent Nangka"
                       className="min-h-10 max-h-28 flex-1 resize-none border border-[var(--border)] bg-[var(--input)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
                     />
                     <Button
@@ -829,7 +843,7 @@ export default function BootstrapKitPage() {
                       disabled={!draft.trim()}
                       aria-label="Send"
                     >
-                      <ArrowUp className="size-4" />
+                      <ArrowUp className="size-4" aria-hidden />
                     </Button>
                   </form>
                 </div>

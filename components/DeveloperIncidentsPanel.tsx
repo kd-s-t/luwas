@@ -105,6 +105,7 @@ export function DeveloperIncidentsPanel() {
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder="Search id, title, barangay, reporter…"
+        aria-label="Search incidents"
         className="w-full rounded-md border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none focus:border-[#1d4ed8]"
       />
 

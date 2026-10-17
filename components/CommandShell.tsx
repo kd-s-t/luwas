@@ -158,6 +158,15 @@ function CommandShellInner({ children, fill = false }: CommandShellProps) {
     setMobileNavOpen(false);
   }, [pathname, view]);
 
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMobileNavOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [mobileNavOpen]);
+
   async function onLogout() {
     await logout();
     router.replace("/login/officer");
@@ -181,7 +190,7 @@ function CommandShellInner({ children, fill = false }: CommandShellProps) {
             wordmarkClassName="text-2xl"
           />
         </Link>
-        <p className="mt-2 text-[11px] leading-snug text-white/55">
+        <p className="mt-2 text-[11px] leading-snug text-white/70">
           {workspaceLine}
         </p>
       </div>
@@ -221,7 +230,7 @@ function CommandShellInner({ children, fill = false }: CommandShellProps) {
         })}
 
         <div className="mt-4 shrink-0 border-t border-white/10 pt-3">
-          <p className="px-3 pb-1.5 font-mono text-[9px] tracking-[0.16em] text-white/35 uppercase">
+          <p className="px-3 pb-1.5 font-mono text-[9px] tracking-[0.16em] text-white/70 uppercase">
             Databases
           </p>
           {SECONDARY.map((item) => {
@@ -240,7 +249,7 @@ function CommandShellInner({ children, fill = false }: CommandShellProps) {
                   "flex shrink-0 items-center justify-between rounded-lg px-3 py-2 text-[13px] transition",
                   active
                     ? "bg-white/12 text-white"
-                    : "text-white/55 hover:bg-white/8 hover:text-white/90",
+                    : "text-white/70 hover:bg-white/8 hover:text-white/90",
                 )}
               >
                 <span>{item.label}</span>
@@ -281,13 +290,13 @@ function CommandShellInner({ children, fill = false }: CommandShellProps) {
             >
               {displayName}
             </Link>
-            <p className="truncate text-[11px] text-white/45">{roleLine}</p>
+            <p className="truncate text-[11px] text-white/70">{roleLine}</p>
           </div>
           <CommandNotifications placement="above" />
           <button
             type="button"
             onClick={() => void onLogout()}
-            className="rounded-md p-1.5 text-white/45 transition hover:bg-white/10 hover:text-white"
+            className="rounded-md p-1.5 text-white/70 transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
             aria-label="Log out"
           >
             <LogOut className="size-4" />
@@ -321,7 +330,10 @@ function CommandShellInner({ children, fill = false }: CommandShellProps) {
           <button
             type="button"
             onClick={() => setMobileNavOpen((o) => !o)}
-            className="rounded-md border border-white/15 px-2.5 py-1.5 font-mono text-[10px] tracking-wider uppercase"
+            className="rounded-md border border-white/15 px-2.5 py-1.5 font-mono text-[10px] tracking-wider uppercase focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+            aria-expanded={mobileNavOpen}
+            aria-controls="command-mobile-nav"
+            aria-label={mobileNavOpen ? "Close menu" : "Open menu"}
           >
             Menu
           </button>
@@ -342,24 +354,29 @@ function CommandShellInner({ children, fill = false }: CommandShellProps) {
 
         {mobileNavOpen ? (
           <div className="fixed inset-0 z-40 lg:hidden">
-            <button
-              type="button"
+            <div
               className="absolute inset-0 bg-black/45"
-              aria-label="Close menu"
+              aria-hidden
               onClick={() => setMobileNavOpen(false)}
             />
-            <div className="absolute inset-y-0 left-0 shadow-2xl">{sidebar}</div>
+            <div
+              id="command-mobile-nav"
+              className="absolute inset-y-0 left-0 shadow-2xl"
+            >
+              {sidebar}
+            </div>
           </div>
         ) : null}
 
-        <div
+        <main
+          id="main-content"
           className={cn(
             "min-w-0 flex-1",
             fill ? "flex min-h-0 flex-col overflow-hidden" : "",
           )}
         >
           {children}
-        </div>
+        </main>
       </div>
     </div>
   );

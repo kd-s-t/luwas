@@ -4,6 +4,10 @@ import {
   PublicShell,
 } from "@/components/PublicShell";
 
+export const metadata = {
+  title: "Terms · UGNAI",
+};
+
 export default function TermsPage() {
   return (
     <PublicShell>

@@ -487,9 +487,11 @@ export function BarangayOnboardWizard({ defaultOrgName = "" }: Props) {
             until removed.
           </p>
           <input
+            type="search"
             value={pickQuery}
             onChange={(e) => setPickQuery(e.target.value)}
             placeholder="Search barangay or LGU…"
+            aria-label="Search barangay or LGU"
             className="mt-4 w-full max-w-lg border border-[var(--border)] bg-[var(--input)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
           />
           <ul className="mt-3 max-h-80 divide-y divide-[var(--border)] overflow-y-auto border border-[var(--border)]">

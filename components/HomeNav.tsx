@@ -15,9 +15,13 @@ type HomeNavProps = {
   overlay?: boolean;
 };
 
+const focusRing =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] rounded-sm";
+
 function navLinkClass(active: boolean) {
   return cn(
     "transition",
+    focusRing,
     active
       ? "font-medium text-[var(--foreground)]"
       : "text-[var(--muted)] hover:text-[var(--foreground)]",
@@ -77,7 +81,10 @@ export function HomeNav({ overlay = false }: HomeNavProps) {
           setMenuOpen(false);
           void logout();
         }}
-        className="text-left text-[var(--muted)] transition hover:text-[var(--foreground)]"
+        className={cn(
+          "text-left text-[var(--muted)] transition hover:text-[var(--foreground)]",
+          focusRing,
+        )}
       >
         Logout
       </button>
@@ -95,6 +102,7 @@ export function HomeNav({ overlay = false }: HomeNavProps) {
         href="/register"
         className={cn(
           "rounded-xl border px-3 py-1.5 transition",
+          focusRing,
           onRegister
             ? "border-[var(--accent)] text-[var(--foreground)]"
             : "border-[var(--border)] hover:border-[var(--accent)] hover:text-[var(--foreground)]",
@@ -121,7 +129,10 @@ export function HomeNav({ overlay = false }: HomeNavProps) {
       <div className="flex items-center gap-2">
         <Link
           href="/"
-          className="relative z-10 shrink-0 transition hover:opacity-90"
+          className={cn(
+            "relative z-10 shrink-0 transition hover:opacity-90",
+            focusRing,
+          )}
           aria-label="UGNAI home"
         >
           <BrandLogo size={26} wordmarkClassName="text-xl" />
@@ -155,7 +166,10 @@ export function HomeNav({ overlay = false }: HomeNavProps) {
           />
           <button
             type="button"
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] text-[var(--foreground)]"
+            className={cn(
+              "flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] text-[var(--foreground)]",
+              focusRing,
+            )}
             aria-expanded={menuOpen}
             aria-controls={menuId}
             aria-label={menuOpen ? "Close menu" : "Open menu"}

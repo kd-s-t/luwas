@@ -6,6 +6,18 @@ import type { CitizenLang } from "@/lib/citizen/i18n";
 const STORAGE_KEY = "ugnai.citizenLang";
 const VALID = new Set<CitizenLang>(["en", "fil", "ceb"]);
 
+/** BCP 47 tag for `document.documentElement.lang`. */
+export function htmlLangForCitizen(lang: CitizenLang): string {
+  if (lang === "fil") return "fil";
+  if (lang === "ceb") return "ceb";
+  return "en";
+}
+
+function syncDocumentHtmlLang(lang: CitizenLang) {
+  if (typeof document === "undefined") return;
+  document.documentElement.lang = htmlLangForCitizen(lang);
+}
+
 export function getCitizenLang(): CitizenLang {
   if (typeof window === "undefined") return "en";
   try {
@@ -34,8 +46,14 @@ export function useCitizenLanguage(): [
   const [language, setLanguageState] = useState<CitizenLang>("en");
 
   useEffect(() => {
-    setLanguageState(getCitizenLang());
+    const initial = getCitizenLang();
+    setLanguageState(initial);
+    syncDocumentHtmlLang(initial);
   }, []);
+
+  useEffect(() => {
+    syncDocumentHtmlLang(language);
+  }, [language]);
 
   function setLanguage(lang: CitizenLang) {
     setLanguageState(lang);
