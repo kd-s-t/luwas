@@ -2,6 +2,10 @@ import { Suspense } from "react";
 import { PublicShell } from "@/components/PublicShell";
 import { TrackReportForm } from "@/components/TrackReportForm";
 
+export const metadata = {
+  title: "Track report · UGNAI",
+};
+
 export default function TrackReportPage() {
   return (
     <PublicShell hideFooter hideNav>

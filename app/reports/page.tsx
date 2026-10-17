@@ -4,6 +4,10 @@ import {
 } from "@/components/PublicShell";
 import { PublicReportsFeed } from "@/components/PublicReportsFeed";
 
+export const metadata = {
+  title: "Field reports · UGNAI",
+};
+
 export default function PublicReportsPage() {
   return (
     <PublicShell>

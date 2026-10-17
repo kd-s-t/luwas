@@ -12,11 +12,11 @@ import {
   Stagger,
 } from "@/components/motion/primitives";
 
-export default function HomePage() {
+export function HomePage() {
   const reduce = useReducedMotion();
 
   return (
-    <div className="relative">
+    <main id="main-content" className="relative">
       <section className="relative flex h-dvh max-h-dvh flex-col overflow-hidden">
         <HomeNav overlay />
 
@@ -85,6 +85,6 @@ export default function HomePage() {
       </FadeIn>
 
       <HomeFooter />
-    </div>
+    </main>
   );
 }

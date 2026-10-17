@@ -4,6 +4,10 @@ import {
 } from "@/components/PublicShell";
 import { PublicEvacCentersList } from "@/components/PublicEvacCentersList";
 
+export const metadata = {
+  title: "Evac centers · UGNAI",
+};
+
 export default function PublicEvacCentersPage() {
   return (
     <PublicShell>

@@ -6,6 +6,10 @@ import {
 } from "@/components/PublicShell";
 import { UGNAI_DEVELOPERS } from "@/lib/auth/ugnaiDevelopers";
 
+export const metadata = {
+  title: "About · UGNAI",
+};
+
 const TEAM = UGNAI_DEVELOPERS;
 
 const PILLARS = [

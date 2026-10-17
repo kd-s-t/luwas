@@ -440,6 +440,8 @@ export function TrackReportForm() {
             placeholder={t(language, "track.placeholder")}
             autoComplete="off"
             spellCheck={false}
+            aria-invalid={!!error}
+            aria-describedby={error ? "track-error" : undefined}
             className={cn(
               "w-full rounded-xl border bg-[var(--surface)] px-3 py-3 font-mono text-sm outline-none",
               error
@@ -449,7 +451,11 @@ export function TrackReportForm() {
           />
         </label>
         {error ? (
-          <p className="text-sm text-[var(--danger)]" role="alert">
+          <p
+            id="track-error"
+            className="text-sm text-[var(--danger)]"
+            role="alert"
+          >
             {error}
           </p>
         ) : null}

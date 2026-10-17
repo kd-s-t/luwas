@@ -1260,6 +1260,7 @@ function CommandAreaMapInner({
         mapTypeControl={false}
         streetViewControl={false}
         fullscreenControl={false}
+        keyboardShortcuts={false}
         clickableIcons={false}
         style={{ width: "100%", height: "100%" }}
       >

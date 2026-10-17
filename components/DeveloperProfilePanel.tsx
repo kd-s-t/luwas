@@ -115,6 +115,8 @@ export function DeveloperProfilePanel() {
             onChange={(e) => setDisplayName(e.target.value)}
             disabled={busy}
             maxLength={80}
+            aria-invalid={!!error}
+            aria-describedby={error ? "profile-form-error" : undefined}
             className="w-full border border-[var(--border)] bg-white px-3 py-2.5 text-sm outline-none focus:border-[#1d4ed8]"
             required
           />
@@ -170,7 +172,11 @@ export function DeveloperProfilePanel() {
         </label>
 
         {error ? (
-          <p className="text-sm text-[var(--danger)]" role="alert">
+          <p
+            id="profile-form-error"
+            className="text-sm text-[var(--danger)]"
+            role="alert"
+          >
             {error}
           </p>
         ) : null}

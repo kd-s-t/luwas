@@ -467,7 +467,10 @@ export function PublicReportCard({
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={report.mediaUrl}
-            alt=""
+            alt={
+              report.title?.trim() ||
+              `${hazardHintLabel(report.hazardHint)} report photo`
+            }
             className="max-h-[420px] w-full object-contain"
             loading="lazy"
           />
@@ -593,7 +596,10 @@ export function PublicReportCard({
                 onChange={(e) => setDraft(e.target.value)}
                 rows={2}
                 placeholder="Write a comment…"
+                aria-label="Write a comment"
                 disabled={busy}
+                aria-invalid={!!error}
+                aria-describedby={error ? "comment-error" : undefined}
                 className="min-h-10 flex-1 resize-y border border-[var(--border)] bg-[var(--input)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
               />
               <Button type="submit" size="sm" disabled={busy || !draft.trim()}>
@@ -625,7 +631,11 @@ export function PublicReportCard({
       ) : null}
 
       {error ? (
-        <p className="px-4 pb-3 text-sm text-[var(--danger)]" role="alert">
+        <p
+          id="comment-error"
+          className="px-4 pb-3 text-sm text-[var(--danger)]"
+          role="alert"
+        >
           {error}
         </p>
       ) : null}

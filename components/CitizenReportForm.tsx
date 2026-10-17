@@ -14,6 +14,7 @@ import {
   AlertTriangle,
   Check,
   House,
+  Info,
   Loader2,
   LocateFixed,
   Mic,
@@ -290,6 +291,7 @@ export function CitizenReportForm({
   const [sampleLoading, setSampleLoading] = useState(false);
   const [recording, setRecording] = useState(false);
   const [voiceBusy, setVoiceBusy] = useState(false);
+  const [situationFocused, setSituationFocused] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const voiceChunksRef = useRef<Blob[]>([]);
@@ -1506,16 +1508,32 @@ export function CitizenReportForm({
             <textarea
               rows={4}
               value={situation}
-              placeholder={t(language, "situation.example")}
+              placeholder={
+                situationFocused ? undefined : t(language, "situation.example")
+              }
+              onFocus={() => setSituationFocused(true)}
+              onBlur={() => setSituationFocused(false)}
               onChange={(e) => {
                 setSituation(e.target.value);
                 setError(null);
               }}
+              aria-invalid={!!error}
+              aria-describedby={error ? "situation-error" : undefined}
               className="w-full resize-y rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm outline-none placeholder:text-[var(--muted)] focus:border-[#2563eb]/40"
             />
-            <span className="block text-xs leading-relaxed text-[var(--muted)]">
-              {t(language, "situation.typeOrVoice")}
-            </span>
+            <div
+              role="note"
+              className="flex gap-2.5 rounded-xl border border-[#93c5fd]/60 bg-[#eff6ff] px-3 py-2.5"
+            >
+              <Info
+                className="mt-0.5 size-4 shrink-0 text-[#2f5f9e]"
+                strokeWidth={2}
+                aria-hidden
+              />
+              <p className="text-xs leading-relaxed text-[var(--foreground)]">
+                {t(language, "situation.typeOrVoice")}
+              </p>
+            </div>
           </label>
 
           {voiceFile && voicePreviewUrl && !recording ? (
@@ -1731,7 +1749,11 @@ export function CitizenReportForm({
           </div>
 
           {error ? (
-            <p className="text-sm text-[var(--danger)]" role="alert">
+            <p
+              id="situation-error"
+              className="text-sm text-[var(--danger)]"
+              role="alert"
+            >
               {error}
             </p>
           ) : null}
@@ -1858,6 +1880,8 @@ export function CitizenReportForm({
                     selectPlace(hit);
                   }}
                   placeholder={t(language, "location.searchPlaceholder")}
+                  aria-invalid={!!error}
+                  aria-describedby={error ? "location-error" : undefined}
                   className={cn(
                     "w-full rounded-xl border bg-[var(--surface)] py-3 pr-3 pl-10 text-sm outline-none",
                     error
@@ -1987,7 +2011,11 @@ export function CitizenReportForm({
           </div>
 
           {error ? (
-            <p className="text-sm text-[var(--danger)]" role="alert">
+            <p
+              id="location-error"
+              className="text-sm text-[var(--danger)]"
+              role="alert"
+            >
               {error}
             </p>
           ) : null}
@@ -2084,27 +2112,6 @@ export function CitizenReportForm({
               <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-[var(--foreground)]">
                 {situation}
               </p>
-            </div>
-
-            <div className="flex gap-2.5 rounded-xl border border-[#bfdbfe] bg-[#eff6ff] px-3.5 py-3">
-              <span
-                className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-[#2563eb] text-[11px] font-bold text-white"
-                aria-hidden
-              >
-                !
-              </span>
-              <div className="min-w-0 space-y-0.5">
-                <p className="text-sm font-semibold text-[var(--foreground)]">
-                  {t(language, "review.aiSuggestion")}
-                </p>
-                <p className="text-xs leading-relaxed text-[var(--muted)]">
-                  {t(language, "review.aiSuggestionBody", {
-                    category: reviewHazardLabel(
-                      inferHazard(situation, voiceTranscript),
-                    ),
-                  })}
-                </p>
-              </div>
             </div>
 
             <div className="rounded-[14px] border border-[var(--border)] bg-[var(--surface)] p-3.5">
@@ -2258,7 +2265,11 @@ export function CitizenReportForm({
           </div>
 
           {error ? (
-            <p className="text-sm text-[var(--danger)]" role="alert">
+            <p
+              id="review-error"
+              className="text-sm text-[var(--danger)]"
+              role="alert"
+            >
               {error}
             </p>
           ) : null}
@@ -2279,6 +2290,8 @@ export function CitizenReportForm({
               type="button"
               disabled={submitting}
               onClick={() => void submitReport()}
+              aria-invalid={!!error}
+              aria-describedby={error ? "review-error" : undefined}
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--danger)] px-4 py-[16px] text-[17px] font-semibold text-white transition hover:bg-[var(--danger)]/92 disabled:opacity-60"
             >
               {submitting ? (

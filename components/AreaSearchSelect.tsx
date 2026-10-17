@@ -167,6 +167,7 @@ export function AreaSearchSelect({
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={onKeyDown}
               placeholder="Search barangay or LGU…"
+              aria-label="Filter barangay or LGU"
               className="w-full bg-transparent text-sm outline-none placeholder:text-[var(--muted)]"
               aria-autocomplete="list"
               aria-controls={listId}

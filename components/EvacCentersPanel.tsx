@@ -245,6 +245,7 @@ function QtyStepper({
           max={max}
           value={draft}
           disabled={disabled}
+          aria-label={label}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commitDraft}
           onKeyDown={(e) => {
@@ -312,6 +313,7 @@ function StockFields({
               type="number"
               min={0}
               value={stock[key]}
+              aria-label={label}
               onChange={(e) =>
                 onChange({
                   ...stock,
@@ -678,6 +680,8 @@ export function EvacCentersPanel() {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Nangka Elementary School"
+                    aria-invalid={!!error}
+                    aria-describedby={error ? "evac-form-error" : undefined}
                     className="w-full rounded-xl border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none focus:border-[#3b6fb6]/50"
                   />
                 </label>
@@ -774,6 +778,7 @@ export function EvacCentersPanel() {
                       type="number"
                       min={0}
                       value={occupancy}
+                      aria-label="People on site"
                       onChange={(e) => setOccupancy(e.target.value)}
                       className="w-20 rounded-lg border border-[var(--border)] bg-white px-2 py-1.5 text-center text-sm tabular-nums outline-none focus:border-[#3b6fb6]/50"
                     />
@@ -814,6 +819,7 @@ export function EvacCentersPanel() {
                       type="number"
                       min={0}
                       value={maxCapacity}
+                      aria-label="Max capacity"
                       onChange={(e) => setMaxCapacity(e.target.value)}
                       className="w-20 rounded-lg border border-[var(--border)] bg-white px-2 py-1.5 text-center text-sm tabular-nums outline-none focus:border-[#3b6fb6]/50"
                     />
@@ -915,7 +921,11 @@ export function EvacCentersPanel() {
       </Dialog>
 
       {error ? (
-        <p className="text-sm text-[var(--danger)]" role="alert">
+        <p
+          id="evac-form-error"
+          className="text-sm text-[var(--danger)]"
+          role="alert"
+        >
           {error}
         </p>
       ) : null}

@@ -55,6 +55,15 @@ export function DeveloperShell({
     setMobileNavOpen(false);
   }, [pathname]);
 
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMobileNavOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [mobileNavOpen]);
+
   async function onLogout() {
     await logout();
     router.replace("/login/developer");
@@ -72,7 +81,7 @@ export function DeveloperShell({
         >
           <BrandLogoOnDark size={28} wordmarkClassName="text-2xl" />
         </Link>
-        <p className="mt-2 text-[11px] leading-snug text-white/55">
+        <p className="mt-2 text-[11px] leading-snug text-white/70">
           Developer console
         </p>
       </div>
@@ -123,7 +132,7 @@ export function DeveloperShell({
               <p className="truncate text-sm font-medium text-white">
                 {displayName}
               </p>
-              <p className="truncate text-[11px] text-white/45">
+              <p className="truncate text-[11px] text-white/70">
                 {profile?.email ?? "Developer"}
               </p>
             </div>
@@ -132,7 +141,8 @@ export function DeveloperShell({
           <button
             type="button"
             onClick={() => void onLogout()}
-            className="rounded-md px-2 py-1 text-[11px] text-white/55 transition hover:bg-white/10 hover:text-white"
+            className="rounded-md px-2 py-1 text-[11px] text-white/70 transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+            aria-label="Log out"
           >
             Log out
           </button>
@@ -164,7 +174,10 @@ export function DeveloperShell({
           <button
             type="button"
             onClick={() => setMobileNavOpen((o) => !o)}
-            className="rounded-md border border-white/15 px-2.5 py-1.5 font-mono text-[10px] tracking-wider uppercase"
+            className="rounded-md border border-white/15 px-2.5 py-1.5 font-mono text-[10px] tracking-wider uppercase focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+            aria-expanded={mobileNavOpen}
+            aria-controls="developer-mobile-nav"
+            aria-label={mobileNavOpen ? "Close menu" : "Open menu"}
           >
             Menu
           </button>
@@ -178,13 +191,17 @@ export function DeveloperShell({
 
         {mobileNavOpen ? (
           <div className="fixed inset-0 z-40 lg:hidden">
-            <button
-              type="button"
+            <div
               className="absolute inset-0 bg-black/45"
-              aria-label="Close menu"
+              aria-hidden
               onClick={() => setMobileNavOpen(false)}
             />
-            <div className="absolute inset-y-0 left-0 shadow-2xl">{sidebar}</div>
+            <div
+              id="developer-mobile-nav"
+              className="absolute inset-y-0 left-0 shadow-2xl"
+            >
+              {sidebar}
+            </div>
           </div>
         ) : null}
 
@@ -195,9 +212,14 @@ export function DeveloperShell({
           )}
         >
           {fill ? (
-            children
+            <main id="main-content" className="flex min-h-0 min-w-0 flex-1 flex-col">
+              {children}
+            </main>
           ) : (
-            <main className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-6">
+            <main
+              id="main-content"
+              className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-6"
+            >
               {children}
             </main>
           )}

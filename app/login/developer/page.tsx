@@ -217,6 +217,8 @@ export default function DeveloperLoginPage() {
               autoComplete="username"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              aria-invalid={!!error}
+              aria-describedby={error ? "login-error" : undefined}
               className="w-full border border-[var(--border)] bg-white px-3 py-2.5 text-sm outline-none focus:border-[var(--accent)]"
               required
             />
@@ -230,12 +232,18 @@ export default function DeveloperLoginPage() {
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              aria-invalid={!!error}
+              aria-describedby={error ? "login-error" : undefined}
               className="w-full border border-[var(--border)] bg-white px-3 py-2.5 text-sm outline-none focus:border-[var(--accent)]"
               required
             />
           </label>
           {error ? (
-            <p className="text-sm text-[var(--danger)]" role="alert">
+            <p
+              id="login-error"
+              className="text-sm text-[var(--danger)]"
+              role="alert"
+            >
               {error}
             </p>
           ) : null}

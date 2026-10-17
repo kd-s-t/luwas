@@ -767,7 +767,10 @@ export function IncidentDetail({
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={selected.mediaUrl}
-                    alt=""
+                    alt={
+                      selected.title?.trim() ||
+                      `${hazardHintLabel(selected.hazardHint)} report photo`
+                    }
                     className="size-full object-cover"
                   />
                 </button>
@@ -870,7 +873,6 @@ export function IncidentDetail({
                   src={selected.voiceUrl}
                   className="h-9 w-full"
                 >
-                  <track kind="captions" />
                 </audio>
               ) : null}
               {selected.voiceTranscript ? (
@@ -1529,7 +1531,10 @@ export function IncidentDetail({
           </div>
 
           <div className="mt-4 border border-[var(--border)] bg-[var(--surface-raised)] p-3">
-            <p className="font-mono text-[9px] tracking-[0.16em] text-[var(--accent)] uppercase">
+            <p
+              id="authorized-response-plan-label"
+              className="font-mono text-[9px] tracking-[0.16em] text-[var(--accent)] uppercase"
+            >
               Authorized response plan
             </p>
             <p className="mt-1 text-xs text-[var(--muted)]">
@@ -1541,6 +1546,7 @@ export function IncidentDetail({
               onChange={(e) => setPlanDraft(e.target.value)}
               rows={3}
               placeholder="e.g. Contact reporter · assign 1 BRTS for eyes-on · hold boat until location confirmed…"
+              aria-labelledby="authorized-response-plan-label"
               className="mt-2 w-full resize-y border border-[var(--border)] bg-[var(--input)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
             />
             <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -1561,7 +1567,10 @@ export function IncidentDetail({
           </div>
 
           <div className="mt-4 border border-[var(--border)] bg-[var(--surface-raised)] p-3">
-            <p className="font-mono text-[9px] tracking-[0.16em] text-[var(--accent)] uppercase">
+            <p
+              id="field-report-label"
+              className="font-mono text-[9px] tracking-[0.16em] text-[var(--accent)] uppercase"
+            >
               Field report · required before done
             </p>
             <p className="mt-1 text-xs text-[var(--muted)]">
@@ -1573,6 +1582,7 @@ export function IncidentDetail({
               onChange={(e) => setFieldReportDraft(e.target.value)}
               rows={3}
               placeholder="e.g. Fire out · structure damaged · no injuries · BFP cleared scene…"
+              aria-labelledby="field-report-label"
               className="mt-2 w-full resize-y border border-[var(--border)] bg-[var(--input)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
             />
             <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -1653,7 +1663,10 @@ export function IncidentDetail({
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={img.mediaUrl}
-                  alt="Field evidence"
+                  alt={
+                    selected.title?.trim() ||
+                    `${hazardHintLabel(selected.hazardHint)} field evidence photo`
+                  }
                   className="aspect-[4/3] w-full object-cover"
                 />
                 {img.uploadedByName ? (
