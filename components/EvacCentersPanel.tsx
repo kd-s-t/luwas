@@ -36,7 +36,12 @@ import {
   NANGKA_BARANGAY_ID,
   NANGKA_ORG_NAME,
 } from "@/lib/evacCenters/nangkaSeed";
-import { createEvacStockRequestReport } from "@/lib/evacCenters/requestReport";
+import {
+  createEvacStockRequestReport,
+  EVAC_REQUEST_RESOURCES,
+  type EvacRequestResourceId,
+  type EvacRequestUrgency,
+} from "@/lib/evacCenters/requestReport";
 import {
   EVAC_CENTER_CONDITIONS,
   emptyEvacStock,
@@ -245,7 +250,6 @@ function QtyStepper({
           max={max}
           value={draft}
           disabled={disabled}
-          aria-label={label}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commitDraft}
           onKeyDown={(e) => {
@@ -313,7 +317,6 @@ function StockFields({
               type="number"
               min={0}
               value={stock[key]}
-              aria-label={label}
               onChange={(e) =>
                 onChange({
                   ...stock,
@@ -365,6 +368,14 @@ export function EvacCentersPanel() {
   const [conditionBusyId, setConditionBusyId] = useState<string | null>(null);
   const [stockBusyId, setStockBusyId] = useState<string | null>(null);
   const [requestBusyId, setRequestBusyId] = useState<string | null>(null);
+  const [requestCenter, setRequestCenter] = useState<EvacCenter | null>(null);
+  const [requestSelected, setRequestSelected] = useState<
+    Partial<Record<EvacRequestResourceId, number>>
+  >({});
+  const [requestUrgency, setRequestUrgency] =
+    useState<EvacRequestUrgency>("urgent");
+  const [requestDelivery, setRequestDelivery] = useState("");
+  const [requestNotes, setRequestNotes] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const [name, setName] = useState("");
@@ -595,21 +606,78 @@ export function EvacCentersPanel() {
     }
   }
 
-  async function requestRowStock(row: EvacCenter) {
-    if (!isOfficer(profile) || !isAccountActive(profile) || requestBusyId) {
+  function openRequestForm(row: EvacCenter) {
+    setRequestCenter(row);
+    setRequestSelected({
+      foodPacks: 100,
+      waterLiters: 200,
+      medicalKits: 10,
+    });
+    setRequestUrgency("urgent");
+    setRequestDelivery(row.name);
+    setRequestNotes("");
+    setError(null);
+  }
+
+  function closeRequestForm() {
+    if (requestBusyId) return;
+    setRequestCenter(null);
+  }
+
+  function toggleRequestResource(id: EvacRequestResourceId) {
+    setRequestSelected((prev) => {
+      const next = { ...prev };
+      if (next[id] != null) {
+        delete next[id];
+        return next;
+      }
+      const def =
+        EVAC_REQUEST_RESOURCES.find((r) => r.id === id)?.defaultQty ?? 1;
+      next[id] = def;
+      return next;
+    });
+  }
+
+  function setRequestQty(id: EvacRequestResourceId, qty: number) {
+    const meta = EVAC_REQUEST_RESOURCES.find((r) => r.id === id);
+    const step = meta?.step ?? 1;
+    const clamped = Math.max(step, Math.round(qty / step) * step);
+    setRequestSelected((prev) => ({ ...prev, [id]: clamped }));
+  }
+
+  async function submitRequestForm() {
+    if (
+      !requestCenter ||
+      !isOfficer(profile) ||
+      !isAccountActive(profile) ||
+      requestBusyId
+    ) {
       return;
     }
-    setRequestBusyId(row.id);
+    const lines = EVAC_REQUEST_RESOURCES.filter(
+      (r) => requestSelected[r.id] != null,
+    ).map((r) => ({
+      id: r.id,
+      label: r.label,
+      quantity: requestSelected[r.id]!,
+      unit: r.unit,
+    }));
+    setRequestBusyId(requestCenter.id);
     setError(null);
     setMsg(null);
     try {
       const id = await createEvacStockRequestReport({
         author: profile,
-        center: row,
+        center: requestCenter,
         barangay: mapArea.barangay,
         lgu,
+        lines,
+        urgency: requestUrgency,
+        deliveryLocation: requestDelivery,
+        notes: requestNotes,
       });
-      setMsg(`${row.name}: supply request ${id} filed.`);
+      setMsg(`${requestCenter.name}: supply request ${id} filed.`);
+      setRequestCenter(null);
     } catch (err) {
       setError(
         err instanceof Error
@@ -680,8 +748,6 @@ export function EvacCentersPanel() {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Nangka Elementary School"
-                    aria-invalid={!!error}
-                    aria-describedby={error ? "evac-form-error" : undefined}
                     className="w-full rounded-xl border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none focus:border-[#3b6fb6]/50"
                   />
                 </label>
@@ -778,7 +844,6 @@ export function EvacCentersPanel() {
                       type="number"
                       min={0}
                       value={occupancy}
-                      aria-label="People on site"
                       onChange={(e) => setOccupancy(e.target.value)}
                       className="w-20 rounded-lg border border-[var(--border)] bg-white px-2 py-1.5 text-center text-sm tabular-nums outline-none focus:border-[#3b6fb6]/50"
                     />
@@ -819,7 +884,6 @@ export function EvacCentersPanel() {
                       type="number"
                       min={0}
                       value={maxCapacity}
-                      aria-label="Max capacity"
                       onChange={(e) => setMaxCapacity(e.target.value)}
                       className="w-20 rounded-lg border border-[var(--border)] bg-white px-2 py-1.5 text-center text-sm tabular-nums outline-none focus:border-[#3b6fb6]/50"
                     />
@@ -921,11 +985,7 @@ export function EvacCentersPanel() {
       </Dialog>
 
       {error ? (
-        <p
-          id="evac-form-error"
-          className="text-sm text-[var(--danger)]"
-          role="alert"
-        >
+        <p className="text-sm text-[var(--danger)]" role="alert">
           {error}
         </p>
       ) : null}
@@ -1075,10 +1135,10 @@ export function EvacCentersPanel() {
                   <button
                     type="button"
                     disabled={requestBusyId === row.id}
-                    onClick={() => void requestRowStock(row)}
+                    onClick={() => openRequestForm(row)}
                     className="rounded-xl border border-[var(--foreground)] bg-[var(--foreground)] px-3 py-2 text-center text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
                   >
-                    {requestBusyId === row.id ? "Requesting…" : "Request"}
+                    Request resources
                   </button>
                   <a
                     href={directionsUrl(hallPoint, {
@@ -1106,6 +1166,168 @@ export function EvacCentersPanel() {
           </ul>
         )}
       </section>
+
+      <Dialog
+        open={Boolean(requestCenter)}
+        onOpenChange={(open) => {
+          if (!open) closeRequestForm();
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Create resource request</DialogTitle>
+            <DialogDescription>
+              {requestCenter?.name ?? "Evacuation center"}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogBody className="space-y-5">
+            <div className="space-y-2">
+              <p className="text-sm font-semibold text-[var(--foreground)]">
+                What resources are needed?
+              </p>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {EVAC_REQUEST_RESOURCES.map((res) => {
+                  const selected = requestSelected[res.id] != null;
+                  const qty = requestSelected[res.id] ?? res.defaultQty;
+                  return (
+                    <div
+                      key={res.id}
+                      className={cn(
+                        "flex flex-col rounded-xl border p-3 transition",
+                        selected
+                          ? "border-[var(--foreground)]/40 bg-[var(--surface)]"
+                          : "border-[var(--border)] bg-white",
+                      )}
+                    >
+                      <label className="flex cursor-pointer items-start justify-between gap-2">
+                        <span className="text-sm font-medium leading-snug text-[var(--foreground)]">
+                          {res.label}
+                        </span>
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onChange={() => toggleRequestResource(res.id)}
+                          className="mt-0.5 size-4 shrink-0 accent-[var(--foreground)]"
+                        />
+                      </label>
+                      {selected ? (
+                        <div className="mt-3 flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] text-sm font-medium"
+                            onClick={() =>
+                              setRequestQty(res.id, qty - res.step)
+                            }
+                            aria-label={`Decrease ${res.label}`}
+                          >
+                            −
+                          </button>
+                          <p className="min-w-0 flex-1 text-center text-xs tabular-nums text-[var(--muted)]">
+                            <span className="font-semibold text-[var(--foreground)]">
+                              {qty}
+                            </span>{" "}
+                            {res.unit}
+                          </p>
+                          <button
+                            type="button"
+                            className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] text-sm font-medium"
+                            onClick={() =>
+                              setRequestQty(res.id, qty + res.step)
+                            }
+                            aria-label={`Increase ${res.label}`}
+                          >
+                            +
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-sm font-semibold text-[var(--foreground)]">
+                Urgency level
+              </p>
+              <div className="grid grid-cols-3 gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--surface-panel)]/40 p-1">
+                {(
+                  [
+                    ["normal", "Normal"],
+                    ["urgent", "Urgent"],
+                    ["critical", "Critical"],
+                  ] as const
+                ).map(([id, label]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setRequestUrgency(id)}
+                    className={cn(
+                      "rounded-lg px-2 py-2 text-sm font-medium transition",
+                      requestUrgency === id
+                        ? "bg-[var(--foreground)] text-white"
+                        : "text-[var(--muted)] hover:text-[var(--foreground)]",
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <label className="block space-y-2">
+              <span className="text-sm font-semibold text-[var(--foreground)]">
+                Delivery location
+              </span>
+              <input
+                value={requestDelivery}
+                onChange={(e) => setRequestDelivery(e.target.value)}
+                className="w-full rounded-xl border border-[var(--border)] bg-white px-3 py-2.5 text-sm outline-none focus:border-[var(--foreground)]/30"
+              />
+            </label>
+
+            <label className="block space-y-2">
+              <span className="text-sm font-semibold text-[var(--foreground)]">
+                Additional notes
+              </span>
+              <div className="relative">
+                <textarea
+                  value={requestNotes}
+                  maxLength={500}
+                  rows={3}
+                  onChange={(e) => setRequestNotes(e.target.value)}
+                  placeholder="Add details for the response team (optional)"
+                  className="w-full resize-none rounded-xl border border-[var(--border)] bg-white px-3 py-2.5 pr-14 text-sm outline-none placeholder:text-[var(--muted)] focus:border-[var(--foreground)]/30"
+                />
+                <span className="pointer-events-none absolute right-3 bottom-2.5 text-[10px] tabular-nums text-[var(--muted)]">
+                  {requestNotes.length}/500
+                </span>
+              </div>
+            </label>
+          </DialogBody>
+          <DialogFooter className="flex gap-2 sm:justify-end">
+            <button
+              type="button"
+              disabled={Boolean(requestBusyId)}
+              onClick={closeRequestForm}
+              className="rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-sm font-medium text-[var(--foreground)] transition hover:border-[var(--foreground)]/25 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={
+                Boolean(requestBusyId) ||
+                Object.keys(requestSelected).length === 0
+              }
+              onClick={() => void submitRequestForm()}
+              className="rounded-xl border border-[var(--foreground)] bg-[var(--foreground)] px-4 py-2.5 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
+            >
+              {requestBusyId ? "Submitting…" : "Submit request"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

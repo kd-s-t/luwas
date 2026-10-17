@@ -14,7 +14,6 @@ import {
   AlertTriangle,
   Check,
   House,
-  Info,
   Loader2,
   LocateFixed,
   Mic,
@@ -110,6 +109,42 @@ const HallPinMap = dynamic(() => import("@/components/HallPinMap"), {
 });
 
 type Step = "intent" | "situation" | "location" | "review";
+
+type FieldErrors = {
+  situation?: string;
+  photos?: string;
+  place?: string;
+  mobile?: string;
+};
+
+/** PH mobile UI: static +639 + up to 10 more digits. */
+const PH_MOBILE_PREFIX = "+639";
+const PH_MOBILE_LOCAL_LEN = 10;
+
+function digitsOnly(value: string): string {
+  return value.replace(/\D/g, "");
+}
+
+/** Digits after the leading 9 of a PH mobile (09… / +639… / 9…). */
+function phMobileLocalFromStored(phone: string | null | undefined): string {
+  const d = digitsOnly(phone ?? "");
+  if (!d) return "";
+  if (d.startsWith("639") && d.length >= 3) {
+    return d.slice(3, 3 + PH_MOBILE_LOCAL_LEN);
+  }
+  if (d.startsWith("09") && d.length >= 2) {
+    return d.slice(2, 2 + PH_MOBILE_LOCAL_LEN);
+  }
+  if (d.startsWith("9") && d.length >= 1) {
+    return d.slice(1, 1 + PH_MOBILE_LOCAL_LEN);
+  }
+  return d.slice(0, PH_MOBILE_LOCAL_LEN);
+}
+
+function formatPhMobile(localDigits: string): string {
+  return `${PH_MOBILE_PREFIX}${localDigits}`;
+}
+
 type Intent = "needHelp" | "reportHazard";
 type ReportFor = "myself" | "someoneElse";
 
@@ -278,12 +313,17 @@ export function CitizenReportForm({
   const [approximate, setApproximate] = useState(true);
   const [fromGps, setFromGps] = useState(false);
   const [gpsLoading, setGpsLoading] = useState(false);
-  const [mobileNumber, setMobileNumber] = useState(
-    isCitizen(author)
+  const [mobileLocal, setMobileLocal] = useState(() => {
+    const raw = isCitizen(author)
       ? author.phone || ""
-      : sanitizeGuestReporterPhone(draft?.reporterPhone) || "",
-  );
+      : sanitizeGuestReporterPhone(draft?.reporterPhone) || "";
+    return phMobileLocalFromStored(raw);
+  });
+  const mobileNumber = mobileLocal
+    ? formatPhMobile(mobileLocal)
+    : "";
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [meta, setMeta] = useState<ReportCaptureMeta | null>(null);
@@ -291,7 +331,6 @@ export function CitizenReportForm({
   const [sampleLoading, setSampleLoading] = useState(false);
   const [recording, setRecording] = useState(false);
   const [voiceBusy, setVoiceBusy] = useState(false);
-  const [situationFocused, setSituationFocused] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const voiceChunksRef = useRef<Blob[]>([]);
@@ -512,7 +551,7 @@ export function CitizenReportForm({
         reportFor,
       });
       setDraftId(id);
-      saveGuestReportId(id);
+      // Do not saveGuestReportId here — drafts are not trackable yet.
       setStep("situation");
       router.replace(`/report-incident/${encodeURIComponent(id)}`);
     } catch (err) {
@@ -601,10 +640,13 @@ export function CitizenReportForm({
     if (!list?.length) return;
     const picked = Array.from(list).filter(isReportMediaFile);
     if (picked.length === 0) {
-      setError(t(language, "errors.photoRequired"));
+      setFieldErrors((prev) => ({
+        ...prev,
+        photos: t(language, "errors.photoRequired"),
+      }));
       return;
     }
-    setError(null);
+    setFieldErrors((prev) => ({ ...prev, photos: undefined }));
     setPhotos((prev) => {
       const next = [...prev];
       for (const file of picked) {
@@ -620,7 +662,7 @@ export function CitizenReportForm({
   }
 
   function addPhotoFile(file: File) {
-    setError(null);
+    setFieldErrors((prev) => ({ ...prev, photos: undefined }));
     setPhotos((prev) => {
       if (prev.length >= 3) return prev;
       return [
@@ -825,16 +867,44 @@ export function CitizenReportForm({
   }
 
   function validateSituation(): boolean {
-    setError(null);
-    return true;
+    const next: FieldErrors = {};
+    if (!situation.trim()) {
+      next.situation = t(language, "errors.situationRequired");
+    }
+    const hasPhoto =
+      photos.length > 0 || Boolean(editMode && existingMediaUrl);
+    if (!hasPhoto) {
+      next.photos = t(language, "errors.photoMissing");
+    }
+    setFieldErrors((prev) => ({
+      ...prev,
+      situation: next.situation,
+      photos: next.photos,
+    }));
+    return !next.situation && !next.photos;
   }
 
   function validateLocation(): boolean {
     if (!placeQuery.trim()) {
-      setError(t(language, "errors.placeRequired"));
+      setFieldErrors((prev) => ({
+        ...prev,
+        place: t(language, "errors.placeRequired"),
+      }));
       return false;
     }
-    setError(null);
+    setFieldErrors((prev) => ({ ...prev, place: undefined }));
+    return true;
+  }
+
+  function validateMobile(): boolean {
+    if (mobileLocal.length !== PH_MOBILE_LOCAL_LEN) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        mobile: t(language, "errors.mobileRequired"),
+      }));
+      return false;
+    }
+    setFieldErrors((prev) => ({ ...prev, mobile: undefined }));
     return true;
   }
 
@@ -962,25 +1032,10 @@ export function CitizenReportForm({
     // Await Vertex + Gemini so title / hazardHint are rewritten before leave.
     setStatus(t(language, "common.submitting"));
     try {
-      const canInline =
-        Boolean(file) &&
-        mediaType === "photo" &&
-        (file?.size ?? 0) <= 3.5 * 1024 * 1024;
-      const mediaBase64 =
-        canInline && file ? await fileToBase64(file) : undefined;
       await fetch("/api/reports/guest-validate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          reportId: id,
-          title,
-          notes,
-          hazardHint,
-          mediaType,
-          mediaMime: uploaded.mediaMime || undefined,
-          mediaBase64,
-          fileName: file?.name,
-        }),
+        body: JSON.stringify({ reportId: id, title, notes, hazardHint }),
       });
     } catch {
       // Report already queued — officer queue can still pick it up.
@@ -993,6 +1048,7 @@ export function CitizenReportForm({
 
   async function submitReport() {
     if (submitting) return;
+    if (!validateMobile()) return;
     setError(null);
     setSubmitting(true);
     setStatus(
@@ -1507,33 +1563,28 @@ export function CitizenReportForm({
             </span>
             <textarea
               rows={4}
+              required
               value={situation}
-              placeholder={
-                situationFocused ? undefined : t(language, "situation.example")
-              }
-              onFocus={() => setSituationFocused(true)}
-              onBlur={() => setSituationFocused(false)}
+              placeholder={t(language, "situation.example")}
               onChange={(e) => {
                 setSituation(e.target.value);
-                setError(null);
+                setFieldErrors((prev) => ({ ...prev, situation: undefined }));
               }}
-              aria-invalid={!!error}
-              aria-describedby={error ? "situation-error" : undefined}
-              className="w-full resize-y rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm outline-none placeholder:text-[var(--muted)] focus:border-[#2563eb]/40"
+              className={cn(
+                "w-full resize-y rounded-xl border bg-[var(--surface)] px-3 py-2.5 text-sm outline-none placeholder:text-[var(--muted)]",
+                fieldErrors.situation
+                  ? "border-[var(--danger)]"
+                  : "border-[var(--border)] focus:border-[#2563eb]/40",
+              )}
             />
-            <div
-              role="note"
-              className="flex gap-2.5 rounded-xl border border-[#93c5fd]/60 bg-[#eff6ff] px-3 py-2.5"
-            >
-              <Info
-                className="mt-0.5 size-4 shrink-0 text-[#2f5f9e]"
-                strokeWidth={2}
-                aria-hidden
-              />
-              <p className="text-xs leading-relaxed text-[var(--foreground)]">
-                {t(language, "situation.typeOrVoice")}
-              </p>
-            </div>
+            {fieldErrors.situation ? (
+              <span className="block text-xs text-[var(--danger)]" role="alert">
+                {fieldErrors.situation}
+              </span>
+            ) : null}
+            <span className="block text-xs leading-relaxed text-[var(--muted)]">
+              {t(language, "situation.typeOrVoice")}
+            </span>
           </label>
 
           {voiceFile && voicePreviewUrl && !recording ? (
@@ -1726,6 +1777,11 @@ export function CitizenReportForm({
                 </button>
               </>
             ) : null}
+            {fieldErrors.photos ? (
+              <p className="text-xs text-[var(--danger)]" role="alert">
+                {fieldErrors.photos}
+              </p>
+            ) : null}
             <p className="text-xs text-[var(--muted)]">
               {t(language, "situation.photoHint")}
             </p>
@@ -1749,11 +1805,7 @@ export function CitizenReportForm({
           </div>
 
           {error ? (
-            <p
-              id="situation-error"
-              className="text-sm text-[var(--danger)]"
-              role="alert"
-            >
+            <p className="text-sm text-[var(--danger)]" role="alert">
               {error}
             </p>
           ) : null}
@@ -1861,12 +1913,13 @@ export function CitizenReportForm({
                 />
                 <input
                   value={placeQuery}
+                  required
                   onChange={(e) => {
                     const next = e.target.value;
                     setPlaceQuery(next);
                     setFromGps(false);
                     userPinnedRef.current = true;
-                    setError(null);
+                    setFieldErrors((prev) => ({ ...prev, place: undefined }));
                     const hit = matchPlace(next);
                     if (hit) {
                       setLat(hit.lat);
@@ -1880,11 +1933,9 @@ export function CitizenReportForm({
                     selectPlace(hit);
                   }}
                   placeholder={t(language, "location.searchPlaceholder")}
-                  aria-invalid={!!error}
-                  aria-describedby={error ? "location-error" : undefined}
                   className={cn(
                     "w-full rounded-xl border bg-[var(--surface)] py-3 pr-3 pl-10 text-sm outline-none",
-                    error
+                    fieldErrors.place
                       ? "border-[var(--danger)]"
                       : "border-[var(--border)] focus:border-[#2563eb]/40",
                   )}
@@ -1893,6 +1944,11 @@ export function CitizenReportForm({
                   spellCheck={false}
                 />
               </div>
+              {fieldErrors.place ? (
+                <span className="block text-xs text-[var(--danger)]" role="alert">
+                  {fieldErrors.place}
+                </span>
+              ) : null}
             </label>
             {placeHits.length > 0 ? (
               <ul className="space-y-1.5">
@@ -2011,11 +2067,7 @@ export function CitizenReportForm({
           </div>
 
           {error ? (
-            <p
-              id="location-error"
-              className="text-sm text-[var(--danger)]"
-              role="alert"
-            >
+            <p className="text-sm text-[var(--danger)]" role="alert">
               {error}
             </p>
           ) : null}
@@ -2112,6 +2164,27 @@ export function CitizenReportForm({
               <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-[var(--foreground)]">
                 {situation}
               </p>
+            </div>
+
+            <div className="flex gap-2.5 rounded-xl border border-[#bfdbfe] bg-[#eff6ff] px-3.5 py-3">
+              <span
+                className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-[#2563eb] text-[11px] font-bold text-white"
+                aria-hidden
+              >
+                !
+              </span>
+              <div className="min-w-0 space-y-0.5">
+                <p className="text-sm font-semibold text-[var(--foreground)]">
+                  {t(language, "review.aiSuggestion")}
+                </p>
+                <p className="text-xs leading-relaxed text-[var(--muted)]">
+                  {t(language, "review.aiSuggestionBody", {
+                    category: reviewHazardLabel(
+                      inferHazard(situation, voiceTranscript),
+                    ),
+                  })}
+                </p>
+              </div>
             </div>
 
             <div className="rounded-[14px] border border-[var(--border)] bg-[var(--surface)] p-3.5">
@@ -2232,16 +2305,44 @@ export function CitizenReportForm({
             <span className="text-sm font-semibold text-[var(--foreground)]">
               {t(language, "review.mobileOptional")}
             </span>
-            <input
-              type="tel"
-              value={mobileNumber}
-              onChange={(e) => {
-                setMobileNumber(e.target.value);
-                setError(null);
-              }}
-              placeholder={t(language, "review.mobilePlaceholder")}
-              className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-sm outline-none focus:border-[#2563eb]/40"
-            />
+            <div
+              className={cn(
+                "flex w-full items-center rounded-xl border bg-[var(--surface)] text-sm",
+                fieldErrors.mobile
+                  ? "border-[var(--danger)]"
+                  : "border-[var(--border)] focus-within:border-[#2563eb]/40",
+              )}
+            >
+              <span
+                className="shrink-0 select-none pl-3 font-medium text-[var(--muted)]"
+                aria-hidden
+              >
+                {PH_MOBILE_PREFIX}
+              </span>
+              <input
+                type="tel"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                required
+                maxLength={PH_MOBILE_LOCAL_LEN}
+                value={mobileLocal}
+                onChange={(e) => {
+                  setMobileLocal(
+                    digitsOnly(e.target.value).slice(0, PH_MOBILE_LOCAL_LEN),
+                  );
+                  setFieldErrors((prev) => ({ ...prev, mobile: undefined }));
+                }}
+                placeholder={t(language, "review.mobilePlaceholder")}
+                autoComplete="tel-national"
+                aria-label={t(language, "review.mobileOptional")}
+                className="min-w-0 flex-1 rounded-xl border-0 bg-transparent px-2 py-3 outline-none"
+              />
+            </div>
+            {fieldErrors.mobile ? (
+              <span className="block text-xs text-[var(--danger)]" role="alert">
+                {fieldErrors.mobile}
+              </span>
+            ) : null}
             <span className="block text-xs leading-relaxed text-[var(--muted)]">
               {t(language, "review.mobileHint")}
             </span>
@@ -2265,11 +2366,7 @@ export function CitizenReportForm({
           </div>
 
           {error ? (
-            <p
-              id="review-error"
-              className="text-sm text-[var(--danger)]"
-              role="alert"
-            >
+            <p className="text-sm text-[var(--danger)]" role="alert">
               {error}
             </p>
           ) : null}
@@ -2290,8 +2387,6 @@ export function CitizenReportForm({
               type="button"
               disabled={submitting}
               onClick={() => void submitReport()}
-              aria-invalid={!!error}
-              aria-describedby={error ? "review-error" : undefined}
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--danger)] px-4 py-[16px] text-[17px] font-semibold text-white transition hover:bg-[var(--danger)]/92 disabled:opacity-60"
             >
               {submitting ? (
