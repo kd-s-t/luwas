@@ -131,7 +131,7 @@ function VertexAgentFlowCanvas() {
       {
         id: "bq",
         type: "step",
-        position: { x: 40, y: 140 },
+        position: { x: -35.77142857142857, y: 140.97142857142856 },
         data: {
           label: "bigQuery",
           note: "Schedule: Monthly",
@@ -166,7 +166,7 @@ function VertexAgentFlowCanvas() {
       {
         id: "train",
         type: "step",
-        position: { x: 700, y: 140 },
+        position: { x: 704.8571428571428, y: 162.34285714285713 },
         data: {
           label: "Train",
           textOnly: true,
@@ -178,7 +178,7 @@ function VertexAgentFlowCanvas() {
       {
         id: "deploy",
         type: "step",
-        position: { x: 920, y: 140 },
+        position: { x: 933.5999999999999, y: 162.34285714285716 },
         data: {
           label: "Deploy",
           textOnly: true,
