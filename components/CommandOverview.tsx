@@ -184,7 +184,8 @@ export function CommandOverview() {
       (item) =>
         item.kind === "resource" &&
         /^RS-\d+/i.test(item.incidentCode) &&
-        item.ctaHref.includes("rs="),
+        (/\/admin\/resources\/RS-/i.test(item.ctaHref) ||
+          item.ctaHref.includes("rs=")),
     );
     // Prefer drinking-water (RS-001) when present — Apas multi-sitio desk.
     const water = epics.find((item) =>

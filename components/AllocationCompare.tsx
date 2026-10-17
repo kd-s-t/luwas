@@ -1,17 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
 import { useCommandWorkspace } from "@/components/CommandWorkspaceProvider";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { isOfficer } from "@/lib/auth/types";
+import { AllocationPlanStepper } from "@/components/AllocationPlanStepper";
 import { easeOut, useMotionSafe } from "@/components/motion/primitives";
 import { scopeLabel } from "@/lib/reports/barangayScope";
 import {
   getShortageById,
+  saveSelectedAllocationOption,
   saveShortageAllocationDraft,
+  saveShortageWorkflowStep,
   upsertShortageFromPlan,
 } from "@/lib/resourcesShortages/api";
 import {
@@ -89,9 +92,9 @@ export function AllocationCompare() {
   const { profile } = useAuth();
   const { reports, scopedReports, reportScope } = useCommandWorkspace();
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const params = useParams();
   const motionOk = useMotionSafe();
-  const rsCode = searchParams.get("rs")?.trim().toUpperCase() || "RS-001";
+  const rsCode = String(params.id ?? "RS-001").trim().toUpperCase() || "RS-001";
 
   const [selectedId, setSelectedId] = useState<string>("feasible");
   const [options, setOptions] = useState<AllocationOption[]>([]);
@@ -271,6 +274,14 @@ export function AllocationCompare() {
       // 1) Firestore draft for this shortage id + plan fingerprint
       try {
         const fromDb = await getShortageById(plan.code);
+        if (
+          fromDb &&
+          (fromDb.workflowStep == null || fromDb.workflowStep === 1)
+        ) {
+          void saveShortageWorkflowStep(plan.code, 1).catch(() => {
+            /* offline */
+          });
+        }
         if (cancelled) return;
         if (
           fromDb?.allocation &&
@@ -352,7 +363,7 @@ export function AllocationCompare() {
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-y-auto px-4 py-4 sm:px-6 sm:py-5 lg:px-8">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <Link
-          href={`/admin/resources?rs=${encodeURIComponent(plan.code)}`}
+          href={`/admin/resources/${encodeURIComponent(plan.code)}`}
           className="text-[12px] font-medium text-[#2f5f9e] hover:underline"
         >
           ← Back to resources
@@ -362,71 +373,7 @@ export function AllocationCompare() {
         </div>
       </div>
 
-      <nav className="mt-4 w-full max-w-3xl" aria-label="Allocation steps">
-        <ol className="grid grid-cols-3">
-          {(
-            [
-              {
-                label: "1. Compare options",
-                status: "Current step",
-                active: true,
-              },
-              {
-                label: "2. Review plan & approve",
-                status: "Next",
-                active: false,
-              },
-              {
-                label: "3. Track delivery",
-                status: "Next",
-                active: false,
-              },
-            ] as const
-          ).map((step, i, all) => (
-            <li key={step.label} className="relative min-w-0">
-              {i < all.length - 1 ? (
-                <span
-                  className="pointer-events-none absolute top-[9px] left-[9px] z-0 h-0.5 w-full bg-[#e2e8f0]"
-                  aria-hidden
-                >
-                  {i === 0 ? (
-                    <span className="absolute inset-y-0 left-0 w-[38%] bg-[#2f5f9e]" />
-                  ) : null}
-                </span>
-              ) : null}
-              <span
-                className={cn(
-                  "relative z-[1] flex size-[18px] shrink-0 items-center justify-center rounded-full",
-                  step.active
-                    ? "border-[3px] border-[#2f5f9e] bg-white"
-                    : "border-2 border-[#cbd5e1] bg-white",
-                )}
-                aria-current={step.active ? "step" : undefined}
-              >
-                {step.active ? (
-                  <span className="size-1.5 rounded-full bg-[#2f5f9e]" />
-                ) : null}
-              </span>
-              <p
-                className={cn(
-                  "mt-2 text-[13px] font-semibold leading-snug",
-                  step.active ? "text-[#2f5f9e]" : "text-[var(--foreground)]",
-                )}
-              >
-                {step.label}
-              </p>
-              <p
-                className={cn(
-                  "mt-0.5 text-[12px] leading-snug",
-                  step.active ? "text-[#6b9bd1]" : "text-[var(--muted)]",
-                )}
-              >
-                {step.status}
-              </p>
-            </li>
-          ))}
-        </ol>
-      </nav>
+      <AllocationPlanStepper current={1} className="mt-4" />
 
       <div className="mt-5 flex flex-wrap items-center gap-2">
         <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-wide text-[var(--foreground)] sm:text-[2rem]">
@@ -676,11 +623,15 @@ export function AllocationCompare() {
           disabled={!selected || options.length === 0}
           onClick={() => {
             if (!selected) return;
-            const q = new URLSearchParams({
-              rs: plan.code,
-              option: selected.id,
-            });
-            router.push(`/admin/resources/assist?${q.toString()}`);
+            void saveSelectedAllocationOption(plan.code, selected.id)
+              .catch(() => {
+                /* still navigate; review loads option from DB */
+              })
+              .finally(() => {
+                router.push(
+                  `/admin/resources/review/${encodeURIComponent(plan.code)}`,
+                );
+              });
           }}
           className="inline-flex shrink-0 items-center justify-center rounded-lg bg-[#2f5f9e] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#254d82] disabled:opacity-50"
         >

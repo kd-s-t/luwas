@@ -120,7 +120,7 @@ function toNeed(
         requestMeta: item.meta,
         shared: true,
         ctaLabel: "Review shortage",
-        ctaHref: `/admin/resources?rs=${encodeURIComponent(item.incidentCode)}`,
+        ctaHref: `/admin/resources/${encodeURIComponent(item.incidentCode)}`,
         primaryCta: false,
         reportId: item.reportId,
         reportIds: item.reportIds,
@@ -131,7 +131,7 @@ function toNeed(
     const supply = report ? supplyNeedKind(report) : null;
     const shortageHref =
       supply != null
-        ? `/admin/resources?rs=${encodeURIComponent(item.incidentCode.startsWith("RS-") ? item.incidentCode : supplyNeedEpicCode(supply))}`
+        ? `/admin/resources/${encodeURIComponent(item.incidentCode.startsWith("RS-") ? item.incidentCode : supplyNeedEpicCode(supply))}`
         : assistHref(item.reportId);
     return {
       id: item.id,
@@ -227,7 +227,7 @@ function collapseSupplyShortages(
       requestMeta: copy.meta,
       shared: true,
       ctaLabel: "Review shortage",
-      ctaHref: `/admin/resources?rs=${encodeURIComponent(copy.incidentCode)}`,
+      ctaHref: `/admin/resources/${encodeURIComponent(copy.incidentCode)}`,
       primaryCta: false,
       reportId: copy.primary.id,
       reportIds: copy.reportIds,

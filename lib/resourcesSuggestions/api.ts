@@ -2,10 +2,8 @@ import {
   collection,
   doc,
   onSnapshot,
-  query,
   serverTimestamp,
   setDoc,
-  where,
   type Unsubscribe,
 } from "firebase/firestore";
 import { getClientDb } from "@/lib/firebase/client";
@@ -13,6 +11,7 @@ import type { SupplyShortagePlan } from "@/lib/workspace/supplyShortagePlan";
 import type {
   ResourceSuggestion,
   ResourceSuggestionReadiness,
+  ResourceSuggestionRequest,
 } from "@/lib/resourcesSuggestions/types";
 
 const COL = "resources_suggestions";
@@ -38,153 +37,145 @@ function asReadiness(raw: unknown): ResourceSuggestionReadiness {
   return "access_unknown";
 }
 
-function slug(community: string): string {
-  return community
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 48);
-}
-
-export function suggestionDocId(epicCode: string, community: string): string {
-  return `${epicCode.toLowerCase()}_${slug(community) || "sitio"}`;
+function mapRequest(raw: unknown): ResourceSuggestionRequest | null {
+  if (!raw || typeof raw !== "object") return null;
+  const d = raw as Record<string, unknown>;
+  const community = String(d.community ?? "").trim();
+  if (!community) return null;
+  const reportIds = Array.isArray(d.reportIds)
+    ? d.reportIds.map(String).filter(Boolean)
+    : [];
+  const reportId =
+    typeof d.reportId === "string" && d.reportId.trim()
+      ? d.reportId.trim()
+      : (reportIds[0] ?? "");
+  return {
+    community,
+    barangayLabel: String(d.barangayLabel ?? ""),
+    reportId,
+    reportIds: reportIds.length > 0 ? reportIds : reportId ? [reportId] : [],
+    people: Number(d.people) || 0,
+    needL: Number(d.needL) || 0,
+    localStockL: Number(d.localStockL) || 0,
+    gapL: Number(d.gapL) || 0,
+    suggestedAllocateL: Number(d.suggestedAllocateL) || 0,
+    readiness: asReadiness(d.readiness),
+    readinessLabel: String(d.readinessLabel ?? "Access TBD"),
+    mediaUrl:
+      typeof d.mediaUrl === "string" && d.mediaUrl.trim()
+        ? d.mediaUrl.trim()
+        : null,
+    lat: typeof d.lat === "number" ? d.lat : null,
+    lng: typeof d.lng === "number" ? d.lng : null,
+  };
 }
 
 function mapDoc(id: string, data: Record<string, unknown>): ResourceSuggestion {
-  const reportIds = Array.isArray(data.reportIds)
-    ? data.reportIds.map(String).filter(Boolean)
-    : [];
-  const reportId =
-    typeof data.reportId === "string" && data.reportId.trim()
-      ? data.reportId.trim()
-      : (reportIds[0] ?? "");
-  const shortageId = String(data.shortageId ?? data.epicCode ?? "")
+  const shortageId = String(data.shortageId ?? data.epicCode ?? id)
     .trim()
     .toUpperCase();
+  const fromArray = Array.isArray(data.requests)
+    ? data.requests
+        .map(mapRequest)
+        .filter((r): r is ResourceSuggestionRequest => Boolean(r))
+    : [];
+  const requests = [...fromArray].sort(
+    (a, b) => b.gapL - a.gapL || a.community.localeCompare(b.community),
+  );
   return {
-    id,
-    shortageId,
-    epicCode: shortageId,
+    id: shortageId || id,
+    shortageId: shortageId || id,
+    epicCode: shortageId || id,
     kind: String(data.kind ?? "water"),
-    community: String(data.community ?? ""),
-    barangayLabel: String(data.barangayLabel ?? ""),
-    reportId,
-    reportIds: reportIds.length > 0 ? reportIds : reportId ? [reportId] : [],
-    people: Number(data.people) || 0,
-    needL: Number(data.needL) || 0,
-    localStockL: Number(data.localStockL) || 0,
-    gapL: Number(data.gapL) || 0,
-    suggestedAllocateL: Number(data.suggestedAllocateL) || 0,
-    readiness: asReadiness(data.readiness),
-    readinessLabel: String(data.readinessLabel ?? "Access TBD"),
-    mediaUrl:
-      typeof data.mediaUrl === "string" && data.mediaUrl.trim()
-        ? data.mediaUrl.trim()
-        : null,
-    lat: typeof data.lat === "number" ? data.lat : null,
-    lng: typeof data.lng === "number" ? data.lng : null,
+    resourceLabel: String(data.resourceLabel ?? "Drinking water"),
+    totalNeededL: Number(data.totalNeededL) || 0,
+    availableL: Number(data.availableL) || 0,
+    shortageL: Number(data.shortageL) || 0,
+    requestCount: requests.length || Number(data.requestCount) || 0,
+    requests,
     createdAt: asIso(data.createdAt, data.createdAtServer),
     updatedAt: asIso(data.updatedAt, data.updatedAtServer),
   };
 }
 
-/** Proportional warehouse suggestion by gap share. */
 function suggestedAllocateL(
   gapL: number,
   totalGapL: number,
   availableL: number,
 ): number {
-  if (gapL <= 0 || availableL <= 0) return 0;
-  if (totalGapL <= 0) return 0;
+  if (gapL <= 0 || availableL <= 0 || totalGapL <= 0) return 0;
   return Math.round((gapL / totalGapL) * availableL);
 }
 
 /**
- * Upsert one suggestion row per sitio when Review shortage opens.
- * Deterministic ids so revisits update instead of duplicating.
+ * One doc per plan: resources_suggestions/RS-001 with all sitio requests nested.
  */
 export async function upsertSuggestionsFromPlan(
   plan: SupplyShortagePlan,
-): Promise<void> {
-  const db = getClientDb();
+): Promise<ResourceSuggestion> {
+  const id = plan.code.trim().toUpperCase();
   const totalGap = plan.rows.reduce((sum, r) => sum + Math.max(0, r.gapL), 0);
-
-  await Promise.all(
-    plan.rows.map(async (row) => {
-      const id = suggestionDocId(plan.code, row.community);
-      const people = Number(row.peopleLabel.replace(/[^\d]/g, "")) || 0;
-      const ref = doc(db, COL, id);
-      await setDoc(
-        ref,
-        {
-          shortageId: plan.code,
-          epicCode: plan.code,
-          kind: plan.kind,
-          community: row.community,
-          barangayLabel: row.barangayLabel,
-          reportId: row.reportId,
-          reportIds: row.reportIds,
-          people,
-          needL: row.needL,
-          localStockL: row.localStockL,
-          gapL: row.gapL,
-          suggestedAllocateL: suggestedAllocateL(
-            row.gapL,
-            totalGap,
-            plan.availableL,
-          ),
-          readiness: row.readiness,
-          readinessLabel: row.readinessLabel,
-          mediaUrl: row.mediaUrl,
-          lat: row.lat,
-          lng: row.lng,
-          updatedAt: new Date().toISOString(),
-          updatedAtServer: serverTimestamp(),
-          createdAt: new Date().toISOString(),
-          createdAtServer: serverTimestamp(),
-        },
-        { merge: true },
-      );
-    }),
-  );
+  const requests: ResourceSuggestionRequest[] = plan.rows.map((row) => ({
+    community: row.community,
+    barangayLabel: row.barangayLabel,
+    reportId: row.reportId,
+    reportIds: row.reportIds,
+    people: Number(row.peopleLabel.replace(/[^\d]/g, "")) || 0,
+    needL: row.needL,
+    localStockL: row.localStockL,
+    gapL: row.gapL,
+    suggestedAllocateL: suggestedAllocateL(
+      row.gapL,
+      totalGap,
+      plan.availableL,
+    ),
+    readiness: row.readiness,
+    readinessLabel: row.readinessLabel,
+    mediaUrl: row.mediaUrl,
+    lat: row.lat,
+    lng: row.lng,
+  }));
+  const now = new Date().toISOString();
+  const payload = {
+    shortageId: id,
+    epicCode: id,
+    kind: plan.kind,
+    resourceLabel: plan.resourceLabel,
+    totalNeededL: plan.totalNeededL,
+    availableL: plan.availableL,
+    shortageL: plan.shortageL,
+    requestCount: requests.length,
+    requests,
+    updatedAt: now,
+    updatedAtServer: serverTimestamp(),
+    createdAt: now,
+    createdAtServer: serverTimestamp(),
+  };
+  await setDoc(doc(getClientDb(), COL, id), payload, { merge: true });
+  return mapDoc(id, payload as unknown as Record<string, unknown>);
 }
 
-function sortSuggestions(rows: ResourceSuggestion[]): ResourceSuggestion[] {
-  return [...rows].sort(
-    (a, b) =>
-      a.shortageId.localeCompare(b.shortageId) ||
-      b.gapL - a.gapL ||
-      a.community.localeCompare(b.community),
-  );
-}
-
-/** Live rows for an epic (e.g. RS-001). */
+/** Live doc for one plan (e.g. RS-001). */
 export function listenSuggestionsByEpic(
   epicCode: string,
-  onChange: (rows: ResourceSuggestion[]) => void,
+  onChange: (doc: ResourceSuggestion | null) => void,
   onError?: (err: Error) => void,
 ): Unsubscribe {
   const code = epicCode.trim().toUpperCase();
-  const q = query(
-    collection(getClientDb(), COL),
-    where("epicCode", "==", code),
-  );
   return onSnapshot(
-    q,
+    doc(getClientDb(), COL, code),
     (snap) => {
-      const rows = sortSuggestions(
-        snap.docs.map((d) =>
-          mapDoc(d.id, d.data() as Record<string, unknown>),
-        ),
-      );
-      onChange(rows);
+      if (!snap.exists()) {
+        onChange(null);
+        return;
+      }
+      onChange(mapDoc(snap.id, snap.data() as Record<string, unknown>));
     },
     (err) => onError?.(err),
   );
 }
 
-/** All resources_suggestions rows (officer desk). */
+/** All plan suggestion docs (one row each). */
 export function listenAllSuggestions(
   onChange: (rows: ResourceSuggestion[]) => void,
   onError?: (err: Error) => void,
@@ -192,11 +183,10 @@ export function listenAllSuggestions(
   return onSnapshot(
     collection(getClientDb(), COL),
     (snap) => {
-      const rows = sortSuggestions(
-        snap.docs.map((d) =>
-          mapDoc(d.id, d.data() as Record<string, unknown>),
-        ),
-      );
+      const rows = snap.docs
+        .map((d) => mapDoc(d.id, d.data() as Record<string, unknown>))
+        .filter((r) => r.requests.length > 0 || r.requestCount > 0)
+        .sort((a, b) => a.id.localeCompare(b.id));
       onChange(rows);
     },
     (err) => onError?.(err),

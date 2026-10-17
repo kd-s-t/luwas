@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Package } from "lucide-react";
 import { FadeIn } from "@/components/motion/primitives";
@@ -27,6 +27,13 @@ import {
   reportsForEpicCode,
 } from "@/lib/workspace/supplyShortagePlan";
 import { cn } from "@/lib/utils";
+
+const RESERVED_RESOURCE_SEGMENTS = new Set([
+  "compare",
+  "review",
+  "suggestions",
+  "assist",
+]);
 
 function fmtSuggestionL(n: number): string {
   return `${n.toLocaleString("en-PH")} L`;
@@ -160,8 +167,14 @@ export function CommandResources() {
   const { reports, scopedReports, activeOfficers, reportScope, seedReady } =
     useCommandWorkspace();
   const router = useRouter();
+  const params = useParams();
   const searchParams = useSearchParams();
-  const rsCode = searchParams.get("rs")?.trim().toUpperCase() ?? "";
+  const paramId = String(params.id ?? "").trim().toUpperCase();
+  const queryRs = searchParams.get("rs")?.trim().toUpperCase() ?? "";
+  const rsCode =
+    paramId && !RESERVED_RESOURCE_SEGMENTS.has(paramId.toLowerCase())
+      ? paramId
+      : "";
   const [query, setQuery] = useState("");
   const [commitments, setCommitments] = useState<AssistanceCommitment[]>([]);
   const [suggestions, setSuggestions] = useState<ResourceSuggestion[]>([]);
@@ -182,6 +195,12 @@ export function CommandResources() {
   }, []);
 
   useEffect(() => listenAllSuggestions(setSuggestions), []);
+
+  // Legacy ?rs=RS-001 → /admin/resources/RS-001
+  useEffect(() => {
+    if (!queryRs || rsCode) return;
+    router.replace(`/admin/resources/${encodeURIComponent(queryRs)}`);
+  }, [queryRs, rsCode, router]);
 
   const board = useMemo(
     () =>
@@ -260,7 +279,7 @@ export function CommandResources() {
   useEffect(() => {
     if (!shortagePlan) return;
     if (shortagePlan.code === "RS-001" && rsCode !== "RS-001") {
-      router.replace("/admin/resources?rs=RS-001");
+      router.replace("/admin/resources/RS-001");
     }
   }, [shortagePlan, rsCode, router]);
 
@@ -383,12 +402,20 @@ export function CommandResources() {
               communities. {placeLine}
             </p>
           </div>
-          <Link
-            href="/admin/inventory"
-            className="inline-flex items-center rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-sm font-medium text-[var(--foreground)] shadow-sm transition hover:border-[var(--foreground)]/25"
-          >
-            View inventory →
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/admin/resources/suggestions"
+              className="inline-flex items-center rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-sm font-medium text-[var(--foreground)] shadow-sm transition hover:border-[var(--foreground)]/25"
+            >
+              View all resources suggested →
+            </Link>
+            <Link
+              href="/admin/inventory"
+              className="inline-flex items-center rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-sm font-medium text-[var(--foreground)] shadow-sm transition hover:border-[var(--foreground)]/25"
+            >
+              View inventory →
+            </Link>
+          </div>
         </div>
       </FadeIn>
 
@@ -476,14 +503,31 @@ export function CommandResources() {
                 </span>{" "}
                 {board.aiAdvisory}
               </p>
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+                <Link
+                  href="/admin/incidents"
+                  className="text-sm font-medium text-[#2f5f9e] hover:underline"
+                >
+                  Why this recommendation →
+                </Link>
+                <Link
+                  href="/admin/resources/suggestions"
+                  className="text-sm font-medium text-[#2f5f9e] hover:underline"
+                >
+                  View all resources suggested →
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-4 flex justify-end">
               <Link
-                href="/admin/incidents"
-                className="mt-2 inline-block text-sm font-medium text-[#2f5f9e] hover:underline"
+                href="/admin/resources/suggestions"
+                className="text-sm font-medium text-[#2f5f9e] hover:underline"
               >
-                Why this recommendation →
+                View all resources suggested →
               </Link>
             </div>
-          ) : null}
+          )}
         </section>
 
         <aside className="flex min-w-0 flex-col gap-4">
@@ -516,6 +560,22 @@ export function CommandResources() {
               Last checked {board.lastCheckLabel} · Recheck before allocation.{" "}
               {board.waterLiters} L water available · Assigned stock excluded.
             </p>
+          </section>
+
+          <section className="rounded-2xl border border-[var(--border)] bg-white p-4 shadow-sm sm:p-5">
+            <h2 className="font-[family-name:var(--font-display)] text-base font-semibold tracking-wide">
+              Resources suggested
+            </h2>
+            <p className="mt-1 text-[12px] text-[var(--muted)]">
+              {suggestions.length}{" "}
+              {suggestions.length === 1 ? "plan" : "plans"}
+            </p>
+            <Link
+              href="/admin/resources/suggestions"
+              className="mt-3 inline-flex w-full items-center justify-center rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-sm font-medium text-[#2f5f9e] shadow-sm transition hover:border-[#2f5f9e]/40"
+            >
+              View all resources suggested →
+            </Link>
           </section>
 
           <section className="rounded-2xl border border-[var(--border)] bg-white p-4 shadow-sm sm:p-5">
@@ -577,10 +637,8 @@ export function CommandResources() {
               Resources suggested
             </h2>
             <p className="mt-0.5 text-[12px] text-[var(--muted)]">
-              <span className="font-mono">resources_suggestions</span>
-              {" · "}
               {suggestions.length}{" "}
-              {suggestions.length === 1 ? "row" : "rows"}
+              {suggestions.length === 1 ? "plan" : "plans"}
             </p>
           </div>
           <Link
@@ -594,10 +652,10 @@ export function CommandResources() {
           <table className="w-full min-w-[560px] text-left text-sm">
             <thead>
               <tr className="border-b border-[var(--border)] text-[11px] tracking-wide text-[var(--muted)] uppercase">
-                <th className="px-4 py-2.5 font-medium sm:px-5">Shortage</th>
-                <th className="px-4 py-2.5 font-medium">Sitio</th>
+                <th className="px-4 py-2.5 font-medium sm:px-5">Plan</th>
+                <th className="px-4 py-2.5 font-medium">Requests</th>
+                <th className="px-4 py-2.5 font-medium">Need</th>
                 <th className="px-4 py-2.5 font-medium">Gap</th>
-                <th className="px-4 py-2.5 font-medium">Suggested</th>
                 <th className="px-4 py-2.5 font-medium sm:px-5">Action</th>
               </tr>
             </thead>
@@ -608,7 +666,7 @@ export function CommandResources() {
                     colSpan={5}
                     className="px-4 py-8 text-center text-[var(--muted)] sm:px-5"
                   >
-                    No suggestions yet. Review a shortage to write rows.
+                    No suggestions yet. Review a shortage to save a plan.
                   </td>
                 </tr>
               ) : (
@@ -617,29 +675,29 @@ export function CommandResources() {
                     key={row.id}
                     className="border-b border-[var(--border)]/70 last:border-0"
                   >
-                    <td className="px-4 py-3 font-mono text-[12px] sm:px-5">
+                    <td className="px-4 py-3 sm:px-5">
                       <Link
-                        href={`/admin/resources?rs=${encodeURIComponent(row.shortageId || row.epicCode)}`}
+                        href={`/admin/resources/${encodeURIComponent(row.id)}`}
                         className="font-medium text-[#2f5f9e] hover:underline"
                       >
-                        {row.shortageId || row.epicCode}
+                        {row.id}
                       </Link>
                     </td>
-                    <td className="px-4 py-3 font-medium text-[var(--foreground)]">
-                      {row.community}
+                    <td className="px-4 py-3 tabular-nums">
+                      {row.requestCount || row.requests.length} sitios
                     </td>
-                    <td className="px-4 py-3 tabular-nums text-[#c72929]">
-                      {fmtSuggestionL(row.gapL)}
+                    <td className="px-4 py-3 tabular-nums">
+                      {fmtSuggestionL(row.totalNeededL)}
                     </td>
-                    <td className="px-4 py-3 tabular-nums font-semibold text-[#2f5f9e]">
-                      {fmtSuggestionL(row.suggestedAllocateL)}
+                    <td className="px-4 py-3 tabular-nums font-semibold text-[#c72929]">
+                      {fmtSuggestionL(row.shortageL)}
                     </td>
                     <td className="px-4 py-3 sm:px-5">
                       <Link
-                        href={`/admin/resources?rs=${encodeURIComponent(row.shortageId || row.epicCode)}`}
+                        href={`/admin/resources/${encodeURIComponent(row.id)}`}
                         className="inline-flex rounded-lg border border-[var(--border)] bg-white px-2.5 py-1.5 text-[12px] font-medium text-[var(--foreground)] transition hover:border-[var(--foreground)]/25"
                       >
-                        Open shortage
+                        Open plan
                       </Link>
                     </td>
                   </tr>

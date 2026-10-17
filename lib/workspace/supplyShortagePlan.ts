@@ -290,7 +290,7 @@ export function buildSupplyShortagePlan(
     communityCount: rows.length,
     rows,
     advisory: `${rows.length === 1 ? "One" : rows.length === 2 ? "Two" : rows.length === 3 ? "Three" : String(rows.length)} ${communityWord} more ${noun} than the warehouse can supply. Confirm local stock and review distribution options.`,
-    compareHref: `/admin/resources/compare?rs=${encodeURIComponent(supplyNeedEpicCode(kind))}`,
+    compareHref: `/admin/resources/compare/${encodeURIComponent(supplyNeedEpicCode(kind))}`,
     primaryReportId: primary.id,
   };
 }

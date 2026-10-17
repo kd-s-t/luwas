@@ -290,7 +290,7 @@ function buildSoloItem(
   if (kind === "resource") {
     const supply = supplyNeedKind(report);
     const shortageHref = supply
-      ? `/admin/resources?rs=${encodeURIComponent(supplyNeedEpicCode(supply))}`
+      ? `/admin/resources/${encodeURIComponent(supplyNeedEpicCode(supply))}`
       : `/admin/resources/assist?report=${encodeURIComponent(report.id)}`;
     return {
       id: `resource-${report.id}`,
@@ -349,7 +349,7 @@ function buildEpicItem(
     timeLabel: timeLabelPht(copy.primary.createdAt),
     meta: copy.meta,
     ctaLabel: "Review shortage",
-    ctaHref: `/admin/resources?rs=${encodeURIComponent(copy.incidentCode)}`,
+    ctaHref: `/admin/resources/${encodeURIComponent(copy.incidentCode)}`,
     primaryCta: false,
     lat: copy.primary.lat,
     lng: copy.primary.lng,

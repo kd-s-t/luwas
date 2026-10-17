@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { AllocationPlanStepper } from "@/components/AllocationPlanStepper";
 import { FadeIn } from "@/components/motion/primitives";
 import { useCommandWorkspace } from "@/components/CommandWorkspaceProvider";
 import { useAuth } from "@/lib/auth/AuthProvider";
@@ -332,8 +333,23 @@ function PartnerCard({
 }
 
 export function FindAssistanceFlow() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const reportParam = searchParams.get("report");
+  const rsParam = (searchParams.get("rs") ?? "").trim().toUpperCase();
+  const fromAllocationCompare = Boolean(
+    searchParams.get("option") || rsParam,
+  );
+
+  useEffect(() => {
+    if (!rsParam) return;
+    const track = `/admin/resources/track/${encodeURIComponent(rsParam)}`;
+    router.replace(
+      reportParam
+        ? `${track}?report=${encodeURIComponent(reportParam)}`
+        : track,
+    );
+  }, [rsParam, reportParam, router]);
   const { profile } = useAuth();
   const { scopedReports, activeOfficers, reportScope } =
     useCommandWorkspace();
@@ -500,7 +516,14 @@ export function FindAssistanceFlow() {
           Explore local resources and partner offers to address the need.{" "}
           {placeLine}
         </p>
-        <Stepper current={step} />
+        {fromAllocationCompare ? (
+          <AllocationPlanStepper
+            current={approved ? 3 : 2}
+            className="mt-4"
+          />
+        ) : (
+          <Stepper current={step} />
+        )}
       </FadeIn>
 
       <div className="mt-5 grid shrink-0 gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,0.85fr)]">

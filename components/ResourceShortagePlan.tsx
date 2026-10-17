@@ -5,12 +5,18 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ShortagePlanMap } from "@/components/ShortagePlanMap";
 import { upsertShortageFromPlan } from "@/lib/resourcesShortages/api";
-import type { ResourceShortage } from "@/lib/resourcesShortages/types";
+import {
+  hrefForShortageWorkflow,
+  type ResourceShortage,
+} from "@/lib/resourcesShortages/types";
 import {
   listenSuggestionsByEpic,
   upsertSuggestionsFromPlan,
 } from "@/lib/resourcesSuggestions/api";
-import type { ResourceSuggestion } from "@/lib/resourcesSuggestions/types";
+import type {
+  ResourceSuggestion,
+  ResourceSuggestionRequest,
+} from "@/lib/resourcesSuggestions/types";
 import type { SupplyShortagePlan } from "@/lib/workspace/supplyShortagePlan";
 import { cn } from "@/lib/utils";
 
@@ -18,7 +24,7 @@ function fmtL(n: number): string {
   return `${n.toLocaleString("en-PH")} L`;
 }
 
-function readinessTone(readiness: ResourceSuggestion["readiness"]) {
+function readinessTone(readiness: ResourceSuggestionRequest["readiness"]) {
   if (readiness === "ready") {
     return "bg-[#ecfdf3] text-[#16794c] ring-[#86efac]/60";
   }
@@ -37,7 +43,8 @@ export function ResourceShortagePlan({
   placeLine: string;
   updatedLabel: string;
 }) {
-  const [suggestions, setSuggestions] = useState<ResourceSuggestion[]>([]);
+  const [suggestionDoc, setSuggestionDoc] =
+    useState<ResourceSuggestion | null>(null);
   const [shortageDoc, setShortageDoc] = useState<ResourceShortage | null>(null);
   const [syncing, setSyncing] = useState(true);
   const shortageId = plan.code.trim().toUpperCase();
@@ -62,23 +69,19 @@ export function ResourceShortagePlan({
   }, [plan]);
 
   useEffect(() => {
-    return listenSuggestionsByEpic(shortageId, setSuggestions);
+    return listenSuggestionsByEpic(shortageId, setSuggestionDoc);
   }, [shortageId]);
 
-  const tableRows = useMemo(() => {
-    if (suggestions.length > 0) return suggestions;
+  const tableRows = useMemo((): ResourceSuggestionRequest[] => {
+    if (suggestionDoc?.requests.length) return suggestionDoc.requests;
+    const totalGap = plan.rows.reduce((s, r) => s + Math.max(0, r.gapL), 0);
     return plan.rows.map((row) => {
       const people = Number(row.peopleLabel.replace(/[^\d]/g, "")) || 0;
-      const totalGap = plan.rows.reduce((s, r) => s + Math.max(0, r.gapL), 0);
       const suggested =
         row.gapL > 0 && totalGap > 0 && plan.availableL > 0
           ? Math.round((row.gapL / totalGap) * plan.availableL)
           : 0;
       return {
-        id: row.reportId,
-        shortageId,
-        epicCode: shortageId,
-        kind: plan.kind,
         community: row.community,
         barangayLabel: row.barangayLabel,
         reportId: row.reportId,
@@ -93,11 +96,9 @@ export function ResourceShortagePlan({
         mediaUrl: row.mediaUrl,
         lat: row.lat,
         lng: row.lng,
-        createdAt: "",
-        updatedAt: "",
-      } satisfies ResourceSuggestion;
+      };
     });
-  }, [suggestions, plan, shortageId]);
+  }, [suggestionDoc, plan]);
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-y-auto px-4 py-4 sm:px-6 sm:py-5 lg:px-8">
@@ -126,9 +127,17 @@ export function ResourceShortagePlan({
             ) : null}
           </p>
         </div>
-        <div className="text-right text-[12px] text-[var(--muted)]">
-          <p>{placeLine}</p>
-          <p className="mt-0.5">Last updated {updatedLabel}</p>
+        <div className="flex flex-col items-end gap-2">
+          <Link
+            href="/admin/resources/suggestions"
+            className="inline-flex items-center rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-sm font-medium text-[var(--foreground)] shadow-sm transition hover:border-[var(--foreground)]/25"
+          >
+            View all resources suggested →
+          </Link>
+          <div className="text-right text-[12px] text-[var(--muted)]">
+            <p>{placeLine}</p>
+            <p className="mt-0.5">Last updated {updatedLabel}</p>
+          </div>
         </div>
       </div>
 
@@ -178,22 +187,28 @@ export function ResourceShortagePlan({
       </div>
 
       <section className="mt-5 overflow-hidden rounded-2xl border border-[var(--border)] bg-white shadow-sm">
-        <div className="border-b border-[var(--border)] px-4 py-3 sm:px-5">
-          <h2 className="font-[family-name:var(--font-display)] text-base font-semibold tracking-wide">
-            Communities needing{" "}
-            {plan.kind === "water"
-              ? "drinking water"
-              : plan.resourceLabel.toLowerCase()}
-          </h2>
-          <p className="mt-0.5 text-[12px] text-[var(--muted)]">
-            <span className="font-mono">resources_suggestions</span>
-            {" · shortage "}
-            <span className="font-mono">{shortageDoc?.id ?? shortageId}</span>
-            {" · "}
-            {tableRows.length}{" "}
-            {tableRows.length === 1 ? "sitio" : "sitios"}
-            {syncing ? " · syncing…" : ""}
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-2 border-b border-[var(--border)] px-4 py-3 sm:px-5">
+          <div>
+            <h2 className="font-[family-name:var(--font-display)] text-base font-semibold tracking-wide">
+              Communities needing{" "}
+              {plan.kind === "water"
+                ? "drinking water"
+                : plan.resourceLabel.toLowerCase()}
+            </h2>
+            <p className="mt-0.5 text-[12px] text-[var(--muted)]">
+              Plan {shortageDoc?.id ?? shortageId}
+              {" · "}
+              {tableRows.length}{" "}
+              {tableRows.length === 1 ? "sitio" : "sitios"}
+              {syncing ? " · syncing…" : ""}
+            </p>
+          </div>
+          <Link
+            href="/admin/resources/suggestions"
+            className="text-[12px] font-medium text-[#2f5f9e] hover:underline"
+          >
+            View all →
+          </Link>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-left text-[13px]">
@@ -222,7 +237,7 @@ export function ResourceShortagePlan({
               ) : (
                 tableRows.map((row) => (
                   <tr
-                    key={row.id}
+                    key={`${row.reportId}-${row.community}`}
                     className="border-b border-[var(--border)] last:border-b-0"
                   >
                     <td className="px-4 py-3 sm:px-5">
@@ -312,13 +327,32 @@ export function ResourceShortagePlan({
             <p className="mt-1 text-sm leading-snug text-[var(--muted)]">
               {plan.advisory}
             </p>
+            {shortageDoc?.workflowStep ? (
+              <p className="mt-1 text-[12px] text-[#2f5f9e]">
+                Saved progress · step {shortageDoc.workflowStep} of 3
+                {shortageDoc.workflowStep === 1
+                  ? " (compare options)"
+                  : shortageDoc.workflowStep === 2
+                    ? " (review & approve)"
+                    : " (track delivery)"}
+              </p>
+            ) : null}
           </div>
         </div>
         <Link
-          href={plan.compareHref}
+          href={
+            shortageDoc?.workflowStep
+              ? hrefForShortageWorkflow(
+                  shortageId,
+                  shortageDoc.workflowStep,
+                )
+              : plan.compareHref
+          }
           className="inline-flex shrink-0 items-center justify-center rounded-lg bg-[#2f5f9e] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#254d82]"
         >
-          Compare allocation options
+          {shortageDoc?.workflowStep && shortageDoc.workflowStep >= 2
+            ? "Continue where you left off"
+            : "Compare allocation options"}
         </Link>
       </div>
 

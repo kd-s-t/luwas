@@ -583,29 +583,6 @@ export function IncidentBoard() {
                                   {reportPriorityLabel(r.aiPriority)}
                                 </span>
                               ) : null}
-                              {r.status !== "legit" ? (
-                                <span
-                                  className={cn(
-                                    "rounded-md px-1.5 py-0.5 font-mono text-[9px] tracking-wide uppercase",
-                                    r.status === "needs_review" ||
-                                      r.status === "queued" ||
-                                      r.status === "validating"
-                                      ? "bg-[#fff7ed] text-[#c2410c] ring-1 ring-[#fdba74]/70"
-                                      : r.status === "failed" ||
-                                          r.status === "rejected"
-                                        ? "bg-[#fef2f2] text-[#b91c1c] ring-1 ring-[#fecaca]"
-                                        : "bg-[var(--foreground)]/6 text-[var(--muted)] ring-1 ring-[var(--border)]",
-                                  )}
-                                >
-                                  {r.status === "needs_review"
-                                    ? "Review"
-                                    : r.status === "queued"
-                                      ? "Queue"
-                                      : r.status === "validating"
-                                        ? "Validating"
-                                        : r.status.replace(/_/g, " ")}
-                                </span>
-                              ) : null}
                             </div>
                           </div>
                           <Link
