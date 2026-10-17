@@ -569,10 +569,7 @@ export function IncidentBoard() {
                           )}
                         >
                           <div className="flex items-start justify-between gap-2">
-                            <p
-                              className="min-w-0 flex-1 truncate font-mono text-[10px] tracking-wide text-[var(--muted)] tabular-nums"
-                              title={r.id}
-                            >
+                            <p className="min-w-0 flex-1 break-all font-mono text-[10px] tracking-wide text-[var(--muted)] tabular-nums">
                               {r.id}
                             </p>
                             <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">

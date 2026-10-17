@@ -379,11 +379,13 @@ export function buildAttentionBoard(
     return 0;
   });
 
-  const groups: AttentionGroup[] = [
-    { id: "review", label: "Needs review", items: review },
-    { id: "shared", label: "Shared needs", items: shared },
-    { id: "approvals", label: "Approvals", items: approvals },
-  ].filter((g) => g.items.length > 0);
+  const groups = (
+    [
+      { id: "review", label: "Needs review", items: review },
+      { id: "shared", label: "Shared needs", items: shared },
+      { id: "approvals", label: "Approvals", items: approvals },
+    ] satisfies AttentionGroup[]
+  ).filter((g) => g.items.length > 0);
 
   const communities = new Set(
     reports

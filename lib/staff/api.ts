@@ -117,11 +117,11 @@ export async function ensureNangkaStaffSeed(): Promise<{
     ),
   );
   const have = new Set(existing.docs.map((d) => d.id));
-  const seedByPerson = new Map(
+  const seedByPerson = new Map<string, string>(
     NANGKA_STAFF_SEED.map((s) => [
       `${s.displayName.trim().toLowerCase()}|${s.title.trim().toLowerCase()}`,
       s.id,
-    ] as const),
+    ]),
   );
 
   const batch = writeBatch(getClientDb());
