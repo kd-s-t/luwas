@@ -129,7 +129,8 @@ export function deskStockForReports(
   if (apas) {
     return { waterL: 1200, foodPacks: 160, medicalKits: 10 };
   }
-  return { waterL: 0, foodPacks: 0, medicalKits: 0 };
+  // Nangka / Consolacion demo warehouse (multi-purok water desk).
+  return { waterL: 1200, foodPacks: 160, medicalKits: 10 };
 }
 
 /** Shared shortage copy: headline · qty line · Affects (related text only). */

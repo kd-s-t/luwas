@@ -14,11 +14,11 @@ import { useAuth } from "@/lib/auth/AuthProvider";
 import {
   isAccountActive,
   isDeveloper,
-  type OfficerProfile,
+  type DeveloperProfile,
 } from "@/lib/auth/types";
 import {
   assignSupportTicket,
-  UGNAI_DEVELOPERS_ASSIGNEE,
+  isPlaceholderAssignee,
   subscribeSupportTickets,
   updateSupportTicketStatus,
   type SupportTicket,
@@ -76,7 +76,7 @@ function statusLabel(status: SupportTicketStatus): string {
 export function SupportBoard() {
   const { profile } = useAuth();
   const [rows, setRows] = useState<SupportTicket[]>([]);
-  const [officers, setOfficers] = useState<OfficerProfile[]>([]);
+  const [developers, setDevelopers] = useState<DeveloperProfile[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<SupportTicketStatus | null>(
@@ -170,14 +170,14 @@ export function SupportBoard() {
 
   useEffect(() => {
     if (!isDeveloper(profile) || !isAccountActive(profile)) {
-      setOfficers([]);
+      setDevelopers([]);
       return;
     }
     return onSnapshot(collection(getClientDb(), "users"), (snap) => {
-      const next: OfficerProfile[] = [];
+      const next: DeveloperProfile[] = [];
       for (const d of snap.docs) {
         const data = d.data();
-        if (data.role !== "officer") continue;
+        if (data.role !== "developer") continue;
         const status = data.accountStatus as string | undefined;
         if (status === "fired" || status === "rejected" || status === "pending") {
           continue;
@@ -187,20 +187,16 @@ export function SupportBoard() {
           email: String(data.email ?? ""),
           displayName: String(data.displayName ?? ""),
           orgName: String(data.orgName ?? ""),
-          role: "officer",
+          role: "developer",
           createdAt: String(data.createdAt ?? ""),
           accountStatus: "active",
-          officerTitle:
-            data.officerTitle != null ? String(data.officerTitle) : null,
-          barangay: data.barangay != null ? String(data.barangay) : null,
-          lgu: data.lgu != null ? String(data.lgu) : null,
-          areaId: data.areaId != null ? String(data.areaId) : null,
+          photoURL: data.photoURL != null ? String(data.photoURL) : null,
         });
       }
       next.sort((a, b) =>
         (a.displayName || a.email).localeCompare(b.displayName || b.email),
       );
-      setOfficers(next);
+      setDevelopers(next);
     });
   }, [profile]);
 
@@ -211,22 +207,14 @@ export function SupportBoard() {
     [rows],
   );
 
-  const officerByUid = useMemo(() => {
-    const map = new Map<string, OfficerProfile>();
-    for (const o of officers) map.set(o.uid, o);
+  const developerByUid = useMemo(() => {
+    const map = new Map<string, DeveloperProfile>();
+    for (const d of developers) map.set(d.uid, d);
     if (isDeveloper(profile)) {
-      map.set(profile.uid, {
-        uid: profile.uid,
-        email: profile.email,
-        displayName: profile.displayName,
-        orgName: profile.orgName || "UGNAI Developers",
-        role: "officer",
-        createdAt: profile.createdAt,
-        accountStatus: "active",
-      });
+      map.set(profile.uid, profile);
     }
     return map;
-  }, [officers, profile]);
+  }, [developers, profile]);
 
   async function moveTicket(ticketId: string, status: SupportTicketStatus) {
     if (!isDeveloper(profile)) return;
@@ -485,9 +473,12 @@ export function SupportBoard() {
                               aria-haspopup="listbox"
                               aria-expanded={assignMenuId === t.id}
                               aria-label={
-                                t.assignedToName
+                                !isPlaceholderAssignee(
+                                  t.assignedToUid,
+                                  t.assignedToName,
+                                ) && t.assignedToName
                                   ? `Assigned to ${t.assignedToName}. Change assignee`
-                                  : "Assign officer"
+                                  : "Assign developer"
                               }
                               onMouseDown={(e) => e.stopPropagation()}
                               onClick={(e) => {
@@ -496,22 +487,26 @@ export function SupportBoard() {
                               }}
                               className="flex w-full items-center gap-2 rounded-md text-left transition hover:bg-[var(--surface-panel)]/60 disabled:opacity-50"
                             >
-                              {t.assignedToUid || t.assignedToName ? (
+                              {!isPlaceholderAssignee(
+                                t.assignedToUid,
+                                t.assignedToName,
+                              ) &&
+                              (t.assignedToUid || t.assignedToName) ? (
                                 <>
                                   <ProfileAvatar
                                     name={
                                       t.assignedToName ||
-                                      officerByUid.get(t.assignedToUid ?? "")
+                                      developerByUid.get(t.assignedToUid ?? "")
                                         ?.displayName ||
-                                      "Officer"
+                                      "Developer"
                                     }
                                     photoURL={
-                                      officerByUid.get(t.assignedToUid ?? "")
+                                      developerByUid.get(t.assignedToUid ?? "")
                                         ?.photoURL ?? null
                                     }
                                     seed={
                                       t.assignedToName ||
-                                      officerByUid.get(t.assignedToUid ?? "")
+                                      developerByUid.get(t.assignedToUid ?? "")
                                         ?.displayName ||
                                       t.assignedToUid ||
                                       undefined
@@ -524,9 +519,9 @@ export function SupportBoard() {
                                     </p>
                                     <p className="truncate text-xs font-medium text-[var(--foreground)]">
                                       {t.assignedToName ||
-                                        officerByUid.get(t.assignedToUid ?? "")
+                                        developerByUid.get(t.assignedToUid ?? "")
                                           ?.displayName ||
-                                        "Officer"}
+                                        "Developer"}
                                     </p>
                                   </div>
                                 </>
@@ -557,75 +552,30 @@ export function SupportBoard() {
                                       setAssignQuery(e.target.value)
                                     }
                                     onKeyDown={(e) => e.stopPropagation()}
-                                    placeholder="Search officers…"
-                                    aria-label="Search officers"
+                                    placeholder="Search developers…"
+                                    aria-label="Search developers"
                                     className="w-full bg-[var(--input)] px-2 py-1.5 text-xs outline-none ring-1 ring-[var(--border)] focus:ring-[var(--accent)]"
                                   />
                                   {(() => {
                                     const q = assignQuery.trim().toLowerCase();
-                                    const match = (label: string) =>
-                                      !q || label.toLowerCase().includes(q);
-                                    const showUnassigned = match("unassigned");
-                                    const showDevs = match(
-                                      UGNAI_DEVELOPERS_ASSIGNEE.name,
-                                    );
-                                    return (
-                                      <>
-                                        {showUnassigned ? (
-                                          <button
-                                            type="button"
-                                            role="option"
-                                            className="flex w-full items-center gap-2 px-2 py-1.5 text-left text-xs hover:bg-[var(--surface-panel)]"
-                                            onClick={() => {
-                                              void assignTicket(t, null, null);
-                                              closeAssignMenu();
-                                            }}
-                                          >
-                                            <span className="flex size-7 items-center justify-center rounded-full border border-dashed border-[var(--border)] text-[10px] text-[var(--muted)]">
-                                              —
-                                            </span>
-                                            Unassigned
-                                          </button>
-                                        ) : null}
-                                        {showDevs ? (
-                                          <button
-                                            type="button"
-                                            role="option"
-                                            aria-selected={
-                                              t.assignedToUid ===
-                                              UGNAI_DEVELOPERS_ASSIGNEE.uid
-                                            }
-                                            className={cn(
-                                              "flex w-full items-center gap-2 px-2 py-1.5 text-left text-xs hover:bg-[var(--surface-panel)]",
-                                              t.assignedToUid ===
-                                                UGNAI_DEVELOPERS_ASSIGNEE.uid &&
-                                                "bg-[var(--accent)]/10",
-                                            )}
-                                            onClick={() => {
-                                              void assignTicket(
-                                                t,
-                                                UGNAI_DEVELOPERS_ASSIGNEE.uid,
-                                                UGNAI_DEVELOPERS_ASSIGNEE.name,
-                                              );
-                                              closeAssignMenu();
-                                            }}
-                                          >
-                                            <ProfileAvatar
-                                              name={
-                                                UGNAI_DEVELOPERS_ASSIGNEE.name
-                                              }
-                                              seed={
-                                                UGNAI_DEVELOPERS_ASSIGNEE.uid
-                                              }
-                                              size="sm"
-                                            />
-                                            <span className="min-w-0 truncate font-medium">
-                                              {UGNAI_DEVELOPERS_ASSIGNEE.name}
-                                            </span>
-                                          </button>
-                                        ) : null}
-                                      </>
-                                    );
+                                    const showUnassigned =
+                                      !q || "unassigned".includes(q);
+                                    return showUnassigned ? (
+                                      <button
+                                        type="button"
+                                        role="option"
+                                        className="flex w-full items-center gap-2 px-2 py-1.5 text-left text-xs hover:bg-[var(--surface-panel)]"
+                                        onClick={() => {
+                                          void assignTicket(t, null, null);
+                                          closeAssignMenu();
+                                        }}
+                                      >
+                                        <span className="flex size-7 items-center justify-center rounded-full border border-dashed border-[var(--border)] text-[10px] text-[var(--muted)]">
+                                          —
+                                        </span>
+                                        Unassigned
+                                      </button>
+                                    ) : null;
                                   })()}
                                 </div>
                                 <div
@@ -641,11 +591,11 @@ export function SupportBoard() {
                                       match(
                                         `me ${profile.displayName || ""} ${profile.email || ""}`,
                                       );
-                                    const filtered = officers.filter(
-                                      (o) =>
-                                        o.uid !== profile?.uid &&
+                                    const filtered = developers.filter(
+                                      (d) =>
+                                        d.uid !== profile?.uid &&
                                         match(
-                                          `${o.displayName || ""} ${o.email || ""}`,
+                                          `${d.displayName || ""} ${d.email || ""}`,
                                         ),
                                     );
                                     const none = !showMe && filtered.length === 0;
@@ -692,36 +642,36 @@ export function SupportBoard() {
                                             </span>
                                           </button>
                                         ) : null}
-                                        {filtered.map((o) => (
+                                        {filtered.map((d) => (
                                           <button
-                                            key={o.uid}
+                                            key={d.uid}
                                             type="button"
                                             role="option"
                                             aria-selected={
-                                              t.assignedToUid === o.uid
+                                              t.assignedToUid === d.uid
                                             }
                                             className={cn(
                                               "flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs hover:bg-[var(--surface-panel)]",
-                                              t.assignedToUid === o.uid &&
+                                              t.assignedToUid === d.uid &&
                                                 "bg-[var(--accent)]/10",
                                             )}
                                             onClick={() => {
                                               void assignTicket(
                                                 t,
-                                                o.uid,
-                                                o.displayName || o.email,
+                                                d.uid,
+                                                d.displayName || d.email,
                                               );
                                               closeAssignMenu();
                                             }}
                                           >
                                             <ProfileAvatar
-                                              name={o.displayName || o.email}
-                                              photoURL={o.photoURL}
-                                              seed={o.displayName || o.email}
+                                              name={d.displayName || d.email}
+                                              photoURL={d.photoURL}
+                                              seed={d.displayName || d.email}
                                               size="sm"
                                             />
                                             <span className="min-w-0 truncate">
-                                              {o.displayName || o.email}
+                                              {d.displayName || d.email}
                                             </span>
                                           </button>
                                         ))}

@@ -239,6 +239,32 @@ service cloud.firestore {
       allow delete: if isOfficer();
     }
 
+    // Shortage parent docs — id is the public code (e.g. RS-001).
+    match /resources_shortages/{shortageId} {
+      allow read: if isOfficer();
+      allow create, update: if isOfficer()
+        && request.resource.data.kind is string
+        && request.resource.data.resourceLabel is string
+        && request.resource.data.totalNeededL is number
+        && request.resource.data.availableL is number
+        && request.resource.data.shortageL is number;
+      allow delete: if isOfficer();
+    }
+
+    // Per-sitio shortage suggestions written when Review shortage opens.
+    match /resources_suggestions/{suggestionId} {
+      allow read: if isOfficer();
+      allow create, update: if isOfficer()
+        && request.resource.data.epicCode is string
+        && request.resource.data.epicCode.size() > 0
+        && request.resource.data.community is string
+        && request.resource.data.community.size() > 0
+        && request.resource.data.needL is number
+        && request.resource.data.gapL is number
+        && request.resource.data.suggestedAllocateL is number;
+      allow delete: if isOfficer();
+    }
+
     match /reports/{reportId} {
       // Public feed can list reports; writers stay authenticated.
       allow read: if true;
