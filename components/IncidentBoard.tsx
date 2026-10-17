@@ -32,7 +32,6 @@ import {
   isTinoScenarioDemoReport,
 } from "@/lib/reports/scenarioDemo";
 import {
-  hazardHintLabel,
   reportPriorityLabel,
   type HazardReport,
   type ReportAssignee,
