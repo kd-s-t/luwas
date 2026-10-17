@@ -8,12 +8,8 @@ import { FadeIn } from "@/components/motion/primitives";
 export default function CommandIncidentsPage() {
   return (
     <AuthGate mode="protected" role="officer">
-      <CommandShell fill>
-        <FadeIn
-          delay={0.04}
-          y={0}
-          className="flex min-h-0 flex-1 flex-col overflow-hidden"
-        >
+      <CommandShell>
+        <FadeIn delay={0.04} y={0}>
           <IncidentBoard />
         </FadeIn>
       </CommandShell>

@@ -4,6 +4,10 @@ import {
   PublicShell,
 } from "@/components/PublicShell";
 
+export const metadata = {
+  title: "Privacy · UGNAI",
+};
+
 export default function PrivacyPage() {
   return (
     <PublicShell>

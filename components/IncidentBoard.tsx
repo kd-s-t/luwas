@@ -420,8 +420,8 @@ export function IncidentBoard() {
   const showUnassigned = match("unassigned");
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-[var(--surface)]">
-      <div className="shrink-0 border-b border-[var(--border)] bg-[var(--surface-raised)]/90 px-4 py-3 sm:px-6">
+    <div className="bg-[var(--surface)]">
+      <div className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--surface-raised)]/95 px-4 py-3 backdrop-blur-sm sm:px-6">
         <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
           <p className="font-mono text-[9px] tracking-[0.2em] text-[var(--accent)] uppercase">
             Incidents
@@ -462,7 +462,7 @@ export function IncidentBoard() {
       </div>
 
       {ranked.length === 0 ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-16 text-center">
+        <div className="flex flex-col items-center justify-center gap-2 px-6 py-16 text-center">
           <p className="font-[family-name:var(--font-display)] text-lg font-semibold">
             No field reports in scope yet
           </p>
@@ -472,7 +472,7 @@ export function IncidentBoard() {
           </p>
         </div>
       ) : (
-        <div className="flex min-h-0 w-full flex-1 items-stretch gap-2 overflow-x-auto px-3 py-3 sm:gap-3 sm:px-4 sm:py-4">
+        <div className="flex w-full items-stretch gap-2 overflow-x-auto px-3 py-3 sm:gap-3 sm:px-4 sm:py-4">
           {COLUMNS.map((col) => {
             const cards = ranked.filter(col.match);
             const dragging = dragId
@@ -520,30 +520,25 @@ export function IncidentBoard() {
                   void moveToColumn(report, col);
                 }}
                 className={cn(
-                  "flex h-full min-h-0 w-[17rem] shrink-0 flex-col rounded-lg border bg-[var(--surface-panel)]/40 transition sm:w-[18rem]",
+                  "flex w-[17.5rem] shrink-0 flex-col self-stretch rounded-2xl border bg-[#eef1f5] transition sm:w-[18.5rem]",
                   rejectDrop && dropColId === col.id
                     ? "border-[#c72929]/50 bg-[#c72929]/5"
                     : dropColId === col.id
                       ? "border-[var(--accent)] bg-[var(--accent)]/5"
-                      : "border-[var(--border)]",
+                      : "border-transparent",
                 )}
               >
-                <header className="flex shrink-0 items-baseline justify-between gap-2 border-b border-[var(--border)] px-3 py-2.5">
-                  <h2 className="font-mono text-[10px] tracking-[0.16em] text-[var(--muted)] uppercase">
+                <header className="flex shrink-0 items-baseline justify-between gap-2 px-3.5 pt-3.5 pb-2">
+                  <h2 className="text-[11px] font-bold tracking-[0.14em] text-[var(--foreground)] uppercase">
                     {col.label}
                   </h2>
-                  <span className="font-mono text-[10px] tabular-nums text-[var(--foreground)]">
+                  <span className="text-[11px] tabular-nums text-[var(--muted)]">
                     {cards.length}
                   </span>
                 </header>
-                <ul
-                  className={cn(
-                    "min-h-0 flex-1 space-y-2 p-2",
-                    assignMenuId ? "overflow-visible" : "overflow-y-auto",
-                  )}
-                >
+                <ul className="flex flex-1 flex-col space-y-2.5 px-2.5 pb-2.5">
                   {cards.length === 0 ? (
-                    <li className="px-2 py-6 text-center text-xs text-[var(--muted)]">
+                    <li className="flex flex-1 items-start justify-center px-2 pt-6 text-center text-xs text-[var(--muted)]">
                       Drop here
                     </li>
                   ) : (
@@ -563,51 +558,49 @@ export function IncidentBoard() {
                             setDropColId(null);
                           }}
                           className={cn(
-                            "cursor-grab rounded-md border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2.5 transition active:cursor-grabbing",
-                            "hover:border-[var(--accent)]/50 hover:bg-[var(--surface)]",
+                            "group relative cursor-grab rounded-xl border border-[var(--border)] bg-white px-3.5 py-3 transition active:cursor-grabbing",
+                            "hover:border-[#93c5fd]/80",
                             (busyId === r.id || dragId === r.id) && "opacity-60",
                           )}
                         >
-                          <div className="flex items-start justify-between gap-2">
-                            <p className="min-w-0 flex-1 break-all font-mono text-[10px] tracking-wide text-[var(--muted)] tabular-nums">
-                              {r.id}
-                            </p>
-                            <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
-                              {r.aiPriority ? (
-                                <span
-                                  className={cn(
-                                    "rounded-md px-1.5 py-0.5 font-mono text-[9px] tracking-wide uppercase ring-1",
-                                    priorityTone(r.aiPriority),
-                                  )}
-                                >
-                                  {reportPriorityLabel(r.aiPriority)}
-                                </span>
-                              ) : null}
-                            </div>
-                          </div>
                           <Link
                             href={`/admin/incidents/${encodeURIComponent(r.id)}`}
                             draggable={false}
-                            onClick={(e) => e.stopPropagation()}
-                            className="mt-1 line-clamp-2 block text-sm font-medium leading-snug hover:text-[var(--accent)] hover:underline"
-                          >
-                            {r.title}
-                          </Link>
-                          <p className="mt-1.5 truncate font-mono text-[10px] tracking-wide text-[var(--muted)] uppercase">
-                            {hazardHintLabel(r.hazardHint)} · Brgy. {r.barangay}
+                            aria-label={`Open ${r.title}`}
+                            className="absolute inset-0 z-[1] rounded-xl"
+                          />
+                          <div className="relative z-0">
+                          <p className="break-all font-mono text-[10px] tracking-wide text-[var(--muted)] uppercase tabular-nums">
+                            {r.id}
                           </p>
-                          <p className="mt-0.5 truncate text-[11px] text-[var(--muted)]">
-                            {r.citizenName} ·{" "}
+                          <p className="mt-1.5 line-clamp-2 text-[15px] font-semibold leading-snug text-[var(--foreground)] group-hover:text-[#2563eb]">
+                            {r.title}
+                          </p>
+                          <p className="mt-1.5 truncate text-[12px] text-[var(--muted)]">
+                            {r.citizenName}:{" "}
                             {new Date(r.createdAt).toLocaleString()}
                           </p>
+                          <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                            {r.aiPriority ? (
+                              <span
+                                className={cn(
+                                  "inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase ring-1",
+                                  priorityTone(r.aiPriority),
+                                )}
+                              >
+                                {reportPriorityLabel(r.aiPriority)}
+                              </span>
+                            ) : null}
+                          </div>
                           {(() => {
                             const outSince = dispatchOutSince(r);
                             return outSince ? (
                               <DispatchOutTimer since={outSince} />
                             ) : null;
                           })()}
+                          </div>
 
-                          <div className="mt-2 border-t border-[var(--border)]/70 pt-2">
+                          <div className="relative z-[2] mt-3 border-t border-[var(--border)] pt-2.5">
                             {(() => {
                               const assigned = assigneesOf(r);
                               return (
@@ -622,11 +615,17 @@ export function IncidentBoard() {
                                   : "Assign investigators"
                               }
                               onClick={(e) => {
+                                e.preventDefault();
                                 e.stopPropagation();
                                 openAssignMenu(r.id, e.currentTarget);
                               }}
                               onMouseDown={(e) => e.stopPropagation()}
-                              className="flex w-full items-center gap-2 rounded-md text-left transition hover:bg-[var(--surface-panel)]/60 disabled:opacity-50"
+                              className={cn(
+                                "relative z-[2] flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left transition disabled:opacity-50",
+                                assigned.length > 0
+                                  ? "bg-[#f8fafc] hover:bg-[#eff6ff]"
+                                  : "bg-[#eff6ff] text-[#2563eb] hover:bg-[#dbeafe]",
+                              )}
                             >
                               {assigned.length > 0 ? (
                                 <>
@@ -653,25 +652,20 @@ export function IncidentBoard() {
                                     ))}
                                   </div>
                                   <div className="min-w-0 flex-1">
-                                    <p className="font-mono text-[9px] tracking-wider text-[var(--muted)] uppercase">
+                                    <p className="text-[10px] font-medium tracking-wide text-[var(--muted)] uppercase">
                                       {assigned.length > 1
                                         ? `${assigned.length} assigned`
                                         : "Assigned"}
                                     </p>
-                                    <p className="truncate text-xs font-medium text-[var(--foreground)]">
+                                    <p className="truncate text-xs font-semibold text-[var(--foreground)]">
                                       {assigneeLabel(assigned)}
                                     </p>
                                   </div>
                                 </>
                               ) : (
-                                <>
-                                  <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed border-[var(--border)] text-[10px] text-[var(--muted)]">
-                                    +
-                                  </span>
-                                  <p className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
-                                    Assign
-                                  </p>
-                                </>
+                                <p className="w-full text-center text-[12px] font-semibold text-[#2563eb]">
+                                  + Assign
+                                </p>
                               )}
                             </button>
                               );

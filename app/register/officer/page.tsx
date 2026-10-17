@@ -196,6 +196,8 @@ export default function OfficerRegisterPage() {
               autoComplete="name"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
+              aria-invalid={!!error}
+              aria-describedby={error ? "register-error" : undefined}
               className="w-full border border-[var(--border)] bg-[var(--input)] px-3 py-2.5 outline-none focus:border-[var(--accent)]"
             />
           </label>
@@ -220,6 +222,8 @@ export default function OfficerRegisterPage() {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              aria-invalid={!!error}
+              aria-describedby={error ? "register-error" : undefined}
               className="w-full border border-[var(--border)] bg-[var(--input)] px-3 py-2.5 outline-none focus:border-[var(--accent)]"
             />
           </label>
@@ -234,6 +238,8 @@ export default function OfficerRegisterPage() {
               minLength={6}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              aria-invalid={!!error}
+              aria-describedby={error ? "register-error" : undefined}
               className="w-full border border-[var(--border)] bg-[var(--input)] px-3 py-2.5 outline-none focus:border-[var(--accent)]"
             />
           </label>
@@ -256,7 +262,11 @@ export default function OfficerRegisterPage() {
             </p>
           ) : null}
           {error ? (
-            <p className="text-sm text-[var(--danger)]" role="alert">
+            <p
+              id="register-error"
+              className="text-sm text-[var(--danger)]"
+              role="alert"
+            >
               {error}
             </p>
           ) : null}

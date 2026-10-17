@@ -18,7 +18,10 @@ export function AuthCard({ title, subtitle, children, footer }: AuthCardProps) {
   return (
     <div className="flex min-h-screen flex-col">
       <HomeNav />
-      <div className="flex flex-1 flex-col items-center overflow-y-auto px-4 py-10">
+      <main
+        id="main-content"
+        className="flex flex-1 flex-col items-center overflow-y-auto px-4 py-10"
+      >
         <motion.div
           className="my-auto w-full max-w-md border border-[var(--border)] bg-[var(--surface)] p-6 shadow-[0_8px_28px_rgba(31,33,38,0.06)] sm:p-8"
           initial={reduce ? false : { opacity: 0, y: 16, scale: 0.985 }}
@@ -34,7 +37,7 @@ export function AuthCard({ title, subtitle, children, footer }: AuthCardProps) {
             {footer}
           </div>
         </motion.div>
-      </div>
+      </main>
       <HomeFooter />
     </div>
   );

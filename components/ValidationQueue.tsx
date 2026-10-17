@@ -45,7 +45,7 @@ import {
   TRUST_CAPS,
   trustLabel,
 } from "@/lib/reports/trustScore";
-import type { HazardReport } from "@/lib/reports/types";
+import { hazardHintLabel, type HazardReport } from "@/lib/reports/types";
 import {
   downloadVertexMonthZip,
   formatMonthLabel,
@@ -420,7 +420,10 @@ export function ValidationQueue() {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={r.mediaUrl}
-                    alt=""
+                    alt={
+                      r.title?.trim() ||
+                      `${hazardHintLabel(r.hazardHint)} report photo`
+                    }
                     className="size-full object-cover"
                   />
                 ) : (
@@ -502,7 +505,6 @@ export function ValidationQueue() {
                         src={r.voiceUrl}
                         className="h-8 w-full max-w-md"
                       >
-                        <track kind="captions" />
                       </audio>
                     ) : null}
                     {r.voiceTranscript ? (

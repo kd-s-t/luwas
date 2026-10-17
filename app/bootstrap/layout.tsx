@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "UGNAI UI Bootstrap (Dev)",
+  title: "UI bootstrap · UGNAI",
   description:
     "UGNAI design-system gallery — Tailwind, shadcn/ui, Lucide, and Framer Motion.",
 };

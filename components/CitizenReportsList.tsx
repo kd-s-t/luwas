@@ -80,7 +80,7 @@ export function CitizenReportsList({ citizenUid }: { citizenUid: string }) {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={r.mediaUrl}
-                      alt=""
+                      alt={r.title?.trim() || "Hazard report photo"}
                       className="size-full object-cover"
                     />
                   ) : (

@@ -125,6 +125,8 @@ export function SupportBugForm({ onSubmitted }: SupportBugFormProps) {
           disabled={busy}
           maxLength={200}
           placeholder="Short description of the bug"
+          aria-invalid={!!error}
+          aria-describedby={error ? "support-form-error" : undefined}
           className="mt-1.5 w-full border border-[var(--border)] bg-[var(--input)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
         />
       </div>
@@ -144,6 +146,8 @@ export function SupportBugForm({ onSubmitted }: SupportBugFormProps) {
           rows={5}
           maxLength={4000}
           placeholder="Steps to reproduce, what you expected, and what you saw…"
+          aria-invalid={!!error}
+          aria-describedby={error ? "support-form-error" : undefined}
           className="mt-1.5 w-full resize-y border border-[var(--border)] bg-[var(--input)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
         />
       </div>
@@ -208,7 +212,11 @@ export function SupportBugForm({ onSubmitted }: SupportBugFormProps) {
       </div>
 
       {error ? (
-        <p className="text-sm text-[var(--danger)]" role="alert">
+        <p
+          id="support-form-error"
+          className="text-sm text-[var(--danger)]"
+          role="alert"
+        >
           {error}
         </p>
       ) : null}
