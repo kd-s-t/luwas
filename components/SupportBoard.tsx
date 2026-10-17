@@ -330,6 +330,12 @@ export function SupportBoard() {
               {openCount} open · drag to change status · assign on the card
             </p>
           </div>
+          <Link
+            href="/dev/support/new"
+            className="font-mono text-[10px] tracking-wider text-[var(--accent)] uppercase transition hover:underline"
+          >
+            New ticket
+          </Link>
         </div>
         {error ? (
           <p className="mt-2 text-sm text-[var(--danger)]" role="alert">
@@ -344,8 +350,14 @@ export function SupportBoard() {
             No support tickets yet
           </p>
           <p className="max-w-md text-sm text-[var(--muted)]">
-            Tickets from officers, citizens, and guests land here for developers.
+            Tickets from officers, citizens, guests, and developers land here.
           </p>
+          <Link
+            href="/dev/support/new"
+            className="mt-2 font-mono text-[10px] tracking-wider text-[var(--accent)] uppercase hover:underline"
+          >
+            New ticket
+          </Link>
         </div>
       ) : (
         <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-x-auto px-3 py-3 sm:grid-cols-2 sm:px-4 sm:py-4 xl:grid-cols-4">

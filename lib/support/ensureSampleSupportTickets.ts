@@ -125,7 +125,9 @@ export async function ensureSampleSupportTickets(): Promise<{
                 body: "Reproduced on Safari — badges refresh only after hard reload. Checking CommandHeader subscriptions.",
                 authorUid: "sample-assignee-mdrrmo",
                 authorName: "Demo · MDRRMO Focal",
+                authorPhotoURL: null,
                 createdAt: now,
+                mediaUrls: [],
               },
             ]
           : [],

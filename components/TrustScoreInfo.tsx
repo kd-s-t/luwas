@@ -61,6 +61,11 @@ export function TrustScoreInfo({ className }: { className?: string }) {
                 ],
                 [
                   "Vertex AI",
+                  TRUST_CAPS.vertex,
+                  "Image class + visual place from Vertex vision / AutoML",
+                ],
+                [
+                  "Gemini",
                   TRUST_CAPS.ai,
                   "Gemini confidence after validation",
                 ],

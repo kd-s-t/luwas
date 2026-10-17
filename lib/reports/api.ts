@@ -130,6 +130,28 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
     locationAccuracyM,
     aiConfidence,
     aiVerdict,
+    vertexClass:
+      data.vertexClass != null ? String(data.vertexClass) : null,
+    vertexConfidence:
+      typeof data.vertexConfidence === "number"
+        ? data.vertexConfidence
+        : data.vertexConfidence != null
+          ? Number(data.vertexConfidence)
+          : null,
+    vertexLocationPlaceId:
+      data.vertexLocationPlaceId != null
+        ? String(data.vertexLocationPlaceId)
+        : null,
+    vertexLocationLabel:
+      data.vertexLocationLabel != null
+        ? String(data.vertexLocationLabel)
+        : null,
+    vertexLocationConfidence:
+      typeof data.vertexLocationConfidence === "number"
+        ? data.vertexLocationConfidence
+        : data.vertexLocationConfidence != null
+          ? Number(data.vertexLocationConfidence)
+          : null,
   };
   // Always recompute so TRUST_CAPS changes apply on read.
   const trustBreakdown = computeReportTrust(trustInput);
@@ -952,7 +974,7 @@ export async function updateReportValidation(
     vertexLocationPlaceId?: string | null;
     vertexLocationPlaceLabel?: string | null;
     validatedAt: string | null;
-    /** When set, recomputes trust with AI slice. */
+    /** When set, recomputes trust with AI / Vertex slices. */
     trustInput?: {
       registered: boolean;
       idVerified: boolean;
@@ -963,6 +985,11 @@ export async function updateReportValidation(
       lat: number | null;
       lng: number | null;
       locationAccuracyM: number | null;
+      vertexClass?: string | null;
+      vertexConfidence?: number | null;
+      vertexLocationPlaceId?: string | null;
+      vertexLocationLabel?: string | null;
+      vertexLocationConfidence?: number | null;
     };
   },
 ) {
@@ -977,6 +1004,16 @@ export async function updateReportValidation(
       ...trustInput,
       aiConfidence: patch.aiConfidence,
       aiVerdict: patch.aiVerdict,
+      vertexClass: patch.vertexClass ?? trustInput.vertexClass,
+      vertexConfidence:
+        patch.vertexConfidence ?? trustInput.vertexConfidence,
+      vertexLocationPlaceId:
+        patch.vertexLocationPlaceId ?? trustInput.vertexLocationPlaceId,
+      vertexLocationLabel:
+        patch.vertexLocationLabel ?? trustInput.vertexLocationLabel,
+      vertexLocationConfidence:
+        patch.vertexLocationConfidence ??
+        trustInput.vertexLocationConfidence,
     });
     payload.trustScore = trust.total;
     payload.trustBreakdown = trust;

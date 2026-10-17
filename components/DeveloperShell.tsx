@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BrandLogoOnDark } from "@/components/BrandLogo";
+import { DeveloperNotifications } from "@/components/DeveloperNotifications";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { isAccountActive, isDeveloper } from "@/lib/auth/types";
@@ -131,6 +132,7 @@ export function DeveloperShell({
               </p>
             </div>
           </Link>
+          <DeveloperNotifications placement="above" tone="dark" />
           <button
             type="button"
             onClick={() => void onLogout()}
@@ -173,9 +175,9 @@ export function DeveloperShell({
           <Link href="/dev" className="inline-flex transition hover:opacity-90">
             <BrandLogoOnDark size={24} wordmarkClassName="text-lg" />
           </Link>
-          <span className="ml-auto font-mono text-[10px] tracking-wider text-white/45 uppercase">
-            Developer
-          </span>
+          <div className="ml-auto flex items-center gap-2">
+            <DeveloperNotifications tone="dark" />
+          </div>
         </div>
 
         {mobileNavOpen ? (

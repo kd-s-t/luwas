@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { CommandContentSkeleton } from "@/components/PageLoadSkeleton";
+import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import {
   subscribeMySupportTickets,
@@ -11,6 +12,7 @@ import {
   type SupportTicketStatus,
 } from "@/lib/support/api";
 import { isSupportVideoUrl } from "@/lib/support/upload";
+import { cn } from "@/lib/utils";
 
 function statusVariant(
   status: SupportTicketStatus,
@@ -64,7 +66,7 @@ export function MySupportTicketDetail({
   ticketId,
   backHref,
 }: MySupportTicketDetailProps) {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -196,26 +198,62 @@ export function MySupportTicketDetail({
               No developer replies yet. Status changes show above.
             </p>
           ) : (
-            <ul className="space-y-3">
-              {selected.messages.map((m) => (
-                <li
-                  key={m.id}
-                  className="rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] px-3.5 py-3"
-                >
-                  <p className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
-                    {m.authorName || "Team"}
-                    {m.createdAt
-                      ? ` · ${new Date(m.createdAt).toLocaleString()}`
-                      : ""}
-                  </p>
-                  {m.body ? (
-                    <p className="mt-1.5 text-sm whitespace-pre-wrap">
-                      {m.body}
-                    </p>
-                  ) : null}
-                  <SupportMedia urls={m.mediaUrls} />
-                </li>
-              ))}
+            <ul className="flex flex-col gap-3">
+              {selected.messages.map((m) => {
+                const mine =
+                  Boolean(user?.uid) && m.authorUid === user?.uid;
+                const name = mine ? "You" : m.authorName || "Team";
+                const photo =
+                  m.authorPhotoURL ||
+                  (mine ? (profile?.photoURL ?? null) : null);
+                const avatar = (
+                  <ProfileAvatar
+                    name={mine ? name : m.authorName || "Team"}
+                    photoURL={photo}
+                    seed={m.authorUid || m.authorName}
+                    size="sm"
+                    className="mt-0.5"
+                  />
+                );
+                return (
+                  <li
+                    key={m.id}
+                    className={cn(
+                      "flex w-full items-start gap-2",
+                      mine ? "justify-end" : "justify-start",
+                    )}
+                  >
+                    {!mine ? avatar : null}
+                    <div
+                      className={cn(
+                        "max-w-[85%] rounded-xl border px-3.5 py-3",
+                        mine
+                          ? "border-[var(--accent)]/30 bg-[var(--accent)]/10"
+                          : "border-[var(--border)] bg-[var(--surface-raised)]",
+                      )}
+                    >
+                      <p
+                        className={cn(
+                          "font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase",
+                          mine && "text-right",
+                        )}
+                      >
+                        {name}
+                        {m.createdAt
+                          ? ` · ${new Date(m.createdAt).toLocaleString()}`
+                          : ""}
+                      </p>
+                      {m.body ? (
+                        <p className="mt-1.5 text-sm whitespace-pre-wrap">
+                          {m.body}
+                        </p>
+                      ) : null}
+                      <SupportMedia urls={m.mediaUrls} />
+                    </div>
+                    {mine ? avatar : null}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>
