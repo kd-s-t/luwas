@@ -24,6 +24,7 @@ import {
   flowNodeClass,
 } from "@/components/flow/FlowMark";
 import { FlowCopyJsonButton } from "@/components/flow/FlowCopyJsonButton";
+import { HazardPhotoStrip } from "@/components/flow/HazardPhotoStrip";
 import { useFlowLayout } from "@/components/flow/useFlowLayout";
 
 function ActorNode({ data }: NodeProps) {
@@ -226,23 +227,26 @@ function DispatchNode(_props: NodeProps) {
 
 function OpsNode(_props: NodeProps) {
   return (
-    <div className={flowNodeClass} style={{ width: 220 }}>
-      <Handle
-        type="target"
-        position={Position.Left}
-        className="!size-2 !bg-[#c72929] !border-0"
-      />
-      <p className={flowLabelClass}>Investigate the location</p>
-      <p className={flowMetaClass}>
-        Roster welfare checks · shelter assignment · clear blocked lanes ·
-        watch fire zones
-      </p>
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        id="down"
-        className="!size-2 !bg-[#c72929] !border-0"
-      />
+    <div className="relative" style={{ width: 220 }}>
+      <HazardPhotoStrip />
+      <div className={flowNodeClass}>
+        <Handle
+          type="target"
+          position={Position.Left}
+          className="!size-2 !bg-[#c72929] !border-0"
+        />
+        <p className={flowLabelClass}>Investigate the location</p>
+        <p className={flowMetaClass}>
+          Roster welfare checks · shelter assignment · clear blocked lanes ·
+          watch fire zones
+        </p>
+        <Handle
+          type="source"
+          position={Position.Bottom}
+          id="down"
+          className="!size-2 !bg-[#c72929] !border-0"
+        />
+      </div>
     </div>
   );
 }
