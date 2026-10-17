@@ -438,33 +438,37 @@ export async function classifyImageWithVertex(input: {
     });
   }
 
-  const gemini = await classifyWithVertexGemini({
+  // Run Gemini (class + place) and AutoML (class) together so submit is not
+  // blocked on two back-to-back ~5s round trips.
+  const geminiPromise = classifyWithVertexGemini({
     env,
     imageBase64,
     mimeType: input.mimeType,
     token,
   });
+  const automlPromise = env.endpointId
+    ? classifyWithAutomlEndpoint({
+        env,
+        imageBase64,
+        token,
+      })
+    : Promise.resolve(null);
 
-  if (env.endpointId) {
-    const automl = await classifyWithAutomlEndpoint({
-      env,
-      imageBase64,
-      token,
-    });
-    if (automl.source === "automl" && automl.className) {
-      return {
-        ...gemini,
-        className: automl.className,
-        confidence: automl.confidence,
-        displayNames: automl.displayNames,
-        confidences: automl.confidences,
-        source: "automl",
-        endpoint: automl.endpoint,
-        reason: gemini.locationLabel
-          ? "AutoML hazard class · Vertex Gemini location."
-          : automl.reason,
-      };
-    }
+  const [gemini, automl] = await Promise.all([geminiPromise, automlPromise]);
+
+  if (automl?.source === "automl" && automl.className) {
+    return {
+      ...gemini,
+      className: automl.className,
+      confidence: automl.confidence,
+      displayNames: automl.displayNames,
+      confidences: automl.confidences,
+      source: "automl",
+      endpoint: automl.endpoint,
+      reason: gemini.locationLabel
+        ? "AutoML hazard class · Vertex Gemini location."
+        : automl.reason,
+    };
   }
 
   return gemini;
