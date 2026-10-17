@@ -16,12 +16,12 @@ Seed local Auth: `npm run seed:local`
 
 Route: `/login/developer`
 
-| Name | Email |
-|------|--------|
-| Ken Dan Tinio | `ken@ugnai.demo` |
-| Don Sebial | `don@ugnai.demo` |
-| Jeanilou Labajo | `jean@ugnai.demo` |
-| Patricia Abrenica | `pat@ugnai.demo` |
+| Name | Email | Password |
+|------|--------|----------|
+| Ken Dan Tinio | `ken@ugnai.demo` | `demo1234` |
+| Don Sebial | `don@ugnai.demo` | `demo1234` |
+| Jeanilou Labajo | `jean@ugnai.demo` | `demo1234` |
+| Patricia Abrenica | `pat@ugnai.demo` | `demo1234` |
 
 ---
 
@@ -29,12 +29,12 @@ Route: `/login/developer`
 
 Route: `/login/officer`
 
-| Role | Email |
-|------|--------|
-| Barangay Captain (Nangka) | `captain@nangka.consolacion.demo` |
-| Brgy. Apas Captain | `captain@apas.cebu.demo` |
-| MDRRMO Focal (Maria Santos) | `officer@nangka.consolacion.demo` |
-| LGU / Consolacion MDRRMO | `lgu@consolacion.demo` |
+| Role | Email | Password |
+|------|--------|----------|
+| Barangay Captain (Nangka) | `captain@nangka.consolacion.demo` | `demo1234` |
+| Brgy. Apas Captain | `captain@apas.cebu.demo` | `demo1234` |
+| MDRRMO Focal (Maria Santos) | `officer@nangka.consolacion.demo` | `demo1234` |
+| LGU / Consolacion MDRRMO | `lgu@consolacion.demo` | `demo1234` |
 
 ---
 
@@ -42,14 +42,14 @@ Route: `/login/officer`
 
 Route: `/login/citizen`
 
-| Name | Email |
-|------|--------|
-| Juan Dela Cruz | `juan.delacruz@nangka.citizen.demo` |
-| Ana Reyes | `ana.reyes@nangka.citizen.demo` |
-| Carlo Bautista | `carlo.bautista@nangka.citizen.demo` |
-| Liza Mendez | `liza.mendez@nangka.citizen.demo` |
-| Marco Tan | `marco.tan@nangka.citizen.demo` |
-| Ken Dan S. Tinio | `kendantinio@gmail.com` |
-| Jeanilou Labajo | `jenlabajo.business@gmail.com` |
-| Carl John Don Sebial | `inno.carljohndon@gmail.com` |
-| Patricia Abrenica | `psabrenica@gmail.com` |
+| Name | Email | Password |
+|------|--------|----------|
+| Juan Dela Cruz | `juan.delacruz@nangka.citizen.demo` | `demo1234` |
+| Ana Reyes | `ana.reyes@nangka.citizen.demo` | `demo1234` |
+| Carlo Bautista | `carlo.bautista@nangka.citizen.demo` | `demo1234` |
+| Liza Mendez | `liza.mendez@nangka.citizen.demo` | `demo1234` |
+| Marco Tan | `marco.tan@nangka.citizen.demo` | `demo1234` |
+| Ken Dan S. Tinio | `kendantinio@gmail.com` | `demo1234` |
+| Jeanilou Labajo | `jenlabajo.business@gmail.com` | `demo1234` |
+| Carl John Don Sebial | `inno.carljohndon@gmail.com` | `demo1234` |
+| Patricia Abrenica | `psabrenica@gmail.com` | `demo1234` |

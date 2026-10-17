@@ -51,6 +51,12 @@ const POWERED_BY = [
     src: "/brands/firebase.png",
   },
   {
+    name: "Google Cloud Run",
+    href: "https://cloud.google.com/run",
+    role: "App hosting",
+    src: "/brands/cloud-run.png",
+  },
+  {
     name: "Twilio",
     href: "https://www.twilio.com/",
     role: "Text & call",

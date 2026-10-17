@@ -5,7 +5,7 @@ export function mediaStorageBucket(): string {
   return (
     process.env.FIREBASE_STORAGE_BUCKET?.trim() ||
     process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim() ||
-    "luwas-media-nice-pen-181017"
+    "ugnai-media-nice-pen-181017"
   );
 }
 
