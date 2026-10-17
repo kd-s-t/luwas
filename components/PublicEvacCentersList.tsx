@@ -34,6 +34,17 @@ function conditionClass(condition: EvacCenterCondition): string {
   }
 }
 
+/** Opens Google Maps directions to the shelter (origin = user’s current location when available). */
+function evacDirectionsUrl(row: EvacCenter): string {
+  if (Number.isFinite(row.lat) && Number.isFinite(row.lng)) {
+    return `https://www.google.com/maps/dir/?api=1&destination=${row.lat},${row.lng}&travelmode=driving`;
+  }
+  const q = encodeURIComponent(
+    [row.name, row.locationLabel].filter(Boolean).join(", "),
+  );
+  return `https://www.google.com/maps/dir/?api=1&destination=${q}&travelmode=driving`;
+}
+
 export function PublicEvacCentersList() {
   const { profile } = useAuth();
   const scope = useMemo(
@@ -122,6 +133,14 @@ export function PublicEvacCentersList() {
                 <p className="mt-1 text-sm text-[var(--muted)]">
                   {row.locationLabel || "Location on file"}
                 </p>
+                <a
+                  href={evacDirectionsUrl(row)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-1.5 inline-block text-sm font-medium text-[#2f5f9e] transition hover:underline"
+                >
+                  Directions
+                </a>
                 {isEvacCenterUnusable(row.condition) ? (
                   <p className="mt-1 text-sm text-[#9a3412]">
                     Do not go here

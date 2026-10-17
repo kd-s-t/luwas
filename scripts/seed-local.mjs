@@ -405,6 +405,61 @@ const STAFF = [
   },
 ];
 
+/** Brgy. Nangka evacuation / shelter directory (matches lib/evacCenters/nangkaSeed). */
+const EVAC_CENTERS = [
+  {
+    id: "evac-consolacion-1",
+    name: "Consolacion Evacuation Center",
+    locationLabel: "Nangka · near Brgy. Hall / Laray Rd",
+    lat: 10.370577,
+    lng: 123.96926,
+    maxCapacity: 250,
+    occupancy: 86,
+    open24h: true,
+    stock: {
+      foodPacks: 120,
+      waterLiters: 400,
+      blankets: 60,
+      medicalKits: 4,
+      other: "",
+    },
+  },
+  {
+    id: "evac-consolacion-2",
+    name: "Consolacion Evacuation Center 2",
+    locationLabel: "Nangka · municipal EC cluster (paired site)",
+    lat: 10.37105,
+    lng: 123.96875,
+    maxCapacity: 250,
+    occupancy: 42,
+    open24h: true,
+    stock: {
+      foodPacks: 80,
+      waterLiters: 250,
+      blankets: 40,
+      medicalKits: 4,
+      other: "",
+    },
+  },
+  {
+    id: "evac-nangka-elem",
+    name: "Nangka Elementary School",
+    locationLabel: "Nangka Elementary School · with barangay gym",
+    lat: 10.3721058,
+    lng: 123.9590862,
+    maxCapacity: 180,
+    occupancy: 0,
+    open24h: false,
+    stock: {
+      foodPacks: 80,
+      waterLiters: 250,
+      blankets: 40,
+      medicalKits: 4,
+      other: "",
+    },
+  },
+];
+
 const app = initializeApp({
   apiKey: "demo-api-key",
   projectId: PROJECT,
@@ -579,6 +634,40 @@ async function seedStaff() {
   }
   return n;
 }
+async function seedEvacCenters() {
+  const now = new Date().toISOString();
+  const barangayId = "nangka-consolacion";
+  const orgName = "Brgy. Nangka MDRRMO";
+  let n = 0;
+  for (const e of EVAC_CENTERS) {
+    const ref = doc(db, "evacCenters", e.id);
+    if ((await getDoc(ref)).exists()) {
+      console.log("evac skip", e.id);
+      continue;
+    }
+    await setDoc(ref, {
+      name: e.name,
+      locationLabel: e.locationLabel,
+      lat: e.lat,
+      lng: e.lng,
+      maxCapacity: e.maxCapacity,
+      occupancy: e.occupancy,
+      condition: "usable",
+      stock: e.stock,
+      notes: null,
+      open24h: Boolean(e.open24h),
+      status: "active",
+      barangayId,
+      lgu: "Consolacion",
+      orgName,
+      createdAt: now,
+      updatedAt: now,
+    });
+    n += 1;
+    console.log("evac", e.id);
+  }
+  return n;
+}
 
 function simulationOn() {
   const raw = (process.env.NEXT_PUBLIC_SIMULATION_ON || "").trim().toLowerCase();
@@ -612,10 +701,13 @@ async function main() {
   const reports = await seedReports();
   const households = await seedHouseholds(officerUid, "Brgy. Nangka MDRRMO");
   const staff = await seedStaff();
+  const evac = await seedEvacCenters();
 
   console.log("\nDone · functional local data:");
   console.log(`  officers ${OFFICERS.length} · citizens ${CITIZENS.length}`);
-  console.log(`  reports ${reports} · households ${households} · staff ${staff}`);
+  console.log(
+    `  reports ${reports} · households ${households} · staff ${staff} · evac ${evac}`,
+  );
   console.log("\nLogin (password demo1234):");
   console.log("  officer@nangka.consolacion.demo");
   console.log("  juan.delacruz@nangka.citizen.demo");

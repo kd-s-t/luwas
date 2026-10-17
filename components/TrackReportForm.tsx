@@ -14,6 +14,7 @@ import { getHazardReportById } from "@/lib/reports/api";
 import {
   hasGuestReportId,
   listGuestReportIds,
+  removeGuestReportId,
   saveGuestReportId,
 } from "@/lib/reports/guestReportStore";
 import {
@@ -310,10 +311,6 @@ export function TrackReportForm() {
   const [loading, setLoading] = useState(false);
   const [lastChecked, setLastChecked] = useState<Date | null>(null);
 
-  useEffect(() => {
-    setSaved(listGuestReportIds());
-  }, []);
-
   const load = useCallback(
     async (raw: string) => {
       const id = normalizeRef(raw);
@@ -330,6 +327,11 @@ export function TrackReportForm() {
       try {
         const row = await getHazardReportById(id);
         if (!row || row.status === "draft") {
+          // Drafts / wiped emulator docs linger in localStorage — drop them.
+          if (hasGuestReportId(id)) {
+            removeGuestReportId(id);
+            setSaved(listGuestReportIds());
+          }
           setReport(null);
           setError(t(language, "track.notFound", { ref: id }));
           return;
@@ -344,6 +346,10 @@ export function TrackReportForm() {
           router.replace(href, { scroll: false });
         }
       } catch {
+        if (hasGuestReportId(id)) {
+          removeGuestReportId(id);
+          setSaved(listGuestReportIds());
+        }
         setReport(null);
         setError(t(language, "track.notFound", { ref: id }));
       } finally {
@@ -353,21 +359,45 @@ export function TrackReportForm() {
     [language, router, searchParams],
   );
 
+  /** Prune stale device refs first, then open ?ref= or the newest surviving id. */
   useEffect(() => {
-    const q = searchParams.get("ref")?.trim();
-    if (q) {
-      setValue(isValidRef(q) && !UUID_RE.test(q) ? q.toUpperCase() : q);
-      void load(q);
-      return;
-    }
-    const ids = listGuestReportIds();
-    if (ids[0]) {
-      setValue(ids[0]);
-      void load(ids[0]);
-    }
+    let cancelled = false;
+    void (async () => {
+      const ids = listGuestReportIds();
+      await Promise.all(
+        ids.map(async (id) => {
+          try {
+            const row = await getHazardReportById(id);
+            if (!row || row.status === "draft") removeGuestReportId(id);
+          } catch {
+            removeGuestReportId(id);
+          }
+        }),
+      );
+      if (cancelled) return;
+      const next = listGuestReportIds();
+      setSaved(next);
+
+      const q = searchParams.get("ref")?.trim();
+      if (q) {
+        setValue(isValidRef(q) && !UUID_RE.test(q) ? q.toUpperCase() : q);
+        void load(q);
+        return;
+      }
+      if (next[0]) {
+        setValue(next[0]);
+        void load(next[0]);
+      } else {
+        setValue("");
+        setError(null);
+        setReport(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- initial hydrate only
   }, []);
-
   function onSubmit(e: FormEvent) {
     e.preventDefault();
     void load(value);
