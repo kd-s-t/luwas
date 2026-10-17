@@ -233,13 +233,6 @@ export function CommandResources() {
   }, [board.needs, query]);
 
   if (rsCode) {
-    if (!seedReady) {
-      return (
-        <div className="flex h-full min-h-0 flex-1 flex-col items-center justify-center px-4 py-10 text-center">
-          <p className="text-sm text-[var(--muted)]">Loading shortage plan…</p>
-        </div>
-      );
-    }
     if (shortagePlan) {
       return (
         <ResourceShortagePlan
@@ -247,6 +240,15 @@ export function CommandResources() {
           placeLine={placeHint}
           updatedLabel={updatedLabel}
         />
+      );
+    }
+    // Wait only while reports have not arrived yet — never block on seedReady
+    // (Apas / inventory seed can hang and left this screen loading forever).
+    if (!seedReady && scopedReports.length === 0) {
+      return (
+        <div className="flex h-full min-h-0 flex-1 flex-col items-center justify-center px-4 py-10 text-center">
+          <p className="text-sm text-[var(--muted)]">Loading shortage plan…</p>
+        </div>
       );
     }
     return (

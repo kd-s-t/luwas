@@ -91,6 +91,10 @@ export function CommandWorkspaceProvider({
 
   useEffect(() => {
     let cancelled = false;
+    // Failsafe: never leave Overview / Resources stuck on seedReady=false.
+    const readyDeadline = window.setTimeout(() => {
+      if (!cancelled) setSeedReady(true);
+    }, 8000);
     void (async () => {
       try {
         const { isSimulationOn } = await import("@/lib/config/simulation");
@@ -142,6 +146,7 @@ export function CommandWorkspaceProvider({
     })();
     return () => {
       cancelled = true;
+      window.clearTimeout(readyDeadline);
     };
   }, [canSync, profile]);
 

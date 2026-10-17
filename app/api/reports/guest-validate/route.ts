@@ -253,5 +253,8 @@ export async function POST(req: Request) {
     hazardHint: detectedHint,
     title: nextTitle,
     priority: ai.priority,
+    vertexClass: ai.vertexClass,
+    vertexConfidence: ai.vertexConfidence,
+    vertexSource: ai.vertexSource,
   });
 }
