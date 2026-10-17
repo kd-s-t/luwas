@@ -513,7 +513,7 @@ export default function BootstrapKitPage() {
                 </span>
                 <span className="ml-auto flex shrink-0 items-center gap-2 py-2">
                   <span
-                    className="relative inline-flex size-8 items-center justify-center border border-[var(--border)] text-[var(--muted)]"
+                    className="relative inline-flex size-8 items-center justify-center rounded-xl border border-[var(--border)] text-[var(--muted)]"
                     aria-hidden
                   >
                     <Bell className="size-3.5" />
@@ -521,7 +521,7 @@ export default function BootstrapKitPage() {
                       2
                     </span>
                   </span>
-                  <span className="hidden border border-[var(--border)] px-2 py-1 text-left text-[11px] sm:block">
+                  <span className="hidden rounded-xl border border-[var(--border)] px-2 py-1 text-left text-[11px] sm:block">
                     <span className="block font-mono text-[9px] tracking-wider text-[var(--muted)] uppercase">
                       Area
                     </span>
@@ -565,7 +565,7 @@ export default function BootstrapKitPage() {
             <Section
               id="buttons"
               title="Buttons"
-              hint="shadcn Button + Lucide icons + DRRM priority styles."
+              hint="shadcn Button + Lucide icons + DRRM priority styles. All buttons use rounded-xl."
             >
               <div className="flex flex-wrap gap-2">
                 <Button type="button" size="sm">
@@ -809,7 +809,7 @@ export default function BootstrapKitPage() {
                         key={s}
                         type="button"
                         onClick={() => setDraft(s)}
-                        className="shrink-0 border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1 font-mono text-[9px] tracking-wider whitespace-nowrap text-[var(--muted)] uppercase transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                        className="shrink-0 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1 font-mono text-[9px] tracking-wider whitespace-nowrap text-[var(--muted)] uppercase transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
                       >
                         {s}
                       </button>
