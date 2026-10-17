@@ -59,7 +59,7 @@ export const APAS_WATER_NEED_REPORTS = [
     lng: 123.9045,
     title: "Need 3000 L drinking water · Sitio Mahayahay",
     notes:
-      "Local stock empty in Sitio Mahayahay. Need 3000 L drinking water for households until supply restored. Local stock cannot cover the gap.",
+      "320 people affected in Sitio Mahayahay. Local stock empty (0 L local). Need 3000 L drinking water until supply restored.",
     mediaUrl: "/reports/flood-road-chapel.png",
   },
   {
@@ -72,7 +72,7 @@ export const APAS_WATER_NEED_REPORTS = [
     lng: 123.9056,
     title: "Need 3000 L drinking water · Sitio Kamagayan",
     notes:
-      "Local stock empty in Sitio Kamagayan. Need 3000 L drinking water for households until supply restored. Local stock cannot cover the gap.",
+      "250 people affected in Sitio Kamagayan. 200 L local stock on hand. Need 3000 L drinking water. Access unknown pending ground check.",
     mediaUrl: "/reports/flood-road-chapel.png",
   },
   {
@@ -85,7 +85,7 @@ export const APAS_WATER_NEED_REPORTS = [
     lng: 123.9042,
     title: "Need 3000 L drinking water · Sitio Looc",
     notes:
-      "Local stock empty in Sitio Looc. Need 3000 L drinking water for households until supply restored. Local stock cannot cover the gap.",
+      "180 people affected in Sitio Looc. 300 L local stock on hand. Need 3000 L drinking water. No transport for tanker delivery.",
     mediaUrl: "/reports/flood-road-chapel.png",
   },
   {
@@ -98,7 +98,7 @@ export const APAS_WATER_NEED_REPORTS = [
     lng: 123.906,
     title: "Need 3000 L drinking water · Sitio Banawa Creek",
     notes:
-      "Local stock empty in Sitio Banawa Creek. Need 3000 L drinking water for households until supply restored. Local stock cannot cover the gap.",
+      "210 people affected in Sitio Banawa Creek. Local stock empty (0 L local). Need 3000 L drinking water until supply restored.",
     mediaUrl: "/reports/flood-road-chapel.png",
   },
   {
@@ -111,7 +111,7 @@ export const APAS_WATER_NEED_REPORTS = [
     lng: 123.9055,
     title: "Need 3000 L drinking water · Sitio Lahug Approach",
     notes:
-      "Local stock empty in Sitio Lahug Approach. Need 3000 L drinking water for households until supply restored. Local stock cannot cover the gap.",
+      "190 people affected in Sitio Lahug Approach. 150 L local stock on hand. Need 3000 L drinking water. Access unknown pending ground check.",
     mediaUrl: "/reports/flood-road-chapel.png",
   },
 ] as const;
@@ -282,7 +282,26 @@ export async function ensureApasWaterAndFireReports(): Promise<number> {
   for (const sample of demos) {
     const ref = doc(db, "reports", sample.id);
     const existing = await getDoc(ref);
-    if (existing.exists()) continue;
+    if (existing.exists()) {
+      // Refresh demo copy so Resources shortage plan stays current.
+      await setDoc(
+        ref,
+        {
+          title: sample.title,
+          notes: sample.notes,
+          citizenPurok: sample.sitio,
+          barangay: "Apas",
+          lgu: "Cebu City",
+          lat: sample.lat,
+          lng: sample.lng,
+          mediaUrl: sample.mediaUrl,
+          mediaPath: sample.mediaUrl,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true },
+      );
+      continue;
+    }
 
     const trust = computeReportTrust({
       registered: false,
