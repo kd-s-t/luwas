@@ -688,14 +688,14 @@ export function BarangayOnboardWizard({ defaultOrgName = "" }: Props) {
                     <Link
                       href={item.href}
                       onClick={() => markCheck(item.key)}
-                      className="border border-[var(--accent)] bg-[var(--accent)] px-3 py-1.5 font-mono text-[10px] tracking-wider text-white uppercase transition hover:opacity-90"
+                      className="border border-[var(--accent)] rounded-xl bg-[var(--accent)] px-3 py-1.5 font-mono text-[10px] tracking-wider text-white uppercase transition hover:opacity-90"
                     >
                       {item.cta} →
                     </Link>
                     <button
                       type="button"
                       onClick={() => toggleCheck(item.key)}
-                      className="border border-[var(--border)] px-3 py-1.5 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase transition hover:border-[var(--accent)] hover:text-[var(--foreground)]"
+                      className="rounded-xl border border-[var(--border)] px-3 py-1.5 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase transition hover:border-[var(--accent)] hover:text-[var(--foreground)]"
                     >
                       {done ? "Undo" : "Mark done"}
                     </button>
@@ -732,14 +732,14 @@ export function BarangayOnboardWizard({ defaultOrgName = "" }: Props) {
                     <Link
                       href={item.href}
                       onClick={() => markCheck(item.key)}
-                      className="border border-[var(--accent)] bg-[var(--accent)] px-3 py-1.5 font-mono text-[10px] tracking-wider text-white uppercase transition hover:opacity-90"
+                      className="border border-[var(--accent)] rounded-xl bg-[var(--accent)] px-3 py-1.5 font-mono text-[10px] tracking-wider text-white uppercase transition hover:opacity-90"
                     >
                       {item.cta} →
                     </Link>
                     <button
                       type="button"
                       onClick={() => toggleCheck(item.key)}
-                      className="border border-[var(--border)] px-3 py-1.5 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase transition hover:border-[var(--accent)] hover:text-[var(--foreground)]"
+                      className="rounded-xl border border-[var(--border)] px-3 py-1.5 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase transition hover:border-[var(--accent)] hover:text-[var(--foreground)]"
                     >
                       {done ? "Undo" : "Mark done"}
                     </button>
@@ -862,14 +862,14 @@ export function BarangayOnboardWizard({ defaultOrgName = "" }: Props) {
                         `/admin/overview?area=${encodeURIComponent(row.id)}`,
                       );
                     }}
-                    className="border border-[var(--border)] px-2.5 py-1 font-mono text-[10px] tracking-wider uppercase transition hover:border-[var(--accent)]"
+                    className="rounded-xl border border-[var(--border)] px-2.5 py-1 font-mono text-[10px] tracking-wider uppercase transition hover:border-[var(--accent)]"
                   >
                     Map
                   </button>
                   <button
                     type="button"
                     onClick={() => void removeActivated(row.id)}
-                    className="border border-[var(--border)] px-2.5 py-1 font-mono text-[10px] tracking-wider text-[var(--danger)] uppercase transition hover:border-[var(--danger)]"
+                    className="rounded-xl border border-[var(--border)] px-2.5 py-1 font-mono text-[10px] tracking-wider text-[var(--danger)] uppercase transition hover:border-[var(--danger)]"
                   >
                     Remove
                   </button>

@@ -25,7 +25,7 @@ export default function LoginChoosePage() {
         <div className="space-y-3">
           <Link
             href="/login/officer"
-            className="block border border-[var(--border)] px-4 py-4 transition hover:border-[var(--accent)] hover:bg-[var(--surface-raised)]"
+            className="block rounded-xl border border-[var(--border)] px-4 py-4 transition hover:border-[var(--accent)] hover:bg-[var(--surface-raised)]"
           >
             <span className="block text-base font-semibold text-[var(--foreground)]">
               Officer
@@ -36,7 +36,7 @@ export default function LoginChoosePage() {
           </Link>
           <Link
             href="/login/citizen"
-            className="block border border-[var(--border)] px-4 py-4 transition hover:border-[var(--accent)] hover:bg-[var(--surface-raised)]"
+            className="block rounded-xl border border-[var(--border)] px-4 py-4 transition hover:border-[var(--accent)] hover:bg-[var(--surface-raised)]"
           >
             <span className="block text-base font-semibold text-[var(--foreground)]">
               Citizen
@@ -47,7 +47,7 @@ export default function LoginChoosePage() {
           </Link>
           <Link
             href="/login/developer"
-            className="block border border-[var(--border)] px-4 py-4 transition hover:border-[var(--accent)] hover:bg-[var(--surface-raised)]"
+            className="block rounded-xl border border-[var(--border)] px-4 py-4 transition hover:border-[var(--accent)] hover:bg-[var(--surface-raised)]"
           >
             <span className="block text-base font-semibold text-[var(--foreground)]">
               Developer

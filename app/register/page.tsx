@@ -29,7 +29,7 @@ export default function RegisterChooserPage() {
         <div className="grid gap-3">
           <Link
             href="/register/citizen"
-            className="group border border-[var(--border)] px-4 py-4 transition hover:border-[var(--accent)] hover:bg-[var(--surface-panel)]/50"
+            className="group rounded-xl border border-[var(--border)] px-4 py-4 transition hover:border-[var(--accent)] hover:bg-[var(--surface-panel)]/50"
           >
             <p className="font-medium text-[var(--foreground)] group-hover:text-[var(--accent)]">
               Citizen
@@ -40,7 +40,7 @@ export default function RegisterChooserPage() {
           </Link>
           <Link
             href="/register/officer"
-            className="group border border-[var(--border)] px-4 py-4 transition hover:border-[var(--accent)] hover:bg-[var(--surface-panel)]/50"
+            className="group rounded-xl border border-[var(--border)] px-4 py-4 transition hover:border-[var(--accent)] hover:bg-[var(--surface-panel)]/50"
           >
             <p className="font-medium text-[var(--foreground)] group-hover:text-[var(--accent)]">
               Officer

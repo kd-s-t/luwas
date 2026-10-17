@@ -242,7 +242,7 @@ export default function DeveloperLoginPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full bg-[var(--foreground)] px-4 py-2.5 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
+            className="w-full rounded-xl bg-[var(--foreground)] px-4 py-2.5 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
           >
             {submitting ? "Signing in…" : "Sign in"}
           </button>

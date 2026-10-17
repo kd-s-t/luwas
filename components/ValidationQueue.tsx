@@ -382,7 +382,7 @@ export function ValidationQueue() {
               key={id}
               type="button"
               onClick={() => setFilter(id)}
-              className={`shrink-0 border px-3 py-1.5 font-mono text-[10px] tracking-wider uppercase sm:px-2.5 sm:py-1 ${
+              className={`shrink-0 rounded-xl border px-3 py-1.5 font-mono text-[10px] tracking-wider uppercase sm:px-2.5 sm:py-1 ${
                 filter === id
                   ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--on-accent)]"
                   : "border-[var(--border)] text-[var(--muted)]"

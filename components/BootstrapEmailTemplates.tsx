@@ -197,7 +197,7 @@ export function BootstrapEmailTemplates({
               href={`/api/email/offline-kit?template=${encodeURIComponent(selected.id)}&print=0`}
               target="_blank"
               rel="noreferrer"
-              className="border border-[var(--border)] px-3 py-2 text-sm text-[var(--muted)] transition hover:border-[var(--accent)]/40 hover:text-[var(--foreground)]"
+              className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm text-[var(--muted)] transition hover:border-[var(--accent)]/40 hover:text-[var(--foreground)]"
             >
               Open kit
             </a>
@@ -205,7 +205,7 @@ export function BootstrapEmailTemplates({
               href={`/api/email/offline-kit?template=${encodeURIComponent(selected.id)}`}
               target="_blank"
               rel="noreferrer"
-              className="bg-[var(--accent)] px-3 py-2 text-sm font-medium text-white transition hover:opacity-90"
+              className="rounded-xl bg-[var(--accent)] px-3 py-2 text-sm font-medium text-white transition hover:opacity-90"
             >
               Download PDF
             </a>

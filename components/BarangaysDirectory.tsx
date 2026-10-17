@@ -145,7 +145,7 @@ export function BarangaysDirectory() {
                 type="button"
                 onClick={() => setKindFilter(tab.id)}
                 className={cn(
-                  "border px-2.5 py-1 font-mono text-[10px] tracking-wide uppercase transition",
+                  "rounded-xl border px-2.5 py-1 font-mono text-[10px] tracking-wide uppercase transition",
                   kindFilter === tab.id
                     ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--on-accent)]"
                     : "border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--accent)]",

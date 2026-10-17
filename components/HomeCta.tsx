@@ -8,7 +8,10 @@ export function HomeCta() {
 
   if (loading) {
     return (
-      <div className="h-12 w-48 animate-pulse bg-[var(--surface-panel)]" aria-hidden />
+      <div
+        className="h-12 w-48 animate-pulse rounded-xl bg-[var(--surface-panel)]"
+        aria-hidden
+      />
     );
   }
 
@@ -17,7 +20,7 @@ export function HomeCta() {
     return (
       <Link
         href={href}
-        className="inline-flex w-full items-center justify-center bg-[var(--accent)] px-6 py-3 font-medium text-[var(--on-accent)] transition hover:bg-[var(--accent-dim)] sm:w-auto"
+        className="inline-flex w-full items-center justify-center rounded-xl bg-[var(--accent)] px-6 py-3 font-medium text-[var(--on-accent)] transition hover:bg-[var(--accent-dim)] sm:w-auto"
       >
         {profile?.role === "citizen" ? "Open citizen reports" : "Open command center"}
       </Link>
@@ -28,13 +31,13 @@ export function HomeCta() {
     <div className="flex flex-wrap items-center gap-3">
       <Link
         href="/report-incident"
-        className="inline-flex w-full items-center justify-center bg-[var(--accent)] px-6 py-3 font-medium text-[var(--on-accent)] transition hover:bg-[var(--accent-dim)] sm:w-auto"
+        className="inline-flex w-full items-center justify-center rounded-xl bg-[var(--accent)] px-6 py-3 font-medium text-[var(--on-accent)] transition hover:bg-[var(--accent-dim)] sm:w-auto"
       >
         Post a report
       </Link>
       <Link
         href="/login"
-        className="inline-flex items-center border border-[var(--border)] px-6 py-3 text-[var(--foreground)] transition hover:border-[var(--accent)]"
+        className="inline-flex items-center rounded-xl border border-[var(--border)] px-6 py-3 text-[var(--foreground)] transition hover:border-[var(--accent)]"
       >
         Officer login
       </Link>

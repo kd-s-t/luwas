@@ -172,7 +172,7 @@ export function CommandHeader() {
             <button
               type="button"
               onClick={() => void onLogout()}
-              className="border border-[var(--border)] px-2 py-1 text-xs text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-[var(--foreground)] sm:px-2.5 sm:text-sm"
+              className="rounded-xl border border-[var(--border)] px-2 py-1 text-xs text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-[var(--foreground)] sm:px-2.5 sm:text-sm"
             >
               Logout
             </button>
