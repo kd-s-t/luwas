@@ -301,13 +301,13 @@ function CalamityDuringLandfallFlowCanvas() {
       {
         id: "citizen",
         type: "actor",
-        position: { x: 16, y: 48 },
+        position: { x: -20.3254972875226, y: 108.54249547920433 },
         data: { label: "Citizen", citizens: true, outRight: true },
       },
       {
         id: "officer",
         type: "actor",
-        position: { x: 16, y: 200 },
+        position: { x: -5.189873417721522, y: 328.65280289330923 },
         data: { label: "Officer", officer: true, outRight: true },
       },
       {
@@ -322,7 +322,7 @@ function CalamityDuringLandfallFlowCanvas() {
         type: "report",
         parentId: "site",
         extent: "parent",
-        position: { x: 36, y: 48 },
+        position: { x: 45.08137432188062, y: 78.27124773960217 },
         data: {},
       },
       {
@@ -330,7 +330,7 @@ function CalamityDuringLandfallFlowCanvas() {
         type: "command",
         parentId: "site",
         extent: "parent",
-        position: { x: 36, y: 200 },
+        position: { x: 49.622061482820925, y: 310.4900542495478 },
         data: {},
       },
       {
@@ -338,7 +338,7 @@ function CalamityDuringLandfallFlowCanvas() {
         type: "stack",
         parentId: "site",
         extent: "parent",
-        position: { x: 220, y: 210 },
+        position: { x: 286.59674502712477, y: 88.91500904159133 },
         data: {},
       },
       {
@@ -346,7 +346,7 @@ function CalamityDuringLandfallFlowCanvas() {
         type: "triage",
         parentId: "site",
         extent: "parent",
-        position: { x: 460, y: 200 },
+        position: { x: 308.6437613019891, y: 257.51537070524415 },
         data: {},
       },
       {
@@ -354,7 +354,7 @@ function CalamityDuringLandfallFlowCanvas() {
         type: "suggest",
         parentId: "site",
         extent: "parent",
-        position: { x: 700, y: 210 },
+        position: { x: 625.8354430379746, y: 190.32368896925857 },
         data: {},
       },
       {
@@ -362,13 +362,13 @@ function CalamityDuringLandfallFlowCanvas() {
         type: "ops",
         parentId: "site",
         extent: "parent",
-        position: { x: 940, y: 200 },
+        position: { x: 946.0542495479206, y: 168.21518987341773 },
         data: {},
       },
       {
         id: "people",
         type: "actor",
-        position: { x: 1560, y: 220 },
+        position: { x: 1529.7287522603979, y: 192.75587703435806 },
         data: {
           label: "People within Barangay",
           citizens: true,
