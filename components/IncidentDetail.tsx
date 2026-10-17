@@ -16,6 +16,15 @@ import { ReportStatusBadge } from "@/components/ReportStatusBadge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
   dispatchBarangayInventoryItem,
   ensureActiveBarangayInventory,
   subscribeBarangayInventory,
@@ -704,26 +713,54 @@ export function IncidentDetail({
             Original report
           </h2>
 
-          <div className="mt-3 flex aspect-video items-center justify-center overflow-hidden border border-[var(--border)] bg-[var(--surface-panel)]">
-            {selected.mediaUrl?.trim() ? (
-              selected.mediaType === "photo" ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={selected.mediaUrl}
-                  alt=""
-                  className="size-full object-cover"
-                />
-              ) : (
+          {selected.mediaUrl?.trim() && selected.mediaType === "photo" ? (
+            <Dialog>
+              <DialogTrigger asChild>
+                <button
+                  type="button"
+                  className="mt-3 flex aspect-video w-full cursor-zoom-in items-center justify-center overflow-hidden border border-[var(--border)] bg-[var(--surface-panel)] transition hover:border-[var(--accent)]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+                  aria-label="View original report photo"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={selected.mediaUrl}
+                    alt=""
+                    className="size-full object-cover"
+                  />
+                </button>
+              </DialogTrigger>
+              <DialogContent className="max-w-3xl overflow-hidden p-0 sm:max-w-3xl">
+                <DialogHeader className="px-4 pt-4 pr-12 pb-3">
+                  <DialogTitle className="text-lg">Original report</DialogTitle>
+                  <DialogDescription>
+                    Full-size evidence photo
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogBody className="bg-[var(--surface-panel)] p-0">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={selected.mediaUrl}
+                    alt="Original report evidence"
+                    className="max-h-[min(70vh,36rem)] w-full object-contain"
+                  />
+                </DialogBody>
+              </DialogContent>
+            </Dialog>
+          ) : (
+            <div className="mt-3 flex aspect-video items-center justify-center overflow-hidden border border-[var(--border)] bg-[var(--surface-panel)]">
+              {selected.mediaUrl?.trim() ? (
                 <video
                   src={selected.mediaUrl}
                   className="size-full object-cover"
                   controls
                 />
-              )
-            ) : (
-              <p className="text-sm font-medium text-[var(--muted)]">No image</p>
-            )}
-          </div>
+              ) : (
+                <p className="text-sm font-medium text-[var(--muted)]">
+                  No image
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="mt-3 border border-[var(--border)] bg-[var(--surface-raised)] px-2.5 py-2">
             <div className="flex items-center gap-2">
