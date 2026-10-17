@@ -204,7 +204,10 @@ export function proposalsForReport(report: HazardReport): IncidentProposal[] {
     }
   }
 
-  const dispatched = Boolean(report.manualDispatchChecked);
+  const dispatched =
+    Boolean(report.manualDispatchChecked) ||
+    report.status === "dispatched" ||
+    report.status === "done";
   base.push({
     id: "dispatch",
     label: "Dispatch someone",

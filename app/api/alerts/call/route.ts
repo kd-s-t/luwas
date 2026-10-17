@@ -170,33 +170,35 @@ async function postResponderCalls(body: Body) {
     sendSmsBatch(smsPayloads),
   ]);
 
-  const callResults = callOut.results.map((r, i) => ({
-    channel: "call" as const,
-    to: r.to,
-    ok: r.ok,
-    ownerName: r.ownerName ?? resolved[i]?.stationName,
-    phoneDisplay: r.phoneDisplay ?? r.to,
-    priority: r.priority ?? resolved[i]?.kind,
-    body: r.body,
-    error: r.error,
-    provider: r.provider,
-    stationId: resolved[i]?.stationId,
-    kind: resolved[i]?.kind,
-  }));
+  // Sandbox may emit multiple results per station; match by intended `to` / name.
+  function attachStation(
+    r: (typeof callOut.results)[number],
+    channel: "call" | "sms",
+  ) {
+    const station =
+      resolved.find(
+        (s) =>
+          s.to === r.to ||
+          s.stationName === r.ownerName ||
+          s.phoneDisplay === r.phoneDisplay,
+      ) ?? resolved[0];
+    return {
+      channel,
+      to: r.to,
+      ok: r.ok,
+      ownerName: r.ownerName ?? station?.stationName,
+      phoneDisplay: r.phoneDisplay ?? r.to,
+      priority: r.priority ?? station?.kind,
+      body: r.body,
+      error: r.error,
+      provider: r.provider,
+      stationId: station?.stationId,
+      kind: station?.kind,
+    };
+  }
 
-  const smsResults = smsOut.results.map((r, i) => ({
-    channel: "sms" as const,
-    to: r.to,
-    ok: r.ok,
-    ownerName: r.ownerName ?? resolved[i]?.stationName,
-    phoneDisplay: r.phoneDisplay ?? r.to,
-    priority: r.priority ?? resolved[i]?.kind,
-    body: r.body,
-    error: r.error,
-    provider: r.provider,
-    stationId: resolved[i]?.stationId,
-    kind: resolved[i]?.kind,
-  }));
+  const callResults = callOut.results.map((r) => attachStation(r, "call"));
+  const smsResults = smsOut.results.map((r) => attachStation(r, "sms"));
 
   const results = [...smsResults, ...callResults];
 
@@ -209,7 +211,6 @@ async function postResponderCalls(body: Body) {
     smsAttempted: smsPayloads.length,
     sent: results.filter((r) => r.ok).length,
     failed: results.filter((r) => !r.ok).length,
-    skipped: [],
     results,
     truncated: false,
   });

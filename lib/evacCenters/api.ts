@@ -13,6 +13,11 @@ import {
 } from "firebase/firestore";
 import { getClientDb } from "@/lib/firebase/client";
 import {
+  APAS_BARANGAY_DOC_ID,
+  APAS_EVAC_CENTER_SEED,
+  APAS_ORG_NAME,
+} from "@/lib/evacCenters/apasSeed";
+import {
   NANGKA_BARANGAY_ID,
   NANGKA_EVAC_CENTER_SEED,
   NANGKA_ORG_NAME,
@@ -199,9 +204,13 @@ function looksLikeCoordProvenance(label: string): boolean {
   return /google places|plus code|nominatim|\bosm\b/i.test(label);
 }
 
-/** Seed curated Nangka ECs once; refresh leftover provenance labels. */
-export async function ensureNangkaEvacCenters(): Promise<void> {
-  for (const seed of NANGKA_EVAC_CENTER_SEED) {
+async function ensureEvacCenterSeeds(
+  seeds: typeof NANGKA_EVAC_CENTER_SEED,
+  barangayId: string,
+  orgName: string,
+): Promise<number> {
+  let created = 0;
+  for (const seed of seeds) {
     const ref = doc(getClientDb(), COL, seed.id);
     const snap = await getDoc(ref);
     const now = new Date().toISOString();
@@ -241,13 +250,33 @@ export async function ensureNangkaEvacCenters(): Promise<void> {
       notes: seed.notes ?? null,
       open24h: Boolean(seed.open24h),
       status: "active",
-      barangayId: NANGKA_BARANGAY_ID,
+      barangayId,
       lgu: seed.lgu,
-      orgName: NANGKA_ORG_NAME,
+      orgName,
       createdAt: now,
       updatedAt: now,
       createdAtServer: serverTimestamp(),
       updatedAtServer: serverTimestamp(),
     });
+    created += 1;
   }
+  return created;
+}
+
+/** Seed curated Nangka ECs once; refresh leftover provenance labels. */
+export async function ensureNangkaEvacCenters(): Promise<void> {
+  await ensureEvacCenterSeeds(
+    NANGKA_EVAC_CENTER_SEED,
+    NANGKA_BARANGAY_ID,
+    NANGKA_ORG_NAME,
+  );
+}
+
+/** Seed curated Apas ECs once. */
+export async function ensureApasEvacCenters(): Promise<number> {
+  return ensureEvacCenterSeeds(
+    APAS_EVAC_CENTER_SEED,
+    APAS_BARANGAY_DOC_ID,
+    APAS_ORG_NAME,
+  );
 }

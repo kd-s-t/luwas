@@ -157,6 +157,7 @@ export async function triggerAutoResponderCall(
         channel?: string;
         ok?: boolean;
         ownerName?: string;
+        error?: string;
       }>;
     };
     if (!res.ok) {
@@ -181,19 +182,23 @@ export async function triggerAutoResponderCall(
           .map((r) => String(r.ownerName)),
       ),
     ];
-    // Demo / sandbox may log-only — still record intended units from kinds.
+    const failMsgs = [
+      ...new Set(
+        (data.results ?? [])
+          .filter((r) => !r.ok && r.error)
+          .map((r) => String(r.error)),
+      ),
+    ];
+    // Voice alone is enough (US Twilio SMS often cannot text PH mobiles).
     if (called.length === 0 && texted.length === 0) {
-      const fallback = route.kinds.map((k) =>
-        k === "bfp"
-          ? "Fire (BFP)"
-          : k === "pnp"
-            ? "Police (PNP)"
-            : k === "hospital"
-              ? "Hospital"
-              : "Barangay / tanod",
-      );
-      called.push(...fallback);
-      texted.push(...fallback);
+      return {
+        attempted: true,
+        ok: false,
+        error:
+          failMsgs[0] ||
+          data.error ||
+          "Call/SMS did not deliver (check Twilio sandbox / PH geo permissions).",
+      };
     }
 
     const dispatchLog: ReportDispatchLog = {
@@ -221,7 +226,7 @@ export async function triggerAutoResponderCall(
       };
     }
 
-    return { attempted: true, ok: (data.sent ?? 0) > 0 || called.length > 0 };
+    return { attempted: true, ok: true };
   } catch (err) {
     return {
       attempted: true,

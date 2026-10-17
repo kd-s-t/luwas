@@ -12,6 +12,11 @@ import {
 } from "firebase/firestore";
 import { getClientDb } from "@/lib/firebase/client";
 import {
+  APAS_BARANGAY_DOC_ID,
+  APAS_ORG_NAME,
+  APAS_PARTNER_SEED,
+} from "@/lib/partners/apasPartners";
+import {
   NANGKA_BARANGAY_ID,
   NANGKA_ORG_NAME,
   NANGKA_PARTNER_SEED,
@@ -146,11 +151,14 @@ export async function addResourcePartner(
   return ref.id;
 }
 
-/** Idempotent seed for Nangka demo partners. */
-export async function ensureNangkaPartners(): Promise<number> {
+async function ensurePartnerSeeds(
+  seeds: typeof NANGKA_PARTNER_SEED,
+  barangayId: string,
+  orgName: string,
+): Promise<number> {
   const db = getClientDb();
   let written = 0;
-  for (const seed of NANGKA_PARTNER_SEED) {
+  for (const seed of seeds) {
     const ref = doc(db, COL, seed.id);
     const existing = await getDoc(ref);
     const now = new Date().toISOString();
@@ -198,8 +206,8 @@ export async function ensureNangkaPartners(): Promise<number> {
       coverage: seed.coverage,
       notes: seed.notes ?? null,
       status: seed.status ?? "active",
-      barangayId: NANGKA_BARANGAY_ID,
-      orgName: NANGKA_ORG_NAME,
+      barangayId,
+      orgName,
       createdAt: now,
       updatedAt: now,
       createdAtServer: serverTimestamp(),
@@ -208,4 +216,22 @@ export async function ensureNangkaPartners(): Promise<number> {
     written += 1;
   }
   return written;
+}
+
+/** Idempotent seed for Nangka demo partners. */
+export async function ensureNangkaPartners(): Promise<number> {
+  return ensurePartnerSeeds(
+    NANGKA_PARTNER_SEED,
+    NANGKA_BARANGAY_ID,
+    NANGKA_ORG_NAME,
+  );
+}
+
+/** Idempotent seed for Apas demo partners. */
+export async function ensureApasPartners(): Promise<number> {
+  return ensurePartnerSeeds(
+    APAS_PARTNER_SEED,
+    APAS_BARANGAY_DOC_ID,
+    APAS_ORG_NAME,
+  );
 }

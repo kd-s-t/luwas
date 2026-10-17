@@ -21,9 +21,14 @@ import {
 } from "@/components/ui/dialog";
 import {
   addResourcePartner,
+  ensureApasPartners,
   ensureNangkaPartners,
   subscribeResourcePartners,
 } from "@/lib/partners/api";
+import {
+  APAS_BARANGAY_DOC_ID,
+  APAS_ORG_NAME,
+} from "@/lib/partners/apasPartners";
 import {
   NANGKA_BARANGAY_ID,
   NANGKA_ORG_NAME,
@@ -92,8 +97,8 @@ function resolveBarangay(profile: ReturnType<typeof useAuth>["profile"]): {
   const areaId = (profile.areaId ?? profile.activeBarangayId)?.trim();
   if (areaId?.includes("apas")) {
     return {
-      barangayId: areaId,
-      orgName: profile.orgName || "Apas · Cebu City",
+      barangayId: APAS_BARANGAY_DOC_ID,
+      orgName: profile.orgName || APAS_ORG_NAME,
     };
   }
   return {
@@ -177,10 +182,15 @@ export function PartnersPanel() {
 
   useEffect(() => {
     if (!isOfficer(profile) || !isAccountActive(profile)) return;
-    if (barangayId !== NANGKA_BARANGAY_ID) return;
     if (seeded.current) return;
     seeded.current = true;
-    void ensureNangkaPartners().catch(() => {
+    const run =
+      barangayId === APAS_BARANGAY_DOC_ID
+        ? ensureApasPartners()
+        : barangayId === NANGKA_BARANGAY_ID
+          ? ensureNangkaPartners()
+          : Promise.resolve();
+    void run.catch(() => {
       seeded.current = false;
     });
   }, [profile, barangayId]);

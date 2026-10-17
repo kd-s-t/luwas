@@ -39,7 +39,7 @@
     "forSomeoneElse": "Para sa lain",
     "needHelp": "Nagkinahanglan Ko og Tabang",
     "needHelpHint": "Mangayo og tabang para nimo o sa lain.",
-    "reportHazard": "Ireport ang Peligro",
+    "reportHazard": "Ireport",
     "reportHazardHint": "Ireport ang baha, kadaot, o dili luwas nga dapit.",
     "checkReport": "Tan-awa ang Akong Report",
     "checkReportHint": "Gamita ang reference number aron makita ang updates.",
@@ -70,7 +70,7 @@
   "intent": {
     "needHelp": "Nagkinahanglan Ko og Tabang",
     "needHelpSub": "Para nimo o sa lain nga anaa sa peligro",
-    "reportHazard": "Ireport ang Peligro",
+    "reportHazard": "Ireport",
     "reportHazardSub": "Baha, kadaot, o dili luwas nga dapit"
   },
   "situation": {

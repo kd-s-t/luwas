@@ -40,9 +40,9 @@ const LINKS = [
     logo: "/brands/github.svg",
   },
   {
-    label: "Domain · luwasph.com",
+    label: "Domain · ugnaiph.com",
     hint: "Squarespace · managed DNS",
-    href: "https://account.squarespace.com/domains/managed/luwasph.com",
+    href: "https://account.squarespace.com/domains/managed/ugnaiph.com",
     logo: "/brands/squarespace.png",
   },
   {

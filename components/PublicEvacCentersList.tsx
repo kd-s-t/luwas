@@ -5,9 +5,11 @@ import { EvacStockList } from "@/components/EvacStockList";
 import { FadeIn } from "@/components/motion/primitives";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import {
+  ensureApasEvacCenters,
   ensureNangkaEvacCenters,
   subscribeEvacCenters,
 } from "@/lib/evacCenters/api";
+import { APAS_BARANGAY_DOC_ID } from "@/lib/evacCenters/apasSeed";
 import { NANGKA_BARANGAY_ID } from "@/lib/evacCenters/nangkaSeed";
 import { resolveEvacBarangayFromProfile } from "@/lib/evacCenters/resolve";
 import {
@@ -60,10 +62,15 @@ export function PublicEvacCentersList() {
   }, [scope.barangayId]);
 
   useEffect(() => {
-    if (scope.barangayId !== NANGKA_BARANGAY_ID) return;
     if (seeded.current) return;
     seeded.current = true;
-    void ensureNangkaEvacCenters().catch(() => {
+    const run =
+      scope.barangayId === APAS_BARANGAY_DOC_ID
+        ? ensureApasEvacCenters()
+        : scope.barangayId === NANGKA_BARANGAY_ID
+          ? ensureNangkaEvacCenters()
+          : Promise.resolve();
+    void run.catch(() => {
       seeded.current = false;
     });
   }, [scope.barangayId]);

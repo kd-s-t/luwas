@@ -27,6 +27,10 @@ import {
   scopeForProfile,
   type ReportScope,
 } from "@/lib/reports/barangayScope";
+import {
+  hideScenarioDemoReportsInUi,
+  isTinoScenarioDemoReport,
+} from "@/lib/reports/scenarioDemo";
 import { ensureAllMapReportsInDb } from "@/lib/reports/seedMapReport";
 import type { HazardReport } from "@/lib/reports/types";
 import { fetchCebuWeather, isHazardousWeather } from "@/lib/weather/openMeteo";
@@ -196,10 +200,11 @@ export function CommandWorkspaceProvider({
     };
   }, []);
 
-  const scopedReports = useMemo(
-    () => reports.filter((r) => reportInScope(r, reportScope)),
-    [reports, reportScope],
-  );
+  const scopedReports = useMemo(() => {
+    const inScope = reports.filter((r) => reportInScope(r, reportScope));
+    if (!hideScenarioDemoReportsInUi()) return inScope;
+    return inScope.filter((r) => !isTinoScenarioDemoReport(r));
+  }, [reports, reportScope]);
 
   const activeOfficers = useMemo(() => {
     const active = barangayUsers.filter(

@@ -16,6 +16,9 @@ export type ReportNeedParsed = {
   householdsLabel: string;
 };
 
+/** Shared supply problem for epic grouping on the attention board. */
+export type SupplyNeedKind = "water" | "food" | "medical" | "relief";
+
 function parseExplicitSupply(text: string): {
   packs?: string;
   water?: string;
@@ -27,6 +30,96 @@ function parseExplicitSupply(text: string): {
   const kits = text.match(/(\d+)\s+(?:medical\s+)?kits?/i)?.[1];
   const households = text.match(/(\d+)\s+households?/i)?.[1];
   return { packs, water, kits, households };
+}
+
+/** Detect a shared supply need so many field reports collapse into one epic. */
+export function supplyNeedKind(
+  report: Pick<HazardReport, "title" | "notes">,
+): SupplyNeedKind | null {
+  const blob = `${report.title ?? ""}\n${report.notes ?? ""}`;
+  const water =
+    /(\d+)\s*L(?:\s+(?:of\s+)?(?:drinking\s+)?water)?|\bdrinking\s+water\b|\bwater\s+shortage\b|\b(?:need|needs|needing)\s+(?:ug\s+)?(?:drinking\s+)?water\b/i.test(
+      blob,
+    );
+  const food =
+    /(\d+)\s+food\s+packs?|\bfood\s+shortage\b|\bfood\s+packs?\b/i.test(blob);
+  const medical =
+    /(\d+)\s+(?:medical\s+)?kits?|\bmedical\s+kits?\b/i.test(blob);
+  if (water && !food && !medical) return "water";
+  if (food && !water && !medical) return "food";
+  if (medical && !water && !food) return "medical";
+  if (water || food || medical) return "relief";
+  return null;
+}
+
+/** Design codes: RS-001 water · RS-002 food · RS-003 medical · RS-004 relief. */
+export function supplyNeedEpicCode(kind: SupplyNeedKind): string {
+  switch (kind) {
+    case "water":
+      return "RS-001";
+    case "food":
+      return "RS-002";
+    case "medical":
+      return "RS-003";
+    case "relief":
+      return "RS-004";
+  }
+}
+
+export function supplyNeedNoun(kind: SupplyNeedKind): string {
+  switch (kind) {
+    case "water":
+      return "Drinking water";
+    case "food":
+      return "Food packs";
+    case "medical":
+      return "Medical kits";
+    case "relief":
+      return "Relief supplies";
+  }
+}
+
+export function supplyNeedUnit(kind: SupplyNeedKind): string {
+  switch (kind) {
+    case "water":
+      return "L";
+    case "food":
+      return "packs";
+    case "medical":
+      return "kits";
+    case "relief":
+      return "units";
+  }
+}
+
+/** Sum explicit pack / liter / kit counts across reports that share a need. */
+export function aggregateSupplyNeed(reports: HazardReport[]): {
+  packs: number;
+  waterL: number;
+  kits: number;
+  neededLabel: string;
+} {
+  let packs = 0;
+  let waterL = 0;
+  let kits = 0;
+  for (const report of reports) {
+    const blob = `${report.title ?? ""}\n${report.notes ?? ""}`;
+    const explicit = parseExplicitSupply(blob);
+    if (explicit.packs) packs += Number(explicit.packs) || 0;
+    if (explicit.water) waterL += Number(explicit.water) || 0;
+    if (explicit.kits) kits += Number(explicit.kits) || 0;
+  }
+  const bits = [
+    packs > 0 ? `${packs} packs` : null,
+    waterL > 0 ? `${waterL.toLocaleString("en-PH")} L water` : null,
+    kits > 0 ? `${kits} kits` : null,
+  ].filter(Boolean);
+  return {
+    packs,
+    waterL,
+    kits,
+    neededLabel: bits.join(" · ") || "Supplies TBD",
+  };
 }
 
 function neededFromHazard(hazard: ReportHazardHint): string {

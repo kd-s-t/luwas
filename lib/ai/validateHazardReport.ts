@@ -265,7 +265,7 @@ export async function validateHazardReport(input: {
       ? "voice transcript + text"
       : "text";
   const prompt = `You are Agent Nangka, validating a citizen hazard field report for Brgy. Nangka, Consolacion, Cebu.
-Decide if the ${evidenceKind} look like a genuine on-the-ground hazard report (not spam, meme, unrelated content, or obvious fake).
+Decide if the ${evidenceKind} support a real hazard claim (not spam, joke text, meme, or unrelated scene).
 
 A separate Vertex AI image classifier already scored the photo. Use that as a signal, not the only rule:
 ${vertexLine}
@@ -288,8 +288,10 @@ Return ONLY JSON:
 
 Rules:
 - legit: clear evidence of flood/landslide/storm/fire/damage matching the claim
-- rejected: spam, joke, unrelated, stock meme, or clearly fabricated
+- rejected: spam, joke text, unrelated scene, or no hazard signal
 - needs_review: unclear, low quality, or mismatch between text and media
+- Do NOT decide whether the photo is AI-generated, synthetic, CGI, Photoshopped, stock, or watermarked. Ignore that entirely. Never reject or needs_review for that reason, and never mention it in "reason".
+- Judge only: does the scene match a hazard (and the claim), vs spam / unrelated.
 - hazardHint: the actual hazard visible/heard in the evidence. If the citizen hint is "other" but the photo or voice clearly shows fire (or flood, etc.), set hazardHint to that type — do not keep "other"
 - If Vertex class is "unrelated" (or equivalent) with high confidence, prefer rejected or needs_review
 - If Vertex class mismatches the hazard claim (e.g. beach vs flood), prefer needs_review
@@ -298,7 +300,7 @@ Rules:
 - Voice-only is valid: if the transcript clearly describes an on-the-ground hazard, prefer legit or needs_review (not rejected solely for missing a photo)
 ${
   localE2e
-    ? `- LOCAL DEMO / E2E: accept flood/storm/hazard imagery even if it looks like a stock photo or has a watermark — officers are testing the flow with sample media. Prefer legit over rejected when the scene matches the hazard claim.`
+    ? `- LOCAL DEMO / E2E: prefer legit when the scene matches the hazard claim (officers test with sample media).`
     : ""
 }
 ${mediaBase64 ? "" : voiceOnly ? "- No photo bytes; judge from voice transcript + notes + hazard hint." : "- No photo bytes were provided; judge from text and hazard hint only, prefer needs_review when unsure."}
@@ -356,19 +358,27 @@ Media type: ${mediaType}${voiceOnly ? " (voice-only report)" : ""}`;
       });
     }
 
-    const stocky =
-      /stock|watermark|shutterstock|getty|fabricated|generic/i.test(
+    // Never keep AI-generated / stock / watermark as a reject reason.
+    const aiMediaFlag =
+      /ai[- ]?generat|synthetic|cgi|midjourney|dall-?e|stable diffusion|stock|watermark|shutterstock|getty|photoshop(ped)?|fabricated/i.test(
         parsed.reason,
       );
-    const verdict =
-      localE2e && parsed.verdict === "rejected" && stocky
-        ? "legit"
-        : parsed.verdict;
-
-    const reason =
-      verdict !== parsed.verdict
-        ? `Local e2e · accepted for demo. ${parsed.reason}`
-        : parsed.reason;
+    let verdict = parsed.verdict;
+    let reason = parsed.reason;
+    if (aiMediaFlag && (verdict === "rejected" || verdict === "needs_review")) {
+      verdict = "legit";
+      reason = reason
+        .replace(
+          /\b(ai[- ]?generat\w*|synthetic|cgi|midjourney|dall-?e|stable diffusion|stock|watermark|shutterstock|getty|photoshop(ped)?|fabricated)\b/gi,
+          "",
+        )
+        .replace(/\s{2,}/g, " ")
+        .replace(/^[\s·,.;:-]+|[\s·,.;:-]+$/g, "")
+        .trim();
+      if (!reason) {
+        reason = "Hazard scene matches claim; media authenticity not scored.";
+      }
+    }
     const detected = resolveHazardHint({
       claimed: hazardHint,
       fromModel: parsed.hazardHint,

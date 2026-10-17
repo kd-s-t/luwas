@@ -23,14 +23,20 @@ import { useAuth } from "@/lib/auth/AuthProvider";
 import { isAccountActive, isOfficer } from "@/lib/auth/types";
 import {
   addEvacCenter,
+  ensureApasEvacCenters,
   ensureNangkaEvacCenters,
   subscribeEvacCenters,
   updateEvacCenter,
 } from "@/lib/evacCenters/api";
 import {
+  APAS_BARANGAY_DOC_ID,
+  APAS_ORG_NAME,
+} from "@/lib/evacCenters/apasSeed";
+import {
   NANGKA_BARANGAY_ID,
   NANGKA_ORG_NAME,
 } from "@/lib/evacCenters/nangkaSeed";
+import { createEvacStockRequestReport } from "@/lib/evacCenters/requestReport";
 import {
   EVAC_CENTER_CONDITIONS,
   emptyEvacStock,
@@ -156,15 +162,15 @@ function resolveBarangay(profile: ReturnType<typeof useAuth>["profile"]): {
   const areaId = (profile.areaId ?? profile.activeBarangayId)?.trim();
   if (areaId?.includes("apas")) {
     return {
-      barangayId: areaId,
-      orgName: profile.orgName || "Apas · Cebu City",
+      barangayId: APAS_BARANGAY_DOC_ID,
+      orgName: profile.orgName || APAS_ORG_NAME,
       lgu: "Cebu City",
       mapArea: {
         ...DEFAULT_MAP_AREA,
-        id: areaId,
+        id: "cebu-city/apas",
         barangay: "Apas",
         lgu: "Cebu City",
-        center: { lat: 10.332, lng: 123.905 },
+        center: { lat: 10.337229, lng: 123.90484 },
       },
     };
   }
@@ -356,6 +362,7 @@ export function EvacCentersPanel() {
   const [busy, setBusy] = useState(false);
   const [conditionBusyId, setConditionBusyId] = useState<string | null>(null);
   const [stockBusyId, setStockBusyId] = useState<string | null>(null);
+  const [requestBusyId, setRequestBusyId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const [name, setName] = useState("");
@@ -411,10 +418,15 @@ export function EvacCentersPanel() {
 
   useEffect(() => {
     if (!isOfficer(profile) || !isAccountActive(profile)) return;
-    if (barangayId !== NANGKA_BARANGAY_ID) return;
     if (seeded.current) return;
     seeded.current = true;
-    void ensureNangkaEvacCenters().catch(() => {
+    const run =
+      barangayId === APAS_BARANGAY_DOC_ID
+        ? ensureApasEvacCenters()
+        : barangayId === NANGKA_BARANGAY_ID
+          ? ensureNangkaEvacCenters()
+          : Promise.resolve();
+    void run.catch(() => {
       seeded.current = false;
     });
   }, [profile, barangayId]);
@@ -578,6 +590,32 @@ export function EvacCentersPanel() {
       );
     } finally {
       setStockBusyId(null);
+    }
+  }
+
+  async function requestRowStock(row: EvacCenter) {
+    if (!isOfficer(profile) || !isAccountActive(profile) || requestBusyId) {
+      return;
+    }
+    setRequestBusyId(row.id);
+    setError(null);
+    setMsg(null);
+    try {
+      const id = await createEvacStockRequestReport({
+        author: profile,
+        center: row,
+        barangay: mapArea.barangay,
+        lgu,
+      });
+      setMsg(`${row.name}: supply request ${id} filed.`);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Could not create supply request.",
+      );
+    } finally {
+      setRequestBusyId(null);
     }
   }
 
@@ -1024,6 +1062,14 @@ export function EvacCentersPanel() {
                   </div>
                 </div>
                 <div className="flex shrink-0 flex-col gap-2 sm:items-end">
+                  <button
+                    type="button"
+                    disabled={requestBusyId === row.id}
+                    onClick={() => void requestRowStock(row)}
+                    className="rounded-xl border border-[var(--foreground)] bg-[var(--foreground)] px-3 py-2 text-center text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
+                  >
+                    {requestBusyId === row.id ? "Requesting…" : "Request"}
+                  </button>
                   <a
                     href={directionsUrl(hallPoint, {
                       lat: row.lat,
