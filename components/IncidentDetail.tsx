@@ -698,7 +698,7 @@ export function IncidentDetail({
             </div>
             <Link
               href={`/admin/resources/assist?report=${encodeURIComponent(selected.id)}`}
-              className="shrink-0 border border-[var(--foreground)] bg-[var(--foreground)] px-3 py-1.5 font-mono text-[10px] tracking-wider text-white uppercase transition hover:opacity-90"
+              className="shrink-0 border border-[var(--foreground)] rounded-xl bg-[var(--foreground)] px-3 py-1.5 font-mono text-[10px] tracking-wider text-white uppercase transition hover:opacity-90"
             >
               Find assistance
             </Link>
@@ -990,7 +990,7 @@ export function IncidentDetail({
                   <li key={r.id}>
                     <Link
                       href={`${backHref}/${encodeURIComponent(r.id)}`}
-                      className="block w-full border border-[var(--border)] px-2.5 py-2 text-left text-xs transition hover:border-[var(--accent)]"
+                      className="block w-full rounded-xl border border-[var(--border)] px-2.5 py-2 text-left text-xs transition hover:border-[var(--accent)]"
                     >
                       <span className="font-medium">{r.title}</span>
                       <span className="mt-0.5 block text-[var(--muted)]">
@@ -1407,7 +1407,7 @@ export function IncidentDetail({
                 {inventorySuggestions.map(({ item, short }) => (
                   <li
                     key={item.id}
-                    className="flex flex-wrap items-center gap-3 border border-[var(--border)] px-3 py-2"
+                    className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--border)] px-3 py-2"
                   >
                     <div className="relative h-12 w-16 shrink-0 overflow-hidden border border-[var(--border)] bg-[var(--surface-raised)]">
                       {item.imageUrl ? (
@@ -1436,7 +1436,7 @@ export function IncidentDetail({
                     {short ? (
                       <Link
                         href={`/admin/resources/assist?report=${encodeURIComponent(selected.id)}`}
-                        className="shrink-0 border border-[var(--border)] px-2.5 py-1 font-mono text-[10px] tracking-wider uppercase transition hover:border-[var(--accent)]"
+                        className="shrink-0 rounded-xl border border-[var(--border)] px-2.5 py-1 font-mono text-[10px] tracking-wider uppercase transition hover:border-[var(--accent)]"
                       >
                         Find assistance
                       </Link>

@@ -56,6 +56,11 @@ body {
   select {
     font: inherit;
   }
+
+  /* Default control radius — utilities like rounded-full / rounded-none still win. */
+  button {
+    border-radius: 0.75rem; /* rounded-xl */
+  }
 }
 
 /* Native macOS/Chrome select arrows ignore padding; draw our own inset chevron. */

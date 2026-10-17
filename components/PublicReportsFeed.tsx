@@ -326,7 +326,7 @@ export function PublicReportsFeed() {
                 setSearch("");
                 setScopePick(null);
               }}
-              className="border border-[var(--border)] px-3 py-2 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase transition hover:border-[var(--accent)] hover:text-[var(--foreground)]"
+              className="rounded-xl border border-[var(--border)] px-3 py-2 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase transition hover:border-[var(--accent)] hover:text-[var(--foreground)]"
             >
               Clear
             </button>

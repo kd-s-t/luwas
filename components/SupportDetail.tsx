@@ -21,8 +21,43 @@ import {
   type SupportTicket,
   type SupportTicketStatus,
 } from "@/lib/support/api";
+import {
+  isSupportMediaFile,
+  isSupportVideoUrl,
+  supportMediaLimit,
+  uploadSupportMedia,
+} from "@/lib/support/upload";
 import { collection, onSnapshot } from "firebase/firestore";
 import { getClientDb } from "@/lib/firebase/client";
+
+function SupportMedia({ urls }: { urls: string[] }) {
+  if (urls.length === 0) return null;
+  return (
+    <ul className="mt-2 flex flex-wrap gap-2">
+      {urls.map((src) => (
+        <li key={src}>
+          {isSupportVideoUrl(src) ? (
+            <video
+              src={src}
+              controls
+              playsInline
+              className="max-h-64 max-w-full border border-[var(--border)]"
+            />
+          ) : (
+            <a href={src} target="_blank" rel="noreferrer" className="block">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={src}
+                alt=""
+                className="max-h-48 max-w-full border border-[var(--border)] object-contain"
+              />
+            </a>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 function statusVariant(
   status: SupportTicketStatus,
@@ -41,22 +76,51 @@ function statusLabel(status: SupportTicketStatus): string {
 function TicketChat({
   ticket,
   busy,
+  authorUid,
   onSend,
 }: {
   ticket: SupportTicket;
   busy: boolean;
-  onSend: (body: string) => Promise<void>;
+  authorUid: string;
+  onSend: (body: string, mediaUrls: string[]) => Promise<void>;
 }) {
   const [draft, setDraft] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
   const [sending, setSending] = useState(false);
+
+  useEffect(() => {
+    const urls = files.map((f) => URL.createObjectURL(f));
+    setPreviews(urls);
+    return () => {
+      for (const u of urls) URL.revokeObjectURL(u);
+    };
+  }, [files]);
+
+  function onPickFiles(list: FileList | null) {
+    if (!list) return;
+    const next = [...files];
+    for (const file of Array.from(list)) {
+      if (!isSupportMediaFile(file)) continue;
+      if (next.length >= supportMediaLimit()) break;
+      next.push(file);
+    }
+    setFiles(next);
+  }
 
   async function submit() {
     const body = draft.trim();
-    if (!body || busy || sending) return;
+    if ((!body && files.length === 0) || busy || sending) return;
     setSending(true);
     try {
-      await onSend(body);
+      const mediaUrls: string[] = [];
+      for (const file of files) {
+        const up = await uploadSupportMedia({ uid: authorUid, file });
+        mediaUrls.push(up.mediaUrl);
+      }
+      await onSend(body, mediaUrls);
       setDraft("");
+      setFiles([]);
     } finally {
       setSending(false);
     }
@@ -79,25 +143,85 @@ function TicketChat({
                   ? ` · ${new Date(m.createdAt).toLocaleString()}`
                   : ""}
               </p>
-              <p className="mt-1 text-sm whitespace-pre-wrap">{m.body}</p>
+              {m.body ? (
+                <p className="mt-1 text-sm whitespace-pre-wrap">{m.body}</p>
+              ) : null}
+              <SupportMedia urls={m.mediaUrls} />
             </li>
           ))
         )}
       </ul>
-      <div className="flex flex-col gap-2 sm:flex-row">
-        <textarea
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          rows={3}
-          placeholder="Reply…"
-          className="min-h-[4.5rem] flex-1 resize-y rounded-md border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
-          disabled={busy || sending}
-        />
+      {previews.length > 0 ? (
+        <ul className="flex flex-wrap gap-2">
+          {previews.map((src, i) => {
+            const file = files[i];
+            const video =
+              file?.type.startsWith("video/") ||
+              (file ? isSupportVideoUrl(file.name) : false);
+            return (
+              <li key={`${src}-${i}`} className="relative">
+                {video ? (
+                  <video
+                    src={src}
+                    className="h-16 w-24 border border-[var(--border)] object-cover"
+                    muted
+                    playsInline
+                  />
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={src}
+                    alt=""
+                    className="h-16 w-16 border border-[var(--border)] object-cover"
+                  />
+                )}
+                <button
+                  type="button"
+                  disabled={busy || sending}
+                  onClick={() =>
+                    setFiles((prev) => prev.filter((_, idx) => idx !== i))
+                  }
+                  className="absolute top-0.5 right-0.5 bg-black/70 px-1 text-[10px] text-white"
+                >
+                  Remove
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            rows={3}
+            placeholder="Reply…"
+            className="min-h-[4.5rem] w-full resize-y rounded-md border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
+            disabled={busy || sending}
+          />
+          {files.length < supportMediaLimit() ? (
+            <label className="inline-flex w-fit cursor-pointer border border-dashed border-[var(--border)] bg-white px-2.5 py-1.5 text-xs text-[var(--muted)] transition hover:border-[var(--accent)] hover:text-[var(--foreground)]">
+              <input
+                type="file"
+                accept="image/*,video/*"
+                multiple
+                disabled={busy || sending}
+                className="sr-only"
+                onChange={(e) => {
+                  onPickFiles(e.target.files);
+                  e.target.value = "";
+                }}
+              />
+              Add photo or video
+            </label>
+          ) : null}
+        </div>
         <Button
           type="button"
           size="sm"
           className="shrink-0 sm:w-24"
-          disabled={busy || sending || !draft.trim()}
+          disabled={busy || sending || (!draft.trim() && files.length === 0)}
           onClick={() => void submit()}
         >
           {sending ? "…" : "Send"}
@@ -208,7 +332,7 @@ export function SupportDetail({ ticketId }: { ticketId: string }) {
     await assign(profile.uid, profile.displayName || profile.email);
   }
 
-  async function sendMessage(body: string) {
+  async function sendMessage(body: string, mediaUrls: string[]) {
     if (!isDeveloper(profile) || !selected) return;
     setBusy(true);
     setError(null);
@@ -218,6 +342,7 @@ export function SupportDetail({ ticketId }: { ticketId: string }) {
         body,
         authorUid: profile.uid,
         authorName: profile.displayName || profile.email,
+        mediaUrls,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Message failed");
@@ -294,12 +419,14 @@ export function SupportDetail({ ticketId }: { ticketId: string }) {
             <p className="text-sm whitespace-pre-wrap text-[var(--muted)]">
               {selected.details || "—"}
             </p>
+            <SupportMedia urls={selected.mediaUrls} />
           </section>
           <section>
             <h2 className="mb-2 text-sm font-semibold">Thread</h2>
             <TicketChat
               ticket={selected}
               busy={busy}
+              authorUid={profile.uid}
               onSend={sendMessage}
             />
           </section>

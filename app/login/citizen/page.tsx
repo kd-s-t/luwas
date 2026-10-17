@@ -194,7 +194,7 @@ function CitizenLoginForm() {
                       type="button"
                       onClick={() => void loginAs(c)}
                       disabled={submitting}
-                      className={`border px-2 py-1 font-mono text-[10px] tracking-wider uppercase transition disabled:opacity-60 ${
+                      className={`rounded-xl border px-2 py-1 font-mono text-[10px] tracking-wider uppercase transition disabled:opacity-60 ${
                         selected
                           ? "border-[var(--accent)] text-[var(--foreground)]"
                           : "border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--foreground)]"
@@ -243,7 +243,7 @@ function CitizenLoginForm() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full bg-[var(--accent)] px-4 py-2.5 font-medium text-[var(--on-accent)] transition hover:bg-[var(--accent-dim)] disabled:opacity-60"
+            className="rounded-xl w-full bg-[var(--accent)] px-4 py-2.5 font-medium text-[var(--on-accent)] transition hover:bg-[var(--accent-dim)] disabled:opacity-60"
           >
             {submitting ? "Signing in…" : "Open citizen reports"}
           </button>

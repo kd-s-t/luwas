@@ -9,7 +9,9 @@ type Params = { params: Promise<{ path: string[] }> };
 export async function GET(_req: Request, { params }: Params) {
   const { path } = await params;
   const objectPath = path.map((p) => decodeURIComponent(p)).join("/");
-  if (!objectPath.startsWith("reports/") || objectPath.includes("..")) {
+  const allowed =
+    objectPath.startsWith("reports/") || objectPath.startsWith("support/");
+  if (!allowed || objectPath.includes("..")) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

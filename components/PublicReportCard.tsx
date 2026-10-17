@@ -487,7 +487,7 @@ export function PublicReportCard({
           disabled={busy}
           onClick={() => void onLike()}
           className={cn(
-            "inline-flex items-center gap-1.5 border px-3 py-1.5 text-sm transition",
+            "inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-sm transition",
             liked
               ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--on-accent)]"
               : "border-[var(--border)] text-[var(--foreground)] hover:border-[var(--accent)] hover:text-[var(--accent)]",
@@ -505,7 +505,7 @@ export function PublicReportCard({
           disabled={busy}
           onClick={() => void onReactExtra("helpful")}
           className={cn(
-            "border px-2.5 py-1.5 font-mono text-[10px] tracking-wider uppercase transition",
+            "rounded-xl border px-2.5 py-1.5 font-mono text-[10px] tracking-wider uppercase transition",
             myReaction?.type === "helpful"
               ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--on-accent)]"
               : "border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent)]",
@@ -518,7 +518,7 @@ export function PublicReportCard({
           disabled={busy}
           onClick={() => void onReactExtra("concern")}
           className={cn(
-            "border px-2.5 py-1.5 font-mono text-[10px] tracking-wider uppercase transition",
+            "rounded-xl border px-2.5 py-1.5 font-mono text-[10px] tracking-wider uppercase transition",
             myReaction?.type === "concern"
               ? "border-[var(--warn)] bg-[var(--warn)]/15 text-[var(--warn)]"
               : "border-[var(--border)] text-[var(--muted)] hover:border-[var(--warn)]",

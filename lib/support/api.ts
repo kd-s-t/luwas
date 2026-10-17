@@ -26,6 +26,8 @@ export type SupportMessage = {
   authorUid: string;
   authorName: string;
   createdAt: string;
+  /** Image and/or video proxy URLs. */
+  mediaUrls: string[];
 };
 
 export type SupportTicket = {
@@ -41,6 +43,8 @@ export type SupportTicket = {
   createdAt: string;
   assignedToUid: string | null;
   assignedToName: string | null;
+  /** Image and/or video proxy URLs. */
+  mediaUrls: string[];
   messages: SupportMessage[];
   resolvedAt: string | null;
   resolvedByUid: string | null;
@@ -55,7 +59,25 @@ export type SupportTicketInput = {
   details: string;
   /** Auth uid, or `"guest"` when not signed in. */
   uid: string;
+  /** Same-origin /api/media/… URLs from uploadSupportMedia. */
+  mediaUrls?: string[];
 };
+
+function mapMediaUrls(...raws: unknown[]): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of raws) {
+    if (!Array.isArray(raw)) continue;
+    for (const item of raw) {
+      const url = String(item ?? "").trim();
+      if (!url || url.length > 800 || seen.has(url)) continue;
+      seen.add(url);
+      out.push(url);
+      if (out.length >= 4) return out;
+    }
+  }
+  return out;
+}
 
 function mapTicket(
   id: string,
@@ -83,6 +105,7 @@ function mapTicket(
       data.assignedToUid != null ? String(data.assignedToUid) : null,
     assignedToName:
       data.assignedToName != null ? String(data.assignedToName) : null,
+    mediaUrls: mapMediaUrls(data.mediaUrls, data.imageUrls),
     messages: mapMessages(data.messages),
     resolvedAt: data.resolvedAt != null ? String(data.resolvedAt) : null,
     resolvedByUid:
@@ -101,13 +124,15 @@ function mapMessages(raw: unknown): SupportMessage[] {
     if (!item || typeof item !== "object") continue;
     const m = item as Record<string, unknown>;
     const body = String(m.body ?? "").trim();
-    if (!body) continue;
+    const mediaUrls = mapMediaUrls(m.mediaUrls, m.imageUrls);
+    if (!body && mediaUrls.length === 0) continue;
     rows.push({
       id: String(m.id ?? `${m.createdAt ?? ""}-${rows.length}`),
       body: body.slice(0, 2000),
       authorUid: String(m.authorUid ?? ""),
       authorName: String(m.authorName ?? "Officer"),
       createdAt: String(m.createdAt ?? ""),
+      mediaUrls,
     });
   }
   rows.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
@@ -121,6 +146,7 @@ export async function submitSupportTicket(input: SupportTicketInput) {
   if (summary.length > 200) throw new Error("Summary is too long.");
   if (details.length > 4000) throw new Error("Details are too long.");
   const uid = (input.uid.trim() || "guest").slice(0, 128);
+  const mediaUrls = mapMediaUrls(input.mediaUrls);
 
   await addDoc(collection(getClientDb(), "supportTickets"), {
     kind: "bug",
@@ -137,6 +163,7 @@ export async function submitSupportTicket(input: SupportTicketInput) {
     // All user-created tickets land with the developer team.
     assignedToUid: UGNAI_DEVELOPERS_ASSIGNEE.uid,
     assignedToName: UGNAI_DEVELOPERS_ASSIGNEE.name,
+    mediaUrls,
     messages: [],
     resolvedAt: null,
     resolvedByUid: null,
@@ -207,9 +234,13 @@ export async function addSupportTicketMessage(input: {
   body: string;
   authorUid: string;
   authorName: string;
+  mediaUrls?: string[];
 }): Promise<void> {
   const body = input.body.trim();
-  if (!body) throw new Error("Write a message first.");
+  const mediaUrls = mapMediaUrls(input.mediaUrls);
+  if (!body && mediaUrls.length === 0) {
+    throw new Error("Write a message or attach media.");
+  }
   if (body.length > 2000) throw new Error("Message is too long.");
   const now = new Date().toISOString();
   const message: SupportMessage = {
@@ -218,6 +249,7 @@ export async function addSupportTicketMessage(input: {
     authorUid: input.authorUid,
     authorName: input.authorName.trim().slice(0, 120) || "Officer",
     createdAt: now,
+    mediaUrls,
   };
   await updateDoc(doc(getClientDb(), "supportTickets", input.ticketId), {
     messages: arrayUnion(message),

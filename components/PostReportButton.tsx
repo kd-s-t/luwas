@@ -17,7 +17,7 @@ export function PostReportButton({
     <Link
       href="/report-incident"
       className={cn(
-        "border px-3 py-1.5 font-mono text-[10px] tracking-wider uppercase transition",
+        "rounded-xl border px-3 py-1.5 font-mono text-[10px] tracking-wider uppercase transition",
         active
           ? "border-[var(--accent)] bg-[var(--accent-dim)] text-[var(--on-accent)]"
           : "border-[var(--accent)] bg-[var(--accent)] text-[var(--on-accent)] hover:bg-[var(--accent-dim)]",

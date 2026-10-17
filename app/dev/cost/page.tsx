@@ -97,7 +97,7 @@ export default function DeveloperCostPage() {
                   <DialogTrigger asChild>
                     <button
                       type="button"
-                      className="inline-flex items-center gap-1.5 border border-[var(--border)] px-2 py-1 text-xs text-[var(--muted)] transition hover:border-[var(--foreground)]/40 hover:text-[var(--foreground)]"
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--border)] px-2 py-1 text-xs text-[var(--muted)] transition hover:border-[var(--foreground)]/40 hover:text-[var(--foreground)]"
                       aria-label="Unit rates"
                     >
                       <Info className="size-3.5" strokeWidth={2} />
@@ -144,7 +144,7 @@ export default function DeveloperCostPage() {
                   type="button"
                   onClick={() => setScenarioId(s.id)}
                   className={cn(
-                    "border px-3 py-1.5 text-sm transition",
+                    "rounded-xl border px-3 py-1.5 text-sm transition",
                     scenarioId === s.id
                       ? "border-[#0f1b2d] bg-[#0f1b2d] text-white"
                       : "border-[var(--border)] bg-transparent text-[var(--foreground)] hover:border-[var(--foreground)]/40",

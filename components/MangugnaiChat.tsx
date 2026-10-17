@@ -783,7 +783,7 @@ export function MangugnaiChat({
                           <button
                             type="button"
                             onClick={() => setCallListOpen(true)}
-                            className="inline-flex items-center gap-1 border border-[var(--accent)]/40 bg-[var(--accent)]/5 px-2 py-1 font-mono text-[10px] tracking-wider text-[var(--accent)] uppercase transition hover:bg-[var(--accent)]/10"
+                            className="rounded-xl inline-flex items-center gap-1 border border-[var(--accent)]/40 bg-[var(--accent)]/5 px-2 py-1 font-mono text-[10px] tracking-wider text-[var(--accent)] uppercase transition hover:bg-[var(--accent)]/10"
                           >
                             <List className="size-3" aria-hidden />
                             View evacuees

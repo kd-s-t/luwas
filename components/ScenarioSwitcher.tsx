@@ -39,7 +39,7 @@ export function ScenarioSwitcher({
               aria-selected={active}
               onClick={() => onChange(p)}
               className={cn(
-                "min-w-[3.25rem] whitespace-nowrap px-2.5 py-1.5 font-mono text-[9px] tracking-wider uppercase transition",
+                "min-w-[3.25rem] whitespace-nowrap rounded-xl px-2.5 py-1.5 font-mono text-[9px] tracking-wider uppercase transition",
                 active
                   ? "bg-[var(--accent)] text-white"
                   : "text-[var(--muted)] hover:bg-[var(--surface-panel)] hover:text-[var(--foreground)]",

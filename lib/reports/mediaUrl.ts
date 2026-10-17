@@ -11,7 +11,12 @@ export function resolveReportMediaUrl(url: string): string {
     const match = u.pathname.match(/\/v0\/b\/[^/]+\/o\/(.+)$/);
     if (!match) return raw;
     const objectPath = decodeURIComponent(match[1]);
-    if (!objectPath.startsWith("reports/")) return raw;
+    if (
+      !objectPath.startsWith("reports/") &&
+      !objectPath.startsWith("support/")
+    ) {
+      return raw;
+    }
     return `/api/media/${objectPath
       .split("/")
       .map((seg) => encodeURIComponent(seg))

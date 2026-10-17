@@ -94,7 +94,7 @@ export function HomeNav({ overlay = false }: HomeNavProps) {
       <Link
         href="/register"
         className={cn(
-          "border px-3 py-1.5 transition",
+          "rounded-xl border px-3 py-1.5 transition",
           onRegister
             ? "border-[var(--accent)] text-[var(--foreground)]"
             : "border-[var(--border)] hover:border-[var(--accent)] hover:text-[var(--foreground)]",
@@ -155,7 +155,7 @@ export function HomeNav({ overlay = false }: HomeNavProps) {
           />
           <button
             type="button"
-            className="flex h-9 w-9 items-center justify-center border border-[var(--border)] text-[var(--foreground)]"
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] text-[var(--foreground)]"
             aria-expanded={menuOpen}
             aria-controls={menuId}
             aria-label={menuOpen ? "Close menu" : "Open menu"}
@@ -196,7 +196,7 @@ export function HomeNav({ overlay = false }: HomeNavProps) {
           />
           <nav
             id={menuId}
-            className="absolute inset-x-3 top-full z-50 mt-1 flex flex-col gap-3 border border-[var(--border)] bg-[var(--surface)] px-4 py-4 text-sm shadow-sm md:hidden"
+            className="absolute inset-x-3 top-full z-50 mt-1 flex flex-col gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-4 text-sm shadow-sm md:hidden"
           >
             <Link
               href="/evac-centers"
