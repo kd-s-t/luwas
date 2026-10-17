@@ -8,12 +8,11 @@ import { useAuth } from "@/lib/auth/AuthProvider";
 import type { EeRunJob, EeRunMeta } from "@/lib/geo/eeRunTypes";
 import { cn } from "@/lib/utils";
 
-type ActiveFile = {
+type DatasetRow = {
   name: string;
   bytes: number;
   mtime: string | null;
-  storagePath?: string;
-  bucket?: string;
+  datasetId?: string;
 };
 
 type RunsResponse = {
@@ -22,7 +21,8 @@ type RunsResponse = {
   projectId: string | null;
   error: string | null;
   storageBucket?: string | null;
-  activeFiles: ActiveFile[];
+  activeFiles: DatasetRow[];
+  datasets?: DatasetRow[];
   runs: EeRunMeta[];
 };
 
@@ -126,7 +126,7 @@ export function EarthEngineAdminPanel() {
   }
 
   const busy = Boolean(running || data?.busy);
-  const files = data?.activeFiles ?? [];
+  const files = data?.datasets ?? data?.activeFiles ?? [];
   const runs = data?.runs ?? [];
   const freshest = files.reduce<string | null>((best, f) => {
     if (!f.mtime) return best;
@@ -158,7 +158,7 @@ export function EarthEngineAdminPanel() {
                   <span aria-hidden className="text-[var(--border)]">
                     ·
                   </span>
-                  <span>Cache {formatWhen(freshest)}</span>
+                  <span>Updated {formatWhen(freshest)}</span>
                 </>
               ) : null}
               {busy ? <Badge variant="warn">Running</Badge> : null}
@@ -201,10 +201,10 @@ export function EarthEngineAdminPanel() {
       <section>
         <div className="mb-3 flex items-baseline justify-between gap-3">
           <h3 className="font-mono text-[10px] tracking-[0.16em] text-[var(--muted)] uppercase">
-            Active cache
+            Database
           </h3>
           <span className="font-mono text-[10px] text-[var(--muted)]">
-            {files.filter((f) => f.bytes > 0).length}/{files.length || 0} files
+            {files.filter((f) => f.bytes > 0).length}/{files.length || 0} rows
           </span>
         </div>
         <ul className="divide-y divide-[var(--border)] border border-[var(--border)] bg-[var(--surface)]">
@@ -213,9 +213,10 @@ export function EarthEngineAdminPanel() {
               Loading…
             </li>
           ) : null}
-          {!loading && files.length === 0 ? (
+          {!loading && files.every((f) => f.bytes === 0) ? (
             <li className="px-4 py-8 text-center text-sm text-[var(--muted)]">
-              No cache yet. Run engine to pull Cebu data.
+              No rows yet. Run engine to write Cebu DEM and hazards to the
+              database.
             </li>
           ) : null}
           {files.map((f) => (
@@ -228,7 +229,9 @@ export function EarthEngineAdminPanel() {
                   {fileLabel(f.name)}
                 </p>
                 <p className="mt-0.5 font-mono text-[11px] text-[var(--muted)]">
-                  {f.name}
+                  {f.datasetId
+                    ? `ee_datasets/${f.datasetId}`
+                    : f.name}
                 </p>
               </div>
               <div className="flex items-center gap-4 text-[12px] text-[var(--muted)]">

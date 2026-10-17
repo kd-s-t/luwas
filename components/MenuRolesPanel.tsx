@@ -1,87 +1,105 @@
-/** Reference only — not enforced in the app yet. */
+/** App roles — matches `UserRole` in lib/auth/types. */
 const MENU_ROLE_LEVELS = [
   {
-    level: "Level 1",
-    title: "Field",
-    who: "Tanod, BHW, volunteer, general staff",
+    level: "Citizen",
+    title: "Resident",
+    who: "Household residents, guests filing reports",
     summary:
-      "Purok-facing work: see the map, handle field reports in scope, read house owners. No staff hire/fire, no barangay-wide blasts, no onboard.",
+      "Public and citizen surfaces: report incidents, track own reports, find assistance, view evac centers and barangay pages. No command center.",
   },
   {
-    level: "Level 2",
-    title: "Ops / council",
-    who: "Secretary, Treasurer, Kagawad, SK, MDRRMO, Tanod chief",
+    level: "Officer",
+    title: "Command",
+    who: "Captain, MDRRMO, tanod, LGU / barangay staff",
     summary:
-      "Day-to-day command: Level 1 plus edit house owners, verify reports, use texts/alerts for the barangay, view Users. Still no hire/fire officers or onboard a new barangay.",
+      "Barangay command center: overview, incidents, resources, households, citizens, officers, inventory, partners, evac centers, and own support tickets.",
   },
   {
-    level: "Level 3",
-    title: "Punong Barangay",
-    who: "Barangay captain",
+    level: "Developer",
+    title: "Platform",
+    who: "UGNAI developers (Nexora Labs)",
     summary:
-      "Can do all and see all — full command, staff, households, onboard, and every menu.",
+      "Developer console: users across barangays, onboard, Earth Engine, support triage, flows, cost, and role reference. Not day-to-day field command.",
   },
 ] as const;
 
 const MENU_ROLE_MATRIX: {
   menu: string;
-  l1: string;
-  l2: string;
-  l3: string;
+  citizen: string;
+  officer: string;
+  developer: string;
 }[] = [
   {
+    menu: "Public home / map",
+    citizen: "Full",
+    officer: "Full",
+    developer: "Full",
+  },
+  {
+    menu: "Report incident",
+    citizen: "File & track own",
+    officer: "Via incidents board",
+    developer: "Via /dev/incidents",
+  },
+  {
+    menu: "My reports",
+    citizen: "Full",
+    officer: "—",
+    developer: "—",
+  },
+  {
     menu: "Command center",
-    l1: "View map & workspace",
-    l2: "View + triage decisions",
-    l3: "Full",
+    citizen: "—",
+    officer: "Full (/admin)",
+    developer: "—",
   },
   {
     menu: "Incidents",
-    l1: "View / validate in purok",
-    l2: "Verify & prioritize all",
-    l3: "Full",
+    citizen: "Own reports only",
+    officer: "Triage & assign",
+    developer: "Read / triage (/dev)",
   },
   {
-    menu: "House owners",
-    l1: "Read only",
-    l2: "Read + edit roster",
-    l3: "Full",
+    menu: "Resources / inventory",
+    citizen: "—",
+    officer: "Full",
+    developer: "—",
   },
   {
-    menu: "Citizens",
-    l1: "View citizens",
-    l2: "View + validate",
-    l3: "Full",
+    menu: "Home owners / citizens",
+    citizen: "—",
+    officer: "Validate & edit",
+    developer: "Users list (/dev)",
   },
   {
-    menu: "Officers",
-    l1: "View hierarchy",
-    l2: "View roster",
-    l3: "Full · add / fire staff",
+    menu: "Officers roster",
+    citizen: "—",
+    officer: "Full",
+    developer: "Via Users",
   },
   {
-    menu: "Texts / alerts",
-    l1: "Receive only",
-    l2: "Draft & send barangay alerts",
-    l3: "Full",
+    menu: "Support tickets",
+    citizen: "File own (/support)",
+    officer: "File own (/admin/support)",
+    developer: "Triage all (/dev/support)",
   },
   {
-    menu: "Onboard",
-    l1: "—",
-    l2: "—",
-    l3: "Full",
+    menu: "Onboard barangay",
+    citizen: "—",
+    officer: "Limited (/admin/onboard)",
+    developer: "Full (/dev/onboard)",
   },
   {
     menu: "Earth Engine",
-    l1: "—",
-    l2: "—",
-    l3: "Developers only · DEM / hazards",
+    citizen: "—",
+    officer: "—",
+    developer: "Full",
   },
   {
-    menu: "Barangays / Profile",
-    l1: "Own profile",
-    l2: "Own profile",
-    l3: "Full",
+    menu: "Flows / cost / refs",
+    citizen: "—",
+    officer: "—",
+    developer: "Full",
   },
 ];
 
@@ -96,7 +114,7 @@ export function MenuRolesPanel() {
           Roles
         </h2>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Suggested access by level — info only, not applied in the app yet.
+          Citizen, officer, and developer — the three account roles in the app.
         </p>
       </div>
 
@@ -122,9 +140,9 @@ export function MenuRolesPanel() {
           <thead className="bg-[var(--surface-panel)] font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
             <tr>
               <th className="px-3 py-2.5 font-medium">Menu</th>
-              <th className="px-3 py-2.5 font-medium">Level 1 · Field</th>
-              <th className="px-3 py-2.5 font-medium">Level 2 · Ops</th>
-              <th className="px-3 py-2.5 font-medium">Level 3 · Captain</th>
+              <th className="px-3 py-2.5 font-medium">Citizen</th>
+              <th className="px-3 py-2.5 font-medium">Officer</th>
+              <th className="px-3 py-2.5 font-medium">Developer</th>
             </tr>
           </thead>
           <tbody>
@@ -134,9 +152,15 @@ export function MenuRolesPanel() {
                 className="border-t border-[var(--border)]/70"
               >
                 <td className="px-3 py-2.5 font-medium">{row.menu}</td>
-                <td className="px-3 py-2.5 text-[var(--muted)]">{row.l1}</td>
-                <td className="px-3 py-2.5 text-[var(--muted)]">{row.l2}</td>
-                <td className="px-3 py-2.5 text-[var(--accent)]">{row.l3}</td>
+                <td className="px-3 py-2.5 text-[var(--muted)]">
+                  {row.citizen}
+                </td>
+                <td className="px-3 py-2.5 text-[var(--muted)]">
+                  {row.officer}
+                </td>
+                <td className="px-3 py-2.5 text-[var(--accent)]">
+                  {row.developer}
+                </td>
               </tr>
             ))}
           </tbody>

@@ -266,19 +266,23 @@ export function CitizenFooter({
         marginLeft: "calc(50% - 50vw)",
       }}
       className={cn(
-        "relative mt-auto box-border flex min-h-0 flex-1 flex-col border-t border-[var(--border)] text-center",
-        tight ? "pt-3 pb-6" : "py-5 pb-8",
+        "relative mt-auto box-border shrink-0 border-t border-[var(--border)] text-center",
+        tight ? "pt-3 pb-5" : "py-4 pb-6",
       )}
     >
-      <div className="mx-auto w-full max-w-md space-y-3 px-4 sm:px-5">
+      <div className="mx-auto flex w-full max-w-md flex-wrap items-center justify-center gap-x-3 gap-y-1 px-4 sm:px-5">
         <p className="text-xs text-[var(--muted)]">
           {t(language, "footer.tagline")}
         </p>
-        <div className="flex items-center justify-center gap-4 text-[11px] font-medium text-[#2563eb]">
-          <Link href="/privacy" className="hover:underline">
-            {t(language, "footer.privacy")}
-          </Link>
-        </div>
+        <span className="text-[11px] text-[var(--muted)]" aria-hidden>
+          ·
+        </span>
+        <Link
+          href="/privacy"
+          className="text-[11px] font-medium text-[#2563eb] hover:underline"
+        >
+          {t(language, "footer.privacy")}
+        </Link>
       </div>
     </div>
   );

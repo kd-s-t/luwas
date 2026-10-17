@@ -153,11 +153,15 @@ export async function triggerAutoResponderCall(
     const data = (await res.json()) as {
       error?: string;
       sent?: number;
+      provider?: { call?: string; sms?: string };
       results?: Array<{
         channel?: string;
         ok?: boolean;
         ownerName?: string;
         error?: string;
+        sandbox?: boolean;
+        dialedTo?: string;
+        provider?: string;
       }>;
     };
     if (!res.ok) {
@@ -189,6 +193,16 @@ export async function triggerAutoResponderCall(
           .map((r) => String(r.error)),
       ),
     ];
+    const sandboxDialed = [
+      ...new Set(
+        (data.results ?? [])
+          .filter((r) => r.ok && r.sandbox && r.dialedTo)
+          .map((r) => String(r.dialedTo)),
+      ),
+    ];
+    const demoOnly = (data.results ?? []).some(
+      (r) => r.ok && r.provider === "demo",
+    );
     // Voice alone is enough (US Twilio SMS often cannot text PH mobiles).
     if (called.length === 0 && texted.length === 0) {
       return {
@@ -201,11 +215,18 @@ export async function triggerAutoResponderCall(
       };
     }
 
+    let summary = buildDispatchSummary({ called, texted });
+    if (sandboxDialed.length > 0) {
+      summary += ` · Sandbox redirected to ${sandboxDialed.join(", ")} (not station phones)`;
+    } else if (demoOnly) {
+      summary += " · Demo mode (no real dial)";
+    }
+
     const dispatchLog: ReportDispatchLog = {
       at: now,
       called,
       texted,
-      summary: buildDispatchSummary({ called, texted }),
+      summary,
     };
 
     try {

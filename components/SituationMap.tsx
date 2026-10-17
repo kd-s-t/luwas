@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { AreaSearchSelect } from "@/components/AreaSearchSelect";
 import { CommandAreaMapMount } from "@/components/CommandAreaMapMount";
 import { MangugnaiChat } from "@/components/MangugnaiChat";
@@ -122,6 +128,8 @@ type SituationMapProps = {
   hideWeather?: boolean;
   /** Hide Before/During/After phase switcher on the map. */
   hideScenarioSwitcher?: boolean;
+  /** Right-side actions on the phase bar (e.g. Exit on /admin/full). */
+  scenarioBarTrailing?: ReactNode;
 };
 
 export function SituationMap({
@@ -132,6 +140,7 @@ export function SituationMap({
   hideAreaPanel = false,
   hideWeather = false,
   hideScenarioSwitcher = false,
+  scenarioBarTrailing,
 }: SituationMapProps) {
   const { profile } = useAuth();
   const defaultArea = useMemo(() => {
@@ -467,7 +476,6 @@ export function SituationMap({
             : "border-b border-[var(--border)]"
       }`}
     >
-      {!hideScenarioSwitcher ? <ScenarioMapOverlay variant="bar" /> : null}
       <div
         className={
           hideChat
@@ -499,6 +507,12 @@ export function SituationMap({
             escapeRoutes={mapEscapes}
             scenarioPhase={phase}
           />
+          {!hideScenarioSwitcher ? (
+            <ScenarioMapOverlay
+              variant="float"
+              trailing={scenarioBarTrailing}
+            />
+          ) : null}
           {hideChat && !hideAreaPanel ? (
             <div className="pointer-events-none absolute bottom-14 left-3 z-[1000] max-w-[min(100%,16rem)] sm:bottom-16">
               <div className="pointer-events-auto space-y-1 rounded-xl border border-white/80 bg-white/95 px-2.5 py-2 shadow-md backdrop-blur-sm">

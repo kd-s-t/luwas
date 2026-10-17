@@ -179,11 +179,31 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
           : null,
     dispatchedAt:
       data.dispatchedAt != null ? String(data.dispatchedAt) : null,
+    reporterDispatchNotifiedAt:
+      data.reporterDispatchNotifiedAt != null
+        ? String(data.reporterDispatchNotifiedAt)
+        : null,
     dispatchLog: mapDispatchLog(data.dispatchLog),
     manualDispatchChecked: Boolean(data.manualDispatchChecked),
+    proposalChecklist:
+      data.proposalChecklist &&
+      typeof data.proposalChecklist === "object" &&
+      !Array.isArray(data.proposalChecklist)
+        ? Object.fromEntries(
+            Object.entries(
+              data.proposalChecklist as Record<string, unknown>,
+            ).map(([k, v]) => [k, Boolean(v)]),
+          )
+        : {},
     fieldEvidence: Array.isArray(data.fieldEvidence)
       ? (data.fieldEvidence as HazardReport["fieldEvidence"])
       : [],
+    fieldNotes:
+      data.fieldNotes != null && String(data.fieldNotes).trim()
+        ? String(data.fieldNotes).trim()
+        : null,
+    fieldNotesAt:
+      data.fieldNotesAt != null ? String(data.fieldNotesAt) : null,
     reporterIdVerified: Boolean(data.reporterIdVerified),
     reporterEmail:
       data.reporterEmail != null ? String(data.reporterEmail) : null,

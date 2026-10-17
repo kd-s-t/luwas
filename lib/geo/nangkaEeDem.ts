@@ -28,8 +28,8 @@ export function getNangkaEeDemMeta(): Omit<NangkaEeDemFile, "samples"> {
 }
 
 /**
- * Active Nangka elevation grid: Earth Engine cache when present, else static
- * Google Elevation samples.
+ * Nangka elevation grid: EE samples from bundled seed when present, else static
+ * Google Elevation samples. Live rows live in Firestore ee_datasets/nangka-dem.
  */
 export function getNangkaElevGrid(): ElevSample[] {
   if (hasNangkaEeDem()) return cached.samples as ElevSample[];

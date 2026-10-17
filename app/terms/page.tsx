@@ -32,7 +32,7 @@ export default function TermsPage() {
               href="/about"
               className="text-[var(--accent)] underline-offset-2 hover:underline"
             >
-              UgnAI Labs Co.
+              Nexora Labs Co.
             </Link>
             . Subscribing barangays and LGUs use it for training, coordination,
             and operational support. It is not a government system, not donated

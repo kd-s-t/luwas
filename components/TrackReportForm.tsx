@@ -258,6 +258,14 @@ function buildUpdates(
     body: t(language, "track.updateReceivedBody"),
   });
 
+  if (report.fieldNotes?.trim()) {
+    items.unshift({
+      at: report.fieldNotesAt || report.updatedAt || report.createdAt,
+      title: "Field update",
+      body: report.fieldNotes.trim(),
+    });
+  }
+
   return items;
 }
 

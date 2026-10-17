@@ -371,6 +371,14 @@ export function CommandOverview() {
               fillRemaining
               hideChat
               hideAreaPanel
+              scenarioBarTrailing={
+                <Link
+                  href="/admin/full"
+                  className="rounded-md border border-[var(--border)] bg-[var(--surface-raised)]/95 px-2.5 py-1.5 text-[12px] font-medium text-[#2f5f9e] shadow-sm backdrop-blur hover:underline"
+                >
+                  View full command center →
+                </Link>
+              }
             />
           ) : null}
         </div>

@@ -249,6 +249,7 @@ export async function ensureMySampleReports(input: {
       autoResponderCallAt:
         sample.status === "legit" && sample.dispatch ? now : null,
       dispatchedAt: null,
+      reporterDispatchNotifiedAt: null,
       dispatchLog:
         sample.status === "legit" && sample.dispatch
           ? ({
@@ -259,7 +260,10 @@ export async function ensureMySampleReports(input: {
             } satisfies ReportDispatchLog)
           : null,
       manualDispatchChecked: false,
+      proposalChecklist: {},
       fieldEvidence: [],
+      fieldNotes: null,
+      fieldNotesAt: null,
       reporterIdVerified: Boolean(input.idVerified),
       reporterEmail: input.email?.trim() || null,
       reporterPhone: input.phone?.trim() || null,

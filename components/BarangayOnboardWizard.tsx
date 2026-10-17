@@ -65,7 +65,7 @@ const ORIENTATION_POINTS = [
   },
   {
     title: "From the UGNAI Devs",
-    body: "UgnAI Labs sells UGNAI as a paid product. Subscribing barangays activate the same way. If something’s unclear, note it for Support — we iterate with paying customers.",
+    body: "Nexora Labs sells UGNAI as a paid product. Subscribing barangays activate the same way. If something’s unclear, note it for Support — we iterate with paying customers.",
   },
 ] as const;
 
@@ -447,7 +447,7 @@ export function BarangayOnboardWizard({ defaultOrgName = "" }: Props) {
       {draft.step === "orientation" ? (
         <section className="border border-[var(--border)] bg-[var(--surface-raised)] p-4 sm:p-5">
           <p className="font-mono text-[10px] tracking-[0.16em] text-[var(--accent)]">
-            From the UGNAI Devs · UgnAI Labs
+            From the UGNAI Devs · Nexora Labs
           </p>
           <h2 className="mt-1 font-[family-name:var(--font-display)] text-xl font-semibold">
             Orientation

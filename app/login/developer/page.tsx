@@ -49,7 +49,7 @@ export default function DeveloperLoginPage() {
       displayName: member.name,
       role: "developer" as const,
       accountStatus: "active" as const,
-      orgName: `UgnAI Labs · ${member.role}`,
+      orgName: `Nexora Labs · ${member.role}`,
       idVerified: true,
       createdAt: now,
       updatedAt: now,
@@ -137,7 +137,7 @@ export default function DeveloperLoginPage() {
     <AuthGate mode="guest">
       <AuthCard
         title="Developer login"
-        subtitle="UgnAI Labs · the four people on About us."
+        subtitle="Nexora Labs · the four people on About us."
         footer={
           <>
             <Link href="/login" className="text-[var(--accent)] hover:underline">

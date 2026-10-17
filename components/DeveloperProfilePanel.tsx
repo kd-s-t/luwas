@@ -132,7 +132,7 @@ export function DeveloperProfilePanel() {
             onChange={(e) => setOrgName(e.target.value)}
             disabled={busy}
             maxLength={120}
-            placeholder="UgnAI Labs · Fullstack Engineer"
+            placeholder="Nexora Labs · Fullstack Engineer"
             className="w-full border border-[var(--border)] bg-white px-3 py-2.5 text-sm outline-none focus:border-[#1d4ed8]"
           />
         </label>

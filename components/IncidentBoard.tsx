@@ -17,6 +17,7 @@ import { TrustScoreInfo } from "@/components/TrustScoreInfo";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { isOfficer, type OfficerProfile } from "@/lib/auth/types";
 import { triggerInvestigatorNotify } from "@/lib/alerts/notifyInvestigator";
+import { triggerReporterDispatchNotify } from "@/lib/alerts/notifyReporter";
 import {
   setReportAssignees,
   updateReportStatus,
@@ -399,6 +400,9 @@ export function IncidentBoard() {
         return;
       }
       await updateReportStatus(report.id, col.dropStatus);
+      if (col.dropStatus === "dispatched") {
+        void triggerReporterDispatchNotify(report);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Move failed");
     } finally {

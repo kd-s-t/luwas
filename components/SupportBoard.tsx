@@ -8,8 +8,8 @@ import {
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
-import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import {
   isAccountActive,
@@ -59,13 +59,17 @@ const COLUMNS: BoardColumn[] = [
 
 const DRAG_TYPE = "application/x-ugnai-support-ticket";
 
-function statusVariant(
-  status: SupportTicketStatus,
-): "default" | "outline" | "warn" | "danger" | "success" {
-  if (status === "open") return "danger";
-  if (status === "in_progress") return "warn";
-  if (status === "resolved") return "success";
-  return "outline";
+function statusTone(status: SupportTicketStatus) {
+  if (status === "open") {
+    return "bg-[#c72929]/10 text-[#c72929] ring-[#c72929]/25";
+  }
+  if (status === "in_progress") {
+    return "bg-[#fff7ed] text-[#c2410c] ring-[#fdba74]/70";
+  }
+  if (status === "resolved") {
+    return "bg-[#ecfdf3] text-[#16794c] ring-[#86efac]/60";
+  }
+  return "bg-[var(--foreground)]/6 text-[var(--muted)] ring-[var(--border)]";
 }
 
 function statusLabel(status: SupportTicketStatus): string {
@@ -216,6 +220,11 @@ export function SupportBoard() {
     return map;
   }, [developers, profile]);
 
+  const assignTicketRow = useMemo(
+    () => (assignMenuId ? rows.find((t) => t.id === assignMenuId) : null),
+    [assignMenuId, rows],
+  );
+
   async function moveTicket(ticketId: string, status: SupportTicketStatus) {
     if (!isDeveloper(profile)) return;
     const ticket = rows.find((t) => t.id === ticketId);
@@ -253,8 +262,7 @@ export function SupportBoard() {
     if (!isDeveloper(profile)) return;
     setBusyId(ticket.id);
     setError(null);
-    const promote =
-      Boolean(assigneeUid) && ticket.status === "open";
+    const promote = Boolean(assigneeUid) && ticket.status === "open";
     setRows((prev) =>
       prev.map((t) =>
         t.id === ticket.id
@@ -293,12 +301,24 @@ export function SupportBoard() {
     );
   }
 
+  const q = assignQuery.trim().toLowerCase();
+  const match = (label: string) => !q || label.toLowerCase().includes(q);
+  const filteredDevelopers = developers.filter(
+    (d) =>
+      d.uid !== profile?.uid &&
+      match(`${d.displayName || ""} ${d.email || ""}`),
+  );
+  const showMe =
+    isDeveloper(profile) &&
+    match(`me ${profile.displayName || ""} ${profile.email || ""}`);
+  const showUnassigned = !q || "unassigned".includes(q);
+
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-[var(--surface)]">
-      <div className="shrink-0 border-b border-[var(--border)] bg-[var(--surface-raised)]/90 px-4 py-3 sm:px-6">
+      <div className="sticky top-0 z-10 shrink-0 border-b border-[var(--border)] bg-[var(--surface-raised)]/95 px-4 py-3 backdrop-blur-sm sm:px-6">
         <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
           <p className="font-mono text-[9px] tracking-[0.2em] text-[var(--accent)] uppercase">
-            Product support
+            Support
           </p>
           <Link
             href="/dev"
@@ -315,12 +335,12 @@ export function SupportBoard() {
               </h1>
             </div>
             <p className="text-xs text-[var(--muted)]">
-              {openCount} open · drag to change status · assign on the card
+              {openCount} open · drag cards across columns
             </p>
           </div>
           <Link
             href="/dev/support/new"
-            className="font-mono text-[10px] tracking-wider text-[var(--accent)] uppercase transition hover:underline"
+            className="rounded-lg bg-[var(--foreground)] px-3 py-2 text-[12px] font-semibold text-white transition hover:opacity-90"
           >
             New ticket
           </Link>
@@ -342,13 +362,13 @@ export function SupportBoard() {
           </p>
           <Link
             href="/dev/support/new"
-            className="mt-2 font-mono text-[10px] tracking-wider text-[var(--accent)] uppercase hover:underline"
+            className="mt-2 rounded-lg bg-[var(--foreground)] px-3 py-2 text-[12px] font-semibold text-white transition hover:opacity-90"
           >
             New ticket
           </Link>
         </div>
       ) : (
-        <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-x-auto px-3 py-3 sm:grid-cols-2 sm:px-4 sm:py-4 xl:grid-cols-4">
+        <div className="flex min-h-0 w-full flex-1 items-stretch gap-2 overflow-x-auto px-3 py-3 sm:gap-3 sm:px-4 sm:py-4">
           {COLUMNS.map((col) => {
             const cards = rows.filter(col.match);
             const isOver = dropTarget === col.id;
@@ -356,10 +376,10 @@ export function SupportBoard() {
               <section
                 key={col.id}
                 className={cn(
-                  "flex min-h-0 min-w-0 flex-col rounded-lg border bg-[var(--surface-panel)]/40 transition",
+                  "flex w-[17.5rem] shrink-0 flex-col self-stretch rounded-2xl border bg-[#eef1f5] transition sm:w-[18.5rem]",
                   isOver
                     ? "border-[var(--accent)] bg-[var(--accent)]/5"
-                    : "border-[var(--border)]",
+                    : "border-transparent",
                 )}
                 onDragOver={(e) => {
                   e.preventDefault();
@@ -383,313 +403,164 @@ export function SupportBoard() {
                   setDraggingId(null);
                 }}
               >
-                <header className="flex shrink-0 items-baseline justify-between gap-2 border-b border-[var(--border)] px-3 py-2.5">
-                  <h2 className="font-mono text-[10px] tracking-[0.16em] text-[var(--muted)] uppercase">
+                <header className="flex shrink-0 items-baseline justify-between gap-2 px-3.5 pt-3.5 pb-2">
+                  <h2 className="text-[11px] font-bold tracking-[0.14em] text-[var(--foreground)] uppercase">
                     {col.label}
                   </h2>
-                  <span className="font-mono text-[10px] tabular-nums text-[var(--foreground)]">
+                  <span className="text-[11px] tabular-nums text-[var(--muted)]">
                     {cards.length}
                   </span>
                 </header>
-                <ul
-                  className={cn(
-                    "min-h-0 flex-1 space-y-2 p-2",
-                    assignMenuId ? "overflow-visible" : "overflow-y-auto",
-                  )}
-                >
+                <ul className="flex min-h-0 flex-1 flex-col space-y-2.5 overflow-y-auto px-2.5 pb-2.5">
                   {cards.length === 0 ? (
-                    <li className="pointer-events-none px-2 py-6 text-center text-xs text-[var(--muted)]">
-                      {isOver ? "Drop here" : "No cards"}
+                    <li className="flex flex-1 items-start justify-center px-2 pt-6 text-center text-xs text-[var(--muted)]">
+                      Drop here
                     </li>
                   ) : (
-                    cards.map((t) => (
-                      <li key={t.id}>
-                        <div
-                          draggable={busyId !== t.id}
-                          onDragStart={(e) => {
-                            const target = e.target as HTMLElement;
-                            if (
-                              target.closest("select") ||
-                              target.closest("a") ||
-                              target.closest("button")
-                            ) {
-                              e.preventDefault();
-                              return;
-                            }
-                            draggedRef.current = false;
-                            setDraggingId(t.id);
-                            e.dataTransfer.setData(DRAG_TYPE, t.id);
-                            e.dataTransfer.setData("text/plain", t.id);
-                            e.dataTransfer.effectAllowed = "move";
-                          }}
-                          onDrag={() => {
-                            draggedRef.current = true;
-                          }}
-                          onDragEnd={() => {
-                            setDraggingId(null);
-                            setDropTarget(null);
-                            window.setTimeout(() => {
+                    cards.map((t) => {
+                      const assigned =
+                        !isPlaceholderAssignee(
+                          t.assignedToUid,
+                          t.assignedToName,
+                        ) && Boolean(t.assignedToUid || t.assignedToName);
+                      const assigneeName =
+                        t.assignedToName ||
+                        developerByUid.get(t.assignedToUid ?? "")
+                          ?.displayName ||
+                        "Developer";
+                      return (
+                        <li key={t.id}>
+                          <div
+                            draggable={busyId !== t.id}
+                            onDragStart={(e) => {
+                              const target = e.target as HTMLElement;
+                              if (
+                                target.closest("a") ||
+                                target.closest("button")
+                              ) {
+                                e.preventDefault();
+                                return;
+                              }
                               draggedRef.current = false;
-                            }, 0);
-                          }}
-                          className={cn(
-                            "rounded-md border border-[var(--border)] bg-[var(--surface-raised)] px-3 py-2.5 transition",
-                            "hover:border-[var(--accent)]/50 hover:bg-[var(--surface)]",
-                            draggingId === t.id && "opacity-50",
-                            busyId === t.id && "opacity-60",
-                            busyId === t.id
-                              ? "cursor-wait"
-                              : "cursor-grab active:cursor-grabbing",
-                          )}
-                        >
-                          <div className="flex items-start justify-between gap-2">
+                              setDraggingId(t.id);
+                              closeAssignMenu();
+                              e.dataTransfer.setData(DRAG_TYPE, t.id);
+                              e.dataTransfer.setData("text/plain", t.id);
+                              e.dataTransfer.effectAllowed = "move";
+                            }}
+                            onDrag={() => {
+                              draggedRef.current = true;
+                            }}
+                            onDragEnd={() => {
+                              setDraggingId(null);
+                              setDropTarget(null);
+                              window.setTimeout(() => {
+                                draggedRef.current = false;
+                              }, 0);
+                            }}
+                            className={cn(
+                              "group relative cursor-grab rounded-xl border border-[var(--border)] bg-white px-3.5 py-3 transition active:cursor-grabbing",
+                              "hover:border-[#93c5fd]/80",
+                              (busyId === t.id || draggingId === t.id) &&
+                                "opacity-60",
+                              busyId === t.id && "cursor-wait",
+                            )}
+                          >
                             <Link
                               href={`/dev/support/${encodeURIComponent(t.id)}`}
-                              className="line-clamp-2 min-w-0 flex-1 text-sm font-medium leading-snug hover:text-[var(--accent)] hover:underline"
+                              draggable={false}
+                              aria-label={`Open ${t.summary}`}
+                              className="absolute inset-0 z-[1] rounded-xl"
                               onClick={(e) => {
                                 if (draggedRef.current) e.preventDefault();
                               }}
-                            >
-                              {t.summary}
-                            </Link>
-                            <Badge
-                              variant={statusVariant(t.status)}
-                              className="shrink-0"
-                            >
-                              {statusLabel(t.status)}
-                            </Badge>
-                          </div>
-                          <p className="mt-1.5 text-[11px] text-[var(--muted)]">
-                            {t.email || "No email"}
-                            {t.createdAt
-                              ? ` · ${new Date(t.createdAt).toLocaleString()}`
-                              : ""}
-                          </p>
-                          <div className="relative mt-2 border-t border-[var(--border)]/70 pt-2">
-                            <button
-                              type="button"
-                              disabled={busyId === t.id}
-                              draggable={false}
-                              aria-haspopup="listbox"
-                              aria-expanded={assignMenuId === t.id}
-                              aria-label={
-                                !isPlaceholderAssignee(
-                                  t.assignedToUid,
-                                  t.assignedToName,
-                                ) && t.assignedToName
-                                  ? `Assigned to ${t.assignedToName}. Change assignee`
-                                  : "Assign developer"
-                              }
-                              onMouseDown={(e) => e.stopPropagation()}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openAssignMenu(t.id, e.currentTarget);
-                              }}
-                              className="flex w-full items-center gap-2 rounded-md text-left transition hover:bg-[var(--surface-panel)]/60 disabled:opacity-50"
-                            >
-                              {!isPlaceholderAssignee(
-                                t.assignedToUid,
-                                t.assignedToName,
-                              ) &&
-                              (t.assignedToUid || t.assignedToName) ? (
-                                <>
-                                  <ProfileAvatar
-                                    name={
-                                      t.assignedToName ||
-                                      developerByUid.get(t.assignedToUid ?? "")
-                                        ?.displayName ||
-                                      "Developer"
-                                    }
-                                    photoURL={
-                                      developerByUid.get(t.assignedToUid ?? "")
-                                        ?.photoURL ?? null
-                                    }
-                                    seed={
-                                      t.assignedToName ||
-                                      developerByUid.get(t.assignedToUid ?? "")
-                                        ?.displayName ||
-                                      t.assignedToUid ||
-                                      undefined
-                                    }
-                                    size="sm"
-                                  />
-                                  <div className="min-w-0 flex-1">
-                                    <p className="font-mono text-[9px] tracking-wider text-[var(--muted)] uppercase">
-                                      Assigned
-                                    </p>
-                                    <p className="truncate text-xs font-medium text-[var(--foreground)]">
-                                      {t.assignedToName ||
-                                        developerByUid.get(t.assignedToUid ?? "")
-                                          ?.displayName ||
-                                        "Developer"}
-                                    </p>
-                                  </div>
-                                </>
-                              ) : (
-                                <>
-                                  <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed border-[var(--border)] text-[10px] text-[var(--muted)]">
-                                    +
-                                  </span>
-                                  <p className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
-                                    Assign
-                                  </p>
-                                </>
-                              )}
-                            </button>
-
-                            {assignMenuId === t.id ? (
-                              <div
-                                ref={assignMenuRef}
-                                className="absolute top-full left-0 z-30 mt-1 flex max-h-72 w-full min-w-[13rem] flex-col border border-[var(--border)] bg-[var(--surface-raised)] shadow-md"
-                                onMouseDown={(e) => e.stopPropagation()}
-                              >
-                                <div className="shrink-0 space-y-1 border-b border-[var(--border)] p-1.5">
-                                  <input
-                                    ref={assignSearchRef}
-                                    type="search"
-                                    value={assignQuery}
-                                    onChange={(e) =>
-                                      setAssignQuery(e.target.value)
-                                    }
-                                    onKeyDown={(e) => e.stopPropagation()}
-                                    placeholder="Search developers…"
-                                    aria-label="Search developers"
-                                    className="w-full bg-[var(--input)] px-2 py-1.5 text-xs outline-none ring-1 ring-[var(--border)] focus:ring-[var(--accent)]"
-                                  />
-                                  {(() => {
-                                    const q = assignQuery.trim().toLowerCase();
-                                    const showUnassigned =
-                                      !q || "unassigned".includes(q);
-                                    return showUnassigned ? (
-                                      <button
-                                        type="button"
-                                        role="option"
-                                        className="flex w-full items-center gap-2 px-2 py-1.5 text-left text-xs hover:bg-[var(--surface-panel)]"
-                                        onClick={() => {
-                                          void assignTicket(t, null, null);
-                                          closeAssignMenu();
-                                        }}
-                                      >
-                                        <span className="flex size-7 items-center justify-center rounded-full border border-dashed border-[var(--border)] text-[10px] text-[var(--muted)]">
-                                          —
-                                        </span>
-                                        Unassigned
-                                      </button>
-                                    ) : null;
-                                  })()}
-                                </div>
-                                <div
-                                  role="listbox"
-                                  className="min-h-0 flex-1 overflow-y-auto py-1"
+                            />
+                            <div className="relative z-0">
+                              <p className="break-all font-mono text-[10px] tracking-wide text-[var(--muted)] uppercase tabular-nums">
+                                {t.id}
+                              </p>
+                              <p className="mt-1.5 line-clamp-2 text-[15px] font-semibold leading-snug text-[var(--foreground)] group-hover:text-[#2563eb]">
+                                {t.summary}
+                              </p>
+                              <p className="mt-1.5 truncate text-[12px] text-[var(--muted)]">
+                                {t.email || "No email"}
+                                {t.createdAt
+                                  ? `: ${new Date(t.createdAt).toLocaleString()}`
+                                  : ""}
+                              </p>
+                              <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                                <span
+                                  className={cn(
+                                    "inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase ring-1",
+                                    statusTone(t.status),
+                                  )}
                                 >
-                                  {(() => {
-                                    const q = assignQuery.trim().toLowerCase();
-                                    const match = (label: string) =>
-                                      !q || label.toLowerCase().includes(q);
-                                    const showMe =
-                                      isDeveloper(profile) &&
-                                      match(
-                                        `me ${profile.displayName || ""} ${profile.email || ""}`,
-                                      );
-                                    const filtered = developers.filter(
-                                      (d) =>
-                                        d.uid !== profile?.uid &&
-                                        match(
-                                          `${d.displayName || ""} ${d.email || ""}`,
-                                        ),
-                                    );
-                                    const none = !showMe && filtered.length === 0;
-                                    return (
-                                      <>
-                                        {showMe && isDeveloper(profile) ? (
-                                          <button
-                                            type="button"
-                                            role="option"
-                                            aria-selected={
-                                              t.assignedToUid === profile.uid
-                                            }
-                                            className={cn(
-                                              "flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs hover:bg-[var(--surface-panel)]",
-                                              t.assignedToUid === profile.uid &&
-                                                "bg-[var(--accent)]/10",
-                                            )}
-                                            onClick={() => {
-                                              void assignTicket(
-                                                t,
-                                                profile.uid,
-                                                profile.displayName ||
-                                                  profile.email,
-                                              );
-                                              closeAssignMenu();
-                                            }}
-                                          >
-                                            <ProfileAvatar
-                                              name={
-                                                profile.displayName ||
-                                                profile.email
-                                              }
-                                              photoURL={profile.photoURL}
-                                              seed={
-                                                profile.displayName ||
-                                                profile.email
-                                              }
-                                              size="sm"
-                                            />
-                                            <span className="min-w-0 truncate">
-                                              Me ·{" "}
-                                              {profile.displayName ||
-                                                profile.email}
-                                            </span>
-                                          </button>
-                                        ) : null}
-                                        {filtered.map((d) => (
-                                          <button
-                                            key={d.uid}
-                                            type="button"
-                                            role="option"
-                                            aria-selected={
-                                              t.assignedToUid === d.uid
-                                            }
-                                            className={cn(
-                                              "flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs hover:bg-[var(--surface-panel)]",
-                                              t.assignedToUid === d.uid &&
-                                                "bg-[var(--accent)]/10",
-                                            )}
-                                            onClick={() => {
-                                              void assignTicket(
-                                                t,
-                                                d.uid,
-                                                d.displayName || d.email,
-                                              );
-                                              closeAssignMenu();
-                                            }}
-                                          >
-                                            <ProfileAvatar
-                                              name={d.displayName || d.email}
-                                              photoURL={d.photoURL}
-                                              seed={d.displayName || d.email}
-                                              size="sm"
-                                            />
-                                            <span className="min-w-0 truncate">
-                                              {d.displayName || d.email}
-                                            </span>
-                                          </button>
-                                        ))}
-                                        {none ? (
-                                          <p className="px-2.5 py-3 text-center text-xs text-[var(--muted)]">
-                                            No matches
-                                          </p>
-                                        ) : null}
-                                      </>
-                                    );
-                                  })()}
-                                </div>
+                                  {statusLabel(t.status)}
+                                </span>
                               </div>
-                            ) : null}
+                            </div>
+
+                            <div className="relative z-[2] mt-3 border-t border-[var(--border)] pt-2.5">
+                              <button
+                                type="button"
+                                disabled={busyId === t.id}
+                                draggable={false}
+                                aria-haspopup="listbox"
+                                aria-expanded={assignMenuId === t.id}
+                                aria-label={
+                                  assigned
+                                    ? `Assigned to ${assigneeName}. Change assignee`
+                                    : "Assign developer"
+                                }
+                                onMouseDown={(e) => e.stopPropagation()}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  openAssignMenu(t.id, e.currentTarget);
+                                }}
+                                className={cn(
+                                  "relative z-[2] flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left transition disabled:opacity-50",
+                                  assigned
+                                    ? "bg-[#f8fafc] hover:bg-[#eff6ff]"
+                                    : "bg-[#eff6ff] text-[#2563eb] hover:bg-[#dbeafe]",
+                                )}
+                              >
+                                {assigned ? (
+                                  <>
+                                    <ProfileAvatar
+                                      name={assigneeName}
+                                      photoURL={
+                                        developerByUid.get(
+                                          t.assignedToUid ?? "",
+                                        )?.photoURL ?? null
+                                      }
+                                      seed={
+                                        assigneeName ||
+                                        t.assignedToUid ||
+                                        undefined
+                                      }
+                                      size="sm"
+                                    />
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-[10px] font-medium tracking-wide text-[var(--muted)] uppercase">
+                                        Assigned
+                                      </p>
+                                      <p className="truncate text-xs font-semibold text-[var(--foreground)]">
+                                        {assigneeName}
+                                      </p>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <p className="w-full text-center text-[12px] font-semibold text-[#2563eb]">
+                                    + Assign
+                                  </p>
+                                )}
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      </li>
-                    ))
+                        </li>
+                      );
+                    })
                   )}
                 </ul>
               </section>
@@ -697,6 +568,125 @@ export function SupportBoard() {
           })}
         </div>
       )}
+
+      {assignMenuId &&
+      assignPos &&
+      assignTicketRow &&
+      typeof document !== "undefined"
+        ? createPortal(
+            <div
+              ref={assignMenuRef}
+              role="listbox"
+              style={{
+                position: "fixed",
+                top: assignPos.top,
+                left: assignPos.left,
+                width: assignPos.width,
+              }}
+              className="z-[80] flex max-h-72 flex-col border border-[var(--border)] bg-[var(--surface-raised)] shadow-md"
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <div className="shrink-0 border-b border-[var(--border)] p-1.5">
+                <input
+                  ref={assignSearchRef}
+                  type="search"
+                  value={assignQuery}
+                  onChange={(e) => setAssignQuery(e.target.value)}
+                  onKeyDown={(e) => e.stopPropagation()}
+                  placeholder="Search developers…"
+                  aria-label="Search developers"
+                  className="w-full bg-[var(--input)] px-2 py-1.5 text-xs outline-none ring-1 ring-[var(--border)] focus:ring-[var(--accent)]"
+                />
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto py-1">
+                {showUnassigned ? (
+                  <button
+                    type="button"
+                    role="option"
+                    className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs hover:bg-[var(--surface-panel)]"
+                    onClick={() => {
+                      void assignTicket(assignTicketRow, null, null);
+                    }}
+                  >
+                    <span className="flex size-7 items-center justify-center rounded-full border border-dashed border-[var(--border)] text-[10px] text-[var(--muted)]">
+                      —
+                    </span>
+                    Unassigned
+                  </button>
+                ) : null}
+                {showMe && isDeveloper(profile) ? (
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={
+                      assignTicketRow.assignedToUid === profile.uid
+                    }
+                    className={cn(
+                      "flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs hover:bg-[var(--surface-panel)]",
+                      assignTicketRow.assignedToUid === profile.uid &&
+                        "bg-[var(--accent)]/10",
+                    )}
+                    onClick={() => {
+                      void assignTicket(
+                        assignTicketRow,
+                        profile.uid,
+                        profile.displayName || profile.email,
+                      );
+                    }}
+                  >
+                    <ProfileAvatar
+                      name={profile.displayName || profile.email}
+                      photoURL={profile.photoURL}
+                      seed={profile.displayName || profile.email}
+                      size="sm"
+                    />
+                    <span className="min-w-0 truncate">
+                      Me · {profile.displayName || profile.email}
+                    </span>
+                  </button>
+                ) : null}
+                {filteredDevelopers.map((d) => (
+                  <button
+                    key={d.uid}
+                    type="button"
+                    role="option"
+                    aria-selected={assignTicketRow.assignedToUid === d.uid}
+                    className={cn(
+                      "flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs hover:bg-[var(--surface-panel)]",
+                      assignTicketRow.assignedToUid === d.uid &&
+                        "bg-[var(--accent)]/10",
+                    )}
+                    onClick={() => {
+                      void assignTicket(
+                        assignTicketRow,
+                        d.uid,
+                        d.displayName || d.email,
+                      );
+                    }}
+                  >
+                    <ProfileAvatar
+                      name={d.displayName || d.email}
+                      photoURL={d.photoURL}
+                      seed={d.displayName || d.email}
+                      size="sm"
+                    />
+                    <span className="min-w-0 truncate">
+                      {d.displayName || d.email}
+                    </span>
+                  </button>
+                ))}
+                {!showUnassigned &&
+                !showMe &&
+                filteredDevelopers.length === 0 ? (
+                  <p className="px-2.5 py-3 text-center text-xs text-[var(--muted)]">
+                    No matches
+                  </p>
+                ) : null}
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

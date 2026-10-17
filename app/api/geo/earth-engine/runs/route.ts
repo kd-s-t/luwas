@@ -17,7 +17,7 @@ export const maxDuration = 300;
 
 const JOBS = new Set<EeRunJob>(["dem", "hazards", "both"]);
 
-/** List run history + active cache files + readiness. */
+/** List run history + Firestore ee_datasets + readiness. */
 export async function GET() {
   const projectId = earthEngineProjectId();
   let ready = false;
@@ -42,6 +42,7 @@ export async function GET() {
     error,
     storageBucket: mediaStorageBucket(),
     activeFiles,
+    datasets: activeFiles,
     runs,
   });
 }

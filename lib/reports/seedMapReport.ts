@@ -227,6 +227,14 @@ export async function ensureMapReportInDb(
             : null,
       dispatchedAt:
         data.dispatchedAt != null ? String(data.dispatchedAt) : null,
+      reporterDispatchNotifiedAt:
+        (data as { reporterDispatchNotifiedAt?: unknown })
+          .reporterDispatchNotifiedAt != null
+          ? String(
+              (data as { reporterDispatchNotifiedAt: unknown })
+                .reporterDispatchNotifiedAt,
+            )
+          : null,
       dispatchLog:
         data.dispatchLog && typeof data.dispatchLog === "object"
           ? {
@@ -247,11 +255,31 @@ export async function ensureMapReportInDb(
             }
           : null,
       manualDispatchChecked: Boolean((data as { manualDispatchChecked?: unknown }).manualDispatchChecked),
+      proposalChecklist:
+        (data as { proposalChecklist?: unknown }).proposalChecklist &&
+        typeof (data as { proposalChecklist?: unknown }).proposalChecklist ===
+          "object" &&
+        !Array.isArray(
+          (data as { proposalChecklist?: unknown }).proposalChecklist,
+        )
+          ? Object.fromEntries(
+              Object.entries(
+                (data as { proposalChecklist: Record<string, unknown> })
+                  .proposalChecklist,
+              ).map(([k, v]) => [k, Boolean(v)]),
+            )
+          : {},
       fieldEvidence: Array.isArray(
         (data as { fieldEvidence?: unknown }).fieldEvidence,
       )
         ? ((data as { fieldEvidence: FieldEvidenceImage[] }).fieldEvidence)
         : [],
+      fieldNotes:
+        data.fieldNotes != null && String(data.fieldNotes).trim()
+          ? String(data.fieldNotes).trim()
+          : null,
+      fieldNotesAt:
+        data.fieldNotesAt != null ? String(data.fieldNotesAt) : null,
       reporterIdVerified: Boolean(data.reporterIdVerified ?? true),
       reporterEmail:
         data.reporterEmail != null
@@ -348,9 +376,13 @@ export async function ensureMapReportInDb(
     investigatedAt: null,
     autoResponderCallAt: null,
     dispatchedAt: null,
+    reporterDispatchNotifiedAt: null,
     dispatchLog: null,
     manualDispatchChecked: false,
+    proposalChecklist: {},
     fieldEvidence: [],
+    fieldNotes: null,
+    fieldNotesAt: null,
     reporterIdVerified: true,
     reporterEmail: citizen.email,
     reporterPhone: citizen.phone,

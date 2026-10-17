@@ -15,7 +15,6 @@ import type {
 import {
   gcsGetJson,
   gcsGetObject,
-  gcsObjectMeta,
   gcsPutJson,
   mediaStorageBucket,
 } from "@/lib/storage/gcsAdmin";
@@ -33,12 +32,6 @@ const ALLOWED_FILES = new Set([
   "cebu-ee-hazards.json",
   "meta.json",
 ]);
-
-const ACTIVE_NAMES = [
-  "cebu-ee-dem.json",
-  "nangka-ee-dem.json",
-  "cebu-ee-hazards.json",
-] as const;
 
 const EE_PREFIX = "ee-cache";
 
@@ -320,89 +313,39 @@ export async function readEeRunFile(
   };
 }
 
-/** Live active cache: Firebase Storage `ee-cache/active/` (local fallback). */
+/** Active EE datasets from Firestore `ee_datasets` (not file cache). */
 export async function listActiveEeCacheFiles(): Promise<
   {
     name: string;
     bytes: number;
     mtime: string | null;
-    storagePath?: string;
-    bucket?: string;
+    datasetId?: string;
   }[]
 > {
-  const bucket = mediaStorageBucket();
-  const out: {
-    name: string;
-    bytes: number;
-    mtime: string | null;
-    storagePath?: string;
-    bucket?: string;
-  }[] = [];
-
-  for (const name of ACTIVE_NAMES) {
-    const storagePath = eeActiveObjectPath(name);
-    if (!preferLocalDiskOnly()) {
-      try {
-        const meta = await gcsObjectMeta(storagePath);
-        if (meta && meta.size > 0) {
-          out.push({
-            name,
-            bytes: meta.size,
-            mtime: meta.updated,
-            storagePath,
-            bucket,
-          });
-          continue;
-        }
-      } catch (err) {
-        console.warn("[ee] listActiveEeCacheFiles storage", err);
-      }
-    }
-    const path = join(eeDataRoot(), name);
-    if (!existsSync(path)) {
-      out.push({ name, bytes: 0, mtime: null, storagePath, bucket });
-      continue;
-    }
-    const st = statSync(path);
-    out.push({
-      name,
-      bytes: st.size,
-      mtime: st.mtime.toISOString(),
-      storagePath,
-      bucket,
-    });
-  }
-  return out;
+  const { listEeDatasets } = await import("@/lib/geo/eeDatasets");
+  const rows = await listEeDatasets();
+  return rows.map((row) => ({
+    name: row.fileName,
+    bytes: row.bytes,
+    mtime: row.updatedAt,
+    datasetId: row.id,
+  }));
 }
 
 export async function readActiveEeCacheFile(
   fileName: string,
 ): Promise<{ body: Buffer; contentType: string } | null> {
   if (!isAllowedEeFileName(fileName) || fileName === "meta.json") return null;
-
-  if (!preferLocalDiskOnly()) {
-    try {
-      const remote = await gcsGetObject(eeActiveObjectPath(fileName));
-      if (remote) {
-        return {
-          body: remote.bytes,
-          contentType: "application/json; charset=utf-8",
-        };
-      }
-    } catch (err) {
-      console.warn("[ee] readActiveEeCacheFile storage", err);
-    }
-  }
-
-  const path = join(eeDataRoot(), fileName);
-  if (!existsSync(path)) return null;
+  const { getEeDatasetByFileName } = await import("@/lib/geo/eeDatasets");
+  const row = await getEeDatasetByFileName(fileName);
+  if (!row?.payload) return null;
   return {
-    body: readFileSync(path),
+    body: Buffer.from(`${JSON.stringify(row.payload)}\n`, "utf8"),
     contentType: "application/json; charset=utf-8",
   };
 }
 
-/** Write active cache to Storage + local disk. */
+/** Persist active dataset to Firestore `ee_datasets`. */
 export async function writeActiveEeCacheFile(
   fileName: string,
   json: unknown,
@@ -410,8 +353,11 @@ export async function writeActiveEeCacheFile(
   if (!isAllowedEeFileName(fileName) || fileName === "meta.json") {
     throw new Error(`Disallowed file: ${fileName}`);
   }
-  const body = `${JSON.stringify(json, null, 2)}\n`;
-  writeLocalFile(join(eeDataRoot(), fileName), body);
-  if (preferLocalDiskOnly()) return;
-  await gcsPutJson(eeActiveObjectPath(fileName), json);
+  const {
+    eeDatasetIdFromFileName,
+    upsertEeDataset,
+  } = await import("@/lib/geo/eeDatasets");
+  const id = eeDatasetIdFromFileName(fileName);
+  if (!id) throw new Error(`Unknown EE dataset file: ${fileName}`);
+  await upsertEeDataset(id, json);
 }

@@ -48,6 +48,25 @@ export function buildInvestigatorAssignSmsBody(input: {
   );
 }
 
+/** SMS to the citizen after ops marks the report dispatched. */
+export function buildReporterDispatchSmsBody(input: {
+  ownerName: string;
+  barangay?: string;
+  title?: string | null;
+  hazardHint?: string | null;
+  reportId?: string | null;
+}): string {
+  const brgy = input.barangay ?? "barangay";
+  const name = input.ownerName.trim() || "Reporter";
+  const hazard = (input.hazardHint ?? "hazard").replace(/_/g, " ");
+  const title = (input.title ?? "your report").trim().slice(0, 50);
+  const ref = input.reportId?.trim() ? ` Ref ${input.reportId.trim()}.` : "";
+  return (
+    `UGNAI · ${brgy}: ${name}, responders are DISPATCHED for your ${hazard} report: ${title}.${ref} ` +
+    `Track status at ugnaiph.com/track-report. Stay safe.`
+  );
+}
+
 /** Brief SMS for auto fire / crime / accident dispatch to responders. */
 export function buildIncidentAlertSmsBody(input: {
   alertLabel: string;

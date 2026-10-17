@@ -4,6 +4,7 @@ import {
   buildEvacCallScript,
   buildIncidentAlertCallScript,
   buildInvestigatorAssignCallScript,
+  buildReporterDispatchCallScript,
   buildResponderCallScript,
 } from "@/lib/alerts/callCopy";
 import { toE164Ph } from "@/lib/alerts/phones";
@@ -41,7 +42,12 @@ type Body = {
   kinds?: string[];
   reason?: string;
   /** Brief auto incident script (<1 min) after AI legit fire/crime/accident. */
-  script?: "default" | "fire_alert" | "incident_alert" | "investigator_assign";
+  script?:
+    | "default"
+    | "fire_alert"
+    | "incident_alert"
+    | "investigator_assign"
+    | "reporter_dispatch";
   alertLabel?: string | null;
   nearLat?: number | null;
   nearLng?: number | null;
@@ -192,6 +198,8 @@ async function postResponderCalls(body: Body) {
       body: r.body,
       error: r.error,
       provider: r.provider,
+      dialedTo: r.dialedTo,
+      sandbox: r.sandbox,
       stationId: station?.stationId,
       kind: station?.kind,
     };
@@ -258,12 +266,19 @@ async function postHouseholdCalls(body: Body) {
             title: body.title,
             hazardHint: body.hazardHint,
           })
-        : buildEvacCallScript({
-            ownerName: r.ownerName ?? "Resident",
-            purok: r.purok,
-            priority,
-            barangay: body.barangay,
-          });
+        : body.script === "reporter_dispatch"
+          ? buildReporterDispatchCallScript({
+              ownerName: r.ownerName ?? "Reporter",
+              barangay: body.barangay,
+              title: body.title,
+              hazardHint: body.hazardHint,
+            })
+          : buildEvacCallScript({
+              ownerName: r.ownerName ?? "Resident",
+              purok: r.purok,
+              priority,
+              barangay: body.barangay,
+            });
 
     callPayloads.push({
       to: e164,

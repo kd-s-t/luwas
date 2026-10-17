@@ -79,7 +79,7 @@ async function runHazardsJob(runId: string): Promise<{
 }> {
   const demFile = await readActiveEeCacheFile("cebu-ee-dem.json");
   if (!demFile) {
-    throw new Error("Missing cebu-ee-dem.json in Storage / data. Run DEM first.");
+    throw new Error("Missing Cebu DEM in ee_datasets. Run DEM first.");
   }
   const dem = JSON.parse(demFile.body.toString("utf8")) as {
     samples?: ElevSample[];
@@ -87,7 +87,7 @@ async function runHazardsJob(runId: string): Promise<{
     provider?: string;
   };
   if (!dem.samples?.length) {
-    throw new Error("cebu-ee-dem.json has no samples. Run DEM first.");
+    throw new Error("Cebu DEM in ee_datasets has no samples. Run DEM first.");
   }
 
   const { floods, landslides } = hazardsFromCebuDem(dem.samples);

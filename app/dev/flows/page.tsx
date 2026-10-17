@@ -12,24 +12,48 @@ import { CarIncidentFlow } from "@/components/CarIncidentFlow";
 import { EarthEngineFlow } from "@/components/EarthEngineFlow";
 import { PartnerOnboardFlow } from "@/components/PartnerOnboardFlow";
 import { RegistrationFlow } from "@/components/RegistrationFlow";
+import { ResourcesFlow } from "@/components/ResourcesFlow";
 import { VertexAgentFlow } from "@/components/VertexAgentFlow";
 import { cn } from "@/lib/utils";
 
-const TABS = [
-  { id: "onboard", label: "Barangay Onboard" },
-  { id: "partners", label: "Partner Onboard" },
-  { id: "earth-engine", label: "Earth Engine" },
-  { id: "vertex", label: "Gemini Agent Platform" },
-  { id: "registration", label: "Register Citizen" },
-  { id: "incident", label: "Incident Report" },
-  { id: "calamity", label: "Before Storm" },
-  { id: "during", label: "During Landfall" },
-  { id: "aftermath", label: "Aftermath" },
+const DIVISIONS = [
+  {
+    label: "Onboard",
+    tabs: [
+      { id: "onboard", label: "Barangay Onboard" },
+      { id: "partners", label: "Partner Onboard" },
+      { id: "registration", label: "Register Citizen" },
+    ],
+  },
+  {
+    label: "Reporting",
+    tabs: [
+      { id: "resources", label: "Resources" },
+      { id: "incident", label: "Incident Report" },
+    ],
+  },
+  {
+    label: "Commanding",
+    tabs: [
+      { id: "calamity", label: "Before Storm" },
+      { id: "during", label: "During Landfall" },
+      { id: "aftermath", label: "Aftermath" },
+    ],
+  },
+  {
+    label: "Datasets",
+    tabs: [
+      { id: "earth-engine", label: "Earth Engine" },
+      { id: "vertex", label: "Gemini Agent Platform" },
+    ],
+  },
 ] as const;
 
-type TabId = (typeof TABS)[number]["id"];
+type TabId = (typeof DIVISIONS)[number]["tabs"][number]["id"];
 
-const TAB_IDS = new Set<string>(TABS.map((t) => t.id));
+const TAB_IDS = new Set<string>(
+  DIVISIONS.flatMap((d) => d.tabs.map((t) => t.id)),
+);
 const DEFAULT_TAB: TabId = "onboard";
 
 function parseFlowParam(raw: string | null): TabId {
@@ -61,21 +85,30 @@ function FlowsTabs() {
 
   return (
     <div className="flex h-full min-h-0 flex-col px-4 py-5 sm:px-6 sm:py-6">
-      <div className="mb-3 flex flex-wrap gap-2">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setTab(t.id)}
-            className={cn(
-              "rounded-full px-3 py-1.5 text-sm ring-1 transition",
-              tab === t.id
-                ? "bg-[#0f1b2d] text-white ring-[#0f1b2d]"
-                : "bg-white text-[var(--foreground)] ring-[var(--border)] hover:ring-[var(--foreground)]/30",
-            )}
-          >
-            {t.label}
-          </button>
+      <div className="mb-3 flex flex-wrap items-end gap-x-4 gap-y-3">
+        {DIVISIONS.map((division) => (
+          <div key={division.label} className="min-w-0">
+            <p className="mb-1.5 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+              {division.label}
+            </p>
+            <div className="flex flex-wrap gap-2" role="group">
+              {division.tabs.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setTab(t.id)}
+                  className={cn(
+                    "rounded-full px-3 py-1.5 text-sm ring-1 transition",
+                    tab === t.id
+                      ? "bg-[#0f1b2d] text-white ring-[#0f1b2d]"
+                      : "bg-white text-[var(--foreground)] ring-[var(--border)] hover:ring-[var(--foreground)]/30",
+                  )}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
         ))}
       </div>
       <div className="min-h-0 flex-1">
@@ -83,6 +116,8 @@ function FlowsTabs() {
           <BarangayOnboardFlow />
         ) : tab === "partners" ? (
           <PartnerOnboardFlow />
+        ) : tab === "resources" ? (
+          <ResourcesFlow />
         ) : tab === "earth-engine" ? (
           <EarthEngineFlow />
         ) : tab === "vertex" ? (

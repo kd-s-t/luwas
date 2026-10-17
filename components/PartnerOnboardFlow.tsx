@@ -44,17 +44,22 @@ function StepNode({ data }: NodeProps) {
     >
       {d.logosAbove?.length ? (
         <div className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 flex w-max -translate-x-1/2 items-center gap-2">
-          {d.logosAbove.map((src) => (
-            // eslint-disable-next-line @next/next/no-img-element -- brand assets in flow canvas
-            <img
-              key={src}
-              src={src}
-              alt=""
-              width={44}
-              height={44}
-              className="size-11 object-contain"
-            />
-          ))}
+          {d.logosAbove.map((src) => {
+            const ocd = src.includes("ocd.png");
+            return (
+              // eslint-disable-next-line @next/next/no-img-element -- brand assets in flow canvas
+              <img
+                key={src}
+                src={src}
+                alt=""
+                width={ocd ? 39 : 44}
+                height={44}
+                className={
+                  ocd ? "h-11 w-[39px] object-contain" : "size-11 object-contain"
+                }
+              />
+            );
+          })}
         </div>
       ) : null}
       {d.inLeft ? (

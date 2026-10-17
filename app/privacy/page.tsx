@@ -32,10 +32,10 @@ export default function PrivacyPage() {
               href="/about"
               className="text-[var(--accent)] underline-offset-2 hover:underline"
             >
-              UgnAI Labs Co.
+              Nexora Labs Co.
             </Link>
             . Barangay and LGU DRRM teams use UGNAI under a paid subscription.
-            UgnAI Labs is not a government agency, and UGNAI is not donated or
+            Nexora Labs is not a government agency, and UGNAI is not donated or
             transferred to the Philippine government. The product includes a
             public situation map, citizen / guest reporting (web and Citizen
             iOS), officer command tools, and the Tino Before / During / After
@@ -172,7 +172,7 @@ export default function PrivacyPage() {
             >
               Support
             </Link>{" "}
-            or contact UgnAI Labs Co. See also{" "}
+            or contact Nexora Labs Co. See also{" "}
             <Link
               href="/terms"
               className="text-[var(--accent)] underline-offset-2 hover:underline"
@@ -202,7 +202,7 @@ export default function PrivacyPage() {
             >
               Support
             </Link>
-            , or UgnAI Labs Co. (see{" "}
+            , or Nexora Labs Co. (see{" "}
             <Link
               href="/about"
               className="text-[var(--accent)] underline-offset-2 hover:underline"

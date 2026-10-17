@@ -14,8 +14,8 @@ import { cn } from "@/lib/utils";
 const NAV: { href: string; label: string; exact?: boolean }[] = [
   { href: "/dev", label: "Users", exact: true },
   { href: "/dev/incidents", label: "Incidents" },
-  { href: "/dev/barangays", label: "Operational" },
-  { href: "/dev/onboard", label: "Onboard" },
+  { href: "/dev/barangays", label: "Operational Brgy" },
+  { href: "/dev/onboard", label: "Onboard Brgy" },
   { href: "/dev/support", label: "Support" },
   { href: "/dev/roles", label: "Roles" },
   { href: "/dev/earth-engine", label: "Earth Engine" },

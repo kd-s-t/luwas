@@ -110,7 +110,7 @@ async function upsertProfile(tok, uid, member) {
     displayName: { stringValue: member.displayName },
     role: { stringValue: "developer" },
     accountStatus: { stringValue: "active" },
-    orgName: { stringValue: `UgnAI Labs · ${member.title}` },
+    orgName: { stringValue: `Nexora Labs · ${member.title}` },
     idVerified: { booleanValue: true },
     createdAt: { stringValue: now },
     updatedAt: { stringValue: now },
