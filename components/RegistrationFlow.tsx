@@ -226,7 +226,7 @@ function RegistrationFlowCanvas() {
       {
         id: "new-users",
         type: "newUsers",
-        position: { x: 24, y: 150 },
+        position: { x: -19.50387596899226, y: 82.85271317829456 },
         data: {},
       },
       {
@@ -241,7 +241,7 @@ function RegistrationFlowCanvas() {
         type: "gemini",
         parentId: "site",
         extent: "parent",
-        position: { x: 48, y: 120 },
+        position: { x: 47.05426356589146, y: 35.82945736434107 },
         data: {},
       },
       {
@@ -249,7 +249,7 @@ function RegistrationFlowCanvas() {
         type: "outcome",
         parentId: "site",
         extent: "parent",
-        position: { x: 280, y: 56 },
+        position: { x: 447.3953488372093, y: 44.65116279069767 },
         data: {
           title: "sends email",
           logo: "/brands/resend.png",
@@ -262,7 +262,7 @@ function RegistrationFlowCanvas() {
         type: "outcome",
         parentId: "site",
         extent: "parent",
-        position: { x: 280, y: 200 },
+        position: { x: 252.5736434108527, y: 198.10852713178298 },
         data: {
           title: "Officer intervention:",
           logo: "/brands/officer.png",
@@ -275,7 +275,7 @@ function RegistrationFlowCanvas() {
         type: "outcome",
         parentId: "site",
         extent: "parent",
-        position: { x: 540, y: 220 },
+        position: { x: 563.6434108527131, y: 226.62015503875966 },
         data: {
           title: "Rejected",
           lines: ["Officer could not validate"],
