@@ -92,7 +92,10 @@ export function CitizenReportsList({ citizenUid }: { citizenUid: string }) {
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
+                  <p className="break-all font-mono text-[10px] tracking-wide text-[var(--muted)] tabular-nums">
+                    {r.id}
+                  </p>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-2">
                     <p className="truncate text-sm font-medium">{r.title}</p>
                     <ReportStatusBadge status={r.status} />
                   </div>
