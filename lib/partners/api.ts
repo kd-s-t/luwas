@@ -75,8 +75,14 @@ function mapDoc(id: string, data: Record<string, unknown>): ResourcePartner {
       typeof data.logoUrl === "string" && data.logoUrl.trim()
         ? data.logoUrl.trim()
         : undefined,
-    lat: typeof data.lat === "number" && Number.isFinite(data.lat) ? data.lat : undefined,
-    lng: typeof data.lng === "number" && Number.isFinite(data.lng) ? data.lng : undefined,
+    lat: (() => {
+      const n = Number(data.lat);
+      return Number.isFinite(n) ? n : undefined;
+    })(),
+    lng: (() => {
+      const n = Number(data.lng);
+      return Number.isFinite(n) ? n : undefined;
+    })(),
     supplies: asSupplies(data.supplies),
     coverage: String(data.coverage ?? ""),
     notes: typeof data.notes === "string" ? data.notes : undefined,
@@ -102,8 +108,7 @@ export function subscribeResourcePartners(
     (snap) => {
       const rows = snap.docs
         .map((d) => mapDoc(d.id, d.data() as Record<string, unknown>))
-        .filter((p) => p.status === "active")
-        .sort((a, b) => a.name.localeCompare(b.name));
+        .filter((p) => p.status === "active");
       onData(rows);
     },
     (err) => onError?.(err),

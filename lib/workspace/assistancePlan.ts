@@ -5,11 +5,20 @@ import {
 } from "@/lib/workspace/attentionBoard";
 import type { ResourcePartner } from "@/lib/partners/types";
 import { partnerSupplyLabel } from "@/lib/partners/types";
+import { CEBU_AREA } from "@/lib/geo/cebu";
+import { distKm } from "@/lib/geo/bearing";
 import { parseReportNeed } from "@/lib/workspace/reportNeed";
 import {
   NANGKA_SAMPLE_INVENTORY,
   type SampleInventoryItem,
 } from "@/lib/workspace/sampleInventory";
+
+function partnerKmFromHall(p: ResourcePartner): number | null {
+  const lat = Number(p.lat);
+  const lng = Number(p.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return distKm(CEBU_AREA.center, { lat, lng });
+}
 
 export type AssistStepId =
   | "identify"
@@ -374,7 +383,12 @@ function buildPartners(
       const am = partnerMatchesNeed(a, wantsMedical) ? 0 : 1;
       const bm = partnerMatchesNeed(b, wantsMedical) ? 0 : 1;
       if (am !== bm) return am - bm;
-      return a.name.localeCompare(b.name);
+      const da = partnerKmFromHall(a);
+      const db = partnerKmFromHall(b);
+      if (da == null && db == null) return a.name.localeCompare(b.name);
+      if (da == null) return 1;
+      if (db == null) return -1;
+      return da - db;
     });
     return ranked.slice(0, 4).map((p, i) =>
       optionFromDirectory(p, focus, i === 0 && partnerMatchesNeed(p, wantsMedical)),
