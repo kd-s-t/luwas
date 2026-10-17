@@ -113,8 +113,8 @@ function ReportNode(_props: NodeProps) {
         height={32}
         className="size-8 object-contain"
       />
-      <p className={flowLabelClass}>Field reports</p>
-      <p className={flowMetaClass}>Fire · blockage · free wifi · generator</p>
+      <p className={flowLabelClass}>Incident reports</p>
+      <p className={flowMetaClass}>Landfall and aftermath</p>
       <Handle
         type="source"
         position={Position.Bottom}
@@ -504,7 +504,7 @@ export function CalamityAftermathFlow() {
           Calamity: Aftermath
         </h1>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Citizens still file field reports → officers run After → recovery
+          Citizens still file incident reports → officers run After → recovery
           map → welfare triage → dispatch → investigate → people within
           barangay (outside Firebase).
         </p>
