@@ -43,6 +43,13 @@ export function saveGuestReportId(reportId: string) {
   writeIds([id, ...existing].slice(0, MAX_IDS));
 }
 
+/** Drop a reference that is no longer on the server (or was only a draft). */
+export function removeGuestReportId(reportId: string) {
+  const id = reportId.trim();
+  if (!id) return;
+  writeIds(readIds().filter((x) => x !== id));
+}
+
 export function listGuestReportIds(): string[] {
   return [...readIds()].sort(compareGuestReportIdsNewestFirst);
 }
