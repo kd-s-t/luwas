@@ -389,8 +389,8 @@ export function CommandResources() {
         </aside>
       </div>
 
-      <section className="mt-4 mb-2 overflow-hidden rounded-2xl border border-[var(--border)] bg-white shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-3 sm:px-5">
+      <section className="mt-4 mb-2 overflow-hidden rounded-2xl bg-white shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 sm:px-5">
           <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-wide">
             Recent resource activity
           </h2>
@@ -467,10 +467,6 @@ export function CommandResources() {
           </table>
         </div>
       </section>
-
-      <p className="pb-2 text-center text-[11px] text-[var(--muted)]">
-        Conceptual exercise data · Not a live emergency feed.
-      </p>
     </div>
   );
 }

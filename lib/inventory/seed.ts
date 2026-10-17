@@ -349,6 +349,31 @@ export const INVENTORY_SEEDS_BY_BARANGAY: Record<string, InventorySeedRow[]> = {
   [APAS_BARANGAY_DOC_ID]: rowsFor(APAS_BARANGAY_DOC_ID),
 };
 
+/** Resolve catalog photo when a Firestore row has no imageUrl. */
+export function resolveInventorySeedImage(opts: {
+  docId?: string;
+  barangayId?: string;
+  label?: string;
+}): string | undefined {
+  const { docId, barangayId, label } = opts;
+  if (barangayId && docId) {
+    const prefix = `${barangayId}__`;
+    if (docId.startsWith(prefix)) {
+      const seedId = docId.slice(prefix.length);
+      const hit = (INVENTORY_SEEDS_BY_BARANGAY[barangayId] ?? []).find(
+        (s) => s.id === seedId,
+      );
+      if (hit?.imageUrl) return hit.imageUrl;
+    }
+  }
+  const needle = label?.trim().toLowerCase();
+  if (needle) {
+    const hit = CATALOG.find((c) => c.label.toLowerCase() === needle);
+    if (hit?.imageUrl) return hit.imageUrl;
+  }
+  return undefined;
+}
+
 /** Status legend chips for the Inventory desk. */
 export const INVENTORY_STATE_EXAMPLES = [
   {

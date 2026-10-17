@@ -3,6 +3,7 @@ import {
   collection,
   doc,
   getDoc,
+  getDocs,
   onSnapshot,
   query,
   serverTimestamp,
@@ -15,6 +16,7 @@ import { ACTIVE_INVENTORY_BARANGAYS } from "@/lib/inventory/activeBarangays";
 import {
   INVENTORY_DEMO_STATE_VERSION,
   INVENTORY_SEEDS_BY_BARANGAY,
+  resolveInventorySeedImage,
 } from "@/lib/inventory/seed";
 import type {
   InventoryCategory,
@@ -154,23 +156,28 @@ function mapDoc(id: string, data: Record<string, unknown>): InventoryItem {
         reportId: latestDispatch.reportId,
       }
     : lastDispatch;
+  const label = String(data.label ?? "");
+  const barangayId = String(data.barangayId ?? NANGKA_BARANGAY_ID);
+  const fromDoc =
+    typeof data.imageUrl === "string" && data.imageUrl.trim()
+      ? data.imageUrl.trim()
+      : undefined;
   return {
     id,
-    label: String(data.label ?? ""),
+    label,
     category: asCategory(data.category),
     unit: String(data.unit ?? "units"),
     available: Number.isFinite(available) ? Math.max(0, available) : 0,
     imageUrl:
-      typeof data.imageUrl === "string" && data.imageUrl.trim()
-        ? data.imageUrl.trim()
-        : undefined,
+      fromDoc ??
+      resolveInventorySeedImage({ docId: id, barangayId, label }),
     location: typeof data.location === "string" ? data.location : undefined,
     notes: typeof data.notes === "string" ? data.notes : undefined,
     status: data.status === "inactive" ? "inactive" : "active",
     dispatchStatus,
     history,
     lastDispatch: derivedLast,
-    barangayId: String(data.barangayId ?? NANGKA_BARANGAY_ID),
+    barangayId,
     orgName: String(data.orgName ?? NANGKA_ORG_NAME),
     createdAt: asIso(data.createdAt, data.createdAtServer),
     updatedAt: asIso(data.updatedAt, data.updatedAtServer),
@@ -452,6 +459,36 @@ export async function ensureActiveBarangayInventory(): Promise<number> {
         createdAtServer: serverTimestamp(),
         updatedAtServer: serverTimestamp(),
       });
+      written += 1;
+    }
+
+    // Backfill photos on older rows (random ids) that match catalog labels.
+    const byLabel = new Map(
+      seeds.map((s) => [s.label.trim().toLowerCase(), s] as const),
+    );
+    const snap = await getDocs(
+      query(
+        collection(db, COL),
+        where("barangayId", "==", brgy.barangayId),
+      ),
+    );
+    for (const d of snap.docs) {
+      const data = d.data() as {
+        label?: unknown;
+        imageUrl?: unknown;
+      };
+      const seed = byLabel.get(String(data.label ?? "").trim().toLowerCase());
+      if (!seed?.imageUrl) continue;
+      if (typeof data.imageUrl === "string" && data.imageUrl.trim()) continue;
+      await setDoc(
+        d.ref,
+        {
+          imageUrl: seed.imageUrl,
+          updatedAt: now,
+          updatedAtServer: serverTimestamp(),
+        },
+        { merge: true },
+      );
       written += 1;
     }
   }

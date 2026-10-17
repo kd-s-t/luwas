@@ -54,13 +54,16 @@ function hydrateEdges(defaults: Edge[]): Edge[] {
   return defaults.map((e) => ({ ...e, reconnectable: true }));
 }
 
+/** Legacy key from when layouts were persisted in the browser. */
+function legacyStorageKey(flowId: string) {
+  return `luwas.dev.flow.layout.${flowId}`;
+}
+
 export function useFlowLayout(
   flowId: string,
   defaultNodes: Node[] = [],
   defaultEdges: Edge[] = [],
 ) {
-  void flowId;
-
   const defaultsKey = useMemo(() => {
     const nodes = defaultNodes ?? [];
     const edges = defaultEdges ?? [];
@@ -77,7 +80,12 @@ export function useFlowLayout(
             data?.outTop,
             data?.outBottom,
           ].join(",");
-          return `${n.id}:${n.position.x},${n.position.y}:${s?.width ?? ""}x${s?.height ?? ""}:${handles}`;
+          const logos = Array.isArray(data?.logosAbove)
+            ? (data.logosAbove as string[]).join(",")
+            : Array.isArray(data?.logos)
+              ? (data.logos as string[]).join(",")
+              : String(data?.logo ?? "");
+          return `${n.id}:${n.position.x},${n.position.y}:${s?.width ?? ""}x${s?.height ?? ""}:${handles}:${logos}`;
         })
         .join("|") +
       "|" +
@@ -104,6 +112,14 @@ export function useFlowLayout(
   const [canvasKey, setCanvasKey] = useState(0);
 
   useEffect(() => {
+    // Drop stale browser layouts so diagrams always come from code defaults.
+    if (typeof window !== "undefined" && flowId) {
+      try {
+        window.localStorage.removeItem(legacyStorageKey(flowId));
+      } catch {
+        /* ignore */
+      }
+    }
     setNodes(hydrateNodes(defaultNodes ?? []));
     setEdges(hydrateEdges(defaultEdges ?? []));
     setViewport(undefined);

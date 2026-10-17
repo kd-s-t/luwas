@@ -70,6 +70,13 @@ function mapDoc(id: string, data: Record<string, unknown>): ResourcePartner {
     type,
     contactName: String(data.contactName ?? ""),
     phone: String(data.phone ?? ""),
+    email: String(data.email ?? ""),
+    logoUrl:
+      typeof data.logoUrl === "string" && data.logoUrl.trim()
+        ? data.logoUrl.trim()
+        : undefined,
+    lat: typeof data.lat === "number" && Number.isFinite(data.lat) ? data.lat : undefined,
+    lng: typeof data.lng === "number" && Number.isFinite(data.lng) ? data.lng : undefined,
     supplies: asSupplies(data.supplies),
     coverage: String(data.coverage ?? ""),
     notes: typeof data.notes === "string" ? data.notes : undefined,
@@ -116,6 +123,10 @@ export async function addResourcePartner(
     type: input.type,
     contactName: input.contactName.trim(),
     phone: input.phone.trim(),
+    email: input.email.trim(),
+    logoUrl: input.logoUrl?.trim() || null,
+    lat: typeof input.lat === "number" ? input.lat : null,
+    lng: typeof input.lng === "number" ? input.lng : null,
     supplies: input.supplies,
     coverage: input.coverage.trim(),
     notes: input.notes?.trim() || null,
@@ -137,13 +148,47 @@ export async function ensureNangkaPartners(): Promise<number> {
   for (const seed of NANGKA_PARTNER_SEED) {
     const ref = doc(db, COL, seed.id);
     const existing = await getDoc(ref);
-    if (existing.exists()) continue;
     const now = new Date().toISOString();
+    if (existing.exists()) {
+      const data = existing.data() as Record<string, unknown>;
+      const patch: Record<string, unknown> = {};
+      if (!String(data.email ?? "").trim() && seed.email) {
+        patch.email = seed.email;
+      }
+      if (!String(data.logoUrl ?? "").trim() && seed.logoUrl) {
+        patch.logoUrl = seed.logoUrl;
+      }
+      if (
+        (typeof data.lat !== "number" || typeof data.lng !== "number") &&
+        typeof seed.lat === "number" &&
+        typeof seed.lng === "number"
+      ) {
+        patch.lat = seed.lat;
+        patch.lng = seed.lng;
+      }
+      if (Object.keys(patch).length > 0) {
+        await setDoc(
+          ref,
+          {
+            ...patch,
+            updatedAt: now,
+            updatedAtServer: serverTimestamp(),
+          },
+          { merge: true },
+        );
+        written += 1;
+      }
+      continue;
+    }
     await setDoc(ref, {
       name: seed.name,
       type: seed.type,
       contactName: seed.contactName,
       phone: seed.phone,
+      email: seed.email,
+      logoUrl: seed.logoUrl ?? null,
+      lat: seed.lat ?? null,
+      lng: seed.lng ?? null,
       supplies: seed.supplies,
       coverage: seed.coverage,
       notes: seed.notes ?? null,

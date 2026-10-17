@@ -13,6 +13,7 @@
     "emulators": "bash scripts/emulators.sh",
     "start:local": "bash scripts/dev-local.sh",
     "seed:local": "node scripts/seed-local.mjs",
+    "seed:partners": "node scripts/seed-partners.mjs",
     "seed:officers": "node scripts/seed-nangka-officers-rest.mjs",
     "seed:prod-samples": "node scripts/seed-prod-samples.mjs",
     "ee:dem": "npx --yes tsx scripts/ee-nangka-dem.ts",

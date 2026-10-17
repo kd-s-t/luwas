@@ -13,13 +13,70 @@ export type PartnerSupply =
 export type ResourcePartnerInput = {
   name: string;
   type: PartnerType;
+  /** Contact named after meeting and agreement. */
   contactName: string;
   phone: string;
+  email: string;
+  /** Public brand asset path, e.g. /brands/dswd.png */
+  logoUrl?: string;
+  /** Depot / desk pin for distance from barangay hall. */
+  lat?: number;
+  lng?: number;
   supplies: PartnerSupply[];
   coverage: string;
   notes?: string;
   status?: "active" | "inactive";
 };
+
+/** Resolve logo for directory / Find assistance cards. */
+export function partnerLogoUrl(
+  partner: Pick<ResourcePartnerInput, "name" | "type" | "logoUrl"> & {
+    id?: string;
+  },
+): string | null {
+  const explicit = partner.logoUrl?.trim();
+  if (explicit) return explicit;
+  if (
+    partner.id === "red-cross-cebu" ||
+    /red\s*cross/i.test(partner.name)
+  ) {
+    return "/brands/philippine-red-cross.png";
+  }
+  if (partner.type === "dswd" || partner.id === "dswd-region-7") {
+    return "/brands/dswd.png";
+  }
+  if (partner.id === "ocd-region-7" || /\bocd\b/i.test(partner.name)) {
+    return "/brands/ocd.png";
+  }
+  if (
+    partner.id === "consolacion-mdrrmo" ||
+    /consolacion.*ldrrmo|ldrrmo.*consolacion/i.test(partner.name)
+  ) {
+    return "/brands/consolacion-ldrrmo.jpg";
+  }
+  if (
+    partner.id === "abs-cbn-lingkod" ||
+    /lingkod\s*kapamilya|abs-?cbn/i.test(partner.name)
+  ) {
+    return "/brands/abs-cbn-lingkod.jpg";
+  }
+  if (
+    partner.id === "world-vision-7" ||
+    /world\s*vision/i.test(partner.name)
+  ) {
+    return "/brands/world-vision.png";
+  }
+  if (partner.id === "caritas-cebu" || /caritas/i.test(partner.name)) {
+    return "/brands/caritas.png";
+  }
+  if (
+    partner.id === "volunteer-transport-coop" ||
+    /\botc\b|transport\s*co-?op/i.test(partner.name)
+  ) {
+    return "/brands/otc.png";
+  }
+  return null;
+}
 
 export type ResourcePartner = ResourcePartnerInput & {
   id: string;

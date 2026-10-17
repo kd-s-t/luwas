@@ -9,7 +9,6 @@ import {
   type FormEvent,
 } from "react";
 import { CommandAreaMapMount } from "@/components/CommandAreaMapMount";
-import { EvacStockList } from "@/components/EvacStockList";
 import { FadeIn } from "@/components/motion/primitives";
 import {
   Dialog,
@@ -177,6 +176,100 @@ function resolveBarangay(profile: ReturnType<typeof useAuth>["profile"]): {
   };
 }
 
+type StockQtyKey = "foodPacks" | "waterLiters" | "blankets" | "medicalKits";
+
+const STOCK_QTY_ROWS: { key: StockQtyKey; label: string; step: number }[] = [
+  { key: "foodPacks", label: "Food packs", step: 1 },
+  { key: "waterLiters", label: "Water (L)", step: 10 },
+  { key: "blankets", label: "Blankets", step: 1 },
+  { key: "medicalKits", label: "Medical kits", step: 1 },
+];
+
+function QtyStepper({
+  label,
+  value,
+  step,
+  max,
+  suffix,
+  disabled,
+  onCommit,
+}: {
+  label: string;
+  value: number;
+  step: number;
+  max?: number;
+  suffix?: string;
+  disabled?: boolean;
+  onCommit: (next: number) => void;
+}) {
+  const [draft, setDraft] = useState(String(value));
+  useEffect(() => {
+    setDraft(String(value));
+  }, [value]);
+
+  function clamp(n: number) {
+    let next = Math.max(0, Math.round(n));
+    if (typeof max === "number") next = Math.min(max, next);
+    return next;
+  }
+
+  function commitDraft() {
+    const parsed = Number(draft);
+    const next = clamp(Number.isFinite(parsed) ? parsed : value);
+    setDraft(String(next));
+    if (next !== value) onCommit(next);
+  }
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-2.5 py-2">
+      <p className="text-[13px] font-medium text-[var(--foreground)]">{label}</p>
+      <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          aria-label={`Decrease ${label}`}
+          disabled={disabled || value <= 0}
+          onClick={() => onCommit(clamp(value - step))}
+          className="flex size-8 items-center justify-center rounded-lg border border-[var(--border)] bg-white text-base font-semibold text-[var(--foreground)] transition hover:border-[var(--foreground)]/25 disabled:opacity-40"
+        >
+          −
+        </button>
+        <input
+          type="number"
+          min={0}
+          max={max}
+          value={draft}
+          disabled={disabled}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commitDraft}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              (e.target as HTMLInputElement).blur();
+            }
+          }}
+          className="w-14 rounded-lg border border-[var(--border)] bg-white px-1.5 py-1 text-center text-sm tabular-nums outline-none focus:border-[#3b6fb6]/50 disabled:opacity-50"
+        />
+        {suffix ? (
+          <span className="min-w-[3.5rem] text-[12px] text-[var(--muted)]">
+            {suffix}
+          </span>
+        ) : null}
+        <button
+          type="button"
+          aria-label={`Increase ${label}`}
+          disabled={
+            disabled || (typeof max === "number" && value >= max)
+          }
+          onClick={() => onCommit(clamp(value + step))}
+          className="flex size-8 items-center justify-center rounded-lg border border-[var(--border)] bg-white text-base font-semibold text-[var(--foreground)] transition hover:border-[var(--foreground)]/25 disabled:opacity-40"
+        >
+          +
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function StockFields({
   stock,
   onChange,
@@ -184,17 +277,7 @@ function StockFields({
   stock: EvacCenterStock;
   onChange: (next: EvacCenterStock) => void;
 }) {
-  const rows = [
-    ["foodPacks", "Food packs", 1],
-    ["waterLiters", "Water (L)", 10],
-    ["blankets", "Blankets", 1],
-    ["medicalKits", "Medical kits", 1],
-  ] as const;
-
-  function bump(
-    key: "foodPacks" | "waterLiters" | "blankets" | "medicalKits",
-    delta: number,
-  ) {
+  function bump(key: StockQtyKey, delta: number) {
     onChange({
       ...stock,
       [key]: Math.max(0, stock[key] + delta),
@@ -203,7 +286,7 @@ function StockFields({
 
   return (
     <div className="space-y-3">
-      {rows.map(([key, label, step]) => (
+      {STOCK_QTY_ROWS.map(({ key, label, step }) => (
         <div
           key={key}
           className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5"
@@ -272,6 +355,7 @@ export function EvacCentersPanel() {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [conditionBusyId, setConditionBusyId] = useState<string | null>(null);
+  const [stockBusyId, setStockBusyId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const [name, setName] = useState("");
@@ -447,6 +531,53 @@ export function EvacCentersPanel() {
       );
     } finally {
       setConditionBusyId(null);
+    }
+  }
+
+  async function setRowOccupancy(row: EvacCenter, occupancy: number) {
+    if (stockBusyId) return;
+    const next = Math.max(
+      0,
+      Math.min(row.maxCapacity, Math.round(occupancy)),
+    );
+    if (next === row.occupancy) return;
+    setStockBusyId(row.id);
+    setError(null);
+    try {
+      await updateEvacCenter(row.id, { occupancy: next });
+      setMsg(`${row.name}: ${next} / ${row.maxCapacity} people.`);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Could not update people count.",
+      );
+    } finally {
+      setStockBusyId(null);
+    }
+  }
+
+  async function setRowStockQty(
+    row: EvacCenter,
+    key: StockQtyKey,
+    value: number,
+  ) {
+    if (stockBusyId) return;
+    const next = Math.max(0, Math.round(value));
+    if (next === row.stock[key]) return;
+    setStockBusyId(row.id);
+    setError(null);
+    try {
+      await updateEvacCenter(row.id, {
+        stock: { ...row.stock, [key]: next },
+      });
+      setMsg(`${row.name}: stock updated.`);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Could not update stock.",
+      );
+    } finally {
+      setStockBusyId(null);
     }
   }
 
@@ -785,6 +916,7 @@ export function EvacCentersPanel() {
               assistPriorities={{}}
               escapeRoutes={mapDirections}
               scrollWheelZoom
+              pulseFacilities
             />
           </div>
         </section>
@@ -839,15 +971,31 @@ export function EvacCentersPanel() {
                       Last updated {formatEvacUpdatedAt(row.updatedAt)}
                     </p>
                   ) : null}
-                  <div className="mt-2">
+                  <div className="mt-2 max-w-md space-y-1.5">
                     <p className="mb-1.5 text-[12px] font-medium text-[var(--muted)]">
-                      On site
+                      On site · quick update
                     </p>
-                    <EvacStockList
-                      stock={row.stock}
-                      occupancy={row.occupancy}
-                      capacity={row.maxCapacity}
+                    <QtyStepper
+                      label="People"
+                      value={row.occupancy}
+                      step={1}
+                      max={row.maxCapacity}
+                      suffix={`/ ${row.maxCapacity}`}
+                      disabled={stockBusyId === row.id}
+                      onCommit={(next) => void setRowOccupancy(row, next)}
                     />
+                    {STOCK_QTY_ROWS.map(({ key, label, step }) => (
+                      <QtyStepper
+                        key={key}
+                        label={label}
+                        value={row.stock[key]}
+                        step={step}
+                        disabled={stockBusyId === row.id}
+                        onCommit={(next) =>
+                          void setRowStockQty(row, key, next)
+                        }
+                      />
+                    ))}
                   </div>
                   {row.notes ? (
                     <p className="mt-1 text-[12px] text-[var(--muted)]">
