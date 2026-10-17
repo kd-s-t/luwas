@@ -124,6 +124,22 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
       typeof data.vertexConfidence === "number"
         ? data.vertexConfidence
         : null,
+    vertexLocationLabel:
+      data.vertexLocationLabel != null
+        ? String(data.vertexLocationLabel)
+        : null,
+    vertexLocationConfidence:
+      typeof data.vertexLocationConfidence === "number"
+        ? data.vertexLocationConfidence
+        : null,
+    vertexLocationPlaceId:
+      data.vertexLocationPlaceId != null
+        ? String(data.vertexLocationPlaceId)
+        : null,
+    vertexLocationPlaceLabel:
+      data.vertexLocationPlaceLabel != null
+        ? String(data.vertexLocationPlaceLabel)
+        : null,
     validatedAt: data.validatedAt != null ? String(data.validatedAt) : null,
     investigatorUid:
       data.investigatorUid != null ? String(data.investigatorUid) : null,

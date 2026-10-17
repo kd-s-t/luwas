@@ -183,6 +183,24 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
         : data.vertexConfidence != null
           ? Number(data.vertexConfidence)
           : null,
+    vertexLocationLabel:
+      data.vertexLocationLabel != null
+        ? String(data.vertexLocationLabel)
+        : null,
+    vertexLocationConfidence:
+      typeof data.vertexLocationConfidence === "number"
+        ? data.vertexLocationConfidence
+        : data.vertexLocationConfidence != null
+          ? Number(data.vertexLocationConfidence)
+          : null,
+    vertexLocationPlaceId:
+      data.vertexLocationPlaceId != null
+        ? String(data.vertexLocationPlaceId)
+        : null,
+    vertexLocationPlaceLabel:
+      data.vertexLocationPlaceLabel != null
+        ? String(data.vertexLocationPlaceLabel)
+        : null,
     validatedAt: data.validatedAt != null ? String(data.validatedAt) : null,
     investigatorUid:
       data.investigatorUid != null ? String(data.investigatorUid) : null,
@@ -326,6 +344,10 @@ export async function startIncidentDraft(input: {
     aiPriorityFactors: null,
     vertexClass: null,
     vertexConfidence: null,
+    vertexLocationLabel: null,
+    vertexLocationConfidence: null,
+    vertexLocationPlaceId: null,
+    vertexLocationPlaceLabel: null,
     validatedAt: null,
     assignees: [],
     investigatorUid: null,
@@ -509,6 +531,10 @@ export async function createGuestHazardReport(input: {
     aiPriorityFactors: null,
     vertexClass: input.vertexClass ?? null,
     vertexConfidence: input.vertexConfidence ?? null,
+    vertexLocationLabel: null,
+    vertexLocationConfidence: null,
+    vertexLocationPlaceId: null,
+    vertexLocationPlaceLabel: null,
     validatedAt: aiVerdict ? now : null,
     assignees: [],
     investigatorUid: null,
@@ -610,6 +636,10 @@ export async function updateGuestHazardReport(input: {
     aiPriorityFactors: null,
     vertexClass: null,
     vertexConfidence: null,
+    vertexLocationLabel: null,
+    vertexLocationConfidence: null,
+    vertexLocationPlaceId: null,
+    vertexLocationPlaceLabel: null,
     validatedAt: null,
     draftStep: null,
     draftIntent: null,
@@ -707,6 +737,10 @@ export async function createHazardReport(input: {
     aiPriorityFactors: null,
     vertexClass: null,
     vertexConfidence: null,
+    vertexLocationLabel: null,
+    vertexLocationConfidence: null,
+    vertexLocationPlaceId: null,
+    vertexLocationPlaceLabel: null,
     validatedAt: null,
     assignees: [],
     investigatorUid: null,
@@ -913,6 +947,10 @@ export async function updateReportValidation(
     aiPriorityFactors?: ReportPriorityFactors | null;
     vertexClass?: string | null;
     vertexConfidence?: number | null;
+    vertexLocationLabel?: string | null;
+    vertexLocationConfidence?: number | null;
+    vertexLocationPlaceId?: string | null;
+    vertexLocationPlaceLabel?: string | null;
     validatedAt: string | null;
     /** When set, recomputes trust with AI slice. */
     trustInput?: {

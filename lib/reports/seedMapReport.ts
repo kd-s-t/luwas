@@ -189,6 +189,22 @@ export async function ensureMapReportInDb(
         typeof data.vertexConfidence === "number"
           ? data.vertexConfidence
           : null,
+      vertexLocationLabel:
+        data.vertexLocationLabel != null
+          ? String(data.vertexLocationLabel)
+          : null,
+      vertexLocationConfidence:
+        typeof data.vertexLocationConfidence === "number"
+          ? data.vertexLocationConfidence
+          : null,
+      vertexLocationPlaceId:
+        data.vertexLocationPlaceId != null
+          ? String(data.vertexLocationPlaceId)
+          : null,
+      vertexLocationPlaceLabel:
+        data.vertexLocationPlaceLabel != null
+          ? String(data.vertexLocationPlaceLabel)
+          : null,
       validatedAt:
         data.validatedAt != null ? String(data.validatedAt) : pin.reportedAt,
       investigatorUid:
@@ -321,6 +337,10 @@ export async function ensureMapReportInDb(
     aiPriorityFactors: null,
     vertexClass: null,
     vertexConfidence: null,
+    vertexLocationLabel: null,
+    vertexLocationConfidence: null,
+    vertexLocationPlaceId: null,
+    vertexLocationPlaceLabel: null,
     validatedAt: pin.reportedAt,
     assignees: [],
     investigatorUid: null,

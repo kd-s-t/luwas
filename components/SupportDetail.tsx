@@ -463,19 +463,28 @@ export function SupportDetail({ ticketId }: { ticketId: string }) {
               {selected.assignedToName || "Unassigned"}
             </p>
             <div className="flex flex-col gap-1.5">
+              {selected.assignedToUid !== profile.uid ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => void takeIt()}
+                >
+                  Take it
+                </Button>
+              ) : null}
               <Button
                 type="button"
                 size="sm"
-                disabled={busy}
-                onClick={() => void takeIt()}
-              >
-                Take it
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={busy}
+                variant={
+                  selected.assignedToUid === UGNAI_DEVELOPERS_ASSIGNEE.uid
+                    ? "default"
+                    : "outline"
+                }
+                disabled={
+                  busy ||
+                  selected.assignedToUid === UGNAI_DEVELOPERS_ASSIGNEE.uid
+                }
                 onClick={() =>
                   void assign(
                     UGNAI_DEVELOPERS_ASSIGNEE.uid,
@@ -497,8 +506,10 @@ export function SupportDetail({ ticketId }: { ticketId: string }) {
                   key={o.uid}
                   type="button"
                   size="sm"
-                  variant="outline"
-                  disabled={busy}
+                  variant={
+                    selected.assignedToUid === o.uid ? "default" : "outline"
+                  }
+                  disabled={busy || selected.assignedToUid === o.uid}
                   onClick={() =>
                     void assign(o.uid, o.displayName || o.email)
                   }

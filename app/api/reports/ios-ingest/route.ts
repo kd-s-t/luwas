@@ -332,6 +332,10 @@ export async function POST(req: Request) {
   const aiModel = ai.model ?? `${source}-${ai.source}`;
   const vertexClass = ai.vertexClass;
   const vertexConfidence = ai.vertexConfidence;
+  const vertexLocationLabel = ai.vertexLocationLabel;
+  const vertexLocationConfidence = ai.vertexLocationConfidence;
+  const vertexLocationPlaceId = ai.vertexLocationPlaceId;
+  const vertexLocationPlaceLabel = ai.vertexLocationPlaceLabel;
 
   // Officer QUEUE tab: queued | validating | needs_review | failed
   const status: ReportStatus =
@@ -403,6 +407,10 @@ export async function POST(req: Request) {
     aiPriorityFactors: ai.priorityFactors,
     vertexClass,
     vertexConfidence,
+    vertexLocationLabel,
+    vertexLocationConfidence,
+    vertexLocationPlaceId,
+    vertexLocationPlaceLabel,
     validatedAt: now,
     autoResponderCallAt: null,
     dispatchedAt: null,
@@ -470,6 +478,10 @@ export async function POST(req: Request) {
     aiPriorityFactors: ai.priorityFactors,
     vertexClass,
     vertexConfidence,
+    vertexLocationLabel,
+    vertexLocationConfidence,
+    vertexLocationPlaceId,
+    vertexLocationPlaceLabel,
     validatedAt: now,
     assignees: [],
     investigatorUid: null,

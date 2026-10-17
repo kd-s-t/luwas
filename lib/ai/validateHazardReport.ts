@@ -39,6 +39,11 @@ export type HazardValidateResult = {
   vertexClass: string | null;
   vertexConfidence: number | null;
   vertexSource: VertexClassifyResult["source"];
+  /** Visual place from Vertex Gemini (may match a curated barangay place). */
+  vertexLocationLabel: string | null;
+  vertexLocationConfidence: number | null;
+  vertexLocationPlaceId: string | null;
+  vertexLocationPlaceLabel: string | null;
 };
 
 function parseVerdict(text: string): {
@@ -110,7 +115,13 @@ function resolveHazardHint(input: {
 function withVertex(
   payload: Omit<
     HazardValidateResult,
-    "vertexClass" | "vertexConfidence" | "vertexSource"
+    | "vertexClass"
+    | "vertexConfidence"
+    | "vertexSource"
+    | "vertexLocationLabel"
+    | "vertexLocationConfidence"
+    | "vertexLocationPlaceId"
+    | "vertexLocationPlaceLabel"
   >,
   vertex: VertexClassifyResult,
 ): HazardValidateResult {
@@ -119,6 +130,10 @@ function withVertex(
     vertexClass: vertex.className,
     vertexConfidence: vertex.confidence,
     vertexSource: vertex.source,
+    vertexLocationLabel: vertex.locationLabel,
+    vertexLocationConfidence: vertex.locationConfidence,
+    vertexLocationPlaceId: vertex.locationPlaceId,
+    vertexLocationPlaceLabel: vertex.locationPlaceLabel,
   };
 }
 
@@ -216,6 +231,10 @@ export async function validateHazardReport(input: {
           confidence: null,
           displayNames: [],
           confidences: [],
+          locationLabel: null,
+          locationConfidence: null,
+          locationPlaceId: null,
+          locationPlaceLabel: null,
           source: "skipped" as const,
           reason: "Image class needs photo bytes (inline base64).",
         } satisfies VertexClassifyResult);
@@ -275,6 +294,7 @@ Rules:
 - If Vertex class is "unrelated" (or equivalent) with high confidence, prefer rejected or needs_review
 - If Vertex class mismatches the hazard claim (e.g. beach vs flood), prefer needs_review
 - If Vertex and claim agree with high confidence, lean legit
+- If Vertex location strongly mismatches the claimed pin / place label, prefer needs_review and say so in reason
 - Voice-only is valid: if the transcript clearly describes an on-the-ground hazard, prefer legit or needs_review (not rejected solely for missing a photo)
 ${
   localE2e

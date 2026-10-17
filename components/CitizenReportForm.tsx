@@ -1129,6 +1129,10 @@ export function CitizenReportForm({
         };
         vertexClass?: string | null;
         vertexConfidence?: number | null;
+        vertexLocationLabel?: string | null;
+        vertexLocationConfidence?: number | null;
+        vertexLocationPlaceId?: string | null;
+        vertexLocationPlaceLabel?: string | null;
       };
 
       const detectedHint =
@@ -1153,6 +1157,13 @@ export function CitizenReportForm({
           typeof data.vertexConfidence === "number"
             ? data.vertexConfidence
             : null,
+        vertexLocationLabel: data.vertexLocationLabel ?? null,
+        vertexLocationConfidence:
+          typeof data.vertexLocationConfidence === "number"
+            ? data.vertexLocationConfidence
+            : null,
+        vertexLocationPlaceId: data.vertexLocationPlaceId ?? null,
+        vertexLocationPlaceLabel: data.vertexLocationPlaceLabel ?? null,
         validatedAt,
         trustInput: {
           registered: true,
