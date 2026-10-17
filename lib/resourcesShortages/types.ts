@@ -35,7 +35,7 @@ export type ResourceShortage = {
   reviewStatus: "review_draft" | "approved" | null;
   /**
    * Allocation plan stepper progress so officers can continue later.
-   * 1 compare · 2 review & approve · 3 track delivery
+   * 1 compare · 2 review & approve · 3 track assistance
    */
   workflowStep: 1 | 2 | 3 | null;
   createdAt: string;

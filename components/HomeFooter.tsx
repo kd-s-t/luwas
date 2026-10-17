@@ -77,7 +77,7 @@ const FOOTER_LINKS = [
 export function HomeFooter() {
   return (
     <footer className="relative z-10 mt-auto border-t border-[var(--border)] bg-[var(--surface)] px-4 py-8 pb-12 sm:px-8 sm:py-10 sm:pb-14">
-      <div className="mx-auto flex w-full max-w-3xl flex-col items-center text-center">
+      <div className="mx-auto flex w-full max-w-6xl flex-col items-center text-center">
         <p className="font-mono text-[10px] tracking-[0.28em] text-[var(--muted)] uppercase">
           Built by
         </p>
@@ -124,47 +124,49 @@ export function HomeFooter() {
           Powered by
         </p>
 
-        <ul className="mt-4 grid w-full max-w-md grid-cols-4 gap-x-3 gap-y-4 sm:flex sm:max-w-2xl sm:flex-wrap sm:items-start sm:justify-center sm:gap-x-5 sm:gap-y-5">
-          {POWERED_BY.map(({ name, href, role, src }) => (
-            <li key={name} className="min-w-0">
-              <a
-                href={href}
-                target="_blank"
-                rel="noreferrer"
-                className="group inline-flex w-full flex-col items-center gap-1.5"
-              >
-                <span className="relative flex size-8 items-center justify-center sm:size-9">
-                  {src.endsWith(".svg") ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={src}
-                      alt=""
-                      width={28}
-                      height={28}
-                      className="size-6 object-contain transition group-hover:scale-105 sm:size-7"
-                    />
-                  ) : (
-                    <Image
-                      src={src}
-                      alt=""
-                      width={28}
-                      height={28}
-                      className="size-6 object-contain transition group-hover:scale-105 sm:size-7"
-                    />
-                  )}
-                </span>
-                <span className="flex min-w-0 flex-col items-center gap-0.5 px-0.5">
-                  <span className="text-center text-[10px] font-medium leading-snug text-[var(--foreground)] underline-offset-4 transition group-hover:text-[var(--accent)] group-hover:underline sm:text-xs">
-                    {name}
+        <div className="mt-4 w-full overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <ul className="mx-auto flex w-max min-w-full flex-nowrap items-start justify-center gap-x-3 sm:gap-x-4 lg:gap-x-5">
+            {POWERED_BY.map(({ name, href, role, src }) => (
+              <li key={name} className="w-[4.5rem] shrink-0 sm:w-[5.25rem] lg:w-[5.75rem]">
+                <a
+                  href={href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="group inline-flex w-full flex-col items-center gap-1.5"
+                >
+                  <span className="relative flex size-8 items-center justify-center sm:size-9">
+                    {src.endsWith(".svg") ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={src}
+                        alt=""
+                        width={28}
+                        height={28}
+                        className="size-6 object-contain transition group-hover:scale-105 sm:size-7"
+                      />
+                    ) : (
+                      <Image
+                        src={src}
+                        alt=""
+                        width={28}
+                        height={28}
+                        className="size-6 object-contain transition group-hover:scale-105 sm:size-7"
+                      />
+                    )}
                   </span>
-                  <span className="font-mono text-[8px] tracking-wider text-[var(--muted)] uppercase">
-                    {role}
+                  <span className="flex min-w-0 flex-col items-center gap-0.5 px-0.5">
+                    <span className="text-center text-[9px] font-medium leading-snug text-[var(--foreground)] underline-offset-4 transition group-hover:text-[var(--accent)] group-hover:underline sm:text-[11px]">
+                      {name}
+                    </span>
+                    <span className="font-mono text-[7px] tracking-wider text-[var(--muted)] uppercase sm:text-[8px]">
+                      {role}
+                    </span>
                   </span>
-                </span>
-              </a>
-            </li>
-          ))}
-        </ul>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
     </footer>
   );

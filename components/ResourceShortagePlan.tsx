@@ -334,7 +334,7 @@ export function ResourceShortagePlan({
                   ? " (compare options)"
                   : shortageDoc.workflowStep === 2
                     ? " (review & approve)"
-                    : " (track delivery)"}
+                    : " (track assistance)"}
               </p>
             ) : null}
           </div>

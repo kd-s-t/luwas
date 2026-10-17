@@ -31,6 +31,11 @@ import {
   type InventoryCategory,
   type InventoryItem,
 } from "@/lib/inventory/types";
+import {
+  inventoryPhotoLimit,
+  isInventoryPhotoFile,
+  uploadInventoryPhoto,
+} from "@/lib/inventory/upload";
 import { getHazardReportById } from "@/lib/reports/api";
 import { APAS_BARANGAY_DOC_ID } from "@/lib/staff/apasStaff";
 import {
@@ -76,7 +81,7 @@ function resolveBarangay(profile: ReturnType<typeof useAuth>["profile"]): {
 }
 
 export function InventoryPanel() {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const { barangayId, orgName } = useMemo(
     () => resolveBarangay(profile),
     [profile],
@@ -99,8 +104,44 @@ export function InventoryPanel() {
   const [available, setAvailable] = useState("0");
   const [location, setLocation] = useState("");
   const [notes, setNotes] = useState("");
+  const [photoFiles, setPhotoFiles] = useState<File[]>([]);
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
 
   const seeded = useRef(false);
+  const photoLimit = inventoryPhotoLimit();
+
+  useEffect(() => {
+    const urls = photoFiles.map((f) => URL.createObjectURL(f));
+    setPhotoPreviews(urls);
+    return () => {
+      for (const u of urls) URL.revokeObjectURL(u);
+    };
+  }, [photoFiles]);
+
+  function resetForm() {
+    setLabel("");
+    setCategory("supply");
+    setUnit("units");
+    setAvailable("0");
+    setLocation("");
+    setNotes("");
+    setPhotoFiles([]);
+  }
+
+  function onPickPhotos(list: FileList | null) {
+    if (!list) return;
+    const next = [...photoFiles];
+    for (const file of Array.from(list)) {
+      if (!isInventoryPhotoFile(file)) continue;
+      if (next.length >= photoLimit) break;
+      next.push(file);
+    }
+    setPhotoFiles(next);
+  }
+
+  function removePhoto(index: number) {
+    setPhotoFiles((prev) => prev.filter((_, i) => i !== index));
+  }
 
   useEffect(() => {
     if (!isOfficer(profile) || !isAccountActive(profile)) {
@@ -201,21 +242,28 @@ export function InventoryPanel() {
     setMsg(null);
     try {
       const qty = Number(available);
+      const uid = user?.uid || profile?.uid || "officer";
+      const imageUrls: string[] = [];
+      for (const file of photoFiles) {
+        const up = await uploadInventoryPhoto({
+          uid,
+          barangayId,
+          file,
+        });
+        imageUrls.push(up.mediaUrl);
+      }
       await addBarangayInventoryItem(barangayId, orgName, {
         label,
         category,
         unit,
         available: qty,
+        imageUrl: imageUrls[0],
+        imageUrls,
         location: location.trim() || undefined,
         notes: notes.trim() || undefined,
       });
       setMsg(`${label.trim()} added to barangay inventory.`);
-      setLabel("");
-      setCategory("supply");
-      setUnit("units");
-      setAvailable("0");
-      setLocation("");
-      setNotes("");
+      resetForm();
       setOpen(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not add item.");
@@ -429,6 +477,60 @@ export function InventoryPanel() {
                   className="mt-1 w-full rounded-xl border border-[var(--border)] bg-white px-3 py-2.5 text-sm outline-none focus:border-[#3b6fb6]/50"
                 />
               </label>
+              <div className="sm:col-span-2">
+                <p className="text-[11px] font-medium tracking-wide text-[var(--muted)] uppercase">
+                  Photos
+                </p>
+                {photoPreviews.length > 0 ? (
+                  <ul className="mt-2 flex flex-wrap gap-2">
+                    {photoPreviews.map((src, i) => (
+                      <li key={`${src}-${i}`} className="relative">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={src}
+                          alt=""
+                          className="h-20 w-20 rounded-xl border border-[var(--border)] object-cover"
+                        />
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => removePhoto(i)}
+                          className="absolute top-1 right-1 rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] font-medium text-white"
+                        >
+                          Remove
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+                {photoFiles.length < photoLimit ? (
+                  <label className="mt-2 flex w-full cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface-raised)] px-3 py-4 text-sm text-[var(--muted)] transition hover:border-[#3b6fb6]/50 hover:text-[var(--foreground)]">
+                    <input
+                      type="file"
+                      accept="image/*,.heic,.heif,.jpg,.jpeg,.png,.webp,.gif"
+                      multiple
+                      disabled={busy}
+                      className="sr-only"
+                      onChange={(e) => {
+                        onPickPhotos(e.target.files);
+                        e.target.value = "";
+                      }}
+                    />
+                    <span className="font-medium text-[var(--foreground)]">
+                      {photoFiles.length === 0
+                        ? "Add photos"
+                        : "Add another photo"}
+                    </span>
+                    <span className="mt-0.5 text-[12px]">
+                      Optional · up to {photoLimit} images
+                    </span>
+                  </label>
+                ) : (
+                  <p className="mt-2 text-[12px] text-[var(--muted)]">
+                    Maximum of {photoLimit} photos.
+                  </p>
+                )}
+              </div>
               <label className="block sm:col-span-2">
                 <span className="text-[11px] font-medium tracking-wide text-[var(--muted)] uppercase">
                   Notes
@@ -452,7 +554,10 @@ export function InventoryPanel() {
               </button>
               <button
                 type="button"
-                onClick={() => setOpen(false)}
+                onClick={() => {
+                  resetForm();
+                  setOpen(false);
+                }}
                 className="inline-flex rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-sm font-medium text-[var(--foreground)]"
               >
                 Cancel
@@ -501,6 +606,11 @@ export function InventoryPanel() {
                                 No photo
                               </div>
                             )}
+                            {(item.imageUrls?.length ?? 0) > 1 ? (
+                              <span className="absolute right-1 bottom-1 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-medium text-white">
+                                {item.imageUrls!.length}
+                              </span>
+                            ) : null}
                           </div>
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">

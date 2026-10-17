@@ -5,9 +5,9 @@ import { AuthGate } from "@/components/AuthGate";
 import { CommandShell } from "@/components/CommandShell";
 import { CommandContentSkeleton } from "@/components/PageLoadSkeleton";
 import { FadeIn } from "@/components/motion/primitives";
-import { ResolveTransportConstraint } from "@/components/ResolveTransportConstraint";
+import { TrackAssistance } from "@/components/TrackAssistance";
 
-export default function TrackDeliveryByIdPage() {
+export default function TrackAssistanceByIdPage() {
   return (
     <AuthGate mode="protected" role="officer">
       <CommandShell fill>
@@ -17,7 +17,7 @@ export default function TrackDeliveryByIdPage() {
             y={0}
             className="flex min-h-0 flex-1 flex-col overflow-hidden"
           >
-            <ResolveTransportConstraint />
+            <TrackAssistance />
           </FadeIn>
         </Suspense>
       </CommandShell>
