@@ -22,9 +22,9 @@ const LINKS = [
     logo: "/brands/bigquery.png",
   },
   {
-    label: "GCS · Cloud Storage",
-    hint: "ugnai-media · vision ingest labels.csv (latest)",
-    href: `https://console.cloud.google.com/storage/browser/_details/ugnai-media-${PROJECT}/luwas-vision-ingest/latest/labels.csv;tab=live_object?project=${PROJECT}`,
+    label: "Google Cloud Storage",
+    hint: "luwas-media · objects",
+    href: "https://console.cloud.google.com/storage/browser/luwas-media-nice-pen-181017;tab=objects?forceOnBucketsSortingFiltering=true&project=nice-pen-181017&prefix=&forceOnObjectsSortingFiltering=false",
     logo: "/brands/gcs.png",
   },
   {
@@ -37,6 +37,12 @@ const LINKS = [
     label: "Figma · Ugnai Flow",
     hint: "Product / flow design",
     href: "https://www.figma.com/design/806rvmMWa5XgLcAg1t4wCb/Ugnai-Flow?node-id=0-1&p=f&m=draw",
+    logo: "/brands/figma.png",
+  },
+  {
+    label: "Figma · Hackathon UI/UX",
+    hint: "UI/UX design reference",
+    href: "https://www.figma.com/design/g1BrfE4qwgsKpIS2DlqlkH/Hackathon?node-id=1285-9791&p=f&t=pYGNSiCf4yltbGEx-0",
     logo: "/brands/figma.png",
   },
 ] as const;

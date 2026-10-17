@@ -1,8 +1,8 @@
 name: Deploy prod → luwasph.com
 
-# Push to `prod` builds Cloud Run (luwas) + refreshes Firebase Hosting
+# Push to `prod` builds Cloud Run (ugnai) + refreshes Firebase Hosting
 # so https://luwasph.com picks up the new revision (not just GitHub CI).
-# App brand is UGNAI; GCP service / bucket names stay luwas until renamed in cloud.
+# App brand is UGNAI; media bucket / EE SA names may still say luwas.
 on:
   push:
     branches: [prod]
@@ -79,7 +79,8 @@ jobs:
         run: |
           set -euo pipefail
           PROJECT="${{ secrets.GCP_PROJECT_ID }}"
-          gcloud run deploy luwas \
+          gcloud run deploy ugnai \
+            --service-account=luwas-earth-engine-687@nice-pen-181017.iam.gserviceaccount.com \
             --source . \
             --region=asia-southeast1 \
             --project="$PROJECT" \
