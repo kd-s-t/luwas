@@ -50,8 +50,11 @@ firestore-debug.log
 ui-debug.log
 .emulator-backup/
 
-# Guest report photo uploads (local ingest)
+# Local report photo uploads (guest + signed-in uid folders)
 /public/reports/guest/
+/public/reports/*/
+!/public/reports/flow-hazards/
+!/public/reports/flow-hazards/**
 
 # Cursor / local agent
 .cursor/

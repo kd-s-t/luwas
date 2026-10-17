@@ -129,7 +129,8 @@ export function deskStockForReports(
   if (apas) {
     return { waterL: 1200, foodPacks: 160, medicalKits: 10 };
   }
-  return { waterL: 0, foodPacks: 0, medicalKits: 0 };
+  // Nangka / Consolacion demo warehouse (multi-purok water desk).
+  return { waterL: 1200, foodPacks: 160, medicalKits: 10 };
 }
 
 /** Shared shortage copy: headline · qty line · Affects (related text only). */
@@ -151,10 +152,7 @@ export function epicShortageCopy(
   );
   const primary = sorted[0]!;
   const places = [...new Set(sorted.map(placeLine).filter(Boolean))];
-  const placeLabel =
-    places.length <= 3
-      ? places.join(", ")
-      : `${places.slice(0, 2).join(", ")} +${places.length - 2} more`;
+  const placeLabel = places.join(", ");
   const agg = aggregateSupplyNeed(sorted);
   const requested = requestedFor(kind, agg);
   const available = stockAvailable(kind, stock);
@@ -290,19 +288,23 @@ function buildSoloItem(
   }
 
   if (kind === "resource") {
+    const supply = supplyNeedKind(report);
+    const shortageHref = supply
+      ? `/admin/resources/${encodeURIComponent(supplyNeedEpicCode(supply))}`
+      : `/admin/resources/assist?report=${encodeURIComponent(report.id)}`;
     return {
       id: `resource-${report.id}`,
       kind,
       reportId: report.id,
       reportIds: [report.id],
-      incidentCode: code,
+      incidentCode: supply ? supplyNeedEpicCode(supply) : code,
       tags: [{ label: "Resource shortage", tone: "warn" }],
       headline: report.title || `${place} needs additional support.`,
       detail: short.detail,
       timeLabel: timeLabelPht(report.createdAt),
       meta: "1 request",
       ctaLabel: "Review shortage",
-      ctaHref: `/admin/resources/assist?report=${encodeURIComponent(report.id)}`,
+      ctaHref: shortageHref,
       primaryCta: false,
       lat: report.lat,
       lng: report.lng,
@@ -347,7 +349,7 @@ function buildEpicItem(
     timeLabel: timeLabelPht(copy.primary.createdAt),
     meta: copy.meta,
     ctaLabel: "Review shortage",
-    ctaHref: `/admin/resources?rs=${encodeURIComponent(copy.incidentCode)}`,
+    ctaHref: `/admin/resources/${encodeURIComponent(copy.incidentCode)}`,
     primaryCta: false,
     lat: copy.primary.lat,
     lng: copy.primary.lng,

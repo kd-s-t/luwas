@@ -202,16 +202,41 @@ export async function patchGuestReportFields(
   }
 }
 
-/** Download guest media from GCS (ADC). */
+function guessMimeFromPath(filePath: string): string {
+  const lower = filePath.toLowerCase();
+  if (lower.endsWith(".png")) return "image/png";
+  if (lower.endsWith(".webp")) return "image/webp";
+  if (lower.endsWith(".gif")) return "image/gif";
+  if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+  return "application/octet-stream";
+}
+
+/** Download guest media from local public/ (emulator) or GCS (ADC). */
 export async function downloadGuestMediaBytes(
   objectPath: string,
 ): Promise<{ bytes: Buffer; contentType: string } | null> {
-  const path = objectPath.trim().replace(/^\/+/, "");
-  if (!path) return null;
+  const cleaned = objectPath.trim().replace(/^\/+/, "");
+  if (!cleaned) return null;
+
+  // Emulator uploads land under public/reports/... (not GCS).
+  if (firestoreEmulatorHost()) {
+    try {
+      const { readFile } = await import("node:fs/promises");
+      const { join } = await import("node:path");
+      const abs = join(process.cwd(), "public", cleaned);
+      const bytes = await readFile(abs);
+      if (bytes.length > 0) {
+        return { bytes, contentType: guessMimeFromPath(cleaned) };
+      }
+    } catch {
+      // Fall through to GCS in case a real object path was stored.
+    }
+  }
+
   const bucket = storageBucket();
   const token = await googleAccessToken();
   const res = await fetch(
-    `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(bucket)}/o/${encodeURIComponent(path)}?alt=media`,
+    `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(bucket)}/o/${encodeURIComponent(cleaned)}?alt=media`,
     { headers: { Authorization: `Bearer ${token}` } },
   );
   if (res.status === 404) return null;

@@ -9,6 +9,7 @@ import type { AssistanceCommitment } from "@/lib/workspace/assistanceCommitments
 import { assistHref } from "@/lib/workspace/assistancePlan";
 import {
   parseReportNeed,
+  supplyNeedEpicCode,
   supplyNeedKind,
   type SupplyNeedKind,
 } from "@/lib/workspace/reportNeed";
@@ -119,7 +120,7 @@ function toNeed(
         requestMeta: item.meta,
         shared: true,
         ctaLabel: "Review shortage",
-        ctaHref: assistHref(item.reportId),
+        ctaHref: `/admin/resources/${encodeURIComponent(item.incidentCode)}`,
         primaryCta: false,
         reportId: item.reportId,
         reportIds: item.reportIds,
@@ -127,6 +128,11 @@ function toNeed(
     }
     const householdsLabel = parsed?.householdsLabel ?? "Households TBD";
     const neededCore = parsed?.neededLabel ?? item.meta ?? "Response TBD";
+    const supply = report ? supplyNeedKind(report) : null;
+    const shortageHref =
+      supply != null
+        ? `/admin/resources/${encodeURIComponent(item.incidentCode.startsWith("RS-") ? item.incidentCode : supplyNeedEpicCode(supply))}`
+        : assistHref(item.reportId);
     return {
       id: item.id,
       kind: "shortage",
@@ -135,9 +141,9 @@ function toNeed(
       detail: parsed?.detail ?? item.detail,
       householdsLabel,
       neededLabel: `Needed: ${neededCore}`,
-      ctaLabel: "Find assistance",
-      ctaHref: assistHref(item.reportId),
-      primaryCta: true,
+      ctaLabel: supply ? "Review shortage" : "Find assistance",
+      ctaHref: shortageHref,
+      primaryCta: !supply,
       reportId: item.reportId,
       reportIds: [item.reportId],
     };
@@ -221,7 +227,7 @@ function collapseSupplyShortages(
       requestMeta: copy.meta,
       shared: true,
       ctaLabel: "Review shortage",
-      ctaHref: assistHref(copy.primary.id),
+      ctaHref: `/admin/resources/${encodeURIComponent(copy.incidentCode)}`,
       primaryCta: false,
       reportId: copy.primary.id,
       reportIds: copy.reportIds,

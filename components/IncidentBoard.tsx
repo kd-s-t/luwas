@@ -582,26 +582,15 @@ export function IncidentBoard() {
                           </p>
                           <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
                             {r.aiPriority ? (
-                              <>
-                                <span
-                                  className={cn(
-                                    "inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase ring-1",
-                                    priorityTone(r.aiPriority),
-                                  )}
-                                >
-                                  {reportPriorityLabel(r.aiPriority)}
-                                </span>
-                                <span
-                                  className="text-[10px] text-[var(--foreground)]"
-                                  aria-hidden
-                                >
-                                  ·
-                                </span>
-                              </>
+                              <span
+                                className={cn(
+                                  "inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase ring-1",
+                                  priorityTone(r.aiPriority),
+                                )}
+                              >
+                                {reportPriorityLabel(r.aiPriority)}
+                              </span>
                             ) : null}
-                            <span className="text-[10px] font-semibold tracking-wide text-[var(--foreground)] uppercase">
-                              {hazardHintLabel(r.hazardHint)}
-                            </span>
                           </div>
                           {(() => {
                             const outSince = dispatchOutSince(r);

@@ -962,10 +962,25 @@ export function CitizenReportForm({
     // Await Vertex + Gemini so title / hazardHint are rewritten before leave.
     setStatus(t(language, "common.submitting"));
     try {
+      const canInline =
+        Boolean(file) &&
+        mediaType === "photo" &&
+        (file?.size ?? 0) <= 3.5 * 1024 * 1024;
+      const mediaBase64 =
+        canInline && file ? await fileToBase64(file) : undefined;
       await fetch("/api/reports/guest-validate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reportId: id, title, notes, hazardHint }),
+        body: JSON.stringify({
+          reportId: id,
+          title,
+          notes,
+          hazardHint,
+          mediaType,
+          mediaMime: uploaded.mediaMime || undefined,
+          mediaBase64,
+          fileName: file?.name,
+        }),
       });
     } catch {
       // Report already queued — officer queue can still pick it up.

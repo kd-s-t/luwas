@@ -86,7 +86,7 @@ function AttentionCard({ item, index }: { item: AttentionItem; index: number }) 
     <FadeIn delay={0.05 + index * 0.05} y={10}>
       <article
         className={cn(
-          "flex flex-col gap-3 rounded-2xl border p-4 shadow-sm sm:p-5",
+          "rounded-2xl border p-4 shadow-sm sm:p-5",
           accent.ring,
           sharedShortage ? "bg-[#fffbeb]" : "bg-white",
         )}
@@ -101,8 +101,8 @@ function AttentionCard({ item, index }: { item: AttentionItem; index: number }) 
             <Icon className="size-5" aria-hidden />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <div className="flex flex-wrap items-center gap-1.5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                 {item.tags.map((tag) => (
                   <span
                     key={tag.label}
@@ -123,44 +123,44 @@ function AttentionCard({ item, index }: { item: AttentionItem; index: number }) 
                 </span>
               </div>
               {sharedShortage ? (
-                <div className="text-right font-mono text-[11px] leading-relaxed text-[var(--muted)]">
+                <div className="shrink-0 text-right text-[11px] leading-relaxed text-[var(--muted)]">
                   <p>{item.timeLabel}</p>
                   <p>{item.meta}</p>
                 </div>
               ) : null}
             </div>
-            <h3 className="mt-1.5 text-base font-semibold tracking-tight text-[var(--foreground)] sm:text-[17px]">
+            <h3 className="mt-2 text-base font-semibold tracking-tight text-[var(--foreground)] sm:text-[17px]">
               {item.headline}
             </h3>
-            <p className="mt-1 text-sm leading-relaxed text-[var(--muted)]">
+            <p className="mt-1 text-sm leading-snug text-[var(--muted)]">
               {item.detail}
             </p>
             {item.affectsLabel ? (
-              <p className="mt-0.5 text-sm leading-relaxed text-[var(--muted)]">
+              <p className="mt-1 text-sm leading-snug text-[var(--muted)]">
                 {item.affectsLabel}
               </p>
             ) : null}
             {!sharedShortage ? (
-              <p className="mt-2 font-mono text-[11px] text-[var(--muted)]">
+              <p className="mt-2 text-[11px] text-[var(--muted)]">
                 {item.timeLabel}
                 <span className="mx-1.5 text-[var(--border)]">·</span>
                 {item.meta}
               </p>
             ) : null}
+            <div className="mt-3 flex justify-end">
+              <Link
+                href={item.ctaHref}
+                className={cn(
+                  "inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-medium transition",
+                  item.primaryCta
+                    ? "bg-[#c72929] text-white hover:bg-[#9e1a1a]"
+                    : "border border-[#93c5fd] bg-white text-[#2f5f9e] hover:border-[#3b6fb6] hover:bg-[#f8fbff]",
+                )}
+              >
+                {item.ctaLabel}
+              </Link>
+            </div>
           </div>
-        </div>
-        <div className="flex shrink-0 justify-end sm:pl-12">
-          <Link
-            href={item.ctaHref}
-            className={cn(
-              "inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-medium transition",
-              item.primaryCta
-                ? "bg-[#c72929] text-white hover:bg-[#9e1a1a]"
-                : "border border-[#93c5fd] bg-white text-[#2f5f9e] hover:border-[#3b6fb6] hover:bg-[#f8fbff]",
-            )}
-          >
-            {item.ctaLabel}
-          </Link>
         </div>
       </article>
     </FadeIn>
@@ -178,6 +178,22 @@ export function CommandOverview() {
   );
 
   const snapshot = useMemo(() => formatSnapshot(new Date()), []);
+
+  const shortageHref = useMemo(() => {
+    const epics = board.items.filter(
+      (item) =>
+        item.kind === "resource" &&
+        /^RS-\d+/i.test(item.incidentCode) &&
+        (/\/admin\/resources\/RS-/i.test(item.ctaHref) ||
+          item.ctaHref.includes("rs=")),
+    );
+    // Prefer drinking-water (RS-001) when present — Apas multi-sitio desk.
+    const water = epics.find((item) =>
+      /^RS-001$/i.test(item.incidentCode),
+    );
+    const epic = water ?? epics[0];
+    return epic?.ctaHref ?? "/admin/resources";
+  }, [board.items]);
 
   const weatherLabel =
     weatherOk === false
@@ -199,7 +215,7 @@ export function CommandOverview() {
     {
       label: "Resource shortages",
       value: board.shortages,
-      href: "/admin/resources",
+      href: shortageHref,
       Icon: Package,
       iconClass: "bg-[#f59e0b]/12 text-[#d97706]",
     },

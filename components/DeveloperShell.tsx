@@ -106,12 +106,8 @@ export function DeveloperShell({
               <span>{item.label}</span>
               {badge > 0 ? (
                 <span
-                  className={cn(
-                    "min-w-[1.25rem] rounded-full px-1.5 py-px text-center text-[10px] font-semibold tabular-nums",
-                    active
-                      ? "bg-[#0f1b2d]/10 text-[#0f1b2d]"
-                      : "bg-[#c72929] text-white",
-                  )}
+                  className="min-w-[1.25rem] rounded-full bg-[#c72929] px-1.5 py-px text-center text-[10px] font-semibold tabular-nums text-white"
+                  aria-label={`${badge} open support tickets`}
                 >
                   {badge > 99 ? "99+" : badge}
                 </span>

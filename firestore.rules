@@ -239,6 +239,29 @@ service cloud.firestore {
       allow delete: if isOfficer();
     }
 
+    // Shortage parent docs — id is the public code (e.g. RS-001).
+    match /resources_shortages/{shortageId} {
+      allow read: if isOfficer();
+      allow create, update: if isOfficer()
+        && request.resource.data.kind is string
+        && request.resource.data.resourceLabel is string
+        && request.resource.data.totalNeededL is number
+        && request.resource.data.availableL is number
+        && request.resource.data.shortageL is number;
+      allow delete: if isOfficer();
+    }
+
+    // One suggestion doc per plan (id = RS-001); sitio requests nested in `requests`.
+    match /resources_suggestions/{suggestionId} {
+      allow read: if isOfficer();
+      allow create, update: if isOfficer()
+        && request.resource.data.shortageId is string
+        && request.resource.data.shortageId.size() > 0
+        && request.resource.data.kind is string
+        && request.resource.data.requests is list;
+      allow delete: if isOfficer();
+    }
+
     match /reports/{reportId} {
       // Public feed can list reports; writers stay authenticated.
       allow read: if true;

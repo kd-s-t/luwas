@@ -47,7 +47,7 @@ type ApasSample = {
 /** Legacy Apas queue samples — no longer seeded (removed from board). */
 export const APAS_QUEUE_SAMPLES: ApasSample[] = [];
 
-/** Drinking-water shortages · distinct Apas sitios (each asks for 3000 L). */
+/** Drinking-water shortages · five Apas sitios (one request each). */
 export const APAS_WATER_NEED_REPORTS = [
   {
     id: "CEB-CC-APAS-261017-8201",
@@ -57,9 +57,9 @@ export const APAS_WATER_NEED_REPORTS = [
     email: "rosa.v@apas.water.demo",
     lat: 10.3374,
     lng: 123.9045,
-    title: "Need 3000 L drinking water · Sitio Mahayahay",
+    title: "Need 1200 L drinking water · Sitio Mahayahay",
     notes:
-      "Local stock empty in Sitio Mahayahay. Need 3000 L drinking water for households until supply restored. Local stock cannot cover the gap.",
+      "320 people affected in Sitio Mahayahay. Local stock empty (0 L local). Need 1200 L drinking water until supply restored.",
     mediaUrl: "/reports/flood-road-chapel.png",
   },
   {
@@ -70,9 +70,9 @@ export const APAS_WATER_NEED_REPORTS = [
     email: "paolo.m@apas.water.demo",
     lat: 10.3366,
     lng: 123.9056,
-    title: "Need 3000 L drinking water · Sitio Kamagayan",
+    title: "Need 1000 L drinking water · Sitio Kamagayan",
     notes:
-      "Local stock empty in Sitio Kamagayan. Need 3000 L drinking water for households until supply restored. Local stock cannot cover the gap.",
+      "250 people affected in Sitio Kamagayan. 200 L local stock on hand. Need 1000 L drinking water. Access unknown pending ground check.",
     mediaUrl: "/reports/flood-road-chapel.png",
   },
   {
@@ -83,9 +83,9 @@ export const APAS_WATER_NEED_REPORTS = [
     email: "irene.c@apas.water.demo",
     lat: 10.3382,
     lng: 123.9042,
-    title: "Need 3000 L drinking water · Sitio Looc",
+    title: "Need 800 L drinking water · Sitio Looc",
     notes:
-      "Local stock empty in Sitio Looc. Need 3000 L drinking water for households until supply restored. Local stock cannot cover the gap.",
+      "180 people affected in Sitio Looc. 300 L local stock on hand. Need 800 L drinking water. No transport for tanker delivery.",
     mediaUrl: "/reports/flood-road-chapel.png",
   },
   {
@@ -96,9 +96,9 @@ export const APAS_WATER_NEED_REPORTS = [
     email: "janet.s@apas.water.demo",
     lat: 10.337,
     lng: 123.906,
-    title: "Need 3000 L drinking water · Sitio Banawa Creek",
+    title: "Need 900 L drinking water · Sitio Banawa Creek",
     notes:
-      "Local stock empty in Sitio Banawa Creek. Need 3000 L drinking water for households until supply restored. Local stock cannot cover the gap.",
+      "210 people affected in Sitio Banawa Creek. Local stock empty (0 L local). Need 900 L drinking water until supply restored.",
     mediaUrl: "/reports/flood-road-chapel.png",
   },
   {
@@ -109,9 +109,9 @@ export const APAS_WATER_NEED_REPORTS = [
     email: "marco.v@apas.water.demo",
     lat: 10.3385,
     lng: 123.9055,
-    title: "Need 3000 L drinking water · Sitio Lahug Approach",
+    title: "Need 700 L drinking water · Sitio Lahug Approach",
     notes:
-      "Local stock empty in Sitio Lahug Approach. Need 3000 L drinking water for households until supply restored. Local stock cannot cover the gap.",
+      "190 people affected in Sitio Lahug Approach. 150 L local stock on hand. Need 700 L drinking water. Access unknown pending ground check.",
     mediaUrl: "/reports/flood-road-chapel.png",
   },
 ] as const;
@@ -282,8 +282,6 @@ export async function ensureApasWaterAndFireReports(): Promise<number> {
   for (const sample of demos) {
     const ref = doc(db, "reports", sample.id);
     const existing = await getDoc(ref);
-    if (existing.exists()) continue;
-
     const trust = computeReportTrust({
       registered: false,
       idVerified: false,
@@ -298,7 +296,7 @@ export async function ensureApasWaterAndFireReports(): Promise<number> {
       aiVerdict: "legit",
     });
 
-    await setDoc(ref, {
+    const row = {
       // Place-id seed path requires demo-map-seed + status legit.
       citizenUid: "demo-map-seed",
       source: "web",
@@ -332,12 +330,12 @@ export async function ensureApasWaterAndFireReports(): Promise<number> {
         immediateSeverity:
           sample.hazardHint === "fire"
             ? "Active or recent fire · life-safety risk."
-            : "Need 3000 L drinking water · stock gap.",
+            : `${sample.title} · stock gap.`,
         peopleAffected: `Households in ${sample.sitio}.`,
         existingCoverage:
           sample.hazardHint === "fire"
             ? "Local stock cannot cover the gap."
-            : "Local stock cannot cover 3000 L.",
+            : "Local stock cannot cover the sitio water request.",
         deliveryFeasibility: "Confirm access from Generoso St.",
         evidenceQuality: sample.aiReason,
       },
@@ -361,10 +359,45 @@ export async function ensureApasWaterAndFireReports(): Promise<number> {
       trustBreakdown: trust,
       reactionCounts: { ...EMPTY_REACTION_COUNTS },
       commentCount: 0,
-      createdAt: now,
       updatedAt: now,
-      createdAtServer: serverTimestamp(),
       updatedAtServer: serverTimestamp(),
+    };
+
+    if (existing.exists()) {
+      const data = existing.data() as {
+        citizenPurok?: string;
+        title?: string;
+        notes?: string;
+        barangay?: string;
+        status?: string;
+      };
+      // Keep fire create-only; refresh water sitio copy when it drifts.
+      const waterDrift =
+        sample.hazardHint === "other" &&
+        (data.citizenPurok !== sample.sitio ||
+          data.title !== sample.title ||
+          data.notes !== sample.notes ||
+          data.barangay !== "Apas" ||
+          data.status !== "legit");
+      if (!waterDrift) continue;
+      await setDoc(
+        ref,
+        {
+          ...row,
+          createdAt: existing.data()?.createdAt ?? now,
+          createdAtServer:
+            existing.data()?.createdAtServer ?? serverTimestamp(),
+        },
+        { merge: true },
+      );
+      created += 1;
+      continue;
+    }
+
+    await setDoc(ref, {
+      ...row,
+      createdAt: now,
+      createdAtServer: serverTimestamp(),
     });
     created += 1;
   }

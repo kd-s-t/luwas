@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CommandContentSkeleton } from "@/components/PageLoadSkeleton";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { Badge } from "@/components/ui/badge";
@@ -10,12 +10,12 @@ import { useAuth } from "@/lib/auth/AuthProvider";
 import {
   isAccountActive,
   isDeveloper,
-  type OfficerProfile,
+  type DeveloperProfile,
 } from "@/lib/auth/types";
 import {
   addSupportTicketMessage,
   assignSupportTicket,
-  UGNAI_DEVELOPERS_ASSIGNEE,
+  isPlaceholderAssignee,
   subscribeSupportTickets,
   updateSupportTicketStatus,
   type SupportTicket,
@@ -277,10 +277,15 @@ function TicketChat({
 export function SupportDetail({ ticketId }: { ticketId: string }) {
   const { profile } = useAuth();
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
-  const [officers, setOfficers] = useState<OfficerProfile[]>([]);
+  const [developers, setDevelopers] = useState<DeveloperProfile[]>([]);
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [assignQuery, setAssignQuery] = useState("");
+  const assignMenuRef = useRef<HTMLDivElement | null>(null);
+  const assignSearchRef = useRef<HTMLInputElement | null>(null);
+  const clearedDemoRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!isDeveloper(profile) || !isAccountActive(profile)) {
@@ -296,14 +301,14 @@ export function SupportDetail({ ticketId }: { ticketId: string }) {
 
   useEffect(() => {
     if (!isDeveloper(profile) || !isAccountActive(profile)) {
-      setOfficers([]);
+      setDevelopers([]);
       return;
     }
     return onSnapshot(collection(getClientDb(), "users"), (snap) => {
-      const next: OfficerProfile[] = [];
+      const next: DeveloperProfile[] = [];
       for (const d of snap.docs) {
         const data = d.data();
-        if (data.role !== "officer") continue;
+        if (data.role !== "developer") continue;
         const status = data.accountStatus as string | undefined;
         if (status === "fired" || status === "rejected" || status === "pending") {
           continue;
@@ -313,7 +318,7 @@ export function SupportDetail({ ticketId }: { ticketId: string }) {
           email: String(data.email ?? ""),
           displayName: String(data.displayName ?? ""),
           orgName: String(data.orgName ?? ""),
-          role: "officer",
+          role: "developer",
           createdAt: String(data.createdAt ?? ""),
           accountStatus: "active",
           photoURL:
@@ -323,7 +328,7 @@ export function SupportDetail({ ticketId }: { ticketId: string }) {
       next.sort((a, b) =>
         (a.displayName || a.email).localeCompare(b.displayName || b.email),
       );
-      setOfficers(next);
+      setDevelopers(next);
     });
   }, [profile]);
 
@@ -334,14 +339,74 @@ export function SupportDetail({ ticketId }: { ticketId: string }) {
 
   const photoByUid = useMemo(() => {
     const map = new Map<string, string | null>();
-    for (const o of officers) {
-      map.set(o.uid, o.photoURL ?? null);
+    for (const d of developers) {
+      map.set(d.uid, d.photoURL ?? null);
     }
     if (isDeveloper(profile)) {
       map.set(profile.uid, profile.photoURL ?? null);
     }
     return map;
-  }, [officers, profile]);
+  }, [developers, profile]);
+
+  const assigneeIsPlaceholder = selected
+    ? isPlaceholderAssignee(selected.assignedToUid, selected.assignedToName)
+    : false;
+  const assigneeUid = assigneeIsPlaceholder
+    ? null
+    : selected?.assignedToUid ?? null;
+  const assigneeName = assigneeIsPlaceholder
+    ? null
+    : selected?.assignedToName ?? null;
+  const assigneeDev = assigneeUid
+    ? developers.find((d) => d.uid === assigneeUid) ?? null
+    : null;
+
+  useEffect(() => {
+    setAssignOpen(false);
+    setAssignQuery("");
+  }, [ticketId]);
+
+  useEffect(() => {
+    if (!assignOpen) return;
+    const t = window.setTimeout(() => assignSearchRef.current?.focus(), 0);
+    function onDoc(e: MouseEvent) {
+      if (assignMenuRef.current?.contains(e.target as Node)) return;
+      setAssignOpen(false);
+      setAssignQuery("");
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setAssignOpen(false);
+        setAssignQuery("");
+      }
+    }
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      window.clearTimeout(t);
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [assignOpen]);
+
+  useEffect(() => {
+    if (!isDeveloper(profile) || !selected) return;
+    if (
+      !isPlaceholderAssignee(selected.assignedToUid, selected.assignedToName)
+    ) {
+      return;
+    }
+    if (clearedDemoRef.current === selected.id) return;
+    clearedDemoRef.current = selected.id;
+    void assignSupportTicket({
+      ticketId: selected.id,
+      assigneeUid: null,
+      assigneeName: null,
+      promoteToInProgress: false,
+    }).catch(() => {
+      clearedDemoRef.current = null;
+    });
+  }, [profile, selected]);
 
   async function setStatus(status: SupportTicketStatus) {
     if (!isDeveloper(profile) || !selected) return;
@@ -496,33 +561,66 @@ export function SupportDetail({ ticketId }: { ticketId: string }) {
             <h2 className="mb-2 text-xs font-semibold tracking-wide uppercase text-[var(--muted)]">
               Status
             </h2>
-            <div className="flex flex-wrap gap-1.5">
+            <label className="sr-only" htmlFor="support-ticket-status">
+              Ticket status
+            </label>
+            <select
+              id="support-ticket-status"
+              value={selected.status}
+              disabled={busy}
+              onChange={(e) => {
+                const next = e.target.value as SupportTicketStatus;
+                if (next === selected.status) return;
+                void setStatus(next);
+              }}
+              className="w-full rounded-md border border-[var(--border)] bg-[var(--input)] px-2.5 py-2 text-sm outline-none focus:ring-1 focus:ring-[var(--accent)] disabled:opacity-50"
+            >
               {(
                 ["open", "in_progress", "resolved", "closed"] as const
               ).map((s) => (
-                <Button
-                  key={s}
-                  type="button"
-                  size="sm"
-                  variant={selected.status === s ? "default" : "outline"}
-                  disabled={busy || selected.status === s}
-                  onClick={() => void setStatus(s)}
-                >
+                <option key={s} value={s}>
                   {statusLabel(s)}
-                </Button>
+                </option>
               ))}
-            </div>
+            </select>
           </section>
 
           <section className="rounded-xl border border-[var(--border)] bg-white p-3">
             <h2 className="mb-2 text-xs font-semibold tracking-wide uppercase text-[var(--muted)]">
               Assignee
             </h2>
-            <p className="mb-2 text-sm">
-              {selected.assignedToName || "Unassigned"}
-            </p>
+            <div className="mb-3 flex items-center gap-2">
+              {assigneeUid || assigneeName ? (
+                <>
+                  <ProfileAvatar
+                    name={
+                      assigneeName ||
+                      assigneeDev?.displayName ||
+                      assigneeDev?.email ||
+                      "Developer"
+                    }
+                    photoURL={assigneeDev?.photoURL ?? null}
+                    seed={
+                      assigneeName ||
+                      assigneeDev?.displayName ||
+                      assigneeUid ||
+                      undefined
+                    }
+                    size="sm"
+                  />
+                  <p className="min-w-0 truncate text-sm font-medium">
+                    {assigneeName ||
+                      assigneeDev?.displayName ||
+                      assigneeDev?.email ||
+                      "Developer"}
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-[var(--muted)]">Unassigned</p>
+              )}
+            </div>
             <div className="flex flex-col gap-1.5">
-              {selected.assignedToUid !== profile.uid ? (
+              {assigneeUid !== profile.uid ? (
                 <Button
                   type="button"
                   size="sm"
@@ -532,59 +630,154 @@ export function SupportDetail({ ticketId }: { ticketId: string }) {
                   Take it
                 </Button>
               ) : null}
-              <Button
-                type="button"
-                size="sm"
-                variant={
-                  selected.assignedToUid === UGNAI_DEVELOPERS_ASSIGNEE.uid
-                    ? "default"
-                    : "outline"
-                }
-                disabled={
-                  busy ||
-                  selected.assignedToUid === UGNAI_DEVELOPERS_ASSIGNEE.uid
-                }
-                onClick={() =>
-                  void assign(
-                    UGNAI_DEVELOPERS_ASSIGNEE.uid,
-                    UGNAI_DEVELOPERS_ASSIGNEE.name,
-                  )
-                }
-              >
-                <span className="inline-flex items-center gap-2">
-                  <ProfileAvatar
-                    name={UGNAI_DEVELOPERS_ASSIGNEE.name}
-                    seed={UGNAI_DEVELOPERS_ASSIGNEE.uid}
-                    size="sm"
-                  />
-                  {UGNAI_DEVELOPERS_ASSIGNEE.name}
-                </span>
-              </Button>
-              {officers.slice(0, 8).map((o) => (
+              <div className="relative" ref={assignMenuRef}>
                 <Button
-                  key={o.uid}
                   type="button"
                   size="sm"
-                  variant={
-                    selected.assignedToUid === o.uid ? "default" : "outline"
-                  }
-                  disabled={busy || selected.assignedToUid === o.uid}
-                  onClick={() =>
-                    void assign(o.uid, o.displayName || o.email)
-                  }
+                  variant="outline"
+                  disabled={busy}
+                  aria-haspopup="listbox"
+                  aria-expanded={assignOpen}
+                  onClick={() => {
+                    setAssignQuery("");
+                    setAssignOpen((o) => !o);
+                  }}
                 >
-                  {o.displayName || o.email}
+                  {assigneeUid || assigneeName
+                    ? "Change assignee"
+                    : "Assign developer"}
                 </Button>
-              ))}
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={busy || !selected.assignedToUid}
-                onClick={() => void assign(null, null)}
-              >
-                Clear assignee
-              </Button>
+                {assignOpen ? (
+                  <div className="absolute top-full left-0 z-30 mt-1 flex max-h-72 w-full min-w-[14rem] flex-col border border-[var(--border)] bg-[var(--surface-raised)] shadow-md">
+                    <div className="shrink-0 space-y-1 border-b border-[var(--border)] p-1.5">
+                      <input
+                        ref={assignSearchRef}
+                        type="search"
+                        value={assignQuery}
+                        onChange={(e) => setAssignQuery(e.target.value)}
+                        placeholder="Search developers…"
+                        aria-label="Search developers"
+                        className="w-full bg-[var(--input)] px-2 py-1.5 text-xs outline-none ring-1 ring-[var(--border)] focus:ring-[var(--accent)]"
+                      />
+                      {(() => {
+                        const q = assignQuery.trim().toLowerCase();
+                        const showUnassigned =
+                          !q || "unassigned".includes(q);
+                        return showUnassigned ? (
+                          <button
+                            type="button"
+                            role="option"
+                            className="flex w-full items-center gap-2 px-2 py-1.5 text-left text-xs hover:bg-[var(--surface-panel)]"
+                            onClick={() => {
+                              void assign(null, null);
+                              setAssignOpen(false);
+                              setAssignQuery("");
+                            }}
+                          >
+                            <span className="flex size-7 items-center justify-center rounded-full border border-dashed border-[var(--border)] text-[10px] text-[var(--muted)]">
+                              —
+                            </span>
+                            Unassigned
+                          </button>
+                        ) : null;
+                      })()}
+                    </div>
+                    <div
+                      role="listbox"
+                      className="min-h-0 flex-1 overflow-y-auto py-1"
+                    >
+                      {(() => {
+                        const q = assignQuery.trim().toLowerCase();
+                        const match = (label: string) =>
+                          !q || label.toLowerCase().includes(q);
+                        const showMe = match(
+                          `me ${profile.displayName || ""} ${profile.email || ""}`,
+                        );
+                        const filtered = developers.filter(
+                          (d) =>
+                            d.uid !== profile.uid &&
+                            match(
+                              `${d.displayName || ""} ${d.email || ""}`,
+                            ),
+                        );
+                        const none = !showMe && filtered.length === 0;
+                        return (
+                          <>
+                            {showMe ? (
+                              <button
+                                type="button"
+                                role="option"
+                                aria-selected={assigneeUid === profile.uid}
+                                className={cn(
+                                  "flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs hover:bg-[var(--surface-panel)]",
+                                  assigneeUid === profile.uid &&
+                                    "bg-[var(--accent)]/10",
+                                )}
+                                onClick={() => {
+                                  void takeIt();
+                                  setAssignOpen(false);
+                                  setAssignQuery("");
+                                }}
+                              >
+                                <ProfileAvatar
+                                  name={
+                                    profile.displayName || profile.email
+                                  }
+                                  photoURL={profile.photoURL}
+                                  seed={
+                                    profile.displayName || profile.email
+                                  }
+                                  size="sm"
+                                />
+                                <span className="min-w-0 truncate">
+                                  Me ·{" "}
+                                  {profile.displayName || profile.email}
+                                </span>
+                              </button>
+                            ) : null}
+                            {filtered.map((d) => (
+                              <button
+                                key={d.uid}
+                                type="button"
+                                role="option"
+                                aria-selected={assigneeUid === d.uid}
+                                className={cn(
+                                  "flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs hover:bg-[var(--surface-panel)]",
+                                  assigneeUid === d.uid &&
+                                    "bg-[var(--accent)]/10",
+                                )}
+                                onClick={() => {
+                                  void assign(
+                                    d.uid,
+                                    d.displayName || d.email,
+                                  );
+                                  setAssignOpen(false);
+                                  setAssignQuery("");
+                                }}
+                              >
+                                <ProfileAvatar
+                                  name={d.displayName || d.email}
+                                  photoURL={d.photoURL}
+                                  seed={d.displayName || d.email}
+                                  size="sm"
+                                />
+                                <span className="min-w-0 truncate">
+                                  {d.displayName || d.email}
+                                </span>
+                              </button>
+                            ))}
+                            {none ? (
+                              <p className="px-2.5 py-3 text-center text-xs text-[var(--muted)]">
+                                No matches
+                              </p>
+                            ) : null}
+                          </>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
             </div>
           </section>
         </aside>

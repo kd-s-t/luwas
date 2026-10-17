@@ -115,6 +115,12 @@ const SECONDARY: {
     match: (p) => p.startsWith("/admin/inventory"),
   },
   {
+    href: "/admin/resources/suggestions",
+    label: "Suggested",
+    icon: Package,
+    match: (p) => p.startsWith("/admin/resources/suggestions"),
+  },
+  {
     href: "/admin/evac-centers",
     label: "Evac centers",
     icon: Home,

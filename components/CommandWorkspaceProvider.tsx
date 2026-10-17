@@ -91,34 +91,15 @@ export function CommandWorkspaceProvider({
 
   useEffect(() => {
     let cancelled = false;
+    // Mark ready quickly so Resources/Overview paint; seeds keep running in background.
+    const readyDeadline = window.setTimeout(() => {
+      if (!cancelled) setSeedReady(true);
+    }, 1500);
     void (async () => {
       try {
         const { isSimulationOn } = await import("@/lib/config/simulation");
         const sim = isSimulationOn();
-        await Promise.all([
-          sim ? ensureAllMapReportsInDb() : Promise.resolve(),
-          // Queue samples (CEB-CON-NANG-261011-9xxx) so Incidents → Queue is not empty.
-          sim
-            ? import("@/lib/reports/ensureQueueSampleReports").then(
-                ({ ensureQueueSampleReports }) => ensureQueueSampleReports(),
-              )
-            : Promise.resolve(),
-          // Verified flood + empty stock → Resources shortage / Find assistance.
-          sim
-            ? import("@/lib/reports/ensureResourceShortageReport").then(
-                ({ ensureResourceShortageReport }) =>
-                  ensureResourceShortageReport(),
-              )
-            : Promise.resolve(),
-        ]);
-        // Barangay inventory (Nangka + Apas) for Databases → Inventory.
-        if (canSync && profile && isOfficer(profile)) {
-          const { ensureActiveBarangayInventory } = await import(
-            "@/lib/inventory/api"
-          );
-          await ensureActiveBarangayInventory();
-        }
-        // Apas starter roster runs in prod (households + staff only).
+        // Apas water/fire first — Resources shortage desk needs these soonest.
         if (
           canSync &&
           profile &&
@@ -133,6 +114,35 @@ export function CommandWorkspaceProvider({
           await ensureApasOpsSeed(profile.uid, {
             includeSampleReports: sim,
           });
+          if (!cancelled) setSeedReady(true);
+        }
+        const apasOfficer =
+          canSync &&
+          profile &&
+          isOfficer(profile) &&
+          (profile.activeBarangayId === "cebu-city/apas" ||
+            profile.areaId === "cebu-city/apas" ||
+            /apas/i.test(profile.barangay ?? ""));
+        await Promise.all([
+          sim ? ensureAllMapReportsInDb() : Promise.resolve(),
+          // Nangka queue / relief samples — skip on Apas desk (water sitios only).
+          sim && !apasOfficer
+            ? import("@/lib/reports/ensureQueueSampleReports").then(
+                ({ ensureQueueSampleReports }) => ensureQueueSampleReports(),
+              )
+            : Promise.resolve(),
+          sim && !apasOfficer
+            ? import("@/lib/reports/ensureResourceShortageReport").then(
+                ({ ensureResourceShortageReport }) =>
+                  ensureResourceShortageReport(),
+              )
+            : Promise.resolve(),
+        ]);
+        if (canSync && profile && isOfficer(profile)) {
+          const { ensureActiveBarangayInventory } = await import(
+            "@/lib/inventory/api"
+          );
+          await ensureActiveBarangayInventory();
         }
       } catch (err) {
         console.warn("Command workspace seed failed", err);
@@ -142,6 +152,7 @@ export function CommandWorkspaceProvider({
     })();
     return () => {
       cancelled = true;
+      window.clearTimeout(readyDeadline);
     };
   }, [canSync, profile]);
 

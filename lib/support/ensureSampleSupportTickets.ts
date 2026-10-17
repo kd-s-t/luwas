@@ -69,8 +69,8 @@ export const SAMPLE_SUPPORT_TICKETS: SampleTicket[] = [
     details:
       "Users pending badge stayed at 5 after I approved someone. Field reports badge updated only after refresh.",
     uid: "sample-officer-bfp",
-    assignedToUid: "sample-assignee-mdrrmo",
-    assignedToName: "Demo · MDRRMO Focal",
+    assignedToUid: null,
+    assignedToName: null,
   },
   {
     id: "sup-sample-005",
@@ -123,8 +123,8 @@ export async function ensureSampleSupportTickets(): Promise<{
               {
                 id: "msg-sample-004-1",
                 body: "Reproduced on Safari — badges refresh only after hard reload. Checking CommandHeader subscriptions.",
-                authorUid: "sample-assignee-mdrrmo",
-                authorName: "Demo · MDRRMO Focal",
+                authorUid: "ugnai-dev-note",
+                authorName: "UGNAI",
                 authorPhotoURL: null,
                 createdAt: now,
                 mediaUrls: [],

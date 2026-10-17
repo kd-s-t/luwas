@@ -7,6 +7,7 @@ import { CommandContentSkeleton } from "@/components/PageLoadSkeleton";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import {
+  isPlaceholderAssignee,
   subscribeMySupportTickets,
   type SupportTicket,
   type SupportTicketStatus,
@@ -156,7 +157,12 @@ export function MySupportTicketDetail({
           </Badge>
         </div>
         <p className="mt-1 text-xs text-[var(--muted)]">
-          {selected.assignedToName || "Ugnai developers"}
+          {!isPlaceholderAssignee(
+            selected.assignedToUid,
+            selected.assignedToName,
+          ) && selected.assignedToName
+            ? selected.assignedToName
+            : "Unassigned"}
           {selected.createdAt
             ? ` · filed ${new Date(selected.createdAt).toLocaleString()}`
             : ""}
