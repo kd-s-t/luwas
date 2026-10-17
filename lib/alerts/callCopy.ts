@@ -56,6 +56,25 @@ export function buildInvestigatorAssignCallScript(input: {
   );
 }
 
+/** Spoken script to the citizen after ops marks the report dispatched. */
+export function buildReporterDispatchCallScript(input: {
+  ownerName: string;
+  barangay?: string;
+  title?: string | null;
+  hazardHint?: string | null;
+}): string {
+  const brgy = input.barangay ?? "your barangay";
+  const name = input.ownerName.trim() || "Reporter";
+  const hazard = (input.hazardHint ?? "hazard").replace(/_/g, " ");
+  const title = (input.title ?? "your report").slice(0, 60);
+  return (
+    `This is Ugnai for Barangay ${brgy}. ` +
+    `${name}, responders have been dispatched for your ${hazard} report: ${title}. ` +
+    `You can track updates at ugnai P H dot com slash track report. ` +
+    `Please stay safe and keep your phone on.`
+  );
+}
+
 /** Spoken script when MDRRMO dials BFP / PNP / hospital / tanod. */
 export function buildResponderCallScript(input: {
   kind: ResponderCallKind;

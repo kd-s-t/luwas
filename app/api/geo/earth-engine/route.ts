@@ -13,8 +13,8 @@ import cebuDem from "@/data/cebu-ee-dem.json";
 export const runtime = "nodejs";
 
 /**
- * Readiness for Earth Engine auth/config + whether the offline DEM cache exists.
- * Does not run a DEM sample (use `npm run ee:dem` for that).
+ * Readiness for Earth Engine auth/config + whether DEM seed/table rows exist.
+ * Does not run a DEM sample (use Run engine / `npm run ee:dem` for that).
  */
 export async function GET() {
   const projectId = earthEngineProjectId();
@@ -22,7 +22,7 @@ export async function GET() {
   const cebuSamples = Array.isArray(cebuDem.samples)
     ? cebuDem.samples.length
     : 0;
-  const cache = {
+  const datasets = {
     present: hasNangkaEeDem() || cebuSamples > 0,
     provider: dem.provider ?? cebuDem.provider ?? null,
     fetchedAt: dem.fetchedAt ?? cebuDem.fetchedAt ?? null,
@@ -35,7 +35,8 @@ export async function GET() {
     return NextResponse.json({
       ready: false,
       projectId: null,
-      cache,
+      datasets,
+      cache: datasets,
       error: "EARTH_ENGINE_PROJECT_ID not set",
     });
   }
@@ -44,7 +45,8 @@ export async function GET() {
   return NextResponse.json({
     ready: probe.ready,
     projectId: probe.projectId ?? projectId,
-    cache,
+    datasets,
+    cache: datasets,
     error: probe.error,
   });
 }

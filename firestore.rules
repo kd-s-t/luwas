@@ -262,6 +262,12 @@ service cloud.firestore {
       allow delete: if isOfficer();
     }
 
+    // Earth Engine DEM / hazards rows (server writes via Admin REST; clients read).
+    match /ee_datasets/{datasetId} {
+      allow read: if isOfficer() || isDeveloper();
+      allow create, update, delete: if false;
+    }
+
     match /reports/{reportId} {
       // Public feed can list reports; writers stay authenticated.
       allow read: if true;

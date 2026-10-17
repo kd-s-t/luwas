@@ -87,6 +87,10 @@ export function CommandWorkspaceProvider({
   const barangay = canSync && profile ? officerScopeBarangay(profile) : "";
   const areaId =
     canSync && profile ? profile.areaId ?? profile.activeBarangayId : null;
+  const profileUid = profile?.uid ?? "";
+  const profileBarangay = profile?.barangay ?? "";
+  const profileActiveBarangayId = profile?.activeBarangayId ?? "";
+  const profileAreaId = profile?.areaId ?? "";
   const reportScope = useMemo(() => scopeForProfile(profile), [profile]);
 
   useEffect(() => {
@@ -99,30 +103,21 @@ export function CommandWorkspaceProvider({
       try {
         const { isSimulationOn } = await import("@/lib/config/simulation");
         const sim = isSimulationOn();
-        // Apas water/fire first — Resources shortage desk needs these soonest.
-        if (
+        const apasOfficer =
           canSync &&
-          profile &&
-          isOfficer(profile) &&
-          (profile.activeBarangayId === "cebu-city/apas" ||
-            profile.areaId === "cebu-city/apas" ||
-            /apas/i.test(profile.barangay ?? ""))
-        ) {
+          (/apas/i.test(profileActiveBarangayId) ||
+            /apas/i.test(profileAreaId) ||
+            /apas/i.test(profileBarangay));
+        // Apas water/fire first — Resources shortage desk needs these soonest.
+        if (apasOfficer && profileUid) {
           const { ensureApasOpsSeed } = await import(
             "@/lib/onboarding/apasSeed"
           );
-          await ensureApasOpsSeed(profile.uid, {
+          await ensureApasOpsSeed(profileUid, {
             includeSampleReports: sim,
           });
           if (!cancelled) setSeedReady(true);
         }
-        const apasOfficer =
-          canSync &&
-          profile &&
-          isOfficer(profile) &&
-          (profile.activeBarangayId === "cebu-city/apas" ||
-            profile.areaId === "cebu-city/apas" ||
-            /apas/i.test(profile.barangay ?? ""));
         await Promise.all([
           sim ? ensureAllMapReportsInDb() : Promise.resolve(),
           // Nangka queue / relief samples — skip on Apas desk (water sitios only).
@@ -138,7 +133,7 @@ export function CommandWorkspaceProvider({
               )
             : Promise.resolve(),
         ]);
-        if (canSync && profile && isOfficer(profile)) {
+        if (canSync) {
           const { ensureActiveBarangayInventory } = await import(
             "@/lib/inventory/api"
           );
@@ -154,7 +149,13 @@ export function CommandWorkspaceProvider({
       cancelled = true;
       window.clearTimeout(readyDeadline);
     };
-  }, [canSync, profile]);
+  }, [
+    canSync,
+    profileUid,
+    profileBarangay,
+    profileActiveBarangayId,
+    profileAreaId,
+  ]);
 
   useEffect(() => {
     if (!canSync) {

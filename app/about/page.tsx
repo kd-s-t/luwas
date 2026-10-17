@@ -44,27 +44,18 @@ export default function AboutPage() {
   return (
     <PublicShell>
       <PublicPageHeader
-        eyebrow="UgnAI Labs"
+        eyebrow="Nexora Labs"
         title="About us"
-        description="UGNAI is our DRRM command product. Barangays and LGUs subscribe, run ops on it, and pay UgnAI Labs."
+        description="UGNAI is our DRRM command product. Barangays and LGUs subscribe, run ops on it, and pay Nexora Labs."
       />
       <main className="mx-auto max-w-3xl space-y-14 px-4 py-10 text-sm leading-relaxed text-[var(--muted)] sm:px-6 sm:py-14">
         <section className="space-y-5">
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold text-[var(--foreground)]">
-              Who we are
-            </h2>
-            <Image
-              src="/brands/ugnai-labs.png"
-              alt="UgnAI Labs"
-              width={202}
-              height={100}
-              className="h-14 w-auto object-contain sm:h-16"
-            />
-          </div>
+          <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold text-[var(--foreground)]">
+            Who we are
+          </h2>
           <div className="space-y-3">
             <p>
-              <span className="text-[var(--foreground)]">UgnAI Labs Co.</span>{" "}
+              <span className="text-[var(--foreground)]">Nexora Labs Co.</span>{" "}
               builds and sells{" "}
               <span className="text-[var(--foreground)]">UGNAI</span>{" "}
               (Unified Guidance for Needs, Alerts and Incidents), a paid
@@ -234,7 +225,7 @@ export default function AboutPage() {
             </Link>
             .
           </p>
-          <p className="text-xs">©2026 UgnAI Labs Co. All rights reserved.</p>
+          <p className="text-xs">©2026 Nexora Labs Co. All rights reserved.</p>
         </section>
       </main>
     </PublicShell>

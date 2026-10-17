@@ -20,6 +20,9 @@ export type CallSendResult = {
   ownerName?: string;
   priority?: string;
   phoneDisplay?: string;
+  /** Actual number dialed when TWILIO_SANDBOX redirects. */
+  dialedTo?: string;
+  sandbox?: boolean;
 };
 
 export type CallRecipient = {
@@ -142,7 +145,8 @@ export async function sendCallBatch(
         : r.body;
 
     for (const dialTo of dialTargets) {
-      if (sandboxTos.length > 0) {
+      const sandbox = sandboxTos.length > 0;
+      if (sandbox) {
         console.info(
           "[call:sandbox]",
           "intended",
@@ -158,6 +162,8 @@ export async function sendCallBatch(
           ...sent,
           // Keep intended recipient in the log; actual dial is sandbox when set.
           to: r.to,
+          dialedTo: sandbox ? dialTo : undefined,
+          sandbox,
           ...detail,
         });
       } catch (err) {
@@ -166,6 +172,8 @@ export async function sendCallBatch(
           ok: false,
           provider: "twilio",
           error: err instanceof Error ? err.message : "Call failed",
+          dialedTo: sandbox ? dialTo : undefined,
+          sandbox,
           ...detail,
         });
       }

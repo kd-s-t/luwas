@@ -9,6 +9,7 @@ import { toE164Ph } from "@/lib/alerts/phones";
 import {
   buildEvacSmsBody,
   buildInvestigatorAssignSmsBody,
+  buildReporterDispatchSmsBody,
 } from "@/lib/alerts/smsCopy";
 import { sendSmsBatch, smsProviderStatus } from "@/lib/alerts/sendSms";
 
@@ -17,8 +18,8 @@ export const runtime = "nodejs";
 type Body = {
   priority?: "evacuate" | "prepare" | "evacuate_and_prepare";
   barangay?: string;
-  /** When set, uses investigator-assign SMS copy instead of evac/prepare. */
-  kind?: "default" | "investigator_assign";
+  /** When set, uses investigator-assign or reporter-dispatch SMS copy. */
+  kind?: "default" | "investigator_assign" | "reporter_dispatch";
   title?: string | null;
   hazardHint?: string | null;
   reportId?: string | null;
@@ -100,7 +101,15 @@ export async function POST(req: Request) {
               hazardHint: body.hazardHint,
               reportId: body.reportId,
             })
-          : buildEvacSmsBody(copy);
+          : body.kind === "reporter_dispatch"
+            ? buildReporterDispatchSmsBody({
+                ownerName: r.ownerName ?? "Reporter",
+                barangay: body.barangay,
+                title: body.title,
+                hazardHint: body.hazardHint,
+                reportId: body.reportId,
+              })
+            : buildEvacSmsBody(copy);
       smsPayloads.push({
         to: e164,
         body: smsBody,

@@ -7,7 +7,7 @@ import {
   Mountain,
   Tornado,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CommandAreaMapMount } from "@/components/CommandAreaMapMount";
 import { ScenarioMapOverlay } from "@/components/ScenarioMapOverlay";
 import type { AssistEscapeRoute, AssistPriority } from "@/lib/ai/assistTypes";
@@ -297,19 +297,22 @@ export function PublicSituationMap() {
     );
   }, [applyCoords]);
 
-  // Locate only when the map section is on screen (skip for off-screen guests).
+  // Locate once when the map section is on screen (skip for off-screen guests).
+  // Ref-guard so auth/profile identity churn does not re-hit /api/geo/locate.
+  const locateStarted = useRef(false);
   useEffect(() => {
+    if (locateStarted.current) return;
     const el = document.getElementById("live-map");
     if (!el || typeof IntersectionObserver === "undefined") {
+      locateStarted.current = true;
       const id = window.setTimeout(() => requestLocation(), 2500);
       return () => window.clearTimeout(id);
     }
-    let done = false;
     const io = new IntersectionObserver(
       (entries) => {
-        if (done) return;
+        if (locateStarted.current) return;
         if (entries.some((e) => e.isIntersecting)) {
-          done = true;
+          locateStarted.current = true;
           io.disconnect();
           requestLocation();
         }

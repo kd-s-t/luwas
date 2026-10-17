@@ -229,12 +229,23 @@ export type HazardReport = {
   autoResponderCallAt: string | null;
   /** When the ops status moved to dispatched (board “out” timer). */
   dispatchedAt: string | null;
+  /** When the reporter was SMS/called after dispatch. */
+  reporterDispatchNotifiedAt: string | null;
   /** Who was called / texted after verification (dispatch audit). */
   dispatchLog: ReportDispatchLog | null;
   /** Officer manually checked “Dispatch someone” on the incident checklist. */
   manualDispatchChecked: boolean;
+  /**
+   * Officer checklist for AI next-action proposals (id → checked).
+   * When a key is present it overrides the auto done state for that row.
+   */
+  proposalChecklist: Record<string, boolean>;
   /** On-site photos uploaded by the investigator (images only). */
   fieldEvidence: FieldEvidenceImage[];
+  /** Officer on-site findings (required before marking done). */
+  fieldNotes: string | null;
+  /** When fieldNotes were last recorded. */
+  fieldNotesAt: string | null;
   /** Reporter signals used for trust scoring. */
   reporterIdVerified: boolean;
   reporterEmail: string | null;

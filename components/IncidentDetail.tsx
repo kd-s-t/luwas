@@ -52,6 +52,7 @@ import {
 } from "@/lib/alerts/autoResponderCall";
 import { triggerInvestigatorNotify } from "@/lib/alerts/notifyInvestigator";
 import { triggerReportDoneNotify } from "@/lib/alerts/notifyReportDone";
+import { triggerReporterDispatchNotify } from "@/lib/alerts/notifyReporter";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import {
   isDeveloper,
@@ -61,8 +62,10 @@ import {
 import {
   addReportFieldEvidence,
   assignReportInvestigator,
+  saveReportFieldNotes,
   setReportAssignees,
   setReportManualDispatchChecked,
+  setReportProposalChecked,
   subscribeHazardReportById,
   updateReportStatus,
   updateReportValidation,
@@ -150,8 +153,6 @@ export function IncidentDetail({
   const [busy, setBusy] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [activityOpen, setActivityOpen] = useState(true);
-  const [plan, setPlan] = useState<PlanState>({ notes: "", recordedAt: null });
-  const [planDraft, setPlanDraft] = useState("");
   const [fieldReport, setFieldReport] = useState<PlanState>({
     notes: "",
     recordedAt: null,
@@ -329,17 +330,17 @@ export function IncidentDetail({
 
   useEffect(() => {
     if (!selected) {
-      setPlanDraft("");
-      setPlan({ notes: "", recordedAt: null });
       setFieldReportDraft("");
       setFieldReport({ notes: "", recordedAt: null });
       return;
     }
-    setPlanDraft("");
-    setPlan({ notes: "", recordedAt: null });
-    setFieldReportDraft("");
-    setFieldReport({ notes: "", recordedAt: null });
-  }, [selected?.id]); // eslint-disable-line react-hooks/exhaustive-deps -- reset when incident changes
+    const notes = selected.fieldNotes?.trim() || "";
+    setFieldReportDraft(notes);
+    setFieldReport({
+      notes,
+      recordedAt: selected.fieldNotesAt,
+    });
+  }, [selected?.id, selected?.fieldNotes, selected?.fieldNotesAt]); // eslint-disable-line react-hooks/exhaustive-deps -- sync when incident / saved notes change
 
   const fireBackfillRef = useRef<string | null>(null);
   useEffect(() => {
@@ -570,14 +571,6 @@ export function IncidentDetail({
     }
   }
 
-  function recordPlan() {
-    if (!planDraft.trim()) return;
-    setPlan({
-      notes: planDraft.trim(),
-      recordedAt: new Date().toISOString(),
-    });
-  }
-
   async function advanceStatus(next: ReportStatus) {
     if (!selected) return;
     if (next === "dispatched" && !reportHasAssignee(selected)) {
@@ -606,17 +599,18 @@ export function IncidentDetail({
         );
         return;
       }
-      if (
-        next === "done" &&
-        !fieldReport.recordedAt &&
-        fieldReportDraft.trim()
-      ) {
+      if (next === "done" && fieldReportDraft.trim()) {
+        const notes = fieldReportDraft.trim();
+        await saveReportFieldNotes(selected.id, notes);
         setFieldReport({
-          notes: fieldReportDraft.trim(),
+          notes,
           recordedAt: new Date().toISOString(),
         });
       }
       await updateReportStatus(selected.id, next);
+      if (next === "dispatched") {
+        void triggerReporterDispatchNotify(selected);
+      }
       if (next === "done") {
         void triggerReportDoneNotify({
           report: selected,
@@ -712,11 +706,6 @@ export function IncidentDetail({
           <Badge variant="outline">
             {hazardHintLabel(selected.hazardHint)}
           </Badge>
-          {plan.recordedAt ? (
-            <Badge variant="default">Authorized plan recorded</Badge>
-          ) : (
-            <Badge variant="warn">No authorized plan</Badge>
-          )}
         </div>
         <p className="mt-1 text-xs text-[var(--muted)]">
           {selected.citizenName} · Brgy. {selected.barangay} ·{" "}
@@ -1212,6 +1201,145 @@ export function IncidentDetail({
             )}
           </div>
 
+          {selected.status === "dispatched" ||
+          selected.status === "done" ||
+          Boolean(fieldReport.recordedAt) ? (
+            <div className="mt-4 border border-[var(--border)] bg-[var(--surface-raised)] p-3">
+              <p
+                id="field-report-label"
+                className="font-mono text-[9px] tracking-[0.16em] text-[var(--accent)] uppercase"
+              >
+                Field report · required before done
+              </p>
+              <p className="mt-1 text-xs text-[var(--muted)]">
+                Add or correct what was found on site before marking done.
+              </p>
+              <textarea
+                value={fieldReportDraft}
+                onChange={(e) => setFieldReportDraft(e.target.value)}
+                rows={3}
+                disabled={busy || selected.status === "done"}
+                placeholder="e.g. Fire out · structure damaged · no injuries · BFP cleared scene…"
+                aria-labelledby="field-report-label"
+                className="mt-2 w-full resize-y border border-[var(--border)] bg-[var(--input)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)] disabled:opacity-70"
+              />
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                {selected.status !== "done" ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={busy || !fieldReportDraft.trim()}
+                    onClick={() => {
+                      const notes = fieldReportDraft.trim();
+                      if (!notes) return;
+                      void (async () => {
+                        setBusy(true);
+                        setStatusError(null);
+                        try {
+                          await saveReportFieldNotes(selected.id, notes);
+                          setFieldReport({
+                            notes,
+                            recordedAt: new Date().toISOString(),
+                          });
+                        } catch (err) {
+                          setStatusError(
+                            err instanceof Error
+                              ? err.message
+                              : "Could not save field report",
+                          );
+                        } finally {
+                          setBusy(false);
+                        }
+                      })();
+                    }}
+                  >
+                    Save field report
+                  </Button>
+                ) : null}
+                {fieldReport.recordedAt ? (
+                  <span className="text-[11px] text-[var(--muted)]">
+                    Saved {new Date(fieldReport.recordedAt).toLocaleString()}
+                  </span>
+                ) : null}
+              </div>
+              <div className="mt-3 border-t border-[var(--border)] pt-3">
+                <p className="font-mono text-[9px] tracking-[0.16em] text-[var(--muted)] uppercase">
+                  Field photos · optional
+                </p>
+                <label className="mt-2 block">
+                  <span className="sr-only">Upload field photos</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    capture="environment"
+                    disabled={
+                      busy ||
+                      !isOfficer(profile) ||
+                      selected.status === "done"
+                    }
+                    onChange={(e) => {
+                      const list = e.target.files;
+                      if (!list?.length || !profile || !isOfficer(profile))
+                        return;
+                      const files = Array.from(list).filter((f) =>
+                        f.type.startsWith("image/"),
+                      );
+                      e.target.value = "";
+                      if (!files.length) return;
+                      void (async () => {
+                        setBusy(true);
+                        try {
+                          await addReportFieldEvidence({
+                            reportId: selected.id,
+                            uploaderUid: profile.uid,
+                            uploaderName:
+                              profile.displayName || profile.email || null,
+                            files,
+                          });
+                        } catch (err) {
+                          console.error(err);
+                          setStatusError(
+                            err instanceof Error
+                              ? err.message
+                              : "Field photo upload failed",
+                          );
+                        } finally {
+                          setBusy(false);
+                        }
+                      })();
+                    }}
+                    className="block w-full text-sm text-[var(--muted)] file:mr-3 file:border file:border-[var(--border)] file:bg-[var(--surface)] file:px-3 file:py-1.5 file:text-sm file:text-[var(--fg)] disabled:opacity-50"
+                  />
+                </label>
+                {selected.fieldEvidence?.length ? (
+                  <ul className="mt-3 grid grid-cols-2 gap-2">
+                    {selected.fieldEvidence.map((img) => (
+                      <li
+                        key={img.mediaPath}
+                        className="overflow-hidden border border-[var(--border)] bg-[var(--surface)]"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={img.mediaUrl}
+                          alt={
+                            selected.title?.trim() ||
+                            `${hazardHintLabel(selected.hazardHint)} field evidence photo`
+                          }
+                          className="aspect-[4/3] w-full object-cover"
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-xs text-[var(--muted)]">
+                    No field photos yet.
+                  </p>
+                )}
+              </div>
+            </div>
+          ) : null}
+
           <div className="mt-4 flex flex-wrap gap-2">
             {pipelineNext ? (
               <Button
@@ -1257,7 +1385,7 @@ export function IncidentDetail({
             !fieldReport.recordedAt &&
             !fieldReportDraft.trim() ? (
             <p className="mt-2 text-xs text-[var(--muted)]">
-              Fill the field report before marking done.
+              Fill the field report above before marking done.
             </p>
           ) : null}
 
@@ -1320,43 +1448,52 @@ export function IncidentDetail({
                               setBusy(true);
                               setStatusError(null);
                               try {
-                                if (p.id !== "dispatch") return;
-                                await setReportManualDispatchChecked(
-                                  selected.id,
-                                  checked,
-                                );
-                                if (checked) {
-                                  if (
-                                    selected.status === "legit" ||
-                                    selected.status === "assigned"
-                                  ) {
-                                    await updateReportStatus(
-                                      selected.id,
-                                      "dispatched",
+                                if (p.id === "dispatch") {
+                                  await setReportManualDispatchChecked(
+                                    selected.id,
+                                    checked,
+                                  );
+                                  if (checked) {
+                                    if (
+                                      selected.status === "legit" ||
+                                      selected.status === "assigned"
+                                    ) {
+                                      await updateReportStatus(
+                                        selected.id,
+                                        "dispatched",
+                                      );
+                                    }
+                                    void triggerReporterDispatchNotify(selected);
+                                    const call = await triggerAutoResponderCall(
+                                      {
+                                        ...selected,
+                                        status: "legit",
+                                        autoResponderCallAt:
+                                          selected.autoResponderCallAt ?? null,
+                                      },
                                     );
+                                    if (
+                                      call.attempted &&
+                                      call.ok === false &&
+                                      call.error
+                                    ) {
+                                      setStatusError(
+                                        `Dispatched. Call/SMS: ${call.error}`,
+                                      );
+                                    }
                                   }
-                                  // Outreach is best-effort; do not undo dispatch.
-                                  const call = await triggerAutoResponderCall({
-                                    ...selected,
-                                    status: "legit",
-                                    autoResponderCallAt:
-                                      selected.autoResponderCallAt ?? null,
-                                  });
-                                  if (
-                                    call.attempted &&
-                                    call.ok === false &&
-                                    call.error
-                                  ) {
-                                    setStatusError(
-                                      `Dispatched. Call/SMS: ${call.error}`,
-                                    );
-                                  }
+                                } else {
+                                  await setReportProposalChecked(
+                                    selected.id,
+                                    p.id,
+                                    checked,
+                                  );
                                 }
                               } catch (err) {
                                 setStatusError(
                                   err instanceof Error
                                     ? err.message
-                                    : "Could not update dispatch",
+                                    : "Could not update checklist",
                                 );
                               } finally {
                                 setBusy(false);
@@ -1529,161 +1666,8 @@ export function IncidentDetail({
               </ul>
             )}
           </div>
-
-          <div className="mt-4 border border-[var(--border)] bg-[var(--surface-raised)] p-3">
-            <p
-              id="authorized-response-plan-label"
-              className="font-mono text-[9px] tracking-[0.16em] text-[var(--accent)] uppercase"
-            >
-              Authorized response plan
-            </p>
-            <p className="mt-1 text-xs text-[var(--muted)]">
-              Edit the draft, then record. Human-approved plan, distinct from AI
-              proposals and the field report.
-            </p>
-            <textarea
-              value={planDraft}
-              onChange={(e) => setPlanDraft(e.target.value)}
-              rows={3}
-              placeholder="e.g. Contact reporter · assign 1 BRTS for eyes-on · hold boat until location confirmed…"
-              aria-labelledby="authorized-response-plan-label"
-              className="mt-2 w-full resize-y border border-[var(--border)] bg-[var(--input)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
-            />
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                size="sm"
-                disabled={!planDraft.trim()}
-                onClick={recordPlan}
-              >
-                Record final plan
-              </Button>
-              {plan.recordedAt ? (
-                <span className="text-[11px] text-[var(--muted)]">
-                  Recorded {new Date(plan.recordedAt).toLocaleString()}
-                </span>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="mt-4 border border-[var(--border)] bg-[var(--surface-raised)] p-3">
-            <p
-              id="field-report-label"
-              className="font-mono text-[9px] tracking-[0.16em] text-[var(--accent)] uppercase"
-            >
-              Field report · required before done
-            </p>
-            <p className="mt-1 text-xs text-[var(--muted)]">
-              What the officer found on site. Required to mark done. Not the
-              authorized plan.
-            </p>
-            <textarea
-              value={fieldReportDraft}
-              onChange={(e) => setFieldReportDraft(e.target.value)}
-              rows={3}
-              placeholder="e.g. Fire out · structure damaged · no injuries · BFP cleared scene…"
-              aria-labelledby="field-report-label"
-              className="mt-2 w-full resize-y border border-[var(--border)] bg-[var(--input)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
-            />
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                size="sm"
-                disabled={!fieldReportDraft.trim()}
-                onClick={() => {
-                  if (!fieldReportDraft.trim()) return;
-                  setFieldReport({
-                    notes: fieldReportDraft.trim(),
-                    recordedAt: new Date().toISOString(),
-                  });
-                }}
-              >
-                Record field report
-              </Button>
-              {fieldReport.recordedAt ? (
-                <span className="text-[11px] text-[var(--muted)]">
-                  Recorded {new Date(fieldReport.recordedAt).toLocaleString()}
-                </span>
-              ) : null}
-            </div>
-          </div>
         </section>
       </div>
-
-      <section className="border-t border-[var(--border)] px-4 py-4 sm:px-5">
-        <p className="font-mono text-[9px] tracking-[0.16em] text-[var(--muted)] uppercase">
-          Field photos · optional
-        </p>
-        <p className="mt-0.5 text-xs text-[var(--muted)]">
-          On-site images if available. Not required to mark done.
-        </p>
-        <label className="mt-2 block">
-          <span className="sr-only">Upload field photos</span>
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            capture="environment"
-            disabled={busy || !isOfficer(profile)}
-            onChange={(e) => {
-              const list = e.target.files;
-              if (!list?.length || !profile || !isOfficer(profile)) return;
-              const files = Array.from(list).filter((f) =>
-                f.type.startsWith("image/"),
-              );
-              e.target.value = "";
-              if (!files.length) return;
-              void (async () => {
-                setBusy(true);
-                try {
-                  await addReportFieldEvidence({
-                    reportId: selected.id,
-                    uploaderUid: profile.uid,
-                    uploaderName:
-                      profile.displayName || profile.email || null,
-                    files,
-                  });
-                } catch (err) {
-                  console.error(err);
-                } finally {
-                  setBusy(false);
-                }
-              })();
-            }}
-            className="block w-full text-sm text-[var(--muted)] file:mr-3 file:border file:border-[var(--border)] file:bg-[var(--surface)] file:px-3 file:py-1.5 file:text-sm file:text-[var(--fg)] disabled:opacity-50"
-          />
-        </label>
-        {selected.fieldEvidence?.length ? (
-          <ul className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {selected.fieldEvidence.map((img) => (
-              <li
-                key={img.mediaPath}
-                className="overflow-hidden border border-[var(--border)] bg-[var(--surface-raised)]"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={img.mediaUrl}
-                  alt={
-                    selected.title?.trim() ||
-                    `${hazardHintLabel(selected.hazardHint)} field evidence photo`
-                  }
-                  className="aspect-[4/3] w-full object-cover"
-                />
-                {img.uploadedByName ? (
-                  <p className="truncate px-2 py-1 text-[10px] text-[var(--muted)]">
-                    {img.uploadedByName}
-                    {img.uploadedAt
-                      ? ` · ${new Date(img.uploadedAt).toLocaleString()}`
-                      : ""}
-                  </p>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-2 text-xs text-[var(--muted)]">No field photos yet.</p>
-        )}
-      </section>
 
       <section className="border-t border-[var(--border)]">
         <button
@@ -1727,11 +1711,6 @@ export function IncidentDetail({
                   {e.detail ? (
                     <p className="mt-0.5 text-xs text-[var(--muted)]">
                       {e.detail}
-                    </p>
-                  ) : null}
-                  {i === activity.length - 1 && plan.recordedAt ? (
-                    <p className="mt-2 text-xs text-[var(--accent)]">
-                      Authorized plan: {plan.notes}
                     </p>
                   ) : null}
                 </div>

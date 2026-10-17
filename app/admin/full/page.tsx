@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect } from "react";
 import { AuthGate } from "@/components/AuthGate";
 import { SituationMap } from "@/components/SituationMap";
@@ -26,15 +27,20 @@ export default function CommandFullViewPage() {
   return (
     <AuthGate mode="protected" role="officer">
       <div className="relative flex h-dvh max-h-dvh w-full overflow-hidden bg-[var(--background)]">
-        <a
-          href="/admin/overview"
-          className="absolute top-2 right-3 z-[1200] rounded-md border border-[var(--border)] bg-[var(--surface-raised)]/95 px-2.5 py-1 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase shadow-sm backdrop-blur hover:text-[var(--foreground)]"
-        >
-          Exit
-        </a>
         <div className="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden">
           {user ? (
-            <SituationMap officerUid={user.uid} fullViewport />
+            <SituationMap
+              officerUid={user.uid}
+              fullViewport
+              scenarioBarTrailing={
+                <Link
+                  href="/admin/overview"
+                  className="rounded-md border border-[var(--border)] bg-[var(--surface-raised)]/95 px-2.5 py-1 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase shadow-sm backdrop-blur hover:text-[var(--foreground)]"
+                >
+                  Exit
+                </Link>
+              }
+            />
           ) : null}
         </div>
       </div>

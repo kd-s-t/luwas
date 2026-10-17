@@ -9,10 +9,7 @@ import {
   hrefForShortageWorkflow,
   type ResourceShortage,
 } from "@/lib/resourcesShortages/types";
-import {
-  listenSuggestionsByEpic,
-  upsertSuggestionsFromPlan,
-} from "@/lib/resourcesSuggestions/api";
+import { listenSuggestionsByEpic } from "@/lib/resourcesSuggestions/api";
 import type {
   ResourceSuggestion,
   ResourceSuggestionRequest,
@@ -56,7 +53,6 @@ export function ResourceShortagePlan({
       try {
         const saved = await upsertShortageFromPlan(plan);
         if (!cancelled) setShortageDoc(saved);
-        await upsertSuggestionsFromPlan(plan);
       } catch {
         /* rules / offline — table still falls back to plan rows */
       } finally {
@@ -361,7 +357,7 @@ export function ResourceShortagePlan({
           View map (optional)
         </h2>
         <p className="mt-0.5 text-sm text-[var(--muted)]">
-          See community locations and access conditions.
+          Routes from Brgy. Hall to each community request.
         </p>
         <p className="mt-0.5 text-[12px] text-[var(--muted)]">
           Illustrative areas · Field confirmation required.

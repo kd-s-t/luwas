@@ -75,11 +75,31 @@ export async function POST(req: Request) {
     investigatedAt: r.investigatedAt ?? null,
     autoResponderCallAt: r.autoResponderCallAt ?? null,
     dispatchedAt: r.dispatchedAt != null ? String(r.dispatchedAt) : null,
+    reporterDispatchNotifiedAt:
+      r.reporterDispatchNotifiedAt != null
+        ? String(r.reporterDispatchNotifiedAt)
+        : null,
     dispatchLog: r.dispatchLog ?? null,
     manualDispatchChecked: Boolean(r.manualDispatchChecked),
+    proposalChecklist:
+      r.proposalChecklist &&
+      typeof r.proposalChecklist === "object" &&
+      !Array.isArray(r.proposalChecklist)
+        ? Object.fromEntries(
+            Object.entries(
+              r.proposalChecklist as Record<string, unknown>,
+            ).map(([k, v]) => [k, Boolean(v)]),
+          )
+        : {},
     fieldEvidence: Array.isArray(r.fieldEvidence)
       ? (r.fieldEvidence as HazardReport["fieldEvidence"])
       : [],
+    fieldNotes:
+      r.fieldNotes != null && String(r.fieldNotes).trim()
+        ? String(r.fieldNotes).trim()
+        : null,
+    fieldNotesAt:
+      r.fieldNotesAt != null ? String(r.fieldNotesAt) : null,
     reporterIdVerified: Boolean(r.reporterIdVerified),
     reporterEmail: r.reporterEmail ?? null,
     reporterPhone: r.reporterPhone ?? null,

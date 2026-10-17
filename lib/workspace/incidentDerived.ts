@@ -84,7 +84,20 @@ export function unknownsForReport(report: HazardReport): IncidentUnknown[] {
   return out;
 }
 
-/** Explainable next-step drafts — never authorized until an officer records a plan. */
+function withChecklist(
+  report: HazardReport,
+  rows: IncidentProposal[],
+): IncidentProposal[] {
+  const checks = report.proposalChecklist ?? {};
+  return rows.map((row) => {
+    const autoDone = Boolean(row.done);
+    const done =
+      row.id in checks ? Boolean(checks[row.id]) : autoDone;
+    return { ...row, done, manual: true };
+  });
+}
+
+/** Explainable next-step drafts — officer can check/uncheck each row. */
 export function proposalsForReport(report: HazardReport): IncidentProposal[] {
   const hazard = hazardHintLabel(report.hazardHint);
   const fireLike =
@@ -101,6 +114,7 @@ export function proposalsForReport(report: HazardReport): IncidentProposal[] {
       id: "contact",
       label: "Contact reporter to verify",
       detail: `Confirm ${hazard.toLowerCase()} conditions, people at risk, and exact access point with ${report.citizenName}.`,
+      manual: true,
     },
   ];
 
@@ -179,25 +193,31 @@ export function proposalsForReport(report: HazardReport): IncidentProposal[] {
             : dial.kind === "hospital"
               ? "Hospital"
               : "Tanod";
+      const sandboxNote = log?.summary?.includes("Sandbox redirected")
+        ? log.summary.slice(log.summary.indexOf("Sandbox redirected"))
+        : log?.summary?.includes("Demo mode")
+          ? "Demo mode (no real dial)"
+          : null;
+      const calledOk = Boolean(log?.called?.length);
+      const textedOk = Boolean(log?.texted?.length);
+      const channelBits = [
+        calledOk ? "Call sent" : null,
+        textedOk ? "SMS sent" : null,
+      ].filter(Boolean);
       base.push({
         id: `alert-${dial.kind}`,
         label: outreachDone
-          ? `Called & texted ${shortName} · ${dial.phoneDisplay}`
+          ? `${shortName} notified · ${dial.phoneDisplay}`
           : `Call & text ${shortName} · ${dial.phoneDisplay}`,
         detail: outreachDone
           ? [
               `${dial.stationName} · ${kindLabel}`,
-              log?.summary || "Auto-sent after field-verified.",
-              log?.called?.length
-                ? `Called: ${log.called.join(", ")}`
-                : null,
-              log?.texted?.length
-                ? `Texted: ${log.texted.join(", ")}`
-                : null,
+              channelBits.length > 0 ? channelBits.join(" · ") : "Logged",
+              sandboxNote,
             ]
               .filter(Boolean)
               .join(" · ")
-          : `After Mark field-verified: voice + SMS to ${dial.stationName} at ${dial.phoneDisplay}.`,
+          : `${dial.stationName} · voice + SMS after field-verified.`,
         done: outreachDone,
         brand: "twilio",
       });
@@ -218,7 +238,7 @@ export function proposalsForReport(report: HazardReport): IncidentProposal[] {
     manual: true,
   });
 
-  return base;
+  return withChecklist(report, base);
 }
 
 export function activityForReport(report: HazardReport): ActivityEvent[] {
@@ -273,8 +293,8 @@ export function activityForReport(report: HazardReport): ActivityEvent[] {
       id: `${report.id}-status`,
       at: report.validatedAt,
       kind: "system",
-      title: "Status · queued as AI-legit (pending authorized plan)",
-      detail: "Not an authorized response plan. Confirm needs and allocate only from real inventory.",
+      title: "Status · queued as AI-legit",
+      detail: "Confirm needs and allocate only from real inventory.",
     });
   } else if (report.status === "rejected" && report.validatedAt) {
     events.push({
@@ -322,6 +342,16 @@ export function activityForReport(report: HazardReport): ActivityEvent[] {
       kind: "system",
       title: "Auto responder outreach",
       detail: "Nearest matching units were dialed / texted after verification.",
+    });
+  }
+
+  if (report.fieldNotes?.trim()) {
+    events.push({
+      id: `${report.id}-field-notes`,
+      at: report.fieldNotesAt || report.updatedAt,
+      kind: "human",
+      title: "Field report",
+      detail: report.fieldNotes.trim(),
     });
   }
 

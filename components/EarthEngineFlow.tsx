@@ -175,9 +175,9 @@ function EarthEngineFlowCanvas() {
         type: "step",
         position: { x: 467.685393258427, y: 14.848314606741575 },
         data: {
-          label: "Hills cache",
+          label: "Hills DEM",
           logo: "/brands/google-elevation.jpg",
-          lines: ["cebu JSON"],
+          lines: ["cebu samples"],
           inTop: true,
           out: true,
         },
@@ -187,9 +187,9 @@ function EarthEngineFlowCanvas() {
         type: "step",
         position: { x: 460, y: 220 },
         data: {
-          label: "Flood · fire cache",
+          label: "Flood · fire pins",
           logo: "/brands/earth-engine.webp",
-          lines: ["saved pins"],
+          lines: ["hazard samples"],
           inBot: true,
           out: true,
         },
@@ -199,9 +199,9 @@ function EarthEngineFlowCanvas() {
         type: "step",
         position: { x: 680.9606741573034, y: 118.47191011235955 },
         data: {
-          label: "Firebase Storage",
-          logo: "/brands/firebase.png",
-          lines: ["saved files"],
+          label: "Database",
+          logo: "/brands/firestore.png",
+          lines: ["ee_datasets"],
           inTop: true,
           inBot: true,
           out: true,
@@ -286,7 +286,7 @@ function EarthEngineFlowCanvas() {
         source: "storage",
         sourceHandle: "out",
         target: "map",
-        label: "uses saved files",
+        label: "reads database",
         markerEnd: marker,
         style,
         ...labelBg,
@@ -310,13 +310,13 @@ function EarthEngineFlowCanvas() {
     fitView,
     hydrated,
     canvasKey,
-  } = useFlowLayout("earth-engine-v2", defaultNodes, defaultEdges);
+  } = useFlowLayout("earth-engine-v4", defaultNodes, defaultEdges);
 
   return (
     <div className="relative h-full min-h-[420px] w-full overflow-hidden bg-[#eef1f5]">
       <div className="absolute top-3 right-3 z-10 flex gap-2">
         <FlowCopyJsonButton
-          flowId="earth-engine-v2"
+          flowId="earth-engine-v4"
           nodes={nodes}
           edges={edges}
         />
@@ -371,9 +371,9 @@ export function EarthEngineFlow() {
           Earth Engine Flow
         </h1>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Dev run pulls hills and fires from Earth Engine once, saves them, then
-          command center reads those files (no live Earth Engine on every page
-          load).
+          Dev run pulls hills and fires from Earth Engine once, writes the
+          database (ee_datasets), then command center reads those rows (no live
+          Earth Engine on every page load).
         </p>
       </div>
       <div className="min-h-0 flex-1">

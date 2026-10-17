@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { collection, onSnapshot } from "firebase/firestore";
 import { getClientDb } from "@/lib/firebase/client";
+import { listMapAreaOptions } from "@/lib/geo/mapAreas";
 import { fetchOnboardedBarangays } from "@/lib/onboarding/api";
 import {
   hydrateOnboardedBarangays,
@@ -19,10 +20,57 @@ type OpsPresence = {
   pendingOfficers: number;
 };
 
+function stripBrgyPrefix(name: string): string {
+  return name.replace(/^brgy\.?\s+/i, "").trim();
+}
+
+function titleFromSlug(slug: string): string {
+  return slug
+    .split("-")
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+/** Same shape as map picker: `Nangka · Consolacion` (no Brgy. prefix). */
+function areaTitle(
+  areaId: string,
+  catalog: Map<string, { barangay: string; lgu: string; label: string }>,
+  barangay = "",
+  lgu = "",
+): { barangay: string; lgu: string } {
+  const known = catalog.get(areaId);
+  if (known) return { barangay: known.barangay, lgu: known.lgu };
+
+  const [lguSlug = "", brgySlug = ""] = areaId.split("/");
+  const brgy =
+    stripBrgyPrefix(barangay) ||
+    (brgySlug ? titleFromSlug(brgySlug) : "") ||
+    areaId;
+  const place =
+    stripBrgyPrefix(lgu) || (lguSlug ? titleFromSlug(lguSlug) : "");
+  return { barangay: brgy, lgu: place };
+}
+
 export function DeveloperBarangaysPanel() {
   const [operational, setOperational] = useState<OnboardedBarangay[]>([]);
   const [presence, setPresence] = useState<OpsPresence[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const catalog = useMemo(() => {
+    const map = new Map<
+      string,
+      { barangay: string; lgu: string; label: string }
+    >();
+    for (const opt of listMapAreaOptions()) {
+      map.set(opt.id, {
+        barangay: opt.barangay,
+        lgu: opt.lgu,
+        label: opt.label,
+      });
+    }
+    return map;
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -48,7 +96,7 @@ export function DeveloperBarangaysPanel() {
           data.activeBarangayId || data.areaId || "",
         ).trim();
         if (!areaId) continue;
-        const barangay = String(data.barangay || areaId.split("/")[1] || "");
+        const barangay = String(data.barangay || "");
         const lgu = String(data.lgu || "");
         const row = byArea.get(areaId) ?? {
           areaId,
@@ -57,6 +105,8 @@ export function DeveloperBarangaysPanel() {
           activeOfficers: 0,
           pendingOfficers: 0,
         };
+        if (!row.barangay && barangay) row.barangay = barangay;
+        if (!row.lgu && lgu) row.lgu = lgu;
         const status = data.accountStatus as string | undefined;
         if (status === "pending") row.pendingOfficers += 1;
         else if (status !== "fired" && status !== "rejected") {
@@ -104,40 +154,50 @@ export function DeveloperBarangaysPanel() {
           </p>
         ) : (
           <ul className="divide-y divide-[var(--border)]">
-            {operational.map((row) => (
-              <li
-                key={row.id}
-                className="flex flex-wrap items-start justify-between gap-3 px-4 py-3"
-              >
-                <div>
-                  <p className="font-medium text-[var(--foreground)]">
-                    Brgy. {row.barangay}
-                    <span className="font-normal text-[var(--muted)]">
-                      {" "}
-                      · {row.lgu}
+            {operational.map((row) => {
+              const title = areaTitle(
+                row.id,
+                catalog,
+                row.barangay,
+                row.lgu,
+              );
+              return (
+                <li
+                  key={row.id}
+                  className="flex flex-wrap items-start justify-between gap-3 px-4 py-3"
+                >
+                  <div>
+                    <p className="font-medium text-[var(--foreground)]">
+                      {title.barangay}
+                      {title.lgu ? (
+                        <span className="font-normal text-[var(--muted)]">
+                          {" "}
+                          · {title.lgu}
+                        </span>
+                      ) : null}
+                    </p>
+                    <p className="mt-0.5 font-mono text-[11px] text-[var(--muted)]">
+                      {row.id}
+                    </p>
+                    <p className="mt-1 text-xs text-[var(--muted)]">
+                      {row.orgName || "—"}
+                      {row.hallAddress ? ` · ${row.hallAddress}` : ""}
+                    </p>
+                  </div>
+                  <div className="text-right text-[11px] text-[var(--muted)]">
+                    <span className="inline-flex rounded-full bg-[#ecfdf3] px-2 py-0.5 font-medium text-[#16794c] ring-1 ring-[#86efac]/50">
+                      Operational
                     </span>
-                  </p>
-                  <p className="mt-0.5 font-mono text-[11px] text-[var(--muted)]">
-                    {row.id}
-                  </p>
-                  <p className="mt-1 text-xs text-[var(--muted)]">
-                    {row.orgName || "—"}
-                    {row.hallAddress ? ` · ${row.hallAddress}` : ""}
-                  </p>
-                </div>
-                <div className="text-right text-[11px] text-[var(--muted)]">
-                  <span className="inline-flex rounded-full bg-[#ecfdf3] px-2 py-0.5 font-medium text-[#16794c] ring-1 ring-[#86efac]/50">
-                    Operational
-                  </span>
-                  <p className="mt-1.5">
-                    Activated{" "}
-                    {new Date(row.activatedAt).toLocaleDateString("en-PH", {
-                      timeZone: "Asia/Manila",
-                    })}
-                  </p>
-                </div>
-              </li>
-            ))}
+                    <p className="mt-1.5">
+                      Activated{" "}
+                      {new Date(row.activatedAt).toLocaleDateString("en-PH", {
+                        timeZone: "Asia/Manila",
+                      })}
+                    </p>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
@@ -157,18 +217,24 @@ export function DeveloperBarangaysPanel() {
           <ul className="divide-y divide-[var(--border)]">
             {presence.map((row) => {
               const onboarded = opsIds.has(row.areaId);
+              const title = areaTitle(
+                row.areaId,
+                catalog,
+                row.barangay,
+                row.lgu,
+              );
               return (
                 <li
                   key={row.areaId}
                   className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
                 >
                   <div>
-                    <p className="font-medium">
-                      {row.barangay || row.areaId}
-                      {row.lgu ? (
+                    <p className="font-medium text-[var(--foreground)]">
+                      {title.barangay}
+                      {title.lgu ? (
                         <span className="font-normal text-[var(--muted)]">
                           {" "}
-                          · {row.lgu}
+                          · {title.lgu}
                         </span>
                       ) : null}
                     </p>

@@ -81,26 +81,13 @@ export function HomeFooter() {
         <p className="font-mono text-[10px] tracking-[0.28em] text-[var(--muted)] uppercase">
           Built by
         </p>
-        <Link
-          href="/about"
-          className="mt-3 inline-block transition hover:opacity-90"
-          aria-label="About us · UgnAI Labs"
-        >
-          <Image
-            src="/brands/ugnai-labs.png"
-            alt="UgnAI Labs"
-            width={202}
-            height={100}
-            className="h-16 w-auto object-contain sm:h-20"
-          />
-        </Link>
         <p className="mt-3 text-xs text-[var(--muted)]">
           ©2026{" "}
           <Link
             href="/about"
             className="underline-offset-2 transition hover:text-[var(--accent)] hover:underline"
           >
-            UgnAI Labs Co.
+            Nexora Labs Co.
           </Link>{" "}
           All rights reserved.
         </p>

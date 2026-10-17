@@ -63,6 +63,16 @@ function mapCitizenPurok(raw: unknown): string {
   return value;
 }
 
+function mapProposalChecklist(raw: unknown): Record<string, boolean> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const out: Record<string, boolean> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!key.trim()) continue;
+    out[key] = Boolean(value);
+  }
+  return out;
+}
+
 function mapFieldEvidence(raw: unknown): FieldEvidenceImage[] {
   if (!Array.isArray(raw)) return [];
   const out: FieldEvidenceImage[] = [];
@@ -244,9 +254,20 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
           : null,
     dispatchedAt:
       data.dispatchedAt != null ? String(data.dispatchedAt) : null,
+    reporterDispatchNotifiedAt:
+      data.reporterDispatchNotifiedAt != null
+        ? String(data.reporterDispatchNotifiedAt)
+        : null,
     dispatchLog: mapDispatchLog(data.dispatchLog),
     manualDispatchChecked: Boolean(data.manualDispatchChecked),
+    proposalChecklist: mapProposalChecklist(data.proposalChecklist),
     fieldEvidence: mapFieldEvidence(data.fieldEvidence),
+    fieldNotes:
+      data.fieldNotes != null && String(data.fieldNotes).trim()
+        ? String(data.fieldNotes).trim()
+        : null,
+    fieldNotesAt:
+      data.fieldNotesAt != null ? String(data.fieldNotesAt) : null,
     reporterIdVerified,
     reporterEmail,
     reporterPhone,
@@ -377,9 +398,13 @@ export async function startIncidentDraft(input: {
     investigatedAt: null,
     autoResponderCallAt: null,
     dispatchedAt: null,
+    reporterDispatchNotifiedAt: null,
     dispatchLog: null,
     manualDispatchChecked: false,
+    proposalChecklist: {},
     fieldEvidence: [],
+    fieldNotes: null,
+    fieldNotesAt: null,
     reactionCounts: { ...EMPTY_REACTION_COUNTS },
     commentCount: 0,
     draftStep: "situation" satisfies ReportDraftStep,
@@ -564,9 +589,13 @@ export async function createGuestHazardReport(input: {
     investigatedAt: null,
     autoResponderCallAt: null,
     dispatchedAt: null,
+    reporterDispatchNotifiedAt: null,
     dispatchLog: null,
     manualDispatchChecked: false,
+    proposalChecklist: {},
     fieldEvidence: [],
+    fieldNotes: null,
+    fieldNotesAt: null,
     reactionCounts: { ...EMPTY_REACTION_COUNTS },
     commentCount: 0,
     draftStep: null,
@@ -770,9 +799,13 @@ export async function createHazardReport(input: {
     investigatedAt: null,
     autoResponderCallAt: null,
     dispatchedAt: null,
+    reporterDispatchNotifiedAt: null,
     dispatchLog: null,
     manualDispatchChecked: false,
+    proposalChecklist: {},
     fieldEvidence: [],
+    fieldNotes: null,
+    fieldNotesAt: null,
     reactionCounts: { ...EMPTY_REACTION_COUNTS },
     commentCount: 0,
     draftStep: null,
@@ -882,6 +915,43 @@ export async function setReportManualDispatchChecked(
   const now = new Date().toISOString();
   await updateDoc(doc(getClientDb(), COL, reportId), {
     manualDispatchChecked: checked,
+    [`proposalChecklist.dispatch`]: checked,
+    updatedAt: now,
+    updatedAtServer: serverTimestamp(),
+  });
+}
+
+/** Toggle any AI next-action proposal checkbox. */
+export async function setReportProposalChecked(
+  reportId: string,
+  proposalId: string,
+  checked: boolean,
+): Promise<void> {
+  const id = proposalId.trim();
+  if (!id) return;
+  const now = new Date().toISOString();
+  const patch: Record<string, unknown> = {
+    [`proposalChecklist.${id}`]: checked,
+    updatedAt: now,
+    updatedAtServer: serverTimestamp(),
+  };
+  if (id === "dispatch") {
+    patch.manualDispatchChecked = checked;
+  }
+  await updateDoc(doc(getClientDb(), COL, reportId), patch);
+}
+
+/** Persist officer on-site findings (required before Mark done). */
+export async function saveReportFieldNotes(
+  reportId: string,
+  notes: string,
+): Promise<void> {
+  const trimmed = notes.trim();
+  if (!trimmed) throw new Error("Field report notes are required.");
+  const now = new Date().toISOString();
+  await updateDoc(doc(getClientDb(), COL, reportId), {
+    fieldNotes: trimmed,
+    fieldNotesAt: now,
     updatedAt: now,
     updatedAtServer: serverTimestamp(),
   });
