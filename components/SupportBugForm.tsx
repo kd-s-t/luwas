@@ -11,7 +11,12 @@ import {
   uploadSupportMedia,
 } from "@/lib/support/upload";
 
-export function SupportBugForm() {
+type SupportBugFormProps = {
+  /** Called after a successful submit (e.g. return to My support). */
+  onSubmitted?: () => void;
+};
+
+export function SupportBugForm({ onSubmitted }: SupportBugFormProps) {
   const { user } = useAuth();
   const [email, setEmail] = useState("");
   const [summary, setSummary] = useState("");
@@ -74,6 +79,7 @@ export function SupportBugForm() {
       setSummary("");
       setDetails("");
       setFiles([]);
+      onSubmitted?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not send report");
     } finally {

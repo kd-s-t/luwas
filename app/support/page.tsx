@@ -59,7 +59,7 @@ export default function SupportPage() {
           </section>
         ) : null}
 
-        <section className="space-y-3">
+        <section id="report" className="space-y-3 scroll-mt-24">
           <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-wide">
             Report a bug
           </h2>

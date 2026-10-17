@@ -33,6 +33,12 @@ type MySupportTicketsProps = {
   className?: string;
 };
 
+function newTicketHref(detailBase: MySupportTicketsProps["detailBase"]): string {
+  return detailBase === "/admin/support"
+    ? "/admin/support/new"
+    : "/support#report";
+}
+
 export function MySupportTickets({
   detailBase,
   className,
@@ -93,7 +99,7 @@ export function MySupportTickets({
           {openCount > 0 ? ` · ${openCount} open` : ""}
         </p>
         <Link
-          href="/support"
+          href={newTicketHref(detailBase)}
           className="font-mono text-[10px] tracking-wider text-[var(--accent)] uppercase hover:underline"
         >
           New ticket
@@ -108,7 +114,13 @@ export function MySupportTickets({
 
       {rows.length === 0 ? (
         <div className="rounded-xl border border-dashed border-[var(--border)] px-4 py-8 text-center text-sm text-[var(--muted)]">
-          File a bug from Support. Developers triage; you can track status here.
+          <p>No tickets filed yet.</p>
+          <Link
+            href={newTicketHref(detailBase)}
+            className="mt-2 inline-block font-mono text-[10px] tracking-wider text-[var(--accent)] uppercase hover:underline"
+          >
+            New ticket
+          </Link>
         </div>
       ) : (
         <ul className="divide-y divide-[var(--border)] rounded-xl border border-[var(--border)] bg-[var(--surface)]">
