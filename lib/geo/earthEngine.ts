@@ -47,6 +47,11 @@ type PrivateKeyJson = {
   [key: string]: unknown;
 };
 
+const EE_AUTH_SCOPES = [
+  "https://www.googleapis.com/auth/earthengine",
+  "https://www.googleapis.com/auth/cloud-platform",
+] as const;
+
 type EeApi = {
   data: {
     authenticateViaPrivateKey: (
@@ -55,13 +60,24 @@ type EeApi = {
       error?: (err: unknown) => void,
     ) => void;
     setAuthToken?: (
-      authType: string,
+      clientId: string,
       tokenType: string,
-      token: string,
+      accessToken: string,
       expiresIn?: number,
       extraScopes?: string[],
       callback?: () => void,
       updateAuthLibrary?: boolean,
+    ) => void;
+    setAuthTokenRefresher?: (
+      refresher: (
+        authArgs: unknown,
+        callback: (result: {
+          access_token?: string;
+          token_type?: string;
+          expires_in?: number;
+          error?: unknown;
+        }) => void,
+      ) => void,
     ) => void;
   };
   initialize: (
@@ -147,25 +163,31 @@ function promisifyInit(
     void (async () => {
       try {
         const auth = new GoogleAuth({
-          scopes: [
-            "https://www.googleapis.com/auth/earthengine",
-            "https://www.googleapis.com/auth/cloud-platform",
-          ],
+          scopes: [...EE_AUTH_SCOPES],
         });
         const client = await auth.getClient();
-        const tokenResponse = await client.getAccessToken();
-        const token =
-          typeof tokenResponse === "string"
-            ? tokenResponse
-            : tokenResponse?.token;
-        if (!token) {
-          reject(
-            new Error(
+        const fetchToken = async (): Promise<{
+          access_token: string;
+          token_type: string;
+          expires_in: number;
+        }> => {
+          const tokenResponse = await client.getAccessToken();
+          const token =
+            typeof tokenResponse === "string"
+              ? tokenResponse
+              : tokenResponse?.token;
+          if (!token) {
+            throw new Error(
               "No ADC access token. Set GOOGLE_APPLICATION_CREDENTIALS to an EE-registered service account JSON.",
-            ),
-          );
-          return;
-        }
+            );
+          }
+          return {
+            access_token: token,
+            token_type: "Bearer",
+            expires_in: 3600,
+          };
+        };
+
         if (typeof ee.data.setAuthToken !== "function") {
           reject(
             new Error(
@@ -174,15 +196,26 @@ function promisifyInit(
           );
           return;
         }
+
+        const first = await fetchToken();
+        // Keep EE tokens fresh on Cloud Run / long jobs (ADC metadata tokens expire).
+        ee.data.setAuthTokenRefresher?.((_authArgs, cb) => {
+          void fetchToken()
+            .then((t) => cb(t))
+            .catch((err) =>
+              cb({
+                error: err instanceof Error ? err.message : String(err),
+              }),
+            );
+        });
+
+        // Args: clientId, tokenType ("Bearer"), accessToken — not swapped.
         ee.data.setAuthToken(
-          "Bearer",
-          "access_token",
-          token,
-          3600,
-          [
-            "https://www.googleapis.com/auth/earthengine",
-            "https://www.googleapis.com/auth/cloud-platform",
-          ],
+          "",
+          first.token_type,
+          first.access_token,
+          first.expires_in,
+          [...EE_AUTH_SCOPES],
           () => {
             ee.initialize(null, null, onInitOk, onInitErr, null, projectId);
           },
