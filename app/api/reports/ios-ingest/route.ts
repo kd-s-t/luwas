@@ -357,6 +357,11 @@ export async function POST(req: Request) {
     locationAccuracyM: body.approximateLocation ? 120 : 35,
     aiConfidence,
     aiVerdict,
+    vertexClass,
+    vertexConfidence,
+    vertexLocationPlaceId,
+    vertexLocationLabel,
+    vertexLocationConfidence,
   });
 
   const payload: Record<string, unknown> = {
@@ -390,13 +395,7 @@ export async function POST(req: Request) {
     reporterPhone: phone || null,
     reporterEmailVerified: false,
     trustScore: trust.total,
-    trustBreakdown: {
-      identity: trust.identity,
-      contact: trust.contact,
-      capture: trust.capture,
-      ai: trust.ai,
-      total: trust.total,
-    },
+    trustBreakdown: trust,
     status,
     aiVerdict,
     aiConfidence,

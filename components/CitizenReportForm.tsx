@@ -1177,6 +1177,17 @@ export function CitizenReportForm({
           locationAccuracyM: fromGps
             ? (captured?.locationAccuracyM ?? null)
             : null,
+          vertexClass: data.vertexClass ?? null,
+          vertexConfidence:
+            typeof data.vertexConfidence === "number"
+              ? data.vertexConfidence
+              : null,
+          vertexLocationPlaceId: data.vertexLocationPlaceId ?? null,
+          vertexLocationLabel: data.vertexLocationLabel ?? null,
+          vertexLocationConfidence:
+            typeof data.vertexLocationConfidence === "number"
+              ? data.vertexLocationConfidence
+              : null,
         },
       });
 

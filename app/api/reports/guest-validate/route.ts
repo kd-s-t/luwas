@@ -191,6 +191,11 @@ export async function POST(req: Request) {
     locationAccuracyM,
     aiConfidence: ai.confidence,
     aiVerdict: ai.verdict,
+    vertexClass: ai.vertexClass,
+    vertexConfidence: ai.vertexConfidence,
+    vertexLocationPlaceId: ai.vertexLocationPlaceId,
+    vertexLocationLabel: ai.vertexLocationLabel,
+    vertexLocationConfidence: ai.vertexLocationConfidence,
   });
 
   const now = new Date().toISOString();
@@ -212,13 +217,7 @@ export async function POST(req: Request) {
     validatedAt: now,
     updatedAt: now,
     trustScore: trust.total,
-    trustBreakdown: {
-      identity: trust.identity,
-      contact: trust.contact,
-      capture: trust.capture,
-      ai: trust.ai,
-      total: trust.total,
-    },
+    trustBreakdown: trust,
   };
   const detectedHint = ai.hazardHint || null;
   const nextTitle = detectedHint

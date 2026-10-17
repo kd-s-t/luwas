@@ -159,6 +159,11 @@ export function ValidationQueue() {
           lat: report.lat,
           lng: report.lng,
           locationAccuracyM: report.locationAccuracyM,
+          vertexClass: report.vertexClass,
+          vertexConfidence: report.vertexConfidence,
+          vertexLocationPlaceId: report.vertexLocationPlaceId,
+          vertexLocationLabel: report.vertexLocationLabel,
+          vertexLocationConfidence: report.vertexLocationConfidence,
         },
       });
       if (verdict === "rejected" && isOfficer(profile)) {
@@ -322,6 +327,11 @@ export function ValidationQueue() {
                         ],
                         [
                           "Vertex AI",
+                          TRUST_CAPS.vertex,
+                          "Image class + visual place from Vertex vision / AutoML",
+                        ],
+                        [
+                          "Gemini",
                           TRUST_CAPS.ai,
                           "Gemini confidence after validation",
                         ],

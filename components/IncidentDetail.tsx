@@ -210,6 +210,7 @@ export function IncidentDetail({
     const seed = (
       isApasArea ? APAS_STAFF_SEED : NANGKA_STAFF_SEED
     ).filter((s) => s.status === "active" && s.scope === "barangay");
+    const seedIds = new Set(seed.map((s) => s.id));
     const live = staffRows.filter(
       (s) => s.status === "active" && s.scope === "barangay",
     );
@@ -224,21 +225,62 @@ export function IncidentDetail({
         .map((o) => [o.staffId!, o] as const),
     );
 
-    const out = new Map<string, Opt>();
+    function personKey(name: string, title: string): string {
+      return `${name.trim().toLowerCase()}|${title.trim().toLowerCase()}`;
+    }
+
+    /** Prefer real account uid, then canonical seed staff id. */
+    function betterOpt(next: Opt, prev: Opt | undefined): Opt {
+      if (!prev) return next;
+      const nextAccount = !next.uid.startsWith("staff:");
+      const prevAccount = !prev.uid.startsWith("staff:");
+      if (nextAccount !== prevAccount) return nextAccount ? next : prev;
+      const nextSeed = seedIds.has(next.staffId);
+      const prevSeed = seedIds.has(prev.staffId);
+      if (nextSeed !== prevSeed) return nextSeed ? next : prev;
+      return prev;
+    }
+
+    // Dedupe by person (name+title) — live DB can have duplicate staff rows.
+    const byPerson = new Map<string, Opt>();
     for (const s of roster) {
       const email = (s.accountEmail ?? s.email).trim().toLowerCase();
       const account =
         byStaffId.get(s.id) || (email ? byEmail.get(email) : undefined);
       const uid = account?.uid ?? `staff:${s.id}`;
-      out.set(uid, {
+      const opt: Opt = {
         uid,
         name: s.displayName,
         title: s.title,
         staffId: s.id,
-      });
+      };
+      const key = personKey(opt.name, opt.title);
+      byPerson.set(key, betterOpt(opt, byPerson.get(key)));
+    }
+
+    const out = new Map<string, Opt>();
+    for (const opt of byPerson.values()) {
+      out.set(opt.uid, opt);
     }
     for (const o of officers) {
       if (out.has(o.uid)) continue;
+      const key = personKey(o.displayName || o.email, o.officerTitle || "");
+      const existing = [...out.values()].find(
+        (x) => personKey(x.name, x.title) === key,
+      );
+      if (existing) {
+        // Collapse staff:… row into the real officer account.
+        if (existing.uid.startsWith("staff:")) {
+          out.delete(existing.uid);
+          out.set(o.uid, {
+            uid: o.uid,
+            name: o.displayName || o.email,
+            title: o.officerTitle || existing.title,
+            staffId: o.staffId || existing.staffId,
+          });
+        }
+        continue;
+      }
       out.set(o.uid, {
         uid: o.uid,
         name: o.displayName || o.email,
@@ -480,6 +522,11 @@ export function IncidentDetail({
           lat: selected.lat,
           lng: selected.lng,
           locationAccuracyM: selected.locationAccuracyM,
+          vertexClass: selected.vertexClass,
+          vertexConfidence: selected.vertexConfidence,
+          vertexLocationPlaceId: selected.vertexLocationPlaceId,
+          vertexLocationLabel: selected.vertexLocationLabel,
+          vertexLocationConfidence: selected.vertexLocationConfidence,
         },
       });
       if (verdict === "rejected" && isOfficer(profile)) {
@@ -965,6 +1012,7 @@ export function IncidentDetail({
             score={selected.trustScore}
             breakdown={selected.trustBreakdown}
             aiSource={selected.aiSource}
+            hasVertex={Boolean(selected.vertexClass?.trim())}
           />
 
           {selected.aiReason ? (
@@ -1692,10 +1740,12 @@ function TrustMeter({
   score,
   breakdown,
   aiSource,
+  hasVertex,
 }: {
   score: number | null;
   breakdown: ReportTrustBreakdown | null;
   aiSource?: HazardReport["aiSource"];
+  hasVertex?: boolean;
 }) {
   const total = score ?? 0;
   const slices = [
@@ -1703,25 +1753,34 @@ function TrustMeter({
       key: "ID",
       value: breakdown?.identity ?? 0,
       cap: TRUST_CAPS.identity,
-      brand: null as "gemini" | null,
+      brand: null as "gemini" | "vertex" | null,
     },
     {
       key: "Contact",
       value: breakdown?.contact ?? 0,
       cap: TRUST_CAPS.contact,
-      brand: null as "gemini" | null,
+      brand: null as "gemini" | "vertex" | null,
     },
     {
       key: "Allow location · Mobile camera",
       value: breakdown?.capture ?? 0,
       cap: TRUST_CAPS.capture,
-      brand: null as "gemini" | null,
+      brand: null as "gemini" | "vertex" | null,
     },
     {
-      key: "AI",
+      key: "Vertex",
+      value: breakdown?.vertex ?? 0,
+      cap: TRUST_CAPS.vertex,
+      brand: (hasVertex ? "vertex" : null) as "gemini" | "vertex" | null,
+    },
+    {
+      key: "Gemini",
       value: breakdown?.ai ?? 0,
       cap: TRUST_CAPS.ai,
-      brand: (aiSource === "gemini" ? "gemini" : null) as "gemini" | null,
+      brand: (aiSource === "gemini" ? "gemini" : null) as
+        | "gemini"
+        | "vertex"
+        | null,
     },
   ] as const;
 
@@ -1779,6 +1838,15 @@ function TrustMeter({
                       src="/brands/gemini.png"
                       alt=""
                       title="Gemini"
+                      className="h-3 w-auto shrink-0 opacity-80"
+                    />
+                  ) : null}
+                  {s.brand === "vertex" ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src="/brands/vertex-ai.svg"
+                      alt=""
+                      title="Vertex AI"
                       className="h-3 w-auto shrink-0 opacity-80"
                     />
                   ) : null}

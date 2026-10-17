@@ -29,6 +29,7 @@ import {
 } from "@/lib/support/upload";
 import { collection, onSnapshot } from "firebase/firestore";
 import { getClientDb } from "@/lib/firebase/client";
+import { cn } from "@/lib/utils";
 
 function SupportMedia({ urls }: { urls: string[] }) {
   if (urls.length === 0) return null;
@@ -77,11 +78,15 @@ function TicketChat({
   ticket,
   busy,
   authorUid,
+  authorPhotoURL,
+  photoByUid,
   onSend,
 }: {
   ticket: SupportTicket;
   busy: boolean;
   authorUid: string;
+  authorPhotoURL?: string | null;
+  photoByUid?: Map<string, string | null>;
   onSend: (body: string, mediaUrls: string[]) => Promise<void>;
 }) {
   const [draft, setDraft] = useState("");
@@ -128,27 +133,64 @@ function TicketChat({
 
   return (
     <div className="flex flex-col gap-3">
-      <ul className="space-y-2">
+      <ul className="flex flex-col gap-2">
         {ticket.messages.length === 0 ? (
           <li className="text-sm text-[var(--muted)]">No messages yet.</li>
         ) : (
-          ticket.messages.map((m, i) => (
-            <li
-              key={`${m.id}-${i}`}
-              className="rounded-lg border border-[var(--border)] bg-white px-3 py-2"
-            >
-              <p className="text-[11px] text-[var(--muted)]">
-                {m.authorName}
-                {m.createdAt
-                  ? ` · ${new Date(m.createdAt).toLocaleString()}`
-                  : ""}
-              </p>
-              {m.body ? (
-                <p className="mt-1 text-sm whitespace-pre-wrap">{m.body}</p>
-              ) : null}
-              <SupportMedia urls={m.mediaUrls} />
-            </li>
-          ))
+          ticket.messages.map((m, i) => {
+            const mine = Boolean(authorUid) && m.authorUid === authorUid;
+            const name = mine ? "You" : m.authorName;
+            const photo =
+              m.authorPhotoURL ||
+              (mine ? authorPhotoURL : null) ||
+              photoByUid?.get(m.authorUid) ||
+              null;
+            const avatar = (
+              <ProfileAvatar
+                name={mine ? name : m.authorName || "Officer"}
+                photoURL={photo}
+                seed={m.authorUid || m.authorName}
+                size="sm"
+                className="mt-0.5"
+              />
+            );
+            return (
+              <li
+                key={`${m.id}-${i}`}
+                className={cn(
+                  "flex w-full items-start gap-2",
+                  mine ? "justify-end" : "justify-start",
+                )}
+              >
+                {!mine ? avatar : null}
+                <div
+                  className={cn(
+                    "max-w-[85%] rounded-lg border px-3 py-2",
+                    mine
+                      ? "border-[var(--accent)]/30 bg-[var(--accent)]/10"
+                      : "border-[var(--border)] bg-white",
+                  )}
+                >
+                  <p
+                    className={cn(
+                      "text-[11px] text-[var(--muted)]",
+                      mine && "text-right",
+                    )}
+                  >
+                    {name}
+                    {m.createdAt
+                      ? ` · ${new Date(m.createdAt).toLocaleString()}`
+                      : ""}
+                  </p>
+                  {m.body ? (
+                    <p className="mt-1 text-sm whitespace-pre-wrap">{m.body}</p>
+                  ) : null}
+                  <SupportMedia urls={m.mediaUrls} />
+                </div>
+                {mine ? avatar : null}
+              </li>
+            );
+          })
         )}
       </ul>
       {previews.length > 0 ? (
@@ -273,6 +315,8 @@ export function SupportDetail({ ticketId }: { ticketId: string }) {
           role: "officer",
           createdAt: String(data.createdAt ?? ""),
           accountStatus: "active",
+          photoURL:
+            data.photoURL != null ? String(data.photoURL) : null,
         });
       }
       next.sort((a, b) =>
@@ -286,6 +330,17 @@ export function SupportDetail({ ticketId }: { ticketId: string }) {
     () => tickets.find((t) => t.id === ticketId) ?? null,
     [tickets, ticketId],
   );
+
+  const photoByUid = useMemo(() => {
+    const map = new Map<string, string | null>();
+    for (const o of officers) {
+      map.set(o.uid, o.photoURL ?? null);
+    }
+    if (isDeveloper(profile)) {
+      map.set(profile.uid, profile.photoURL ?? null);
+    }
+    return map;
+  }, [officers, profile]);
 
   async function setStatus(status: SupportTicketStatus) {
     if (!isDeveloper(profile) || !selected) return;
@@ -342,6 +397,7 @@ export function SupportDetail({ ticketId }: { ticketId: string }) {
         body,
         authorUid: profile.uid,
         authorName: profile.displayName || profile.email,
+        authorPhotoURL: profile.photoURL ?? null,
         mediaUrls,
       });
     } catch (err) {
@@ -427,6 +483,8 @@ export function SupportDetail({ ticketId }: { ticketId: string }) {
               ticket={selected}
               busy={busy}
               authorUid={profile.uid}
+              authorPhotoURL={profile.photoURL}
+              photoByUid={photoByUid}
               onSend={sendMessage}
             />
           </section>

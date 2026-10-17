@@ -75,6 +75,24 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
     locationAccuracyM,
     aiConfidence,
     aiVerdict,
+    vertexClass:
+      data.vertexClass != null ? String(data.vertexClass) : null,
+    vertexConfidence:
+      typeof data.vertexConfidence === "number"
+        ? data.vertexConfidence
+        : null,
+    vertexLocationPlaceId:
+      data.vertexLocationPlaceId != null
+        ? String(data.vertexLocationPlaceId)
+        : null,
+    vertexLocationLabel:
+      data.vertexLocationLabel != null
+        ? String(data.vertexLocationLabel)
+        : null,
+    vertexLocationConfidence:
+      typeof data.vertexLocationConfidence === "number"
+        ? data.vertexLocationConfidence
+        : null,
   });
   const trustScore = trustBreakdown.total;
   return {

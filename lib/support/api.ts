@@ -26,6 +26,8 @@ export type SupportMessage = {
   body: string;
   authorUid: string;
   authorName: string;
+  /** Profile photo when available. */
+  authorPhotoURL: string | null;
   createdAt: string;
   /** Image and/or video proxy URLs. */
   mediaUrls: string[];
@@ -127,11 +129,16 @@ function mapMessages(raw: unknown): SupportMessage[] {
     const body = String(m.body ?? "").trim();
     const mediaUrls = mapMediaUrls(m.mediaUrls, m.imageUrls);
     if (!body && mediaUrls.length === 0) continue;
+    const photoRaw = m.authorPhotoURL ?? m.photoURL;
     rows.push({
       id: String(m.id ?? `${m.createdAt ?? ""}-${rows.length}`),
       body: body.slice(0, 2000),
       authorUid: String(m.authorUid ?? ""),
       authorName: String(m.authorName ?? "Officer"),
+      authorPhotoURL:
+        photoRaw != null && String(photoRaw).trim()
+          ? String(photoRaw).trim().slice(0, 800)
+          : null,
       createdAt: String(m.createdAt ?? ""),
       mediaUrls,
     });
@@ -261,6 +268,7 @@ export async function addSupportTicketMessage(input: {
   body: string;
   authorUid: string;
   authorName: string;
+  authorPhotoURL?: string | null;
   mediaUrls?: string[];
 }): Promise<void> {
   const body = input.body.trim();
@@ -270,11 +278,13 @@ export async function addSupportTicketMessage(input: {
   }
   if (body.length > 2000) throw new Error("Message is too long.");
   const now = new Date().toISOString();
+  const photo = input.authorPhotoURL?.trim().slice(0, 800) || null;
   const message: SupportMessage = {
     id: `msg-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
     body,
     authorUid: input.authorUid,
     authorName: input.authorName.trim().slice(0, 120) || "Officer",
+    authorPhotoURL: photo,
     createdAt: now,
     mediaUrls,
   };

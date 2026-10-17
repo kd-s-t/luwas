@@ -106,6 +106,7 @@ function staffPayload(
 /** Seed / refresh Nangka staff directory (idempotent upsert by id). */
 export async function ensureNangkaStaffSeed(): Promise<{
   written: number;
+  removedDupes: number;
 }> {
   const barangayId = NANGKA_BARANGAY_ID;
   const orgName = NANGKA_ORG_NAME;
@@ -116,9 +117,16 @@ export async function ensureNangkaStaffSeed(): Promise<{
     ),
   );
   const have = new Set(existing.docs.map((d) => d.id));
+  const seedByPerson = new Map(
+    NANGKA_STAFF_SEED.map((s) => [
+      `${s.displayName.trim().toLowerCase()}|${s.title.trim().toLowerCase()}`,
+      s.id,
+    ] as const),
+  );
 
   const batch = writeBatch(getClientDb());
   let written = 0;
+  let removedDupes = 0;
   const now = new Date().toISOString();
   for (const input of NANGKA_STAFF_SEED) {
     const ref = doc(getClientDb(), COL, input.id);
@@ -139,8 +147,25 @@ export async function ensureNangkaStaffSeed(): Promise<{
     }
     written += 1;
   }
+  // Drop accidental copies that reuse a seed person's name+title under another id.
+  for (const d of existing.docs) {
+    if (NANGKA_STAFF_SEED.some((s) => s.id === d.id)) {
+      continue;
+    }
+    const data = d.data() as Record<string, unknown>;
+    const key = `${String(data.displayName ?? "")
+      .trim()
+      .toLowerCase()}|${String(data.title ?? "")
+      .trim()
+      .toLowerCase()}`;
+    const canonical = seedByPerson.get(key);
+    if (canonical && d.id !== canonical) {
+      batch.delete(d.ref);
+      removedDupes += 1;
+    }
+  }
   await batch.commit();
-  return { written };
+  return { written, removedDupes };
 }
 
 export async function upsertStaffMember(
