@@ -56,6 +56,10 @@ export type EmailSampleContext = {
     place: string;
     notes?: string;
   };
+  /** Who receives a report_done mail (copy varies slightly). */
+  doneRole?: "reporter" | "assignee" | "captain";
+  /** Officer who closed the case (report_done). */
+  closedByName?: string;
   /** Staff onboarding (captain add existing / add new officer). */
   officer?: {
     title: string;
@@ -732,6 +736,62 @@ Open map: ${mapUrl}`,
   });
 }
 
+export function buildReportDoneEmail(
+  ctx: EmailSampleContext = DEFAULT_EMAIL_SAMPLE,
+): BrandedEmailParts {
+  const report = ctx.report ?? DEFAULT_EMAIL_SAMPLE.report!;
+  const mapUrl = `${appOrigin()}/`;
+  const notes = report.notes?.trim();
+  const closedBy = ctx.closedByName?.trim() || "Barangay officer";
+  const role = ctx.doneRole ?? "reporter";
+  const lead =
+    role === "reporter"
+      ? `Your field report was marked <strong>done</strong> by <strong>${escapeHtml(ctx.barangay)}</strong> DRRM.`
+      : role === "captain"
+        ? `An incident in <strong>${escapeHtml(ctx.barangay)}</strong> was marked <strong>done</strong> by <strong>${escapeHtml(closedBy)}</strong>.`
+        : `The incident assigned to you was marked <strong>done</strong> by <strong>${escapeHtml(closedBy)}</strong>.`;
+  const leadText =
+    role === "reporter"
+      ? `Your field report was marked done by ${ctx.barangay} DRRM.`
+      : role === "captain"
+        ? `An incident in ${ctx.barangay} was marked done by ${closedBy}.`
+        : `The incident assigned to you was marked done by ${closedBy}.`;
+
+  return buildBrandedEmail({
+    subject: `UGNAI · Incident closed · ${report.title}`,
+    eyebrow: "Field report · Done",
+    headline: "Incident marked done",
+    greetingName: ctx.name,
+    textBody: `${leadText}
+
+Report: ${report.title}
+Hazard: ${report.hazardLabel}
+Place: ${report.place}
+${notes ? `Notes: ${notes}\n` : ""}Closed by: ${closedBy}
+Reference: ${report.id}
+
+This case is closed on the situation map. No further action is required unless a new report is filed.
+
+Open map: ${mapUrl}`,
+    htmlBody: `
+      ${p(lead)}
+      ${bulletList([
+        `<strong>Report:</strong> ${escapeHtml(report.title)}`,
+        `<strong>Hazard:</strong> ${escapeHtml(report.hazardLabel)}`,
+        `<strong>Place:</strong> ${escapeHtml(report.place)}`,
+        ...(notes ? [`<strong>Notes:</strong> ${escapeHtml(notes)}`] : []),
+        `<strong>Closed by:</strong> ${escapeHtml(closedBy)}`,
+        `<strong>Reference:</strong> ${escapeHtml(report.id)}`,
+      ])}
+      ${p(
+        "This case is closed on the situation map. No further action is required unless a new report is filed.",
+      )}
+      ${muted("Email only — done is not an evacuate / prepare alert.")}
+    `,
+    cta: { label: "Open situation map", url: mapUrl },
+  });
+}
+
 export function buildOfficerAddExistingEmail(
   ctx: EmailSampleContext = DEFAULT_EMAIL_SAMPLE,
 ): BrandedEmailParts {
@@ -843,6 +903,8 @@ export function buildEmailTemplate(
       return buildPrepareAlertEmail(ctx);
     case "report_verified":
       return buildReportVerifiedEmail(ctx);
+    case "report_done":
+      return buildReportDoneEmail(ctx);
     default: {
       const _exhaustive: never = id;
       return _exhaustive;

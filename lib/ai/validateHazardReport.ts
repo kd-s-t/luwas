@@ -245,7 +245,7 @@ export async function validateHazardReport(input: {
     : voiceOnly
       ? "voice transcript + text"
       : "text";
-  const prompt = `You are Mangugnai, validating a citizen hazard field report for Brgy. Nangka, Consolacion, Cebu.
+  const prompt = `You are Agent Nangka, validating a citizen hazard field report for Brgy. Nangka, Consolacion, Cebu.
 Decide if the ${evidenceKind} look like a genuine on-the-ground hazard report (not spam, meme, unrelated content, or obvious fake).
 
 A separate Vertex AI image classifier already scored the photo. Use that as a signal, not the only rule:

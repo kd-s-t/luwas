@@ -102,7 +102,7 @@ export default function TermsPage() {
           <p>
             Command features (field reports, Vertex month export, house owners,
             users, roles, support tickets, notifications, SMS / email / voice
-            alerts, Mangugnai triage) are for authorized staff of a
+            alerts, Agent Nangka triage) are for authorized staff of a
             subscribing barangay or LGU. Scope is limited to onboarded /
             assigned areas (e.g. Brgy. Nangka). Roster and alert actions in the
             Tino simulation are for demo and training unless your organization

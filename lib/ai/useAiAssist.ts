@@ -246,7 +246,7 @@ export function useAiAssist(opts: UseAiAssistOpts = {}) {
     ): Promise<{ reply: string; smsLog: SmsLogEntry[] }> => {
       const assist = resultRef.current;
       if (!assist?.actions.length) {
-        throw new Error("No triage list yet — ask Mangugnai to run triage first.");
+        throw new Error("No triage list yet — ask Agent Nangka to run triage first.");
       }
       const enriched = enrichActionsWithContacts(assist.actions, households);
       const res = await fetch("/api/alerts/sms", {
@@ -336,7 +336,7 @@ export function useAiAssist(opts: UseAiAssistOpts = {}) {
     ): Promise<{ reply: string; smsLog: SmsLogEntry[] }> => {
       const assist = resultRef.current;
       if (!assist?.actions.length) {
-        throw new Error("No triage list yet — ask Mangugnai to run triage first.");
+        throw new Error("No triage list yet — ask Agent Nangka to run triage first.");
       }
       const enriched = enrichActionsWithContacts(assist.actions, households);
       const res = await fetch("/api/alerts/call", {
@@ -557,34 +557,59 @@ export function useAiAssist(opts: UseAiAssistOpts = {}) {
           return;
         }
 
-        if (isCallDispatchIntent(trimmed)) {
-          const { reply, smsLog } = await dispatchCallFromAssist(
-            callPriorityFromIntent(trimmed),
-            payload.households,
-          );
-          const assistantMsg: ChatMessage = {
-            id: newId(),
-            role: "assistant",
-            content: reply,
-            smsLog,
-            createdAt: new Date().toISOString(),
-          };
-          setThreads((prev) =>
-            prev.map((t) => {
-              if (t.id !== threadId) return t;
-              return {
-                ...t,
-                messages: [...t.messages, assistantMsg],
-                callListVisible: false,
-                updatedAt: new Date().toISOString(),
-              };
-            }),
-          );
-          speakPersist(assistantMsg);
-          return;
-        }
+        if (isCallDispatchIntent(trimmed) || isSmsDispatchIntent(trimmed)) {
+          const phase = payload.phase;
+          if (phase === "during" || phase === "after") {
+            const assistantMsg: ChatMessage = {
+              id: newId(),
+              role: "assistant",
+              content:
+                phase === "during"
+                  ? "During landfall we don’t blast SMS or email to the barangay — dispatch officers to the field instead. Switch to Before if you need a household notify."
+                  : "In Aftermath we don’t blast SMS or email to the barangay — dispatch and investigate, then Mark done emails the reporter, assigned, and captain only. Switch to Before for a household notify.",
+              createdAt: new Date().toISOString(),
+            };
+            setThreads((prev) =>
+              prev.map((t) => {
+                if (t.id !== threadId) return t;
+                return {
+                  ...t,
+                  messages: [...t.messages, assistantMsg],
+                  updatedAt: new Date().toISOString(),
+                };
+              }),
+            );
+            speakPersist(assistantMsg);
+            return;
+          }
 
-        if (isSmsDispatchIntent(trimmed)) {
+          if (isCallDispatchIntent(trimmed)) {
+            const { reply, smsLog } = await dispatchCallFromAssist(
+              callPriorityFromIntent(trimmed),
+              payload.households,
+            );
+            const assistantMsg: ChatMessage = {
+              id: newId(),
+              role: "assistant",
+              content: reply,
+              smsLog,
+              createdAt: new Date().toISOString(),
+            };
+            setThreads((prev) =>
+              prev.map((t) => {
+                if (t.id !== threadId) return t;
+                return {
+                  ...t,
+                  messages: [...t.messages, assistantMsg],
+                  callListVisible: false,
+                  updatedAt: new Date().toISOString(),
+                };
+              }),
+            );
+            speakPersist(assistantMsg);
+            return;
+          }
+
           const { reply, smsLog } = await dispatchSmsFromAssist(
             smsPriorityFromIntent(trimmed),
             payload.households,

@@ -111,7 +111,7 @@ export default function PrivacyPage() {
             >
               community reports
             </Link>
-            , AI-assisted validation, and Tino map assist (Mangugnai). Voice
+            , AI-assisted validation, and Tino map assist (Agent Nangka). Voice
             notes may be transcribed so officers can read what was said. Photos
             may be scored by a custom Vertex vision model and reasoned over by
             Gemini. Officers may export a monthly photo batch (zip + CSV) to

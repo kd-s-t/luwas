@@ -22,8 +22,8 @@ const LINKS = [
     logo: "/brands/bigquery.png",
   },
   {
-    label: "Agent Platform AI (Vertex AI)",
-    hint: "Agent builders · overview",
+    label: "Gemini Enterprise Agent Platform",
+    hint: "Agent Platform · overview",
     href: `https://console.cloud.google.com/agent-platform/overview?project=${PROJECT}`,
     logo: "/brands/vertex-ai.svg",
   },
@@ -38,6 +38,24 @@ const LINKS = [
     hint: "kd-s-t/ugnai",
     href: "https://github.com/kd-s-t/ugnai",
     logo: "/brands/github.svg",
+  },
+  {
+    label: "Domain · luwasph.com",
+    hint: "Squarespace · managed DNS",
+    href: "https://account.squarespace.com/domains/managed/luwasph.com",
+    logo: "/brands/squarespace.png",
+  },
+  {
+    label: "Presentation Slide",
+    hint: "UGNAI Google Slides",
+    href: "https://docs.google.com/presentation/d/1e-7QwkgizNirJuTs16fS7rCePPqnTWiT/edit?slide=id.p11#slide=id.p11",
+    logo: "/brands/google-slides.png",
+  },
+  {
+    label: "OSM Philippines (Geofabrik)",
+    hint: "Dataset source · philippines-latest.osm.pbf",
+    href: "https://download.geofabrik.de/asia/philippines.html",
+    logo: "/brands/openstreetmap.png",
   },
   {
     label: "Figma · Ugnai Flow",

@@ -149,7 +149,7 @@ export default function BootstrapKitPage() {
   const [chat, setChat] = useState<{ role: "ai" | "user"; text: string }[]>([
     {
       role: "ai",
-      text: "Kumusta — I’m Mangugnai. Ask about Tino triage, flood belts, or who to call. Green = house owners, red = evacuate, yellow = prepare, blue = flood footprints.",
+      text: "Kumusta — I’m Agent Nangka. Ask about Tino triage, flood belts, or who to call. Green = house owners, red = evacuate, yellow = prepare, blue = flood footprints.",
     },
   ]);
 
@@ -192,7 +192,7 @@ export default function BootstrapKitPage() {
       { role: "user", text },
       {
         role: "ai",
-        text: "Sample reply — same shell as /admin/overview Mangugnai.",
+        text: "Sample reply — same shell as /admin/overview Agent Nangka.",
       },
     ]);
     setDraft("");
@@ -616,7 +616,7 @@ export default function BootstrapKitPage() {
               <textarea
                 readOnly
                 rows={2}
-                placeholder="Ask Mangugnai…"
+                placeholder="Ask Agent Nangka…"
                 className="mt-3 w-full border border-[var(--border)] bg-[var(--input)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
               />
             </Section>
@@ -734,21 +734,21 @@ export default function BootstrapKitPage() {
             <Section
               id="chat"
               title="Chat"
-              hint="Mangugnai shell — matches /admin/overview (Lucide history/new/send)."
+              hint="Agent Nangka shell — matches /admin/overview (Lucide history/new/send)."
             >
               <div className="flex max-w-md flex-col border border-[var(--border)] bg-[var(--surface)]">
                 <header className="space-y-2.5 border-b border-[var(--border)] bg-[var(--surface-panel)] px-3 py-3">
                   <div className="flex items-center gap-2">
                     <Image
                       src="/mangugnai.jpg"
-                      alt="Mangugnai"
+                      alt="Agent Nangka"
                       width={40}
                       height={40}
                       className="size-10 rounded-full object-cover ring-2 ring-[var(--accent)]/35"
                     />
                     <div className="min-w-0 flex-1">
                       <p className="font-[family-name:var(--font-display)] text-base font-semibold tracking-wide">
-                        Mangugnai
+                        Agent Nangka
                       </p>
                       <p className="font-mono text-[10px] tracking-[0.16em] text-[var(--accent)] uppercase">
                         New chat
@@ -820,7 +820,7 @@ export default function BootstrapKitPage() {
                       value={draft}
                       onChange={(e) => setDraft(e.target.value)}
                       rows={1}
-                      placeholder="Ask Mangugnai…"
+                      placeholder="Ask Agent Nangka…"
                       className="min-h-10 max-h-28 flex-1 resize-none border border-[var(--border)] bg-[var(--input)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
                     />
                     <Button

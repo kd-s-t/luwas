@@ -135,7 +135,7 @@ function TriageNode(_props: NodeProps) {
       <div className="mb-0.5 flex items-center justify-center gap-2">
         <Image
           src="/mangugnai.jpg"
-          alt="Mangugnai"
+          alt="Agent Nangka"
           width={40}
           height={40}
           className="size-10 rounded-full object-cover"
@@ -163,8 +163,9 @@ function TriageNode(_props: NodeProps) {
 function StackNode(_props: NodeProps) {
   const logos = [
     "/brands/google-maps.png",
-    "/brands/firebase.png",
+    "/brands/firestore.png",
     "/brands/earth-engine.webp",
+    "/brands/google-elevation.jpg",
     "/brands/google-weather.png",
   ] as const;
   return (
@@ -186,7 +187,7 @@ function StackNode(_props: NodeProps) {
           />
         ))}
       </div>
-      <p className={flowLabelClass}>Recovery map</p>
+      <p className={flowLabelClass}>Data sources</p>
       <p className={flowMetaClass}>Residual flood · fire · debris</p>
       <Handle
         type="source"
@@ -212,7 +213,7 @@ function DispatchNode(_props: NodeProps) {
         height={32}
         className="size-8 object-contain"
       />
-      <p className={flowLabelClass}>Dispatch</p>
+      <p className={flowLabelClass}>Dispatch officer</p>
       <p className={flowMetaClass}>Send team to the field</p>
       <Handle
         type="source"
@@ -238,9 +239,61 @@ function OpsNode(_props: NodeProps) {
       </p>
       <Handle
         type="source"
-        position={Position.Right}
+        position={Position.Bottom}
+        id="down"
         className="!size-2 !bg-[#c72929] !border-0"
       />
+    </div>
+  );
+}
+
+const DONE_GREEN = "#16794c";
+
+function DoneNode(_props: NodeProps) {
+  return (
+    <div
+      className="relative rounded-[8px] border bg-white px-3 py-2 text-center text-sm font-semibold"
+      style={{ color: DONE_GREEN, borderColor: DONE_GREEN }}
+    >
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="in-top"
+        className="!size-2 !border-0"
+        style={{ background: DONE_GREEN }}
+      />
+      Mark done
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="down"
+        className="!size-2 !border-0"
+        style={{ background: DONE_GREEN }}
+      />
+    </div>
+  );
+}
+
+function ResendNode(_props: NodeProps) {
+  return (
+    <div className={flowNodeClass} style={{ width: 180 }}>
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="in-top"
+        className="!size-2 !border-0"
+        style={{ background: DONE_GREEN }}
+      />
+      <Image
+        src="/brands/resend.png"
+        alt=""
+        width={32}
+        height={32}
+        className="size-8 object-contain"
+      />
+      <p className={flowLabelClass}>Resend</p>
+      <p className={flowMetaClass}>reporter · assigned · captain</p>
+      <p className={flowMetaClass}>email · no SMS</p>
     </div>
   );
 }
@@ -252,6 +305,13 @@ function SiteGroupNode(_props: NodeProps) {
       <Image
         src="/brands/firebase.png"
         alt="Firebase"
+        width={24}
+        height={24}
+        className="absolute top-3 right-10 size-6 object-contain"
+      />
+      <Image
+        src="/brands/cloud-run.png"
+        alt="Cloud Run"
         width={24}
         height={24}
         className="absolute top-3 right-3 size-6 object-contain"
@@ -271,10 +331,12 @@ const nodeTypes = {
   stack: StackNode,
   dispatch: DispatchNode,
   ops: OpsNode,
+  done: DoneNode,
+  resend: ResendNode,
   siteGroup: SiteGroupNode,
 };
 
-const GROUP_W = 1360;
+const GROUP_W = 900;
 const GROUP_H = 480;
 
 function CalamityAftermathFlowCanvas() {
@@ -283,7 +345,7 @@ function CalamityAftermathFlowCanvas() {
       {
         id: "citizen",
         type: "actor",
-        position: { x: 4.90415913200723, y: 92.38336347197107 },
+        position: { x: 6.451187465051703, y: 86.19525013979315 },
         data: { label: "Citizen", citizens: true, outRight: true },
       },
       {
@@ -298,6 +360,8 @@ function CalamityAftermathFlowCanvas() {
         position: { x: 180, y: 20 },
         data: {},
         style: { width: GROUP_W, height: GROUP_H },
+        width: GROUP_W,
+        height: GROUP_H,
       },
       {
         id: "report",
@@ -320,7 +384,7 @@ function CalamityAftermathFlowCanvas() {
         type: "stack",
         parentId: "site",
         extent: "parent",
-        position: { x: 325.4104882459312, y: 67.1410488245931 },
+        position: { x: 271.2644965893743, y: 67.1410488245931 },
         data: {},
       },
       {
@@ -328,7 +392,7 @@ function CalamityAftermathFlowCanvas() {
         type: "triage",
         parentId: "site",
         extent: "parent",
-        position: { x: 318.5280289330923, y: 252.7052441229656 },
+        position: { x: 279.85232060698024, y: 252.7052441229656 },
         data: {},
       },
       {
@@ -336,26 +400,30 @@ function CalamityAftermathFlowCanvas() {
         type: "dispatch",
         parentId: "site",
         extent: "parent",
-        position: { x: 643.133815551537, y: 183.6473779385172 },
+        position: { x: 568.876455565402, y: 86.2683787730688 },
         data: {},
       },
       {
         id: "ops",
         type: "ops",
+        position: { x: 1093.2016983468181, y: 110.92925011279874 },
+        data: { keepOutside: true },
+      },
+      {
+        id: "done",
+        type: "done",
         parentId: "site",
         extent: "parent",
-        position: { x: 865.3254972875227, y: 190 },
+        position: { x: 738.3270312514219, y: 232.04221874883092 },
         data: {},
       },
       {
-        id: "people",
-        type: "actor",
-        position: { x: 1585.9174954792045, y: 198.90415913200724 },
-        data: {
-          label: "People within Barangay",
-          citizens: true,
-          inLeft: true,
-        },
+        id: "resend",
+        type: "resend",
+        parentId: "site",
+        extent: "parent",
+        position: { x: 695.1770625018327, y: 328.1884062492732 },
+        data: {},
       },
     ];
 
@@ -364,6 +432,11 @@ function CalamityAftermathFlowCanvas() {
       color: "#c72929",
     } as const;
     const style = { stroke: "#c72929", strokeWidth: 1.75 };
+    const greenMarker = {
+      type: MarkerType.ArrowClosed,
+      color: DONE_GREEN,
+    } as const;
+    const greenStyle = { stroke: DONE_GREEN, strokeWidth: 1.75 };
 
     const e: Edge[] = [
       {
@@ -418,11 +491,22 @@ function CalamityAftermathFlowCanvas() {
         style,
       },
       {
-        id: "e-people",
+        id: "e-done",
         source: "ops",
-        target: "people",
-        markerEnd: marker,
-        style,
+        sourceHandle: "down",
+        target: "done",
+        targetHandle: "in-top",
+        markerEnd: greenMarker,
+        style: greenStyle,
+      },
+      {
+        id: "e-resend",
+        source: "done",
+        sourceHandle: "down",
+        target: "resend",
+        targetHandle: "in-top",
+        markerEnd: greenMarker,
+        style: greenStyle,
       },
     ];
 
@@ -443,13 +527,13 @@ function CalamityAftermathFlowCanvas() {
     fitView,
     hydrated,
     canvasKey,
-  } = useFlowLayout("aftermath-v8", defaultNodes, defaultEdges);
+  } = useFlowLayout("aftermath-v17", defaultNodes, defaultEdges);
 
   return (
     <div className="relative h-full min-h-[520px] w-full overflow-hidden bg-[#eef1f5]">
       <div className="absolute top-3 right-3 z-10 flex gap-2">
         <FlowCopyJsonButton
-          flowId="aftermath-v8"
+          flowId="aftermath-v17"
           nodes={nodes}
           edges={edges}
         />
@@ -504,9 +588,8 @@ export function CalamityAftermathFlow() {
           Calamity: Aftermath
         </h1>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Citizens still file incident reports → officers run After → recovery
-          map → welfare triage → dispatch → investigate → people within
-          barangay (outside Firebase).
+          Dispatch → investigate outside → back in Ugnaiph.com to Mark done →
+          Resend (reporter · assigned · captain).
         </p>
       </div>
       <div className="min-h-0 flex-1">

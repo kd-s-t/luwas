@@ -8,7 +8,7 @@ export const WELCOME_MESSAGE: ChatMessage = {
   id: "welcome",
   role: "assistant",
   content:
-    "Kumusta — I’m Mangugnai, your UGNAI DRRM colleague for the Tino simulation. Ask what to do for a storm, or say “run triage” — I’ll paint the map (green = house owners, red = evacuate, yellow = prepare / shelter in place, blue = flood footprints). When you’re ready, say “alert them to evacuate”, or “call the fire station” / “call the police” and I’ll dial Consolacion BFP or PNP.",
+    "Kumusta — I’m Agent Nangka, your UGNAI DRRM colleague for the Tino simulation. Ask what to do for a storm, or say “run triage” — I’ll paint the map (green = house owners, red = evacuate, yellow = prepare / shelter in place, blue = flood footprints). When you’re ready, say “alert them to evacuate”, or “call the fire station” / “call the police” and I’ll dial Consolacion BFP or PNP.",
   createdAt: new Date(0).toISOString(),
 };
 

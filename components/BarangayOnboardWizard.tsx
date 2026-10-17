@@ -57,7 +57,7 @@ const ORIENTATION_POINTS = [
   },
   {
     title: "What you’ll set up",
-    body: "Hall pin for the map, your MDRRMO / barangay org profile, then households, staff, and alert templates so ops can go live.",
+    body: "Hall pin and org profile, then add officers. Those officers load the homeowners database, evac centers, and inventory — then activate.",
   },
   {
     title: "Who this is for",
@@ -69,34 +69,36 @@ const ORIENTATION_POINTS = [
   },
 ] as const;
 
-const OPS_ACTIONS = [
+/** Officers first, then databases they fill (matches Barangay Onboard Flow). */
+const OFFICER_ACTION = {
+  key: "staffReady" as const,
+  title: "Add officers",
+  hint: "Captain, MDRRMO, and staff — promote existing house owners or add new.",
+  href: "/admin/officers",
+  cta: "Open users",
+};
+
+const DATABASE_ACTIONS = [
   {
     key: "householdsReady" as const,
-    title: "House owners roster",
-    hint: "Import CSV or add households for this barangay.",
+    title: "Add homeowners",
+    hint: "Real roster · CSV import or add households.",
     href: "/admin/households",
     cta: "Open households",
   },
   {
-    key: "staffReady" as const,
-    title: "Staff / users",
-    hint: "Punong barangay, MDRRMO, tanods on Users.",
-    href: "/admin/officers",
-    cta: "Open users",
+    key: "evacReady" as const,
+    title: "Add evac centers",
+    hint: "Shelters · capacity for this barangay.",
+    href: "/admin/evac-centers",
+    cta: "Open evac centers",
   },
   {
-    key: "templatesReviewed" as const,
-    title: "Alert templates",
-    hint: "Review SMS/email copy for evacuate / prepare.",
-    href: "/bootstrap#email",
-    cta: "Open templates",
-  },
-  {
-    key: "mapOpened" as const,
-    title: "Situation map",
-    hint: "Open command map centered on this barangay hall.",
-    href: "/admin/overview",
-    cta: "Open map",
+    key: "inventoryReady" as const,
+    title: "Add inventories",
+    hint: "Stock · equipment for response.",
+    href: "/admin/inventory",
+    cta: "Open inventory",
   },
 ] as const;
 
@@ -318,8 +320,10 @@ export function BarangayOnboardWizard({ defaultOrgName = "" }: Props) {
         orgName: draft.orgName.trim(),
         center: draft.center,
       });
-      markCheck("householdsReady");
       markCheck("staffReady");
+      markCheck("householdsReady");
+      markCheck("evacReady");
+      markCheck("inventoryReady");
       const updated: OnboardedBarangay = {
         id: draft.areaId,
         barangay: draft.barangay,
@@ -333,8 +337,10 @@ export function BarangayOnboardWizard({ defaultOrgName = "" }: Props) {
         zoom: draft.zoom,
         checklist: {
           ...draft.checklist,
-          householdsReady: true,
           staffReady: true,
+          householdsReady: true,
+          evacReady: true,
+          inventoryReady: true,
         },
         activatedAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -384,9 +390,9 @@ export function BarangayOnboardWizard({ defaultOrgName = "" }: Props) {
             Add a barangay to UGNAI ops
           </h1>
           <p className="mt-1 max-w-xl text-sm text-[var(--muted)]">
-            Start with a short orientation from the UGNAI Devs, then activate a
-            Cebu barangay: hall pin, MDRRMO profile, households / staff /
-            templates.
+            Start with a short orientation from the UGNAI Devs, then hall pin,
+            MDRRMO profile, add officers, then homeowners / evac / inventory →
+            activate.
           </p>
         </div>
         {draft.step !== "orientation" && draft.step !== "done" ? (
@@ -646,19 +652,21 @@ export function BarangayOnboardWizard({ defaultOrgName = "" }: Props) {
       {draft.step === "checklist" && draft.areaId ? (
         <section className="border border-[var(--border)] bg-[var(--surface-raised)] p-4 sm:p-5">
           <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold">
-            Ops playbook
+            Officers, then databases
           </h2>
           <p className="mt-1 text-sm text-[var(--muted)]">
-            Open each tool, then mark done. You can activate now and finish these
-            after — or seed demo data on the next screen.
+            Add officers first (existing or new). Those officers load homeowners,
+            evac centers, and inventory — then activate. You can finish databases
+            after activate if needed.
           </p>
-          <ul className="mt-4 grid gap-3">
-            {OPS_ACTIONS.map((item) => {
+
+          <p className="mt-5 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+            1 · Add officers
+          </p>
+          <ul className="mt-2 grid gap-3">
+            {(() => {
+              const item = OFFICER_ACTION;
               const done = draft.checklist[item.key];
-              const href =
-                item.key === "mapOpened" && draft.areaId
-                  ? `/admin/overview?area=${encodeURIComponent(draft.areaId)}`
-                  : item.href;
               return (
                 <li
                   key={item.key}
@@ -678,7 +686,51 @@ export function BarangayOnboardWizard({ defaultOrgName = "" }: Props) {
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-2">
                     <Link
-                      href={href}
+                      href={item.href}
+                      onClick={() => markCheck(item.key)}
+                      className="border border-[var(--accent)] bg-[var(--accent)] px-3 py-1.5 font-mono text-[10px] tracking-wider text-white uppercase transition hover:opacity-90"
+                    >
+                      {item.cta} →
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => toggleCheck(item.key)}
+                      className="border border-[var(--border)] px-3 py-1.5 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase transition hover:border-[var(--accent)] hover:text-[var(--foreground)]"
+                    >
+                      {done ? "Undo" : "Mark done"}
+                    </button>
+                  </div>
+                </li>
+              );
+            })()}
+          </ul>
+
+          <p className="mt-5 font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+            2 · Officers add databases
+          </p>
+          <ul className="mt-2 grid gap-3">
+            {DATABASE_ACTIONS.map((item) => {
+              const done = draft.checklist[item.key];
+              return (
+                <li
+                  key={item.key}
+                  className={cn(
+                    "flex flex-wrap items-start justify-between gap-3 border border-[var(--border)] bg-[var(--surface)] p-3 sm:p-4",
+                    done && "border-[var(--accent)]/40 bg-[var(--accent)]/5",
+                  )}
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium">{item.title}</p>
+                    <p className="mt-0.5 text-xs text-[var(--muted)]">
+                      {item.hint}
+                    </p>
+                    <p className="mt-2 font-mono text-[10px] tracking-wider uppercase text-[var(--muted)]">
+                      {done ? "Done" : "Pending"}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 flex-wrap gap-2">
+                    <Link
+                      href={item.href}
                       onClick={() => markCheck(item.key)}
                       className="border border-[var(--accent)] bg-[var(--accent)] px-3 py-1.5 font-mono text-[10px] tracking-wider text-white uppercase transition hover:opacity-90"
                     >

@@ -588,6 +588,7 @@ export function SituationMap({
                 onDeleteChat={deleteChat}
                 officerUid={officerUid}
                 onMessageAudio={patchMessageAudio}
+                allowBarangayBlast={phase !== "during" && phase !== "after"}
                 onSend={(text) =>
                   sendMessage(text, {
                     households: mapHouseholds,

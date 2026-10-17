@@ -19,7 +19,7 @@ const TABS = [
   { id: "earth-engine", label: "Earth Engine" },
   { id: "vertex", label: "Gemini Agent Platform" },
   { id: "registration", label: "Register Citizen" },
-  { id: "incident", label: "Fire Incident" },
+  { id: "incident", label: "Incident Report" },
   { id: "calamity", label: "Before Storm" },
   { id: "during", label: "During Landfall" },
   { id: "aftermath", label: "Aftermath" },
