@@ -157,7 +157,7 @@ function EarthEngineFlowCanvas() {
       {
         id: "trigger",
         type: "step",
-        position: { x: 24, y: 130 },
+        position: { x: -29.79775280898876, y: 119.43258426966293 },
         data: {
           label: "Dev run",
           lines: ["ee:dem · ee:hazards"],
@@ -173,7 +173,7 @@ function EarthEngineFlowCanvas() {
       {
         id: "dem",
         type: "step",
-        position: { x: 460, y: 60 },
+        position: { x: 467.685393258427, y: 14.848314606741575 },
         data: {
           label: "DEM cache",
           logo: "/brands/google-elevation.jpg",
@@ -197,7 +197,7 @@ function EarthEngineFlowCanvas() {
       {
         id: "storage",
         type: "step",
-        position: { x: 680, y: 130 },
+        position: { x: 680.9606741573034, y: 118.47191011235955 },
         data: {
           label: "Firebase Storage",
           logo: "/brands/firebase.png",
@@ -210,7 +210,7 @@ function EarthEngineFlowCanvas() {
       {
         id: "map",
         type: "step",
-        position: { x: 900, y: 130 },
+        position: { x: 977.8146067415731, y: 119.43258426966293 },
         data: {
           label: "Situation map",
           logo: "/brands/google-maps.png",
