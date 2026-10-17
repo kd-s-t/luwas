@@ -294,7 +294,7 @@ function CarIncidentFlowCanvas() {
       {
         id: "site",
         type: "siteGroup",
-        position: { x: 220, y: 135 },
+        position: { x: 218.30909090909108, y: 141.76363636363635 },
         data: {},
         style: { width: GROUP_W, height: GROUP_H },
       },
@@ -342,7 +342,7 @@ function CarIncidentFlowCanvas() {
         type: "status",
         parentId: "site",
         extent: "parent",
-        position: { x: 446, y: 124 },
+        position: { x: 447.69090909090903, y: 124 },
         data: { label: "Validated", tone: "ok" },
       },
       {
@@ -371,7 +371,7 @@ function CarIncidentFlowCanvas() {
         type: "step",
         parentId: "site",
         extent: "parent",
-        position: { x: 703, y: 72 },
+        position: { x: 706.3818181818183, y: 77.07272727272726 },
         data: {
           label: "Dispatched officer",
           logo: "/brands/officer.png",
@@ -383,7 +383,7 @@ function CarIncidentFlowCanvas() {
         type: "step",
         parentId: "site",
         extent: "parent",
-        position: { x: 712, y: 325 },
+        position: { x: 703.5454545454546, y: 240.45454545454544 },
         data: {
           label: "Twilio",
           logo: "/brands/twilio.png",
@@ -402,7 +402,7 @@ function CarIncidentFlowCanvas() {
         type: "status",
         parentId: "site",
         extent: "parent",
-        position: { x: 1050, y: 117 },
+        position: { x: 1048.3090909090909, y: 120.38181818181818 },
         data: { label: "Mark done", tone: "ok", noTop: true },
       },
       {
