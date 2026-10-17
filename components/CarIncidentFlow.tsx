@@ -24,6 +24,7 @@ import {
   isFlowCostLine,
 } from "@/components/flow/FlowMark";
 import { FlowCopyJsonButton } from "@/components/flow/FlowCopyJsonButton";
+import { HazardPhotoStrip } from "@/components/flow/HazardPhotoStrip";
 import { useFlowLayout } from "@/components/flow/useFlowLayout";
 
 const RED = "#c72929";
@@ -175,26 +176,29 @@ function StepNode({ data }: NodeProps) {
 
 function InvestigateNode(_props: NodeProps) {
   return (
-    <div className={flowNodeClass} style={{ width: 220 }}>
-      <Handle
-        type="target"
-        position={Position.Left}
-        id="in"
-        className="!size-2 !border-0"
-        style={{ background: GREEN }}
-      />
-      <p className={flowLabelClass}>Investigate the location</p>
-      <p className={flowMetaClass}>
-        Roster welfare checks · shelter assignment · clear blocked lanes ·
-        watch fire zones
-      </p>
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        id="down"
-        className="!size-2 !border-0"
-        style={{ background: GREEN }}
-      />
+    <div className="relative" style={{ width: 220 }}>
+      <HazardPhotoStrip />
+      <div className={flowNodeClass}>
+        <Handle
+          type="target"
+          position={Position.Left}
+          id="in"
+          className="!size-2 !border-0"
+          style={{ background: GREEN }}
+        />
+        <p className={flowLabelClass}>Investigate the location</p>
+        <p className={flowMetaClass}>
+          Roster welfare checks · shelter assignment · clear blocked lanes ·
+          watch fire zones
+        </p>
+        <Handle
+          type="source"
+          position={Position.Bottom}
+          id="down"
+          className="!size-2 !border-0"
+          style={{ background: GREEN }}
+        />
+      </div>
     </div>
   );
 }
@@ -669,13 +673,13 @@ function CarIncidentFlowCanvas() {
     fitView,
     hydrated,
     canvasKey,
-  } = useFlowLayout("fire-incident-v3", defaultNodes, defaultEdges);
+  } = useFlowLayout("fire-incident-v4", defaultNodes, defaultEdges);
 
   return (
     <div className="relative h-full min-h-[480px] w-full overflow-hidden bg-[#eef1f5]">
       <div className="absolute top-3 right-3 z-10 flex gap-2">
         <FlowCopyJsonButton
-          flowId="fire-incident-v3"
+          flowId="fire-incident-v4"
           nodes={nodes}
           edges={edges}
         />

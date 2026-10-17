@@ -210,7 +210,7 @@ function EarthEngineFlowCanvas() {
       {
         id: "map",
         type: "step",
-        position: { x: 977.8146067415731, y: 119.43258426966293 },
+        position: { x: 977.8146067415731, y: 127.01993119555613 },
         data: {
           label: "Command center",
           lines: ["flood paint · height"],

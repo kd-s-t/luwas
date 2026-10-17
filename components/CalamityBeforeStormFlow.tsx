@@ -490,13 +490,13 @@ function CalamityBeforeStormFlowCanvas() {
     fitView,
     hydrated,
     canvasKey,
-  } = useFlowLayout("before-storm-v2", defaultNodes, defaultEdges);
+  } = useFlowLayout("before-storm-v4", defaultNodes, defaultEdges);
 
   return (
     <div className="relative h-full min-h-[480px] w-full overflow-hidden bg-[#eef1f5]">
       <div className="absolute top-3 right-3 z-10 flex gap-2">
         <FlowCopyJsonButton
-          flowId="before-storm-v2"
+          flowId="before-storm-v4"
           nodes={nodes}
           edges={edges}
         />
