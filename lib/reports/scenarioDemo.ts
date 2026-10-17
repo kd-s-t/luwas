@@ -8,6 +8,14 @@ import type { HazardReport } from "@/lib/reports/types";
 export function isTinoScenarioDemoReport(
   r: Pick<HazardReport, "id" | "citizenUid" | "aiModel">,
 ): boolean {
+  // Apas water/fire ops demos stay visible on the board.
+  if (
+    r.aiModel === "apas-water-seed" ||
+    r.aiModel === "apas-fire-seed" ||
+    r.aiModel === "apas-sample-seed"
+  ) {
+    return false;
+  }
   if (r.citizenUid === "demo-map-seed") return true;
   if (r.id.startsWith("rpt-")) return true;
   if (r.aiModel === "sample-seed") return true;

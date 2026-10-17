@@ -44,92 +44,146 @@ type ApasSample = {
   aiReason: string;
 };
 
-/** Sample field reports pinned near Apas hall (Cebu City). */
-export const APAS_QUEUE_SAMPLES: ApasSample[] = [
+/** Legacy Apas queue samples — no longer seeded (removed from board). */
+export const APAS_QUEUE_SAMPLES: ApasSample[] = [];
+
+/** Drinking-water shortages · distinct Apas sitios (each asks for 3000 L). */
+export const APAS_WATER_NEED_REPORTS = [
   {
-    id: "CEB-CC-APAS-261016-8001",
-    status: "needs_review",
-    title: "Street flooding · Generoso St near hall",
-    notes:
-      "Knee-deep water after brief downpour. Cars still passing slowly. Depth unclear past the bend.",
-    hazardHint: "flood",
-    citizenName: "Guest · Nina V.",
-    citizenPurok: "Purok 1",
-    phone: "+63 917 400 2001",
-    email: "nina.v@apas.pending.demo",
-    lat: 10.3371,
-    lng: 123.9045,
-    mediaUrl: "/reports/flood-road-chapel.png",
-    aiConfidence: 0.51,
-    aiReason: "Flood wording vs glare · needs ground check.",
-  },
-  {
-    id: "CEB-CC-APAS-261016-8002",
-    status: "needs_review",
-    title: "Smoke near chapel · wind toward houses",
-    notes:
-      "Smoke from vacant lot. No flame seen. Wind pushing toward Purok 2 homes.",
-    hazardHint: "fire",
-    citizenName: "Guest · Paolo M.",
-    citizenPurok: "Purok 2",
-    phone: "+63 917 400 2002",
-    email: "paolo.m@apas.pending.demo",
-    lat: 10.3368,
-    lng: 123.9054,
-    mediaUrl: "/reports/road-block-access-east.jpg",
-    aiConfidence: 0.46,
-    aiReason: "Smell/smoke only · hold for human confirmation.",
-  },
-  {
-    id: "CEB-CC-APAS-261016-8003",
-    status: "queued",
-    title: "Fallen branch on wires · north lane",
-    notes: "Branch resting on secondary line after wind. No sparks yet.",
-    hazardHint: "typhoon",
-    citizenName: "Guest · Irene C.",
-    citizenPurok: "Purok 3",
-    phone: "+63 917 400 2003",
-    email: "irene.c@apas.pending.demo",
-    lat: 10.3381,
-    lng: 123.9046,
-    mediaUrl: "/reports/fallen-tree-access-road.webp",
-    aiConfidence: 0.58,
-    aiReason: "Tree vs line hazard mix · mid confidence.",
-  },
-  {
-    id: "CEB-CC-APAS-261016-8004",
-    status: "needs_review",
-    title: "Evac center capacity claim unverified",
-    notes:
-      "Families asking if Apas hall can take overflow from nearby sites.",
-    hazardHint: "evac",
-    citizenName: "Guest · Carla O.",
-    citizenPurok: "Purok 4",
-    phone: "+63 917 400 2004",
-    email: "carla.o@apas.pending.demo",
+    id: "CEB-CC-APAS-261017-8201",
+    sitio: "Sitio Mahayahay",
+    name: "Rosa Villanueva",
+    phone: "+63 917 401 8201",
+    email: "rosa.v@apas.water.demo",
     lat: 10.3374,
-    lng: 123.9049,
-    mediaUrl: "/reports/ec-consolacion-1.jpg",
-    aiConfidence: 0.49,
-    aiReason: "Capacity claim unverified · needs ops count.",
+    lng: 123.9045,
+    title: "Need 3000 L drinking water · Sitio Mahayahay",
+    notes:
+      "Local stock empty in Sitio Mahayahay. Need 3000 L drinking water for households until supply restored. Local stock cannot cover the gap.",
+    mediaUrl: "/reports/flood-road-chapel.png",
   },
   {
-    id: "CEB-CC-APAS-261016-8101",
-    status: "rejected",
-    title: "Complaint about neighbor karaoke",
-    notes: "Loud music since 11pm. Not a disaster.",
-    hazardHint: "other",
-    citizenName: "Guest · Prank Apas",
-    citizenPurok: "Purok 5",
-    phone: "+63 900 222 0001",
-    email: "prank@apas.reject.demo",
-    lat: 10.3377,
-    lng: 123.9058,
-    mediaUrl: "/reports/free-wifi-nangka.png",
-    aiConfidence: 0.95,
-    aiReason: "Out of scope for hazard queue · rejected.",
+    id: "CEB-CC-APAS-261017-8202",
+    sitio: "Sitio Kamagayan",
+    name: "Paolo Mendoza",
+    phone: "+63 917 401 8202",
+    email: "paolo.m@apas.water.demo",
+    lat: 10.3366,
+    lng: 123.9056,
+    title: "Need 3000 L drinking water · Sitio Kamagayan",
+    notes:
+      "Local stock empty in Sitio Kamagayan. Need 3000 L drinking water for households until supply restored. Local stock cannot cover the gap.",
+    mediaUrl: "/reports/flood-road-chapel.png",
   },
-];
+  {
+    id: "CEB-CC-APAS-261017-8203",
+    sitio: "Sitio Looc",
+    name: "Irene Cabrera",
+    phone: "+63 917 401 8203",
+    email: "irene.c@apas.water.demo",
+    lat: 10.3382,
+    lng: 123.9042,
+    title: "Need 3000 L drinking water · Sitio Looc",
+    notes:
+      "Local stock empty in Sitio Looc. Need 3000 L drinking water for households until supply restored. Local stock cannot cover the gap.",
+    mediaUrl: "/reports/flood-road-chapel.png",
+  },
+  {
+    id: "CEB-CC-APAS-261017-8204",
+    sitio: "Sitio Banawa Creek",
+    name: "Janet Sy",
+    phone: "+63 917 401 8204",
+    email: "janet.s@apas.water.demo",
+    lat: 10.337,
+    lng: 123.906,
+    title: "Need 3000 L drinking water · Sitio Banawa Creek",
+    notes:
+      "Local stock empty in Sitio Banawa Creek. Need 3000 L drinking water for households until supply restored. Local stock cannot cover the gap.",
+    mediaUrl: "/reports/flood-road-chapel.png",
+  },
+  {
+    id: "CEB-CC-APAS-261017-8205",
+    sitio: "Sitio Lahug Approach",
+    name: "Marco Velasco",
+    phone: "+63 917 401 8205",
+    email: "marco.v@apas.water.demo",
+    lat: 10.3385,
+    lng: 123.9055,
+    title: "Need 3000 L drinking water · Sitio Lahug Approach",
+    notes:
+      "Local stock empty in Sitio Lahug Approach. Need 3000 L drinking water for households until supply restored. Local stock cannot cover the gap.",
+    mediaUrl: "/reports/flood-road-chapel.png",
+  },
+] as const;
+
+/** Fire field reports · distinct Apas sitios. */
+export const APAS_FIRE_INCIDENT_REPORTS = [
+  {
+    id: "CEB-CC-APAS-261017-8301",
+    sitio: "Sitio Proper",
+    name: "Eduardo Lim",
+    phone: "+63 917 401 8301",
+    email: "eduardo.l@apas.fire.demo",
+    lat: 10.3372,
+    lng: 123.9049,
+    title: "House fire · Sitio Proper",
+    notes:
+      "Flames visible on second floor. Neighbors evacuating. Need BFP and water for mop-up.",
+    mediaUrl: "/reports/flow-hazards/fire-1.png",
+  },
+  {
+    id: "CEB-CC-APAS-261017-8302",
+    sitio: "Sitio Chapel Road",
+    name: "Carla Ong",
+    phone: "+63 917 401 8302",
+    email: "carla.o@apas.fire.demo",
+    lat: 10.3369,
+    lng: 123.9055,
+    title: "Grass fire · Sitio Chapel Road",
+    notes:
+      "Vacant lot burning · wind toward Sitio Chapel Road homes. Smoke heavy.",
+    mediaUrl: "/reports/flow-hazards/fire-2.png",
+  },
+  {
+    id: "CEB-CC-APAS-261017-8303",
+    sitio: "Sitio Salinas Lane",
+    name: "Ramon Go",
+    phone: "+63 917 401 8303",
+    email: "ramon.g@apas.fire.demo",
+    lat: 10.3365,
+    lng: 123.9051,
+    title: "Electrical fire · Sitio Salinas Lane",
+    notes:
+      "Sparking transformer then roof smoke. Power cut. Need fire response now.",
+    mediaUrl: "/reports/flow-hazards/fire-1.png",
+  },
+  {
+    id: "CEB-CC-APAS-261017-8304",
+    sitio: "Sitio Escario Edge",
+    name: "Nina Vargas",
+    phone: "+63 917 401 8304",
+    email: "nina.v@apas.fire.demo",
+    lat: 10.338,
+    lng: 123.9038,
+    title: "Warehouse fire · Sitio Escario Edge",
+    notes:
+      "Smoke column from storage shed. Access from Generoso St only. Need BFP.",
+    mediaUrl: "/reports/flow-hazards/fire-2.png",
+  },
+  {
+    id: "CEB-CC-APAS-261017-8305",
+    sitio: "Sitio San Jose Spur",
+    name: "Kevin Chua",
+    phone: "+63 917 401 8305",
+    email: "kevin.c@apas.fire.demo",
+    lat: 10.3376,
+    lng: 123.9062,
+    title: "Kitchen fire · Sitio San Jose Spur",
+    notes:
+      "LPG flare-up contained by neighbors but walls still hot. Need check and stand-by.",
+    mediaUrl: "/reports/flow-hazards/fire-1.png",
+  },
+] as const;
 
 function mimeForUrl(url: string): string {
   if (url.endsWith(".webp")) return "image/webp";
@@ -178,6 +232,143 @@ async function ensureApasHouseholds(officerUid: string): Promise<number> {
 
   if (missing.length === 0) return 0;
   return addHouseholds(officerUid, APAS_ORG_NAME, missing);
+}
+
+/** Water need + fire incident demos for Apas (create-if-missing). */
+export async function ensureApasWaterAndFireReports(): Promise<number> {
+  const db = getClientDb();
+  let created = 0;
+  const now = new Date().toISOString();
+
+  type Demo = {
+    id: string;
+    sitio: string;
+    name: string;
+    phone: string;
+    email: string;
+    lat: number;
+    lng: number;
+    title: string;
+    notes: string;
+    mediaUrl: string;
+    hazardHint: ReportHazardHint;
+    aiReason: string;
+    aiModel: string;
+    priority: "critical" | "high";
+    /** Place-id seed rules only allow legit for demo-map-seed. */
+    status: "legit";
+  };
+
+  const demos: Demo[] = [
+    ...APAS_WATER_NEED_REPORTS.map((r) => ({
+      ...r,
+      hazardHint: "other" as const,
+      aiReason:
+        "Drinking water shortage · Need 3000 L. Confirm households and access.",
+      aiModel: "apas-water-seed",
+      priority: "high" as const,
+      status: "legit" as const,
+    })),
+    ...APAS_FIRE_INCIDENT_REPORTS.map((r) => ({
+      ...r,
+      hazardHint: "fire" as const,
+      aiReason: "Verified · fire scene matches claim for Apas incident demo.",
+      aiModel: "apas-fire-seed",
+      priority: "critical" as const,
+      status: "legit" as const,
+    })),
+  ];
+
+  for (const sample of demos) {
+    const ref = doc(db, "reports", sample.id);
+    const existing = await getDoc(ref);
+    if (existing.exists()) continue;
+
+    const trust = computeReportTrust({
+      registered: false,
+      idVerified: false,
+      email: sample.email,
+      phone: sample.phone,
+      emailVerified: false,
+      mediaSource: "mobile-camera",
+      lat: sample.lat,
+      lng: sample.lng,
+      locationAccuracyM: 28,
+      aiConfidence: 0.9,
+      aiVerdict: "legit",
+    });
+
+    await setDoc(ref, {
+      // Place-id seed path requires demo-map-seed + status legit.
+      citizenUid: "demo-map-seed",
+      source: "web",
+      citizenName: `Guest · ${sample.name}`,
+      citizenPurok: sample.sitio,
+      barangay: "Apas",
+      lgu: "Cebu City",
+      citizenPhotoURL: null,
+      title: sample.title,
+      notes: sample.notes,
+      hazardHint: sample.hazardHint,
+      mediaType: "photo",
+      mediaPath: sample.mediaUrl,
+      mediaUrl: sample.mediaUrl,
+      mediaMime: mimeForUrl(sample.mediaUrl),
+      mediaSource: "mobile-camera",
+      lat: sample.lat,
+      lng: sample.lng,
+      locationAccuracyM: 28,
+      locationLabel: `${sample.lat.toFixed(5)}, ${sample.lng.toFixed(5)}`,
+      device: "Android · mobile",
+      ipAddress: null,
+      status: sample.status,
+      aiVerdict: "legit",
+      aiConfidence: 0.9,
+      aiReason: sample.aiReason,
+      aiSource: "local",
+      aiModel: sample.aiModel,
+      aiPriority: sample.priority,
+      aiPriorityFactors: {
+        immediateSeverity:
+          sample.hazardHint === "fire"
+            ? "Active or recent fire · life-safety risk."
+            : "Need 3000 L drinking water · stock gap.",
+        peopleAffected: `Households in ${sample.sitio}.`,
+        existingCoverage:
+          sample.hazardHint === "fire"
+            ? "Local stock cannot cover the gap."
+            : "Local stock cannot cover 3000 L.",
+        deliveryFeasibility: "Confirm access from Generoso St.",
+        evidenceQuality: sample.aiReason,
+      },
+      vertexClass: sample.hazardHint === "fire" ? "fire" : null,
+      vertexConfidence: sample.hazardHint === "fire" ? 0.88 : null,
+      vertexLocationLabel: null,
+      vertexLocationConfidence: null,
+      vertexLocationPlaceId: null,
+      vertexLocationPlaceLabel: null,
+      validatedAt: now,
+      autoResponderCallAt: null,
+      dispatchedAt: null,
+      dispatchLog: null,
+      manualDispatchChecked: false,
+      fieldEvidence: [],
+      reporterIdVerified: false,
+      reporterEmail: sample.email,
+      reporterPhone: sample.phone,
+      reporterEmailVerified: false,
+      trustScore: trust.total,
+      trustBreakdown: trust,
+      reactionCounts: { ...EMPTY_REACTION_COUNTS },
+      commentCount: 0,
+      createdAt: now,
+      updatedAt: now,
+      createdAtServer: serverTimestamp(),
+      updatedAtServer: serverTimestamp(),
+    });
+    created += 1;
+  }
+  return created;
 }
 
 async function ensureApasReports(): Promise<number> {
@@ -295,11 +486,12 @@ export async function ensureApasOpsSeed(
   hall: typeof APAS_HALL;
   areaId: typeof APAS_AREA_ID;
 }> {
-  const [households, staff, reports, evacCenters, partners, inventory] =
+  const [households, staff, queueReports, opsReports, evacCenters, partners, inventory] =
     await Promise.all([
       ensureApasHouseholds(officerUid),
       ensureApasStaff(),
       opts?.includeSampleReports ? ensureApasReports() : Promise.resolve(0),
+      ensureApasWaterAndFireReports(),
       import("@/lib/evacCenters/api").then((m) => m.ensureApasEvacCenters()),
       import("@/lib/partners/api").then((m) => m.ensureApasPartners()),
       import("@/lib/inventory/api").then((m) =>
@@ -314,7 +506,7 @@ export async function ensureApasOpsSeed(
   return {
     households,
     staff,
-    reports,
+    reports: queueReports + opsReports,
     officers: officerSeed.officers,
     evacCenters,
     partners,

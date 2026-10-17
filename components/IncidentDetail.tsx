@@ -1762,41 +1762,47 @@ function TrustMeter({
   hasVertex?: boolean;
 }) {
   const total = score ?? 0;
-  const slices = [
-    {
-      key: "ID",
-      value: breakdown?.identity ?? 0,
-      cap: TRUST_CAPS.identity,
-      brand: null as "gemini" | "vertex" | null,
-    },
-    {
-      key: "Contact",
-      value: breakdown?.contact ?? 0,
-      cap: TRUST_CAPS.contact,
-      brand: null as "gemini" | "vertex" | null,
-    },
-    {
-      key: "Allow location · Mobile camera",
-      value: breakdown?.capture ?? 0,
-      cap: TRUST_CAPS.capture,
-      brand: null as "gemini" | "vertex" | null,
-    },
-    {
-      key: "Vertex",
-      value: breakdown?.vertex ?? 0,
-      cap: TRUST_CAPS.vertex,
-      brand: (hasVertex ? "vertex" : null) as "gemini" | "vertex" | null,
-    },
-    {
-      key: "Gemini",
-      value: breakdown?.ai ?? 0,
-      cap: TRUST_CAPS.ai,
-      brand: (aiSource === "gemini" ? "gemini" : null) as
-        | "gemini"
-        | "vertex"
-        | null,
-    },
-  ] as const;
+  const slices = (
+    [
+      {
+        key: "ID",
+        value: breakdown?.identity ?? 0,
+        cap: TRUST_CAPS.identity,
+        brand: null as "gemini" | "vertex" | null,
+      },
+      {
+        key: "Contact",
+        value: breakdown?.contact ?? 0,
+        cap: TRUST_CAPS.contact,
+        brand: null as "gemini" | "vertex" | null,
+      },
+      {
+        key: "Allow location · Mobile camera",
+        value: breakdown?.capture ?? 0,
+        cap: TRUST_CAPS.capture,
+        brand: null as "gemini" | "vertex" | null,
+      },
+      ...(hasVertex
+        ? [
+            {
+              key: "Vertex",
+              value: breakdown?.vertex ?? 0,
+              cap: TRUST_CAPS.vertex,
+              brand: "vertex" as const,
+            },
+          ]
+        : []),
+      {
+        key: "Gemini",
+        value: breakdown?.ai ?? 0,
+        cap: TRUST_CAPS.ai,
+        brand: (aiSource === "gemini" ? "gemini" : null) as
+          | "gemini"
+          | "vertex"
+          | null,
+      },
+    ] as const
+  );
 
   const tone =
     score == null
