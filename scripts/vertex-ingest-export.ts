@@ -35,7 +35,7 @@ loadEnvFile(".env.production");
 if (!process.env.FIREBASE_STORAGE_BUCKET?.trim()) {
   process.env.FIREBASE_STORAGE_BUCKET =
     process.env.VERTEX_INGEST_BUCKET?.trim() ||
-    "luwas-media-nice-pen-181017";
+    "ugnai-media-nice-pen-181017";
 }
 if (!process.env.VERTEX_PROJECT_ID?.trim()) {
   process.env.VERTEX_PROJECT_ID = "nice-pen-181017";

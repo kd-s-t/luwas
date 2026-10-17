@@ -22,7 +22,7 @@ function runDateUtc(d = new Date()): string {
 function ingestPrefix(): string {
   return (
     process.env.VERTEX_INGEST_GCS_PREFIX?.trim().replace(/\/+$/, "") ||
-    "luwas-vision-ingest"
+    "ugnai-vision-ingest"
   );
 }
 

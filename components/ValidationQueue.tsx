@@ -274,7 +274,7 @@ export function ValidationQueue() {
               variant="outline"
               disabled={exporting || monthBatchCount === 0}
               onClick={() => void exportVertexMonth()}
-              title={`Zip + CSV for Vertex dataset luwas-vision-v1 (${formatMonthLabel(exportMonth)})`}
+              title={`Zip + CSV for Vertex dataset ugnai-vision-v1 (${formatMonthLabel(exportMonth)})`}
             >
               <Download className="size-3.5" strokeWidth={2} />
               {exporting
@@ -362,7 +362,7 @@ export function ValidationQueue() {
             <p className="mt-1 text-[11px] text-[var(--muted)]">{exportNote}</p>
           ) : (
             <p className="mt-1 hidden text-[11px] text-[var(--muted)] sm:block">
-              Vertex batch = pick a month → zip + labels.csv for luwas-vision-v1
+              Vertex batch = pick a month → zip + labels.csv for ugnai-vision-v1
             </p>
           )}
           <p className="mt-0.5 text-[11px] leading-snug text-[var(--muted)] sm:hidden">

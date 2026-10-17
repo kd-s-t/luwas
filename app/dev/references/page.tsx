@@ -23,8 +23,8 @@ const LINKS = [
   },
   {
     label: "Google Cloud Storage",
-    hint: "luwas-media · objects",
-    href: "https://console.cloud.google.com/storage/browser/luwas-media-nice-pen-181017;tab=objects?forceOnBucketsSortingFiltering=true&project=nice-pen-181017&prefix=&forceOnObjectsSortingFiltering=false",
+    hint: "ugnai-media · objects",
+    href: "https://console.cloud.google.com/storage/browser/ugnai-media-nice-pen-181017;tab=objects?forceOnBucketsSortingFiltering=true&project=nice-pen-181017&prefix=&forceOnObjectsSortingFiltering=false",
     logo: "/brands/gcs.png",
   },
   {

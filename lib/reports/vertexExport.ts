@@ -106,7 +106,7 @@ export function reportsForVertexMonthBatch(
  * Build a Vertex-ready zip:
  *   images/{class}/{id}.jpg
  *   labels.csv          → relative path,label (after you upload images/ to GCS, rewrite to gs://)
- *   labels-gcs.csv      → gs://YOUR_BUCKET/luwas-vision/{YYYY-MM}/…
+ *   labels-gcs.csv      → gs://YOUR_BUCKET/ugnai-vision/{YYYY-MM}/…
  *   README.txt
  */
 export async function downloadVertexMonthZip(
@@ -122,7 +122,7 @@ export async function downloadVertexMonthZip(
   const JSZip = (await import("jszip")).default;
   const zip = new JSZip();
   const bucket = (opts?.bucket || "YOUR_BUCKET").trim() || "YOUR_BUCKET";
-  const prefix = `luwas-vision/${ym}`;
+  const prefix = `ugnai-vision/${ym}`;
 
   const relLines: string[] = [];
   const gcsLines: string[] = [];
@@ -166,7 +166,7 @@ export async function downloadVertexMonthZip(
       `1. Unzip this file.`,
       `2. Upload the images/ folder to Cloud Storage:`,
       `   gsutil -m cp -r images gs://${bucket}/${prefix}/`,
-      `3. Open dataset luwas-vision-v1 → Import.`,
+      `3. Open dataset ugnai-vision-v1 → Import.`,
       `4. Use labels-gcs.csv (edit YOUR_BUCKET if needed).`,
       `   Format: gs://path/to/image.jpg,label`,
       ``,
@@ -178,7 +178,7 @@ export async function downloadVertexMonthZip(
   );
 
   const blob = await zip.generateAsync({ type: "blob" });
-  const fileName = `luwas-vision-${ym}.zip`;
+  const fileName = `ugnai-vision-${ym}.zip`;
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
