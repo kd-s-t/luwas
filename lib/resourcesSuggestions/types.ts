@@ -3,13 +3,8 @@ export type ResourceSuggestionReadiness =
   | "access_unknown"
   | "no_transport";
 
-export type ResourceSuggestion = {
-  id: string;
-  /** Firestore doc id on resources_shortages (e.g. RS-001). */
-  shortageId: string;
-  /** Same as shortageId; kept for query compatibility. */
-  epicCode: string;
-  kind: string;
+/** One sitio request nested under a suggestion plan doc. */
+export type ResourceSuggestionRequest = {
   community: string;
   barangayLabel: string;
   reportId: string;
@@ -18,13 +13,29 @@ export type ResourceSuggestion = {
   needL: number;
   localStockL: number;
   gapL: number;
-  /** Suggested warehouse liters for this sitio. */
   suggestedAllocateL: number;
   readiness: ResourceSuggestionReadiness;
   readinessLabel: string;
   mediaUrl: string | null;
   lat: number | null;
   lng: number | null;
+};
+
+/**
+ * One Firestore doc per shortage plan (id = RS-001).
+ * All sitio requests for that plan live in `requests`.
+ */
+export type ResourceSuggestion = {
+  id: string;
+  shortageId: string;
+  epicCode: string;
+  kind: string;
+  resourceLabel: string;
+  totalNeededL: number;
+  availableL: number;
+  shortageL: number;
+  requestCount: number;
+  requests: ResourceSuggestionRequest[];
   createdAt: string;
   updatedAt: string;
 };

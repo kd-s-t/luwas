@@ -11,6 +11,12 @@ import type {
   ResourceShortage,
   ShortageAllocationDraft,
 } from "@/lib/resourcesShortages/types";
+
+function asWorkflowStep(raw: unknown): 1 | 2 | 3 | null {
+  const n = Number(raw);
+  if (n === 1 || n === 2 || n === 3) return n;
+  return null;
+}
 import type { SupplyNeedKind } from "@/lib/workspace/reportNeed";
 import type { AllocationOption } from "@/lib/workspace/allocationOptions";
 import type { SupplyShortagePlan } from "@/lib/workspace/supplyShortagePlan";
@@ -76,9 +82,20 @@ function mapDoc(id: string, data: Record<string, unknown>): ResourceShortage {
     primaryReportId: String(data.primaryReportId ?? reportIds[0] ?? ""),
     compareHref: String(
       data.compareHref ??
-        `/admin/resources/compare?rs=${encodeURIComponent(id)}`,
+        `/admin/resources/compare/${encodeURIComponent(id)}`,
     ),
     allocation: mapAllocation(data.allocation),
+    selectedOptionId:
+      typeof data.selectedOptionId === "string" && data.selectedOptionId.trim()
+        ? data.selectedOptionId.trim()
+        : null,
+    reviewStatus:
+      data.reviewStatus === "approved"
+        ? "approved"
+        : data.reviewStatus === "review_draft"
+          ? "review_draft"
+          : null,
+    workflowStep: asWorkflowStep(data.workflowStep),
     createdAt: asIso(data.createdAt, data.createdAtServer),
     updatedAt: asIso(data.updatedAt, data.updatedAtServer),
   };
@@ -86,7 +103,7 @@ function mapDoc(id: string, data: Record<string, unknown>): ResourceShortage {
 
 /**
  * Write shortage under doc id = plan.code (e.g. RS-001).
- * That id is what `/admin/resources?rs=RS-001` loads.
+ * That id is what `/admin/resources/RS-001` loads.
  */
 export async function upsertShortageFromPlan(
   plan: SupplyShortagePlan,
@@ -113,12 +130,13 @@ export async function upsertShortageFromPlan(
       advisory: plan.advisory,
       reportIds,
       primaryReportId: plan.primaryReportId,
-      compareHref: plan.compareHref,
+      compareHref: `/admin/resources/compare/${encodeURIComponent(id)}`,
       updatedAt: now,
       updatedAtServer: serverTimestamp(),
       ...(existing.exists()
         ? {}
         : {
+            workflowStep: 1,
             createdAt: now,
             createdAtServer: serverTimestamp(),
           }),
@@ -128,6 +146,33 @@ export async function upsertShortageFromPlan(
 
   const snap = await getDoc(ref);
   return mapDoc(id, (snap.data() ?? {}) as Record<string, unknown>);
+}
+
+/** Persist current allocation-plan stepper step (1–3). */
+export async function saveShortageWorkflowStep(
+  shortageId: string,
+  workflowStep: 1 | 2 | 3,
+  extra?: {
+    selectedOptionId?: string;
+    reviewStatus?: "review_draft" | "approved";
+  },
+): Promise<void> {
+  const id = shortageId.trim().toUpperCase();
+  if (!id) return;
+  const now = new Date().toISOString();
+  await setDoc(
+    doc(getClientDb(), COL, id),
+    {
+      workflowStep,
+      ...(extra?.selectedOptionId
+        ? { selectedOptionId: extra.selectedOptionId }
+        : {}),
+      ...(extra?.reviewStatus ? { reviewStatus: extra.reviewStatus } : {}),
+      updatedAt: now,
+      updatedAtServer: serverTimestamp(),
+    },
+    { merge: true },
+  );
 }
 
 export async function getShortageById(
@@ -148,6 +193,8 @@ export async function saveShortageAllocationDraft(
   const id = shortageId.trim().toUpperCase();
   if (!id || draft.options.length < 3) return;
   const now = new Date().toISOString();
+  const existing = await getDoc(doc(getClientDb(), COL, id));
+  const prevStep = asWorkflowStep(existing.data()?.workflowStep);
   await setDoc(
     doc(getClientDb(), COL, id),
     {
@@ -161,11 +208,38 @@ export async function saveShortageAllocationDraft(
         error: draft.error,
         savedAt: draft.savedAt || now,
       },
+      // Do not push progress backward when regenerating options mid-review.
+      workflowStep: prevStep && prevStep > 1 ? prevStep : 1,
       updatedAt: now,
       updatedAtServer: serverTimestamp(),
     },
     { merge: true },
   );
+}
+
+/** Persist chosen compare option and move into plan review. */
+export async function saveSelectedAllocationOption(
+  shortageId: string,
+  optionId: string,
+): Promise<void> {
+  const id = shortageId.trim().toUpperCase();
+  const opt = optionId.trim();
+  if (!id || !opt) return;
+  await saveShortageWorkflowStep(id, 2, {
+    selectedOptionId: opt,
+    reviewStatus: "review_draft",
+  });
+}
+
+export async function setShortageReviewStatus(
+  shortageId: string,
+  reviewStatus: "review_draft" | "approved",
+): Promise<void> {
+  const id = shortageId.trim().toUpperCase();
+  if (!id) return;
+  await saveShortageWorkflowStep(id, reviewStatus === "approved" ? 3 : 2, {
+    reviewStatus,
+  });
 }
 
 export function listenShortageById(

@@ -1,24 +1,27 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AuthGate } from "@/components/AuthGate";
-import { AllocationCompare } from "@/components/AllocationCompare";
 import { CommandShell } from "@/components/CommandShell";
 import { CommandContentSkeleton } from "@/components/PageLoadSkeleton";
-import { FadeIn } from "@/components/motion/primitives";
 
-export default function AllocationComparePage() {
+function RedirectCompare() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const id = searchParams.get("rs")?.trim().toUpperCase() || "RS-001";
+    router.replace(`/admin/resources/compare/${encodeURIComponent(id)}`);
+  }, [router, searchParams]);
+  return <CommandContentSkeleton fill />;
+}
+
+export default function AllocationCompareRedirectPage() {
   return (
     <AuthGate mode="protected" role="officer">
       <CommandShell fill>
         <Suspense fallback={<CommandContentSkeleton fill />}>
-          <FadeIn
-            delay={0.04}
-            y={0}
-            className="flex min-h-0 flex-1 flex-col overflow-hidden"
-          >
-            <AllocationCompare />
-          </FadeIn>
+          <RedirectCompare />
         </Suspense>
       </CommandShell>
     </AuthGate>

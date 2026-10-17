@@ -251,17 +251,14 @@ service cloud.firestore {
       allow delete: if isOfficer();
     }
 
-    // Per-sitio shortage suggestions written when Review shortage opens.
+    // One suggestion doc per plan (id = RS-001); sitio requests nested in `requests`.
     match /resources_suggestions/{suggestionId} {
       allow read: if isOfficer();
       allow create, update: if isOfficer()
-        && request.resource.data.epicCode is string
-        && request.resource.data.epicCode.size() > 0
-        && request.resource.data.community is string
-        && request.resource.data.community.size() > 0
-        && request.resource.data.needL is number
-        && request.resource.data.gapL is number
-        && request.resource.data.suggestedAllocateL is number;
+        && request.resource.data.shortageId is string
+        && request.resource.data.shortageId.size() > 0
+        && request.resource.data.kind is string
+        && request.resource.data.requests is list;
       allow delete: if isOfficer();
     }
 
