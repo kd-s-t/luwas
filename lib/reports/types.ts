@@ -206,9 +206,15 @@ export type HazardReport = {
   aiPriority: ReportPriority | null;
   /** Factor notes behind aiPriority. */
   aiPriorityFactors: ReportPriorityFactors | null;
-  /** Vertex AutoML top class (e.g. flood, accident, unrelated). */
+  /** Vertex AutoML / vision top class (e.g. flood, accident, unrelated). */
   vertexClass: string | null;
   vertexConfidence: number | null;
+  /** Visual place from Vertex Gemini (free-text). */
+  vertexLocationLabel: string | null;
+  vertexLocationConfidence: number | null;
+  /** Curated place id when vision label matched a service-area place. */
+  vertexLocationPlaceId: string | null;
+  vertexLocationPlaceLabel: string | null;
   validatedAt: string | null;
   /**
    * Officers assigned to this incident (multi-assign).

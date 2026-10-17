@@ -61,6 +61,13 @@ export async function POST(req: Request) {
     vertexClass: r.vertexClass ?? null,
     vertexConfidence:
       typeof r.vertexConfidence === "number" ? r.vertexConfidence : null,
+    vertexLocationLabel: r.vertexLocationLabel ?? null,
+    vertexLocationConfidence:
+      typeof r.vertexLocationConfidence === "number"
+        ? r.vertexLocationConfidence
+        : null,
+    vertexLocationPlaceId: r.vertexLocationPlaceId ?? null,
+    vertexLocationPlaceLabel: r.vertexLocationPlaceLabel ?? null,
     validatedAt: r.validatedAt ?? null,
     assignees: Array.isArray(r.assignees) ? r.assignees : [],
     investigatorUid: r.investigatorUid ?? null,

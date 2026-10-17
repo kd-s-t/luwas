@@ -241,6 +241,10 @@ export async function ensureMySampleReports(input: {
       },
       vertexClass: null,
       vertexConfidence: null,
+      vertexLocationLabel: null,
+      vertexLocationConfidence: null,
+      vertexLocationPlaceId: null,
+      vertexLocationPlaceLabel: null,
       validatedAt: sample.status === "queued" ? null : now,
       autoResponderCallAt:
         sample.status === "legit" && sample.dispatch ? now : null,

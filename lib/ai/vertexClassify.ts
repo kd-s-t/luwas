@@ -1,11 +1,23 @@
 import { GoogleAuth } from "google-auth-library";
+import {
+  filterPlaces,
+  matchPlace,
+  placeLabel,
+  type ServiceAreaPlace,
+} from "@/lib/reports/serviceAreaPlaces";
 
 export type VertexClassifyResult = {
   className: string | null;
   confidence: number | null;
   displayNames: string[];
   confidences: number[];
-  /** automl = custom endpoint; vertex = Vertex Gemini publisher model. */
+  /** Visual place guess from the photo (landmark / street / barangay cue). */
+  locationLabel: string | null;
+  locationConfidence: number | null;
+  /** Matched curated service-area place id when the vision label resolves. */
+  locationPlaceId: string | null;
+  locationPlaceLabel: string | null;
+  /** automl = custom endpoint class; vertex = Vertex Gemini (class + location). */
   source: "vertex" | "automl" | "skipped" | "error";
   reason?: string;
   endpoint?: string;
@@ -32,6 +44,23 @@ type VertexProject = {
   location: string;
   endpointId: string | null;
 };
+
+function emptyResult(
+  partial: Partial<VertexClassifyResult> &
+    Pick<VertexClassifyResult, "source">,
+): VertexClassifyResult {
+  return {
+    className: null,
+    confidence: null,
+    displayNames: [],
+    confidences: [],
+    locationLabel: null,
+    locationConfidence: null,
+    locationPlaceId: null,
+    locationPlaceLabel: null,
+    ...partial,
+  };
+}
 
 function readVertexProject(): VertexProject | null {
   const projectId =
@@ -119,29 +148,104 @@ function normalizeClass(raw: string): string | null {
   return null;
 }
 
-function parseClassJson(text: string): {
+/** Map free-text vision place → curated Consolacion / metro place when possible. */
+export function matchPlaceFromVision(
+  label: string,
+): ServiceAreaPlace | null {
+  const trimmed = label.trim();
+  if (!trimmed) return null;
+  const exact = matchPlace(trimmed);
+  if (exact) return exact;
+  const hits = filterPlaces(trimmed);
+  if (hits.length === 1) return hits[0]!;
+  // Prefer landmark hits when several match.
+  const landmark = hits.find((p) => p.landmark?.trim());
+  if (landmark) return landmark;
+  return hits[0] ?? null;
+}
+
+function attachPlaceMatch(
+  locationLabel: string | null,
+  locationConfidence: number | null,
+): Pick<
+  VertexClassifyResult,
+  | "locationLabel"
+  | "locationConfidence"
+  | "locationPlaceId"
+  | "locationPlaceLabel"
+> {
+  if (!locationLabel) {
+    return {
+      locationLabel: null,
+      locationConfidence: null,
+      locationPlaceId: null,
+      locationPlaceLabel: null,
+    };
+  }
+  const place = matchPlaceFromVision(locationLabel);
+  return {
+    locationLabel: locationLabel.slice(0, 160),
+    locationConfidence,
+    locationPlaceId: place?.id ?? null,
+    locationPlaceLabel: place ? placeLabel(place) : null,
+  };
+}
+
+function parseVisionJson(text: string): {
   className: string | null;
   confidence: number | null;
+  locationLabel: string | null;
+  locationConfidence: number | null;
 } {
   const match = text.match(/\{[\s\S]*\}/);
-  if (!match) return { className: null, confidence: null };
+  if (!match) {
+    return {
+      className: null,
+      confidence: null,
+      locationLabel: null,
+      locationConfidence: null,
+    };
+  }
   try {
     const parsed = JSON.parse(match[0]) as {
       className?: string;
       confidence?: number;
+      locationLabel?: string;
+      locationConfidence?: number;
+      location?: string;
     };
     const className = normalizeClass(String(parsed.className ?? ""));
     const confidence = Math.max(
       0,
       Math.min(1, Number(parsed.confidence ?? 0.7)),
     );
-    return { className, confidence: className ? confidence : null };
+    const locationRaw = String(
+      parsed.locationLabel ?? parsed.location ?? "",
+    ).trim();
+    const locationLabel = locationRaw ? locationRaw.slice(0, 160) : null;
+    const locationConfidence = locationLabel
+      ? Math.max(
+          0,
+          Math.min(1, Number(parsed.locationConfidence ?? 0.55)),
+        )
+      : null;
+    return {
+      className,
+      confidence: className ? confidence : null,
+      locationLabel,
+      locationConfidence,
+    };
   } catch {
-    return { className: null, confidence: null };
+    return {
+      className: null,
+      confidence: null,
+      locationLabel: null,
+      locationConfidence: null,
+    };
   }
 }
 
-/** Vertex AutoML custom endpoint `:predict`. */
+/** Vertex AutoML custom endpoint `:predict` (hazard class only). */
 async function classifyWithAutomlEndpoint(input: {
   env: VertexProject;
   imageBase64: string;
@@ -149,14 +253,10 @@ async function classifyWithAutomlEndpoint(input: {
 }): Promise<VertexClassifyResult> {
   const resource = automlEndpointResource(input.env);
   if (!resource) {
-    return {
-      className: null,
-      confidence: null,
-      displayNames: [],
-      confidences: [],
+    return emptyResult({
       source: "skipped",
       reason: "VERTEX_ENDPOINT_ID not set.",
-    };
+    });
   }
 
   const url = `https://${input.env.location}-aiplatform.googleapis.com/v1/${resource}:predict`;
@@ -173,44 +273,37 @@ async function classifyWithAutomlEndpoint(input: {
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    return {
-      className: null,
-      confidence: null,
-      displayNames: [],
-      confidences: [],
+    return emptyResult({
       source: "error",
       reason: `AutoML predict ${res.status}: ${text.slice(0, 180)}`,
       endpoint: resource,
-    };
+    });
   }
 
   const data = (await res.json()) as { predictions?: unknown[] };
   const { displayNames, confidences } = parsePrediction(data.predictions?.[0]);
   const top = pickTop(displayNames, confidences);
   if (!top.className) {
-    return {
-      className: null,
-      confidence: null,
+    return emptyResult({
       displayNames,
       confidences,
       source: "error",
       reason: "AutoML returned no class.",
       endpoint: resource,
-    };
+    });
   }
 
-  return {
+  return emptyResult({
     ...top,
     displayNames,
     confidences,
     source: "automl",
     endpoint: resource,
-  };
+  });
 }
 
 /**
- * Vertex AI Gemini publisher model (still Vertex API + ADC).
- * Used when no AutoML endpoint is deployed yet.
+ * Vertex AI Gemini publisher model: hazard class + visual location.
  */
 async function classifyWithVertexGemini(input: {
   env: VertexProject;
@@ -221,10 +314,13 @@ async function classifyWithVertexGemini(input: {
   const resource = publisherModelResource(input.env);
   const url = `https://${input.env.location}-aiplatform.googleapis.com/v1/${resource}:generateContent`;
   const mimeType = input.mimeType?.trim() || "image/jpeg";
-  const prompt = `Classify this citizen field-report photo for barangay disaster response.
+  const prompt = `Classify this citizen field-report photo for barangay disaster response in Consolacion / metro Cebu (Philippines).
 Return ONLY JSON:
-{"className":"${VISION_CLASSES.join("|")}","confidence":0-1}
-Pick the single best class. Prefer "unrelated" if not a hazard scene.`;
+{"className":"${VISION_CLASSES.join("|")}","confidence":0-1,"locationLabel":"short place from visual cues","locationConfidence":0-1}
+Rules:
+- className: single best hazard class. Prefer "unrelated" if not a hazard scene.
+- locationLabel: where the photo appears to be (barangay, landmark, street type, subdivision, mall, coast, etc.). Use Philippine place cues when visible. If unknown, use "unknown".
+- locationConfidence: how sure you are about the place (0-1).`;
 
   const res = await fetch(url, {
     method: "POST",
@@ -249,22 +345,18 @@ Pick the single best class. Prefer "unrelated" if not a hazard scene.`;
       ],
       generationConfig: {
         temperature: 0.1,
-        maxOutputTokens: 256,
+        maxOutputTokens: 320,
       },
     }),
   });
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    return {
-      className: null,
-      confidence: null,
-      displayNames: [],
-      confidences: [],
+    return emptyResult({
       source: "error",
       reason: `Vertex Gemini ${res.status}: ${text.slice(0, 180)}`,
       endpoint: resource,
-    };
+    });
   }
 
   const data = (await res.json()) as {
@@ -277,24 +369,33 @@ Pick the single best class. Prefer "unrelated" if not a hazard scene.`;
       ?.map((p) => p.text ?? "")
       .join("")
       .trim() ?? "";
-  const parsed = parseClassJson(text);
+  const parsed = parseVisionJson(text);
   if (!parsed.className || parsed.confidence == null) {
-    return {
-      className: null,
-      confidence: null,
-      displayNames: [],
-      confidences: [],
+    return emptyResult({
+      ...attachPlaceMatch(parsed.locationLabel, parsed.locationConfidence),
       source: "error",
       reason: "Vertex Gemini returned no usable class.",
       endpoint: resource,
-    };
+    });
   }
+
+  const location =
+    parsed.locationLabel &&
+    parsed.locationLabel.toLowerCase() !== "unknown"
+      ? attachPlaceMatch(parsed.locationLabel, parsed.locationConfidence)
+      : {
+          locationLabel: null,
+          locationConfidence: null,
+          locationPlaceId: null,
+          locationPlaceLabel: null,
+        };
 
   return {
     className: parsed.className,
     confidence: parsed.confidence,
     displayNames: [parsed.className],
     confidences: [parsed.confidence],
+    ...location,
     source: "vertex",
     endpoint: resource,
     reason: input.env.endpointId
@@ -305,8 +406,8 @@ Pick the single best class. Prefer "unrelated" if not a hazard scene.`;
 
 /**
  * Classify a report photo via Vertex AI only (ADC).
- * 1) AutoML custom endpoint when VERTEX_ENDPOINT_ID is set
- * 2) Else Vertex Gemini publisher model on the same project
+ * Always runs Vertex Gemini for hazard + visual location.
+ * When VERTEX_ENDPOINT_ID is set, AutoML overrides the hazard class.
  */
 export async function classifyImageWithVertex(input: {
   imageBase64: string;
@@ -314,40 +415,35 @@ export async function classifyImageWithVertex(input: {
 }): Promise<VertexClassifyResult> {
   const imageBase64 = input.imageBase64.trim();
   if (!imageBase64) {
-    return {
-      className: null,
-      confidence: null,
-      displayNames: [],
-      confidences: [],
+    return emptyResult({
       source: "error",
       reason: "Empty image bytes.",
-    };
+    });
   }
 
   const env = readVertexProject();
   if (!env) {
-    return {
-      className: null,
-      confidence: null,
-      displayNames: [],
-      confidences: [],
+    return emptyResult({
       source: "skipped",
       reason: "Set VERTEX_PROJECT_ID (and ADC) to classify via Vertex.",
-    };
+    });
   }
 
   const token = await getAccessToken();
   if (!token) {
-    return {
-      className: null,
-      confidence: null,
-      displayNames: [],
-      confidences: [],
+    return emptyResult({
       source: "error",
       reason:
         "Could not obtain Google access token. Run gcloud auth application-default login or set GOOGLE_APPLICATION_CREDENTIALS.",
-    };
+    });
   }
+
+  const gemini = await classifyWithVertexGemini({
+    env,
+    imageBase64,
+    mimeType: input.mimeType,
+    token,
+  });
 
   if (env.endpointId) {
     const automl = await classifyWithAutomlEndpoint({
@@ -355,31 +451,49 @@ export async function classifyImageWithVertex(input: {
       imageBase64,
       token,
     });
-    if (automl.source === "automl" && automl.className) return automl;
-    // Fall through to Vertex Gemini if AutoML predict failed.
+    if (automl.source === "automl" && automl.className) {
+      return {
+        ...gemini,
+        className: automl.className,
+        confidence: automl.confidence,
+        displayNames: automl.displayNames,
+        confidences: automl.confidences,
+        source: "automl",
+        endpoint: automl.endpoint,
+        reason: gemini.locationLabel
+          ? "AutoML hazard class · Vertex Gemini location."
+          : automl.reason,
+      };
+    }
   }
 
-  return classifyWithVertexGemini({
-    env,
-    imageBase64,
-    mimeType: input.mimeType,
-    token,
-  });
+  return gemini;
 }
 
-/** Map claim + Vertex class into a short signal for Gemini / officers. */
+/** Map claim + Vertex class / location into a short signal for Gemini / officers. */
 export function formatVertexSignal(v: VertexClassifyResult): string {
   if (v.source === "skipped") {
     return `Vertex: skipped (${v.reason ?? "not configured"}).`;
   }
-  if (v.source === "error") {
+  if (v.source === "error" && !v.className) {
     return `Vertex: unavailable (${v.reason ?? "error"}).`;
   }
   if (!v.className || v.confidence == null) {
     return "Vertex: no prediction.";
   }
+  const place =
+    v.locationPlaceLabel ||
+    v.locationLabel ||
+    null;
+  const placeBit = place
+    ? ` location="${place}"${
+        v.locationConfidence != null
+          ? ` locConf=${v.locationConfidence.toFixed(2)}`
+          : ""
+      }`
+    : "";
   if (v.source === "automl") {
-    return `Vertex AutoML: class="${v.className}" confidence=${v.confidence.toFixed(2)}.`;
+    return `Vertex AutoML: class="${v.className}" confidence=${v.confidence.toFixed(2)}.${placeBit}`;
   }
-  return `Vertex vision: class="${v.className}" confidence=${v.confidence.toFixed(2)}.`;
+  return `Vertex vision: class="${v.className}" confidence=${v.confidence.toFixed(2)}.${placeBit}`;
 }

@@ -768,7 +768,7 @@ export function IncidentDetail({
                 className="h-4 w-auto shrink-0"
               />
               <p className="font-mono text-[9px] tracking-wider text-[var(--muted)] uppercase">
-                Vertex AI · image class
+                Vertex AI · image class + location
               </p>
             </div>
             <p className="mt-1.5 text-sm text-[var(--foreground)]">
@@ -779,6 +779,19 @@ export function IncidentDetail({
                 ? ` · ${Math.round(selected.vertexConfidence * 100)}%`
                 : ""}
             </p>
+            {selected.vertexLocationPlaceLabel?.trim() ||
+            selected.vertexLocationLabel?.trim() ? (
+              <p className="mt-1 text-sm text-[var(--muted)]">
+                Place:{" "}
+                <span className="text-[var(--foreground)]">
+                  {selected.vertexLocationPlaceLabel?.trim() ||
+                    selected.vertexLocationLabel?.trim()}
+                </span>
+                {selected.vertexLocationConfidence != null
+                  ? ` · ${Math.round(selected.vertexLocationConfidence * 100)}%`
+                  : ""}
+              </p>
+            ) : null}
           </div>
 
           {(() => {
