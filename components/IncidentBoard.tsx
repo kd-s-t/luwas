@@ -28,6 +28,10 @@ import {
 import { scopeLabel } from "@/lib/reports/barangayScope";
 import { PRIORITY_RANK } from "@/lib/reports/priority";
 import {
+  hideScenarioDemoReportsInUi,
+  isTinoScenarioDemoReport,
+} from "@/lib/reports/scenarioDemo";
+import {
   hazardHintLabel,
   reportPriorityLabel,
   type HazardReport,
@@ -289,16 +293,18 @@ export function IncidentBoard() {
     return map;
   }, [activeOfficers, profile]);
 
-  const ranked = useMemo(
-    () =>
-      [...scopedReports].sort((a, b) => {
-        const pa = a.aiPriority ? PRIORITY_RANK[a.aiPriority] : 9;
-        const pb = b.aiPriority ? PRIORITY_RANK[b.aiPriority] : 9;
-        if (pa !== pb) return pa - pb;
-        return Date.parse(b.createdAt) - Date.parse(a.createdAt);
-      }),
-    [scopedReports],
-  );
+  const ranked = useMemo(() => {
+    const hideDemo = hideScenarioDemoReportsInUi();
+    const list = hideDemo
+      ? scopedReports.filter((r) => !isTinoScenarioDemoReport(r))
+      : scopedReports;
+    return [...list].sort((a, b) => {
+      const pa = a.aiPriority ? PRIORITY_RANK[a.aiPriority] : 9;
+      const pb = b.aiPriority ? PRIORITY_RANK[b.aiPriority] : 9;
+      if (pa !== pb) return pa - pb;
+      return Date.parse(b.createdAt) - Date.parse(a.createdAt);
+    });
+  }, [scopedReports]);
 
   const queueCount = ranked.filter((r) =>
     COLUMNS[0]!.match(r),

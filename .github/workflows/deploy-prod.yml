@@ -1,7 +1,7 @@
-name: Deploy prod → luwasph.com
+name: Deploy prod → ugnaiph.com
 
 # Push to `prod` builds Cloud Run (ugnai) + refreshes Firebase Hosting
-# so https://luwasph.com picks up the new revision (not just GitHub CI).
+# so https://ugnaiph.com picks up the new revision (not just GitHub CI).
 on:
   push:
     branches: [prod]
@@ -63,7 +63,7 @@ jobs:
           done
           {
             echo "NEXT_PUBLIC_USE_EMULATORS=false"
-            echo "NEXT_PUBLIC_SIMULATION_ON=${NEXT_PUBLIC_SIMULATION_ON:-true}"
+            echo "NEXT_PUBLIC_SIMULATION_ON=${NEXT_PUBLIC_SIMULATION_ON:-false}"
             echo "NEXT_PUBLIC_FIREBASE_API_KEY=${NEXT_PUBLIC_FIREBASE_API_KEY}"
             echo "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}"
             echo "NEXT_PUBLIC_FIREBASE_PROJECT_ID=${NEXT_PUBLIC_FIREBASE_PROJECT_ID}"
@@ -79,14 +79,14 @@ jobs:
           set -euo pipefail
           PROJECT="${{ secrets.GCP_PROJECT_ID }}"
           gcloud run deploy ugnai \
-            --service-account=luwas-earth-engine-687@nice-pen-181017.iam.gserviceaccount.com \
+            --service-account=ugnai-earth-engine@nice-pen-181017.iam.gserviceaccount.com \
             --source . \
             --region=asia-southeast1 \
             --project="$PROJECT" \
             --allow-unauthenticated \
             --quiet \
-            --set-env-vars="NEXT_PUBLIC_USE_EMULATORS=false,NEXT_PUBLIC_SIMULATION_ON=true,NEXT_PUBLIC_FIREBASE_API_KEY=${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }},NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }},NEXT_PUBLIC_FIREBASE_PROJECT_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }},NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=ugnai-media-nice-pen-181017,FIREBASE_STORAGE_BUCKET=ugnai-media-nice-pen-181017,VERTEX_INGEST_BUCKET=ugnai-media-nice-pen-181017,EARTH_ENGINE_PROJECT_ID=nice-pen-181017,VERTEX_PROJECT_ID=nice-pen-181017,VERTEX_LOCATION=us-central1,VERTEX_ENDPOINT_ID=5151990980118839296,NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }},NEXT_PUBLIC_FIREBASE_APP_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }},NEXT_PUBLIC_APP_URL=${{ secrets.NEXT_PUBLIC_APP_URL }},NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=${{ secrets.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY }}" \
-            --update-secrets=GEMINI_API_KEY=GEMINI_API_KEY:latest,GOOGLE_WEATHER_API_KEY=GOOGLE_WEATHER_API_KEY:latest,RESEND_API_KEY=RESEND_API_KEY:latest,RESEND_FROM_EMAIL=RESEND_FROM_EMAIL:latest,CRON_SECRET=CRON_SECRET:latest
+            --set-env-vars="NEXT_PUBLIC_USE_EMULATORS=false,NEXT_PUBLIC_SIMULATION_ON=false,TWILIO_SANDBOX=mode,NEXT_PUBLIC_FIREBASE_API_KEY=${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }},NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }},NEXT_PUBLIC_FIREBASE_PROJECT_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }},NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=ugnai-media-nice-pen-181017,FIREBASE_STORAGE_BUCKET=ugnai-media-nice-pen-181017,VERTEX_INGEST_BUCKET=ugnai-media-nice-pen-181017,EARTH_ENGINE_PROJECT_ID=nice-pen-181017,VERTEX_PROJECT_ID=nice-pen-181017,VERTEX_LOCATION=us-central1,VERTEX_ENDPOINT_ID=5151990980118839296,NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }},NEXT_PUBLIC_FIREBASE_APP_ID=${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }},NEXT_PUBLIC_APP_URL=${{ secrets.NEXT_PUBLIC_APP_URL }},NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=${{ secrets.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY }}" \
+            --update-secrets=GEMINI_API_KEY=GEMINI_API_KEY:latest,GOOGLE_WEATHER_API_KEY=GOOGLE_WEATHER_API_KEY:latest,RESEND_API_KEY=RESEND_API_KEY:latest,RESEND_FROM_EMAIL=RESEND_FROM_EMAIL:latest,CRON_SECRET=CRON_SECRET:latest,TWILIO_ACCOUNT_SID=TWILIO_ACCOUNT_SID:latest,TWILIO_AUTH_TOKEN=TWILIO_AUTH_TOKEN:latest,TWILIO_FROM_NUMBER=TWILIO_FROM_NUMBER:latest,TWILIO_SANDBOX_TO=TWILIO_SANDBOX_TO:latest
 
       - name: Deploy Firebase Hosting (CDN refresh)
         run: |

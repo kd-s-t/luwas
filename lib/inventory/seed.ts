@@ -17,7 +17,7 @@ export type InventorySeedRow = InventoryItemInput & {
 };
 
 /** Bump to re-apply demo state examples on existing rows. */
-export const INVENTORY_DEMO_STATE_VERSION = 5;
+export const INVENTORY_DEMO_STATE_VERSION = 6;
 
 /**
  * Real seeded incident tickets (same ids as Incidents board / Resources).
@@ -302,12 +302,12 @@ function demoStates(): Record<string, DemoState> {
 }
 
 const APAS_EXTRA_QTY: Record<string, number> = {
-  tarps: 10,
-  "first-aid": 6,
-  "food-packs": 12,
-  "drinking-water": 80,
-  "evac-kits": 4,
-  "generator-portable": 1,
+  tarps: 18,
+  "first-aid": 10,
+  "food-packs": 160,
+  "drinking-water": 1200,
+  "evac-kits": 8,
+  "generator-portable": 2,
   "rescue-boat": 0,
   // Keep multicab fleet split: 3 on hand · 3 out (do not override).
 };

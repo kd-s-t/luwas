@@ -8,12 +8,12 @@ import { useCommandWorkspace } from "@/components/CommandWorkspaceProvider";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { isAccountActive, isOfficer } from "@/lib/auth/types";
 import {
+  ensureApasPartners,
   ensureNangkaPartners,
   subscribeResourcePartners,
 } from "@/lib/partners/api";
-import {
-  NANGKA_BARANGAY_ID,
-} from "@/lib/partners/nangkaPartners";
+import { APAS_BARANGAY_DOC_ID } from "@/lib/partners/apasPartners";
+import { NANGKA_BARANGAY_ID } from "@/lib/partners/nangkaPartners";
 import type { ResourcePartner } from "@/lib/partners/types";
 import { scopeLabel } from "@/lib/reports/barangayScope";
 import {
@@ -349,7 +349,7 @@ export function FindAssistanceFlow() {
   const barangayId = useMemo(() => {
     if (!isOfficer(profile)) return NANGKA_BARANGAY_ID;
     const area = (profile.areaId ?? profile.activeBarangayId)?.trim();
-    if (area?.includes("apas")) return area;
+    if (area?.includes("apas")) return APAS_BARANGAY_DOC_ID;
     return NANGKA_BARANGAY_ID;
   }, [profile]);
 
@@ -363,10 +363,15 @@ export function FindAssistanceFlow() {
 
   useEffect(() => {
     if (!isOfficer(profile) || !isAccountActive(profile)) return;
-    if (barangayId !== NANGKA_BARANGAY_ID) return;
     if (seeded.current) return;
     seeded.current = true;
-    void ensureNangkaPartners().catch(() => {
+    const run =
+      barangayId === APAS_BARANGAY_DOC_ID
+        ? ensureApasPartners()
+        : barangayId === NANGKA_BARANGAY_ID
+          ? ensureNangkaPartners()
+          : Promise.resolve();
+    void run.catch(() => {
       seeded.current = false;
     });
   }, [profile, barangayId]);

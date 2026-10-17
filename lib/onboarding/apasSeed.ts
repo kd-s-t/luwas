@@ -289,14 +289,23 @@ export async function ensureApasOpsSeed(
   staff: number;
   reports: number;
   officers: number;
+  evacCenters: number;
+  partners: number;
+  inventory: number;
   hall: typeof APAS_HALL;
   areaId: typeof APAS_AREA_ID;
 }> {
-  const [households, staff, reports] = await Promise.all([
-    ensureApasHouseholds(officerUid),
-    ensureApasStaff(),
-    opts?.includeSampleReports ? ensureApasReports() : Promise.resolve(0),
-  ]);
+  const [households, staff, reports, evacCenters, partners, inventory] =
+    await Promise.all([
+      ensureApasHouseholds(officerUid),
+      ensureApasStaff(),
+      opts?.includeSampleReports ? ensureApasReports() : Promise.resolve(0),
+      import("@/lib/evacCenters/api").then((m) => m.ensureApasEvacCenters()),
+      import("@/lib/partners/api").then((m) => m.ensureApasPartners()),
+      import("@/lib/inventory/api").then((m) =>
+        m.ensureActiveBarangayInventory(),
+      ),
+    ]);
   const { ensureApasOfficers } = await import("@/lib/auth/ensureApasOfficers");
   const officerSeed = await ensureApasOfficers(officerUid, APAS_ORG_NAME);
   if (officerSeed.errors.length > 0) {
@@ -307,6 +316,9 @@ export async function ensureApasOpsSeed(
     staff,
     reports,
     officers: officerSeed.officers,
+    evacCenters,
+    partners,
+    inventory,
     hall: APAS_HALL,
     areaId: APAS_AREA_ID,
   };

@@ -950,6 +950,10 @@ export async function updateReportStatus(
       ? { validatedAt: now }
       : {}),
     ...(status === "dispatched" ? { dispatchedAt: now } : {}),
+    // Keep checklist “Dispatch someone” in sync with pipeline status.
+    ...(status === "dispatched" || status === "done"
+      ? { manualDispatchChecked: true }
+      : {}),
   });
 }
 

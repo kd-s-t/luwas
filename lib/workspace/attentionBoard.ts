@@ -1,7 +1,15 @@
 import type { HazardReport } from "@/lib/reports/types";
 import { hazardHintLabel } from "@/lib/reports/types";
 import { unknownsForReport } from "@/lib/workspace/incidentDerived";
-import { parseReportNeed } from "@/lib/workspace/reportNeed";
+import {
+  aggregateSupplyNeed,
+  parseReportNeed,
+  supplyNeedEpicCode,
+  supplyNeedKind,
+  supplyNeedNoun,
+  supplyNeedUnit,
+  type SupplyNeedKind,
+} from "@/lib/workspace/reportNeed";
 
 export type AttentionKind = "critical" | "resource" | "approval";
 
@@ -14,10 +22,14 @@ export type AttentionItem = {
   id: string;
   kind: AttentionKind;
   reportId: string;
+  /** All field reports rolled into this shared shortage. */
+  reportIds: string[];
   incidentCode: string;
   tags: AttentionTag[];
   headline: string;
   detail: string;
+  /** Second detail line for shared shortages (Affects: …). */
+  affectsLabel?: string | null;
   timeLabel: string;
   meta: string;
   ctaLabel: string;
@@ -27,17 +39,39 @@ export type AttentionItem = {
   lng: number | null;
 };
 
+export type AttentionGroup = {
+  id: "shared" | "review" | "approvals";
+  label: string;
+  items: AttentionItem[];
+};
+
+export type AttentionStock = {
+  waterL?: number;
+  foodPacks?: number;
+  medicalKits?: number;
+};
+
 export type AttentionSummary = {
   urgent: number;
   shortages: number;
   approvals: number;
+  communities: number;
   items: AttentionItem[];
+  groups: AttentionGroup[];
 };
 
 const QUEUE = new Set(["queued", "validating", "needs_review", "failed"]);
 const URGENT_HAZARDS = new Set(["flood", "landslide", "fire", "typhoon"]);
 
+const KIND_ORDER: Record<AttentionKind, number> = {
+  critical: 0,
+  resource: 1,
+  approval: 2,
+};
+
 function incidentCode(report: HazardReport, index: number): string {
+  if (/^REQ-/i.test(report.id)) return report.id.toUpperCase();
+  if (/^RS-/i.test(report.id)) return report.id.toUpperCase();
   const tail = report.id.replace(/[^a-zA-Z0-9]/g, "").slice(-3).toUpperCase();
   if (tail.length >= 2) return `INC-${tail}`;
   return `INC-${String(40 + index).padStart(3, "0")}`;
@@ -63,7 +97,6 @@ function formatPht(iso: string): string {
   }
 }
 
-/** Tighten "10:10 AM PHT" style labels. */
 function timeLabelPht(iso: string): string {
   try {
     const parts = new Intl.DateTimeFormat("en-US", {
@@ -108,9 +141,16 @@ function classify(report: HazardReport): AttentionKind | null {
   const inQueue = QUEUE.has(report.status);
   const urgentHazard = URGENT_HAZARDS.has(report.hazardHint);
   const unverified = isUnverified(report);
-  const medicalOffer = /medical|kit|red cross|rc-?\d/i.test(
-    `${report.title ?? ""} ${report.notes ?? ""}`,
-  );
+  const supplyKind = supplyNeedKind(report);
+  const medicalOffer =
+    !supplyKind &&
+    /medical|kit|red cross|rc-?\d/i.test(
+      `${report.title ?? ""} ${report.notes ?? ""}`,
+    );
+
+  if (supplyKind && (inQueue || report.status === "legit" || awaitingPlan)) {
+    return "resource";
+  }
 
   if (
     report.status === "needs_review" ||
@@ -119,8 +159,6 @@ function classify(report: HazardReport): AttentionKind | null {
   ) {
     return "critical";
   }
-  // Medical / partner offers stay on approval. Other stock gaps are shortages
-  // so Resources shows Find assistance cards.
   if (medicalOffer && (awaitingPlan || report.status === "legit")) {
     return "approval";
   }
@@ -138,7 +176,28 @@ function classify(report: HazardReport): AttentionKind | null {
   return null;
 }
 
-function buildItem(
+function fmtQty(n: number): string {
+  return n.toLocaleString("en-PH");
+}
+
+function stockAvailable(kind: SupplyNeedKind, stock?: AttentionStock): number {
+  if (kind === "water") return Math.max(0, stock?.waterL ?? 0);
+  if (kind === "food") return Math.max(0, stock?.foodPacks ?? 0);
+  if (kind === "medical") return Math.max(0, stock?.medicalKits ?? 0);
+  const water = Math.max(0, stock?.waterL ?? 0);
+  const food = Math.max(0, stock?.foodPacks ?? 0);
+  const kits = Math.max(0, stock?.medicalKits ?? 0);
+  return water + food + kits;
+}
+
+function requestedFor(kind: SupplyNeedKind, agg: ReturnType<typeof aggregateSupplyNeed>): number {
+  if (kind === "water") return agg.waterL;
+  if (kind === "food") return agg.packs;
+  if (kind === "medical") return agg.kits;
+  return agg.waterL + agg.packs + agg.kits;
+}
+
+function buildSoloItem(
   report: HazardReport,
   kind: AttentionKind,
   index: number,
@@ -158,6 +217,7 @@ function buildItem(
       id: `critical-${report.id}`,
       kind,
       reportId: report.id,
+      reportIds: [report.id],
       incidentCode: code,
       tags,
       headline: report.title || hazardHintLabel(report.hazardHint),
@@ -180,13 +240,14 @@ function buildItem(
       id: `resource-${report.id}`,
       kind,
       reportId: report.id,
+      reportIds: [report.id],
       incidentCode: code,
       tags: [{ label: "Resource shortage", tone: "warn" }],
       headline: report.title || `${place} needs additional support.`,
       detail: short.detail,
       timeLabel: timeLabelPht(report.createdAt),
-      meta: short.neededLabel,
-      ctaLabel: "Find assistance",
+      meta: "1 request",
+      ctaLabel: "Review shortage",
       ctaHref: `/admin/resources/assist?report=${encodeURIComponent(report.id)}`,
       primaryCta: false,
       lat: report.lat,
@@ -198,6 +259,7 @@ function buildItem(
     id: `approval-${report.id}`,
     kind: "approval",
     reportId: report.id,
+    reportIds: [report.id],
     incidentCode: code,
     tags: [{ label: "Approval needed", tone: "info" }],
     headline: report.title || "Commitment awaiting approval.",
@@ -212,33 +274,130 @@ function buildItem(
   };
 }
 
-const KIND_ORDER: Record<AttentionKind, number> = {
-  critical: 0,
-  resource: 1,
-  approval: 2,
-};
+function buildEpicItem(
+  kind: SupplyNeedKind,
+  reports: HazardReport[],
+  stock?: AttentionStock,
+): AttentionItem {
+  const sorted = [...reports].sort(
+    (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
+  );
+  const primary = sorted[0]!;
+  const places = [...new Set(sorted.map(placeLine).filter(Boolean))];
+  const placeLabel =
+    places.length <= 3
+      ? places.join(", ")
+      : `${places.slice(0, 2).join(", ")} +${places.length - 2} more`;
+  const agg = aggregateSupplyNeed(sorted);
+  const requested = requestedFor(kind, agg);
+  const available = stockAvailable(kind, stock);
+  const shortage = Math.max(0, requested - available);
+  const unit = supplyNeedUnit(kind);
+  const communityWord =
+    places.length === 1 ? "community" : "communities";
+  const requestWord = sorted.length === 1 ? "request" : "requests";
+
+  const code = supplyNeedEpicCode(kind);
+  return {
+    id: `epic-${kind}`,
+    kind: "resource",
+    reportId: primary.id,
+    reportIds: sorted.map((r) => r.id),
+    incidentCode: code,
+    tags: [{ label: "Shared resource shortage", tone: "warn" }],
+    headline: `${supplyNeedNoun(kind)} shortage across ${places.length} ${communityWord}`,
+    detail: `${fmtQty(requested)} ${unit} requested · ${fmtQty(available)} ${unit} available · ${fmtQty(shortage)} ${unit} shortage`,
+    affectsLabel: `Affects: ${placeLabel}`,
+    timeLabel: timeLabelPht(primary.createdAt),
+    meta: `${sorted.length} ${requestWord}`,
+    ctaLabel: "Review shortage",
+    ctaHref: `/admin/resources?rs=${encodeURIComponent(code)}`,
+    primaryCta: false,
+    lat: primary.lat,
+    lng: primary.lng,
+  };
+}
 
 /** Build the overview attention board from scoped field reports. */
-export function buildAttentionBoard(reports: HazardReport[]): AttentionSummary {
+export function buildAttentionBoard(
+  reports: HazardReport[],
+  stock?: AttentionStock,
+): AttentionSummary {
   const classified = reports
     .map((report) => ({ report, kind: classify(report) }))
     .filter((row): row is { report: HazardReport; kind: AttentionKind } =>
       Boolean(row.kind),
     )
-    .sort((a, b) => {
-      const ko = KIND_ORDER[a.kind] - KIND_ORDER[b.kind];
-      if (ko !== 0) return ko;
-      return Date.parse(b.report.createdAt) - Date.parse(a.report.createdAt);
-    });
+    .sort(
+      (a, b) => Date.parse(b.report.createdAt) - Date.parse(a.report.createdAt),
+    );
 
-  const items = classified.map((row, i) =>
-    buildItem(row.report, row.kind, i),
-  );
+  const epicBuckets = new Map<
+    SupplyNeedKind,
+    { report: HazardReport; kind: AttentionKind }[]
+  >();
+  const solo: { report: HazardReport; kind: AttentionKind }[] = [];
+
+  for (const row of classified) {
+    const supply = supplyNeedKind(row.report);
+    if (supply && (row.kind === "resource" || row.kind === "critical")) {
+      const bucket = epicBuckets.get(supply) ?? [];
+      bucket.push(row);
+      epicBuckets.set(supply, bucket);
+      continue;
+    }
+    solo.push(row);
+  }
+
+  const shared: AttentionItem[] = [];
+  for (const [supply, rows] of epicBuckets) {
+    shared.push(
+      buildEpicItem(
+        supply,
+        rows.map((r) => r.report),
+        stock,
+      ),
+    );
+  }
+
+  const review: AttentionItem[] = [];
+  const approvals: AttentionItem[] = [];
+  for (const [i, row] of solo.entries()) {
+    const item = buildSoloItem(row.report, row.kind, i);
+    if (row.kind === "approval") approvals.push(item);
+    else if (row.kind === "resource") shared.push(item);
+    else review.push(item);
+  }
+
+  // Design order: critical → shared shortage → approvals (flat list).
+  const items = [...review, ...shared, ...approvals].sort((a, b) => {
+    const ko = KIND_ORDER[a.kind] - KIND_ORDER[b.kind];
+    if (ko !== 0) return ko;
+    if (a.kind === "resource" && b.kind === "resource") {
+      return b.reportIds.length - a.reportIds.length;
+    }
+    return 0;
+  });
+
+  const groups: AttentionGroup[] = [
+    { id: "review", label: "Needs review", items: review },
+    { id: "shared", label: "Shared needs", items: shared },
+    { id: "approvals", label: "Approvals", items: approvals },
+  ].filter((g) => g.items.length > 0);
+
+  const communities = new Set(
+    reports
+      .filter((r) => r.status !== "rejected")
+      .map(placeLine)
+      .filter(Boolean),
+  ).size;
 
   return {
-    urgent: items.filter((i) => i.kind === "critical").length,
-    shortages: items.filter((i) => i.kind === "resource").length,
-    approvals: items.filter((i) => i.kind === "approval").length,
+    urgent: review.length,
+    shortages: shared.length,
+    approvals: approvals.length,
+    communities,
     items,
+    groups,
   };
 }

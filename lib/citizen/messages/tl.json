@@ -39,7 +39,7 @@
     "forSomeoneElse": "Para sa iba",
     "needHelp": "Kailangan Ko ng Tulong",
     "needHelpHint": "Humingi ng tulong para sa iyo o sa iba.",
-    "reportHazard": "Mag-ulat ng Panganib",
+    "reportHazard": "Mag-ulat",
     "reportHazardHint": "Mag-ulat ng baha, pinsala, o hindi ligtas na lugar.",
     "checkReport": "Tingnan ang Aking Ulat",
     "checkReportHint": "Gamitin ang reference number para makita ang updates.",
@@ -70,7 +70,7 @@
   "intent": {
     "needHelp": "Kailangan Ko ng Tulong",
     "needHelpSub": "Para sa iyo o sa iba na nasa panganib",
-    "reportHazard": "Mag-ulat ng Panganib",
+    "reportHazard": "Mag-ulat",
     "reportHazardSub": "Baha, pinsala, o hindi ligtas na lugar"
   },
   "situation": {

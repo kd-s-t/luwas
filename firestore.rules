@@ -300,6 +300,17 @@ service cloud.firestore {
           && request.resource.data.mediaUrl is string
           && request.resource.data.mediaUrl.size() > 0
         )
+        || (
+          // Evac center / desk supply requests (REQ-####).
+          reportId.matches('REQ-[0-9]{4}')
+          && isOfficer()
+          && request.resource.data.citizenUid == request.auth.uid
+          && request.resource.data.status in ["draft", "queued", "needs_review", "legit"]
+          && request.resource.data.title is string
+          && request.resource.data.title.size() > 0
+          && request.resource.data.mediaUrl is string
+          && request.resource.data.mediaUrl.size() > 0
+        )
       );
       // Allow re-sync of the same guest reference (idempotent write).
       allow update: if (

@@ -39,7 +39,7 @@
     "forSomeoneElse": "Someone else",
     "needHelp": "I Need Help",
     "needHelpHint": "Ask for help for yourself or someone else.",
-    "reportHazard": "Report a Hazard",
+    "reportHazard": "Report",
     "reportHazardHint": "Report flooding, damage, or an unsafe area.",
     "checkReport": "Check My Report",
     "checkReportHint": "Use your reference number to see updates.",
@@ -70,7 +70,7 @@
   "intent": {
     "needHelp": "I Need Help",
     "needHelpSub": "For you or someone else in danger",
-    "reportHazard": "Report a Hazard",
+    "reportHazard": "Report",
     "reportHazardSub": "Flooding, damage, or an unsafe area"
   },
   "situation": {

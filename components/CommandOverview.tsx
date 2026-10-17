@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import { AlertTriangle, Cloud, FileText, Package } from "lucide-react";
+import { AlertTriangle, Cloud, FileText, Package, Users } from "lucide-react";
 import { FadeIn } from "@/components/motion/primitives";
 import { SituationMap } from "@/components/SituationMap";
 import { useCommandWorkspace } from "@/components/CommandWorkspaceProvider";
@@ -11,8 +11,20 @@ import {
   buildAttentionBoard,
   type AttentionItem,
   type AttentionKind,
+  type AttentionStock,
 } from "@/lib/workspace/attentionBoard";
 import { cn } from "@/lib/utils";
+
+/** Desk stock used for shortage math on overview (matches Apas seed). */
+function stockForReports(
+  reports: { barangay?: string | null }[],
+): AttentionStock {
+  const apas = reports.some((r) => /apas/i.test(r.barangay ?? ""));
+  if (apas) {
+    return { waterL: 1200, foodPacks: 160, medicalKits: 10 };
+  }
+  return { waterL: 0, foodPacks: 0, medicalKits: 0 };
+}
 
 function kindIcon(kind: AttentionKind) {
   if (kind === "critical") return AlertTriangle;
@@ -77,16 +89,20 @@ function formatSnapshot(date: Date): { full: string; clock: string } {
 function AttentionCard({ item, index }: { item: AttentionItem; index: number }) {
   const Icon = kindIcon(item.kind);
   const accent = kindAccent(item.kind);
+  const sharedShortage = item.tags.some(
+    (t) => t.label === "Shared resource shortage",
+  );
 
   return (
     <FadeIn delay={0.05 + index * 0.05} y={10}>
       <article
         className={cn(
-          "flex flex-col gap-3 rounded-2xl border bg-white p-4 shadow-sm sm:flex-row sm:items-stretch sm:gap-4 sm:p-5",
+          "flex flex-col gap-3 rounded-2xl border p-4 shadow-sm sm:p-5",
           accent.ring,
+          sharedShortage ? "bg-[#fffbeb]" : "bg-white",
         )}
       >
-        <div className="flex gap-3 sm:min-w-0 sm:flex-1">
+        <div className="flex gap-3">
           <div
             className={cn(
               "mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl",
@@ -96,25 +112,33 @@ function AttentionCard({ item, index }: { item: AttentionItem; index: number }) 
             <Icon className="size-5" aria-hidden />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="font-mono text-[11px] tracking-wide text-[var(--muted)]">
-                {item.incidentCode}
-              </span>
-              {item.tags.map((tag) => (
-                <span
-                  key={tag.label}
-                  className={cn(
-                    "rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide ring-1",
-                    tag.tone === "critical"
-                      ? accent.tagCritical
-                      : tag.tone === "warn"
-                        ? accent.tagWarn
-                        : accent.tagInfo,
-                  )}
-                >
-                  {tag.label}
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-1.5">
+                {item.tags.map((tag) => (
+                  <span
+                    key={tag.label}
+                    className={cn(
+                      "rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide ring-1",
+                      tag.tone === "critical"
+                        ? accent.tagCritical
+                        : tag.tone === "warn"
+                          ? accent.tagWarn
+                          : accent.tagInfo,
+                    )}
+                  >
+                    {tag.label}
+                  </span>
+                ))}
+                <span className="font-mono text-[11px] tracking-wide text-[var(--muted)]">
+                  {item.incidentCode}
                 </span>
-              ))}
+              </div>
+              {sharedShortage ? (
+                <div className="text-right font-mono text-[11px] leading-relaxed text-[var(--muted)]">
+                  <p>{item.timeLabel}</p>
+                  <p>{item.meta}</p>
+                </div>
+              ) : null}
             </div>
             <h3 className="mt-1.5 text-base font-semibold tracking-tight text-[var(--foreground)] sm:text-[17px]">
               {item.headline}
@@ -122,24 +146,31 @@ function AttentionCard({ item, index }: { item: AttentionItem; index: number }) 
             <p className="mt-1 text-sm leading-relaxed text-[var(--muted)]">
               {item.detail}
             </p>
-            <p className="mt-2 font-mono text-[11px] text-[var(--muted)]">
-              {item.timeLabel}
-              <span className="mx-1.5 text-[var(--border)]">·</span>
-              {item.meta}
-            </p>
+            {item.affectsLabel ? (
+              <p className="mt-0.5 text-sm leading-relaxed text-[var(--muted)]">
+                {item.affectsLabel}
+              </p>
+            ) : null}
+            {!sharedShortage ? (
+              <p className="mt-2 font-mono text-[11px] text-[var(--muted)]">
+                {item.timeLabel}
+                <span className="mx-1.5 text-[var(--border)]">·</span>
+                {item.meta}
+              </p>
+            ) : null}
           </div>
         </div>
-        <div className="flex shrink-0 items-center sm:pl-2">
+        <div className="flex shrink-0 justify-end sm:pl-12">
           <Link
             href={item.ctaHref}
             className={cn(
-              "inline-flex w-full items-center justify-center rounded-xl px-4 py-2.5 text-sm font-medium transition sm:w-auto",
+              "inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-medium transition",
               item.primaryCta
                 ? "bg-[#c72929] text-white hover:bg-[#9e1a1a]"
                 : "border border-[#93c5fd] bg-white text-[#2f5f9e] hover:border-[#3b6fb6] hover:bg-[#f8fbff]",
             )}
           >
-            {item.ctaLabel} →
+            {item.ctaLabel}
           </Link>
         </div>
       </article>
@@ -153,7 +184,7 @@ export function CommandOverview() {
     useCommandWorkspace();
 
   const board = useMemo(
-    () => buildAttentionBoard(scopedReports),
+    () => buildAttentionBoard(scopedReports, stockForReports(scopedReports)),
     [scopedReports],
   );
 
@@ -189,6 +220,13 @@ export function CommandOverview() {
       href: "/admin/incidents",
       Icon: FileText,
       iconClass: "bg-[#3b6fb6]/10 text-[#3b6fb6]",
+    },
+    {
+      label: "Communities affected",
+      value: board.communities,
+      href: "/admin/incidents",
+      Icon: Users,
+      iconClass: "bg-[#ecfdf3] text-[#16794c]",
     },
   ] as const;
 
@@ -240,7 +278,7 @@ export function CommandOverview() {
         </div>
       </FadeIn>
 
-      <div className="mt-4 grid shrink-0 gap-3 sm:grid-cols-3">
+      <div className="mt-4 grid shrink-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {summaryCards.map((card, i) => (
           <FadeIn key={card.label} delay={0.04 + i * 0.04} y={8}>
             <Link

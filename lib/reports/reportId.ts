@@ -142,6 +142,17 @@ export function isLegacyGuestReportId(id: string): boolean {
   return LEGACY_GUEST_REPORT_ID_RE.test(id.trim().toUpperCase());
 }
 
+/** Evac / desk supply request: REQ-#### */
+export const REQUEST_REPORT_ID_RE = /^REQ-\d{4}$/;
+
+export function newRequestReportId(): string {
+  return `REQ-${randomSeq()}`;
+}
+
+export function isRequestReportId(id: string): boolean {
+  return REQUEST_REPORT_ID_RE.test(id.trim().toUpperCase());
+}
+
 /** Guest track / upload: place-prefixed or legacy LUW-*. */
 export function isGuestReportId(id: string): boolean {
   const raw = id.trim().toUpperCase();
@@ -150,7 +161,7 @@ export function isGuestReportId(id: string): boolean {
 
 export function normalizeReportId(id: string): string {
   const raw = id.trim();
-  if (isGuestReportId(raw)) return raw.toUpperCase();
+  if (isGuestReportId(raw) || isRequestReportId(raw)) return raw.toUpperCase();
   return raw;
 }
 

@@ -1316,12 +1316,14 @@ export function IncidentDetail({
                             const checked = e.target.checked;
                             void (async () => {
                               setBusy(true);
+                              setStatusError(null);
                               try {
-                                if (checked && p.id === "dispatch") {
-                                  await setReportManualDispatchChecked(
-                                    selected.id,
-                                    true,
-                                  );
+                                if (p.id !== "dispatch") return;
+                                await setReportManualDispatchChecked(
+                                  selected.id,
+                                  checked,
+                                );
+                                if (checked) {
                                   if (
                                     selected.status === "legit" ||
                                     selected.status === "assigned"
@@ -1331,24 +1333,29 @@ export function IncidentDetail({
                                       "dispatched",
                                     );
                                   }
-                                  // After mark dispatch → auto-dispatch responders.
-                                  await triggerAutoResponderCall({
+                                  // Outreach is best-effort; do not undo dispatch.
+                                  const call = await triggerAutoResponderCall({
                                     ...selected,
                                     status: "legit",
                                     autoResponderCallAt:
                                       selected.autoResponderCallAt ?? null,
                                   });
-                                } else if (p.id === "dispatch") {
-                                  await setReportManualDispatchChecked(
-                                    selected.id,
-                                    false,
-                                  );
-                                } else {
-                                  await setReportManualDispatchChecked(
-                                    selected.id,
-                                    checked,
-                                  );
+                                  if (
+                                    call.attempted &&
+                                    call.ok === false &&
+                                    call.error
+                                  ) {
+                                    setStatusError(
+                                      `Dispatched. Call/SMS: ${call.error}`,
+                                    );
+                                  }
                                 }
+                              } catch (err) {
+                                setStatusError(
+                                  err instanceof Error
+                                    ? err.message
+                                    : "Could not update dispatch",
+                                );
                               } finally {
                                 setBusy(false);
                               }

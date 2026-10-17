@@ -47,7 +47,7 @@ env:
       - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_APP_URL
-    value: "https://luwasph.com"
+    value: "https://ugnaiph.com"
     availability:
       - BUILD
       - RUNTIME
