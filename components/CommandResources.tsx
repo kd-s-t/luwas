@@ -1,8 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { Package } from "lucide-react";
 import { FadeIn } from "@/components/motion/primitives";
+import { ResourceShortagePlan } from "@/components/ResourceShortagePlan";
 import { useCommandWorkspace } from "@/components/CommandWorkspaceProvider";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { isOfficer } from "@/lib/auth/types";
@@ -17,6 +20,10 @@ import {
   type ResourceActivityStatus,
   type ResourceNeed,
 } from "@/lib/workspace/resourceBoard";
+import {
+  buildSupplyShortagePlan,
+  reportsForEpicCode,
+} from "@/lib/workspace/supplyShortagePlan";
 import { cn } from "@/lib/utils";
 
 function formatPlaceLine(date: Date, place: string): string {
@@ -48,10 +55,11 @@ function statusTone(status: ResourceActivityStatus) {
 function NeedCard({ need }: { need: ResourceNeed }) {
   const shortage = need.kind === "shortage";
   const shared = Boolean(need.shared || need.affectsLabel);
+
   return (
     <article
       className={cn(
-        "flex flex-col gap-3 rounded-2xl border p-4 shadow-sm sm:flex-row sm:items-stretch sm:gap-4 sm:p-5",
+        "rounded-2xl border p-4 shadow-sm sm:p-5",
         shared
           ? "border-[#fde68a] bg-[#fffbeb]"
           : shortage
@@ -59,76 +67,83 @@ function NeedCard({ need }: { need: ResourceNeed }) {
             : "border-[#bfdbfe] bg-[#f8fbff]",
       )}
     >
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span
-              className={cn(
-                "rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide ring-1",
-                shared || shortage
-                  ? "bg-[#f59e0b]/12 text-[#b45309] ring-[#f59e0b]/25"
-                  : "bg-[#3b6fb6]/10 text-[#2f5f9e] ring-[#3b6fb6]/20",
-              )}
-            >
-              {shared
-                ? "Shared resource shortage"
-                : shortage
-                  ? "Shortage"
-                  : "Approval needed"}
-            </span>
-            <span className="font-mono text-[11px] tracking-wide text-[var(--muted)]">
-              {need.incidentCode}
-            </span>
+      <div className={cn(shared && "flex gap-3")}>
+        {shared ? (
+          <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#f59e0b]/12 text-[#d97706]">
+            <Package className="size-5" aria-hidden />
           </div>
-          {shared && (need.timeLabel || need.requestMeta) ? (
-            <div className="text-right font-mono text-[11px] leading-relaxed text-[var(--muted)]">
-              {need.timeLabel ? <p>{need.timeLabel}</p> : null}
-              {need.requestMeta ? <p>{need.requestMeta}</p> : null}
+        ) : null}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+              <span
+                className={cn(
+                  "rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide ring-1",
+                  shared || shortage
+                    ? "bg-[#f59e0b]/12 text-[#b45309] ring-[#f59e0b]/25"
+                    : "bg-[#3b6fb6]/10 text-[#2f5f9e] ring-[#3b6fb6]/20",
+                )}
+              >
+                {shared
+                  ? "Shared resource shortage"
+                  : shortage
+                    ? "Shortage"
+                    : "Approval needed"}
+              </span>
+              <span className="font-mono text-[11px] tracking-wide text-[var(--muted)]">
+                {need.incidentCode}
+              </span>
+            </div>
+            {shared && (need.timeLabel || need.requestMeta) ? (
+              <div className="shrink-0 text-right text-[11px] leading-relaxed text-[var(--muted)]">
+                {need.timeLabel ? <p>{need.timeLabel}</p> : null}
+                {need.requestMeta ? <p>{need.requestMeta}</p> : null}
+              </div>
+            ) : null}
+          </div>
+          <h3 className="mt-2 text-base font-semibold tracking-tight text-[var(--foreground)]">
+            {need.place}
+          </h3>
+          <p className="mt-1 text-sm leading-snug text-[var(--muted)]">
+            {need.detail}
+          </p>
+          {need.affectsLabel ? (
+            <p className="mt-1 text-sm leading-snug text-[var(--muted)]">
+              {need.affectsLabel}
+            </p>
+          ) : null}
+          {!shared && (need.householdsLabel || need.neededLabel) ? (
+            <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-[12px] text-[var(--muted)]">
+              {need.householdsLabel ? (
+                <p>
+                  <span className="font-medium text-[var(--foreground)]">
+                    {need.householdsLabel}
+                  </span>
+                </p>
+              ) : null}
+              {need.neededLabel ? (
+                <p>
+                  <span className="font-medium text-[var(--foreground)]">
+                    {need.neededLabel}
+                  </span>
+                </p>
+              ) : null}
             </div>
           ) : null}
-        </div>
-        <h3 className="mt-1.5 text-base font-semibold tracking-tight text-[var(--foreground)]">
-          {need.place}
-        </h3>
-        <p className="mt-1 text-sm leading-relaxed text-[var(--muted)]">
-          {need.detail}
-        </p>
-        {need.affectsLabel ? (
-          <p className="mt-0.5 text-sm leading-relaxed text-[var(--muted)]">
-            {need.affectsLabel}
-          </p>
-        ) : null}
-        {!shared && (need.householdsLabel || need.neededLabel) ? (
-          <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-[12px] text-[var(--muted)]">
-            {need.householdsLabel ? (
-              <p>
-                <span className="font-medium text-[var(--foreground)]">
-                  {need.householdsLabel}
-                </span>
-              </p>
-            ) : null}
-            {need.neededLabel ? (
-              <p>
-                <span className="font-medium text-[var(--foreground)]">
-                  {need.neededLabel}
-                </span>
-              </p>
-            ) : null}
+          <div className="mt-3 flex justify-end">
+            <Link
+              href={need.ctaHref}
+              className={cn(
+                "inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-medium transition",
+                need.primaryCta
+                  ? "bg-[#c72929] text-white hover:bg-[#9e1a1a]"
+                  : "border border-[#93c5fd] bg-white text-[#2f5f9e] hover:border-[#3b6fb6] hover:bg-[#f8fbff]",
+              )}
+            >
+              {need.ctaLabel}
+            </Link>
           </div>
-        ) : null}
-      </div>
-      <div className="flex shrink-0 items-center sm:pl-2">
-        <Link
-          href={need.ctaHref}
-          className={cn(
-            "inline-flex w-full items-center justify-center rounded-xl px-4 py-2.5 text-sm font-medium transition sm:w-auto",
-            need.primaryCta
-              ? "bg-[#c72929] text-white hover:bg-[#9e1a1a]"
-              : "border border-[#93c5fd] bg-white text-[#2f5f9e] hover:border-[#3b6fb6] hover:bg-[#f8fbff]",
-          )}
-        >
-          {need.ctaLabel}
-        </Link>
+        </div>
       </div>
     </article>
   );
@@ -136,8 +151,10 @@ function NeedCard({ need }: { need: ResourceNeed }) {
 
 export function CommandResources() {
   const { profile } = useAuth();
-  const { scopedReports, activeOfficers, reportScope } =
+  const { scopedReports, activeOfficers, reportScope, seedReady } =
     useCommandWorkspace();
+  const searchParams = useSearchParams();
+  const rsCode = searchParams.get("rs")?.trim().toUpperCase() ?? "";
   const [query, setQuery] = useState("");
   const [commitments, setCommitments] = useState<AssistanceCommitment[]>([]);
 
@@ -181,6 +198,29 @@ export function CommandResources() {
     [placeHint],
   );
 
+  const shortagePlan = useMemo(() => {
+    if (!rsCode) return null;
+    const matched = reportsForEpicCode(rsCode, scopedReports);
+    if (!matched) return null;
+    return buildSupplyShortagePlan(matched.kind, matched.reports);
+  }, [rsCode, scopedReports]);
+
+  const updatedLabel = useMemo(() => {
+    try {
+      return new Intl.DateTimeFormat("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: "Asia/Manila",
+      }).format(new Date());
+    } catch {
+      return "—";
+    }
+  }, []);
+
   const filteredNeeds = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return board.needs;
@@ -191,6 +231,41 @@ export function CommandResources() {
         n.detail.toLowerCase().includes(q),
     );
   }, [board.needs, query]);
+
+  if (rsCode) {
+    if (!seedReady) {
+      return (
+        <div className="flex h-full min-h-0 flex-1 flex-col items-center justify-center px-4 py-10 text-center">
+          <p className="text-sm text-[var(--muted)]">Loading shortage plan…</p>
+        </div>
+      );
+    }
+    if (shortagePlan) {
+      return (
+        <ResourceShortagePlan
+          plan={shortagePlan}
+          placeLine={placeHint}
+          updatedLabel={updatedLabel}
+        />
+      );
+    }
+    return (
+      <div className="flex h-full min-h-0 flex-1 flex-col items-center justify-center px-4 py-10 text-center">
+        <p className="font-medium text-[var(--foreground)]">
+          Shortage plan not in scope
+        </p>
+        <p className="mt-1 max-w-md text-sm text-[var(--muted)]">
+          No open {rsCode} supply requests match this workspace yet.
+        </p>
+        <Link
+          href="/admin/resources"
+          className="mt-4 inline-flex rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-sm font-medium text-[var(--foreground)]"
+        >
+          Back to Resources
+        </Link>
+      </div>
+    );
+  }
 
   const summary = [
     {
