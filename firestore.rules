@@ -362,9 +362,11 @@ service cloud.firestore {
       }
     }
 
-    // Website bug reports — guests + signed-in; developers triage.
+    // Website bug reports — guests + signed-in; developers triage;
+    // ticket owners can track their own submissions.
     match /supportTickets/{ticketId} {
-      allow read: if isDeveloper();
+      allow read: if isDeveloper()
+        || (signedIn() && resource.data.uid == request.auth.uid);
       // Anyone (guest or signed-in) may create; tickets go to developers.
       allow create: if (
           request.resource.data.kind == "bug"

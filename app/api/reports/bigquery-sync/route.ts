@@ -67,6 +67,7 @@ export async function POST(req: Request) {
     investigatorName: r.investigatorName ?? null,
     investigatedAt: r.investigatedAt ?? null,
     autoResponderCallAt: r.autoResponderCallAt ?? null,
+    dispatchedAt: r.dispatchedAt != null ? String(r.dispatchedAt) : null,
     dispatchLog: r.dispatchLog ?? null,
     manualDispatchChecked: Boolean(r.manualDispatchChecked),
     fieldEvidence: Array.isArray(r.fieldEvidence)

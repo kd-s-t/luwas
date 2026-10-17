@@ -120,6 +120,12 @@ const SECONDARY: {
     icon: Home,
     match: (p) => p.startsWith("/admin/evac-centers"),
   },
+  {
+    href: "/admin/support",
+    label: "My support",
+    icon: Shield,
+    match: (p) => p.startsWith("/admin/support"),
+  },
 ];
 
 type CommandShellProps = {

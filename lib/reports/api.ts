@@ -202,6 +202,8 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
         : data.autoFireCallAt != null
           ? String(data.autoFireCallAt)
           : null,
+    dispatchedAt:
+      data.dispatchedAt != null ? String(data.dispatchedAt) : null,
     dispatchLog: mapDispatchLog(data.dispatchLog),
     manualDispatchChecked: Boolean(data.manualDispatchChecked),
     fieldEvidence: mapFieldEvidence(data.fieldEvidence),
@@ -330,6 +332,7 @@ export async function startIncidentDraft(input: {
     investigatorName: null,
     investigatedAt: null,
     autoResponderCallAt: null,
+    dispatchedAt: null,
     dispatchLog: null,
     manualDispatchChecked: false,
     fieldEvidence: [],
@@ -512,6 +515,7 @@ export async function createGuestHazardReport(input: {
     investigatorName: null,
     investigatedAt: null,
     autoResponderCallAt: null,
+    dispatchedAt: null,
     dispatchLog: null,
     manualDispatchChecked: false,
     fieldEvidence: [],
@@ -709,6 +713,7 @@ export async function createHazardReport(input: {
     investigatorName: null,
     investigatedAt: null,
     autoResponderCallAt: null,
+    dispatchedAt: null,
     dispatchLog: null,
     manualDispatchChecked: false,
     fieldEvidence: [],
@@ -888,6 +893,7 @@ export async function updateReportStatus(
     ...(status === "legit" || status === "dispatched" || status === "done"
       ? { validatedAt: now }
       : {}),
+    ...(status === "dispatched" ? { dispatchedAt: now } : {}),
   });
 }
 
