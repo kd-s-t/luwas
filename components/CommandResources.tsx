@@ -47,30 +47,45 @@ function statusTone(status: ResourceActivityStatus) {
 
 function NeedCard({ need }: { need: ResourceNeed }) {
   const shortage = need.kind === "shortage";
+  const shared = Boolean(need.shared || need.affectsLabel);
   return (
     <article
       className={cn(
-        "flex flex-col gap-3 rounded-2xl border bg-white p-4 shadow-sm sm:flex-row sm:items-stretch sm:gap-4 sm:p-5",
-        shortage
-          ? "border-[#fecaca] bg-[#fff7f7]"
-          : "border-[#bfdbfe] bg-[#f8fbff]",
+        "flex flex-col gap-3 rounded-2xl border p-4 shadow-sm sm:flex-row sm:items-stretch sm:gap-4 sm:p-5",
+        shared
+          ? "border-[#fde68a] bg-[#fffbeb]"
+          : shortage
+            ? "border-[#fecaca] bg-[#fff7f7]"
+            : "border-[#bfdbfe] bg-[#f8fbff]",
       )}
     >
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span
-            className={cn(
-              "rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide ring-1",
-              shortage
-                ? "bg-[#f59e0b]/12 text-[#b45309] ring-[#f59e0b]/25"
-                : "bg-[#3b6fb6]/10 text-[#2f5f9e] ring-[#3b6fb6]/20",
-            )}
-          >
-            {shortage ? "Shortage" : "Approval needed"}
-          </span>
-          <span className="font-mono text-[11px] tracking-wide text-[var(--muted)]">
-            {need.incidentCode}
-          </span>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span
+              className={cn(
+                "rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide ring-1",
+                shared || shortage
+                  ? "bg-[#f59e0b]/12 text-[#b45309] ring-[#f59e0b]/25"
+                  : "bg-[#3b6fb6]/10 text-[#2f5f9e] ring-[#3b6fb6]/20",
+              )}
+            >
+              {shared
+                ? "Shared resource shortage"
+                : shortage
+                  ? "Shortage"
+                  : "Approval needed"}
+            </span>
+            <span className="font-mono text-[11px] tracking-wide text-[var(--muted)]">
+              {need.incidentCode}
+            </span>
+          </div>
+          {shared && (need.timeLabel || need.requestMeta) ? (
+            <div className="text-right font-mono text-[11px] leading-relaxed text-[var(--muted)]">
+              {need.timeLabel ? <p>{need.timeLabel}</p> : null}
+              {need.requestMeta ? <p>{need.requestMeta}</p> : null}
+            </div>
+          ) : null}
         </div>
         <h3 className="mt-1.5 text-base font-semibold tracking-tight text-[var(--foreground)]">
           {need.place}
@@ -78,18 +93,29 @@ function NeedCard({ need }: { need: ResourceNeed }) {
         <p className="mt-1 text-sm leading-relaxed text-[var(--muted)]">
           {need.detail}
         </p>
-        <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-[12px] text-[var(--muted)]">
-          <p>
-            <span className="font-medium text-[var(--foreground)]">
-              {need.householdsLabel}
-            </span>
+        {need.affectsLabel ? (
+          <p className="mt-0.5 text-sm leading-relaxed text-[var(--muted)]">
+            {need.affectsLabel}
           </p>
-          <p>
-            <span className="font-medium text-[var(--foreground)]">
-              {need.neededLabel}
-            </span>
-          </p>
-        </div>
+        ) : null}
+        {!shared && (need.householdsLabel || need.neededLabel) ? (
+          <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-[12px] text-[var(--muted)]">
+            {need.householdsLabel ? (
+              <p>
+                <span className="font-medium text-[var(--foreground)]">
+                  {need.householdsLabel}
+                </span>
+              </p>
+            ) : null}
+            {need.neededLabel ? (
+              <p>
+                <span className="font-medium text-[var(--foreground)]">
+                  {need.neededLabel}
+                </span>
+              </p>
+            ) : null}
+          </div>
+        ) : null}
       </div>
       <div className="flex shrink-0 items-center sm:pl-2">
         <Link

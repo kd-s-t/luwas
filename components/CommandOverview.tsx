@@ -9,22 +9,11 @@ import { useCommandWorkspace } from "@/components/CommandWorkspaceProvider";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import {
   buildAttentionBoard,
+  deskStockForReports,
   type AttentionItem,
   type AttentionKind,
-  type AttentionStock,
 } from "@/lib/workspace/attentionBoard";
 import { cn } from "@/lib/utils";
-
-/** Desk stock used for shortage math on overview (matches Apas seed). */
-function stockForReports(
-  reports: { barangay?: string | null }[],
-): AttentionStock {
-  const apas = reports.some((r) => /apas/i.test(r.barangay ?? ""));
-  if (apas) {
-    return { waterL: 1200, foodPacks: 160, medicalKits: 10 };
-  }
-  return { waterL: 0, foodPacks: 0, medicalKits: 0 };
-}
 
 function kindIcon(kind: AttentionKind) {
   if (kind === "critical") return AlertTriangle;
@@ -184,7 +173,7 @@ export function CommandOverview() {
     useCommandWorkspace();
 
   const board = useMemo(
-    () => buildAttentionBoard(scopedReports, stockForReports(scopedReports)),
+    () => buildAttentionBoard(scopedReports, deskStockForReports(scopedReports)),
     [scopedReports],
   );
 

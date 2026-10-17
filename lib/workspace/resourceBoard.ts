@@ -1,11 +1,17 @@
 import type { HazardReport } from "@/lib/reports/types";
 import {
   buildAttentionBoard,
+  deskStockForReports,
+  epicShortageCopy,
   type AttentionItem,
 } from "@/lib/workspace/attentionBoard";
 import type { AssistanceCommitment } from "@/lib/workspace/assistanceCommitments";
 import { assistHref } from "@/lib/workspace/assistancePlan";
-import { parseReportNeed } from "@/lib/workspace/reportNeed";
+import {
+  parseReportNeed,
+  supplyNeedKind,
+  type SupplyNeedKind,
+} from "@/lib/workspace/reportNeed";
 import {
   NANGKA_SAMPLE_INVENTORY,
   type SampleInventoryItem,
@@ -21,10 +27,19 @@ export type ResourceNeed = {
   detail: string;
   householdsLabel: string;
   neededLabel: string;
+  /** Related sitios only (Affects: …). */
+  affectsLabel?: string | null;
+  /** Shared shortage meta (time · N requests). */
+  timeLabel?: string | null;
+  requestMeta?: string | null;
+  /** True when several sitio reports share one supply epic. */
+  shared?: boolean;
   ctaLabel: string;
   ctaHref: string;
   primaryCta: boolean;
   reportId: string;
+  /** All field reports rolled into a shared shortage. */
+  reportIds?: string[];
 };
 
 export type LocalStockCell = {
@@ -86,32 +101,56 @@ function toNeed(
 ): ResourceNeed | null {
   const report = reportById.get(item.reportId);
   const parsed = report ? parseReportNeed(report) : null;
-  const householdsLabel = parsed?.householdsLabel ?? "Households TBD";
-  const neededCore = parsed?.neededLabel ?? item.meta ?? "Response TBD";
-  const detail = parsed?.detail ?? item.detail;
+  const shared =
+    item.id.startsWith("epic-") || (item.reportIds?.length ?? 0) > 1;
 
   if (item.kind === "resource") {
+    if (shared) {
+      return {
+        id: item.id,
+        kind: "shortage",
+        incidentCode: item.incidentCode,
+        place: item.headline,
+        detail: item.detail,
+        householdsLabel: "",
+        neededLabel: "",
+        affectsLabel: item.affectsLabel ?? null,
+        timeLabel: item.timeLabel,
+        requestMeta: item.meta,
+        shared: true,
+        ctaLabel: "Review shortage",
+        ctaHref: assistHref(item.reportId),
+        primaryCta: false,
+        reportId: item.reportId,
+        reportIds: item.reportIds,
+      };
+    }
+    const householdsLabel = parsed?.householdsLabel ?? "Households TBD";
+    const neededCore = parsed?.neededLabel ?? item.meta ?? "Response TBD";
     return {
       id: item.id,
       kind: "shortage",
       incidentCode: item.incidentCode,
       place: placeFromItem(item),
-      detail,
+      detail: parsed?.detail ?? item.detail,
       householdsLabel,
       neededLabel: `Needed: ${neededCore}`,
       ctaLabel: "Find assistance",
       ctaHref: assistHref(item.reportId),
       primaryCta: true,
       reportId: item.reportId,
+      reportIds: [item.reportId],
     };
   }
   if (item.kind === "approval") {
+    const householdsLabel = parsed?.householdsLabel ?? "Households TBD";
+    const neededCore = parsed?.neededLabel ?? item.meta ?? "Response TBD";
     return {
       id: item.id,
       kind: "approval",
       incidentCode: item.incidentCode,
       place: placeFromItem(item),
-      detail,
+      detail: parsed?.detail ?? item.detail,
       householdsLabel,
       neededLabel: `Proposed: ${neededCore}`,
       ctaLabel: "View inventory",
@@ -121,6 +160,82 @@ function toNeed(
     };
   }
   return null;
+}
+
+/** Collapse per-sitio shortage cards that share water/food/medical into one epic. */
+function collapseSupplyShortages(
+  needs: ResourceNeed[],
+  reports: HazardReport[],
+): ResourceNeed[] {
+  const reportById = new Map(reports.map((r) => [r.id, r]));
+  const stock = deskStockForReports(reports);
+  const approvals = needs.filter((n) => n.kind === "approval");
+  const shortages = needs.filter((n) => n.kind === "shortage");
+
+  const buckets = new Map<SupplyNeedKind, HazardReport[]>();
+  const leftover: ResourceNeed[] = [];
+
+  for (const need of shortages) {
+    if (need.id.startsWith("epic-")) {
+      leftover.push(need);
+      continue;
+    }
+    const ids = need.reportIds?.length ? need.reportIds : [need.reportId];
+    const rows = ids
+      .map((id) => reportById.get(id))
+      .filter((r): r is HazardReport => Boolean(r));
+    const supply = rows.map((r) => supplyNeedKind(r)).find(Boolean) ?? null;
+    if (!supply || rows.length === 0) {
+      leftover.push(need);
+      continue;
+    }
+    const bucket = buckets.get(supply) ?? [];
+    for (const r of rows) {
+      if (!bucket.some((x) => x.id === r.id)) bucket.push(r);
+    }
+    buckets.set(supply, bucket);
+  }
+
+  const grouped: ResourceNeed[] = [];
+  const covered = new Set<string>();
+
+  for (const [kind, rows] of buckets) {
+    if (rows.length === 0) continue;
+    if (rows.length === 1) {
+      const solo = shortages.find((n) => n.reportId === rows[0]!.id);
+      if (solo) grouped.push(solo);
+      covered.add(rows[0]!.id);
+      continue;
+    }
+    const copy = epicShortageCopy(kind, rows, stock);
+    grouped.push({
+      id: `epic-${kind}`,
+      kind: "shortage",
+      incidentCode: copy.incidentCode,
+      place: copy.headline,
+      detail: copy.detail,
+      householdsLabel: "",
+      neededLabel: "",
+      affectsLabel: copy.affectsLabel,
+      timeLabel: null,
+      requestMeta: copy.meta,
+      shared: true,
+      ctaLabel: "Review shortage",
+      ctaHref: assistHref(copy.primary.id),
+      primaryCta: false,
+      reportId: copy.primary.id,
+      reportIds: copy.reportIds,
+    });
+    for (const id of copy.reportIds) covered.add(id);
+  }
+
+  const uncovered = leftover.filter((n) => {
+    if (n.id.startsWith("epic-")) return true;
+    const ids = n.reportIds?.length ? n.reportIds : [n.reportId];
+    return ids.every((id) => !covered.has(id));
+  });
+
+  return [...grouped, ...uncovered, ...approvals];
 }
 
 function stockCell(
@@ -319,7 +434,7 @@ export function buildResourceBoard(
   respondersAvailable: number,
   commitments: AssistanceCommitment[] = [],
 ): ResourceBoard {
-  const attention = buildAttentionBoard(reports);
+  const attention = buildAttentionBoard(reports, deskStockForReports(reports));
   const reportById = new Map(reports.map((r) => [r.id, r]));
   // Keep shortage cards visible even after approval so Find assistance stays findable.
   const openItems = attention.items;
@@ -328,27 +443,53 @@ export function buildResourceBoard(
     .filter((n): n is ResourceNeed => Boolean(n));
 
   // Prefer a clear shortage from Verified/Queue reports when stock is empty.
+  // Skip reports already covered by a shared supply epic (water/food/medical).
+  const coveredByEpic = new Set(
+    needs.flatMap((n) => n.reportIds ?? [n.reportId]),
+  );
   const verifiedShort = reports.filter(
     (r) =>
-      (r.status === "legit" || r.status === "queued" || r.status === "assigned") &&
+      (r.status === "legit" ||
+        r.status === "queued" ||
+        r.status === "assigned" ||
+        r.status === "needs_review") &&
       parseReportNeed(r).short &&
+      !supplyNeedKind(r) &&
       !/medical|kit|red cross/i.test(`${r.title ?? ""} ${r.notes ?? ""}`),
   );
   for (const report of verifiedShort) {
+    if (coveredByEpic.has(report.id)) continue;
     if (needs.some((n) => n.reportId === report.id && n.kind === "shortage")) {
       continue;
     }
     needs.unshift(needFromReport(report));
   }
 
+  // Also fold loose water/food/medical sitio cards into one shared shortage.
+  const supplyReports = reports.filter(
+    (r) =>
+      r.status !== "rejected" &&
+      r.status !== "done" &&
+      supplyNeedKind(r) != null,
+  );
+  for (const report of supplyReports) {
+    if (coveredByEpic.has(report.id)) continue;
+    if (needs.some((n) => (n.reportIds ?? [n.reportId]).includes(report.id))) {
+      continue;
+    }
+    needs.push(needFromReport(report));
+  }
+
+  needs = collapseSupplyShortages(needs, reports);
+
   if (needs.length === 0) {
     needs = demoNeeds(reports);
   }
 
-  // De-dupe by reportId+kind, prefer shortage.
+  // De-dupe by card id (epics) or reportId+kind.
   const seen = new Set<string>();
   needs = needs.filter((n) => {
-    const key = `${n.reportId}:${n.kind}`;
+    const key = n.id.startsWith("epic-") ? n.id : `${n.reportId}:${n.kind}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;

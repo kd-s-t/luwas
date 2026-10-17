@@ -114,11 +114,65 @@ function timeLabelPht(iso: string): string {
   }
 }
 
-function placeLine(report: HazardReport): string {
+export function placeLine(report: HazardReport): string {
   const purok = report.citizenPurok?.trim();
   if (purok) return purok;
   if (report.locationLabel?.trim()) return report.locationLabel.trim();
   return report.barangay || "Field";
+}
+
+/** Desk stock for shortage math (Apas seed amounts when scoped there). */
+export function deskStockForReports(
+  reports: { barangay?: string | null }[],
+): AttentionStock {
+  const apas = reports.some((r) => /apas/i.test(r.barangay ?? ""));
+  if (apas) {
+    return { waterL: 1200, foodPacks: 160, medicalKits: 10 };
+  }
+  return { waterL: 0, foodPacks: 0, medicalKits: 0 };
+}
+
+/** Shared shortage copy: headline · qty line · Affects (related text only). */
+export function epicShortageCopy(
+  kind: SupplyNeedKind,
+  reports: HazardReport[],
+  stock?: AttentionStock,
+): {
+  incidentCode: string;
+  headline: string;
+  detail: string;
+  affectsLabel: string;
+  meta: string;
+  primary: HazardReport;
+  reportIds: string[];
+} {
+  const sorted = [...reports].sort(
+    (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
+  );
+  const primary = sorted[0]!;
+  const places = [...new Set(sorted.map(placeLine).filter(Boolean))];
+  const placeLabel =
+    places.length <= 3
+      ? places.join(", ")
+      : `${places.slice(0, 2).join(", ")} +${places.length - 2} more`;
+  const agg = aggregateSupplyNeed(sorted);
+  const requested = requestedFor(kind, agg);
+  const available = stockAvailable(kind, stock);
+  const shortage = Math.max(0, requested - available);
+  const unit = supplyNeedUnit(kind);
+  const communityWord =
+    places.length === 1 ? "community" : "communities";
+  const requestWord = sorted.length === 1 ? "request" : "requests";
+
+  return {
+    incidentCode: supplyNeedEpicCode(kind),
+    headline: `${supplyNeedNoun(kind)} shortage across ${places.length} ${communityWord}`,
+    detail: `${fmtQty(requested)} ${unit} requested · ${fmtQty(available)} ${unit} available · ${fmtQty(shortage)} ${unit} shortage`,
+    affectsLabel: `Affects: ${placeLabel}`,
+    meta: `${sorted.length} ${requestWord}`,
+    primary,
+    reportIds: sorted.map((r) => r.id),
+  };
 }
 
 function isUnverified(report: HazardReport): boolean {
@@ -279,42 +333,24 @@ function buildEpicItem(
   reports: HazardReport[],
   stock?: AttentionStock,
 ): AttentionItem {
-  const sorted = [...reports].sort(
-    (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
-  );
-  const primary = sorted[0]!;
-  const places = [...new Set(sorted.map(placeLine).filter(Boolean))];
-  const placeLabel =
-    places.length <= 3
-      ? places.join(", ")
-      : `${places.slice(0, 2).join(", ")} +${places.length - 2} more`;
-  const agg = aggregateSupplyNeed(sorted);
-  const requested = requestedFor(kind, agg);
-  const available = stockAvailable(kind, stock);
-  const shortage = Math.max(0, requested - available);
-  const unit = supplyNeedUnit(kind);
-  const communityWord =
-    places.length === 1 ? "community" : "communities";
-  const requestWord = sorted.length === 1 ? "request" : "requests";
-
-  const code = supplyNeedEpicCode(kind);
+  const copy = epicShortageCopy(kind, reports, stock);
   return {
     id: `epic-${kind}`,
     kind: "resource",
-    reportId: primary.id,
-    reportIds: sorted.map((r) => r.id),
-    incidentCode: code,
+    reportId: copy.primary.id,
+    reportIds: copy.reportIds,
+    incidentCode: copy.incidentCode,
     tags: [{ label: "Shared resource shortage", tone: "warn" }],
-    headline: `${supplyNeedNoun(kind)} shortage across ${places.length} ${communityWord}`,
-    detail: `${fmtQty(requested)} ${unit} requested · ${fmtQty(available)} ${unit} available · ${fmtQty(shortage)} ${unit} shortage`,
-    affectsLabel: `Affects: ${placeLabel}`,
-    timeLabel: timeLabelPht(primary.createdAt),
-    meta: `${sorted.length} ${requestWord}`,
+    headline: copy.headline,
+    detail: copy.detail,
+    affectsLabel: copy.affectsLabel,
+    timeLabel: timeLabelPht(copy.primary.createdAt),
+    meta: copy.meta,
     ctaLabel: "Review shortage",
-    ctaHref: `/admin/resources?rs=${encodeURIComponent(code)}`,
+    ctaHref: `/admin/resources?rs=${encodeURIComponent(copy.incidentCode)}`,
     primaryCta: false,
-    lat: primary.lat,
-    lng: primary.lng,
+    lat: copy.primary.lat,
+    lng: copy.primary.lng,
   };
 }
 
