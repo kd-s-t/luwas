@@ -162,15 +162,29 @@ function mapDoc(id: string, data: Record<string, unknown>): InventoryItem {
     typeof data.imageUrl === "string" && data.imageUrl.trim()
       ? data.imageUrl.trim()
       : undefined;
+  const fromList = Array.isArray(data.imageUrls)
+    ? data.imageUrls
+        .filter((u): u is string => typeof u === "string" && Boolean(u.trim()))
+        .map((u) => u.trim())
+    : [];
+  const resolvedPrimary =
+    fromDoc ??
+    fromList[0] ??
+    resolveInventorySeedImage({ docId: id, barangayId, label });
+  const imageUrls =
+    fromList.length > 0
+      ? fromList
+      : resolvedPrimary
+        ? [resolvedPrimary]
+        : [];
   return {
     id,
     label,
     category: asCategory(data.category),
     unit: String(data.unit ?? "units"),
     available: Number.isFinite(available) ? Math.max(0, available) : 0,
-    imageUrl:
-      fromDoc ??
-      resolveInventorySeedImage({ docId: id, barangayId, label }),
+    imageUrl: resolvedPrimary,
+    imageUrls,
     location: typeof data.location === "string" ? data.location : undefined,
     notes: typeof data.notes === "string" ? data.notes : undefined,
     status: data.status === "inactive" ? "inactive" : "active",
@@ -226,12 +240,20 @@ export async function addBarangayInventoryItem(
     throw new Error("Quantity must be zero or more.");
   }
   const now = new Date().toISOString();
+  const imageUrls = Array.isArray(input.imageUrls)
+    ? input.imageUrls
+        .filter((u): u is string => typeof u === "string" && Boolean(u.trim()))
+        .map((u) => u.trim())
+    : [];
+  const primary =
+    input.imageUrl?.trim() || imageUrls[0] || null;
   const ref = await addDoc(collection(getClientDb(), COL), {
     label,
     category: input.category,
     unit: input.unit.trim() || "units",
     available,
-    imageUrl: input.imageUrl?.trim() || null,
+    imageUrl: primary,
+    imageUrls: imageUrls.length > 0 ? imageUrls : primary ? [primary] : [],
     location: input.location?.trim() || null,
     notes: input.notes?.trim() || null,
     status: input.status ?? "active",

@@ -3,9 +3,9 @@
 import { cn } from "@/lib/utils";
 
 const STEPS = [
-  { n: 1, label: "Compare options" },
-  { n: 2, label: "Review plan & approve" },
-  { n: 3, label: "Track delivery" },
+  { n: 1, label: "Compare allocation options" },
+  { n: 2, label: "Review & approve plan" },
+  { n: 3, label: "Track assistance" },
 ] as const;
 
 export function AllocationPlanStepper({

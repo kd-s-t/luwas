@@ -30,7 +30,7 @@ export const UGNAI_DEVELOPERS: readonly UgnaiDeveloper[] = [
     name: "Don Sebial",
     short: "Don",
     role: "Product Designer",
-    focus: "UI/UX and Graphic Design",
+    focus: "Product Designer",
     email: "don@ugnai.demo",
     password: "demo1234",
     bio: "Shapes how UGNAI looks and feels: brand direction, map and command layout, citizen report UX, motion, and graphic assets so officers and residents can read urgency at a glance without clutter.",

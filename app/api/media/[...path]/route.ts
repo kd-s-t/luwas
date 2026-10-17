@@ -10,7 +10,9 @@ export async function GET(_req: Request, { params }: Params) {
   const { path } = await params;
   const objectPath = path.map((p) => decodeURIComponent(p)).join("/");
   const allowed =
-    objectPath.startsWith("reports/") || objectPath.startsWith("support/");
+    objectPath.startsWith("reports/") ||
+    objectPath.startsWith("support/") ||
+    objectPath.startsWith("inventory/");
   if (!allowed || objectPath.includes("..")) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }

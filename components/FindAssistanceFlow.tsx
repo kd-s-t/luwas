@@ -343,7 +343,7 @@ export function FindAssistanceFlow() {
 
   useEffect(() => {
     if (!rsParam) return;
-    const track = `/admin/resources/track/${encodeURIComponent(rsParam)}`;
+    const track = `/admin/resources/track/${encodeURIComponent(rsParam)}/transport`;
     router.replace(
       reportParam
         ? `${track}?report=${encodeURIComponent(reportParam)}`

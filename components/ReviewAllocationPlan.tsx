@@ -189,18 +189,8 @@ export function ReviewAllocationPlan() {
       await setShortageReviewStatus(rsCode, "approved");
       const next = await getShortageById(rsCode);
       setShortage(next);
-      const opts = next?.allocation?.options ?? [];
-      const selectedId = next?.selectedOptionId || opts[0]?.id || "";
-      const opt =
-        opts.find((o) => o.id === selectedId) ?? opts[0] ?? null;
-      const transport =
-        opt?.lines.find((l) => l.constraint === "no_transport") ??
-        lines.find((l) => l.constraint === "no_transport");
-      const track = `/admin/resources/track/${encodeURIComponent(rsCode)}`;
       router.push(
-        transport?.reportId
-          ? `${track}?report=${encodeURIComponent(transport.reportId)}`
-          : track,
+        `/admin/resources/track/${encodeURIComponent(rsCode)}`,
       );
     } finally {
       setApproving(false);
@@ -533,7 +523,7 @@ export function ReviewAllocationPlan() {
                     <Link
                       href={
                         line.constraint === "no_transport"
-                          ? `/admin/resources/track/${encodeURIComponent(rsCode)}?report=${encodeURIComponent(line.reportId)}`
+                          ? `/admin/resources/track/${encodeURIComponent(rsCode)}/transport?report=${encodeURIComponent(line.reportId)}`
                           : `/admin/incidents/${encodeURIComponent(line.reportId)}`
                       }
                       className="mt-3 inline-flex rounded-lg border border-[#93c5fd] bg-white px-3 py-2 text-[12px] font-medium text-[#2f5f9e] transition hover:border-[#3b6fb6]"
@@ -568,18 +558,14 @@ export function ReviewAllocationPlan() {
         {approved ? (
           <button
             type="button"
-            onClick={() => {
-              const transport = lines.find((l) => l.constraint === "no_transport");
-              const track = `/admin/resources/track/${encodeURIComponent(rsCode)}`;
+            onClick={() =>
               router.push(
-                transport?.reportId
-                  ? `${track}?report=${encodeURIComponent(transport.reportId)}`
-                  : track,
-              );
-            }}
+                `/admin/resources/track/${encodeURIComponent(rsCode)}`,
+              )
+            }
             className="inline-flex rounded-lg bg-[#2f5f9e] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#254d82]"
           >
-            Continue to track delivery
+            Continue to track assistance
           </button>
         ) : (
           <button

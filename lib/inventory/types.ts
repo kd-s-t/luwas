@@ -39,8 +39,10 @@ export type InventoryItemInput = {
   category: InventoryCategory;
   unit: string;
   available: number;
-  /** Photo of the physical item (public URL path). */
+  /** Primary photo of the physical item (public URL path). */
   imageUrl?: string;
+  /** Additional photos (includes primary as first entry when present). */
+  imageUrls?: string[];
   location?: string;
   notes?: string;
   status?: "active" | "inactive";
