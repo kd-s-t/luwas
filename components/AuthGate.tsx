@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { AuthPageSkeleton } from "@/components/AuthPageSkeleton";
 import { PageLoadSkeleton } from "@/components/PageLoadSkeleton";
 import { useAuth } from "@/lib/auth/AuthProvider";
@@ -27,6 +27,14 @@ function homeForRole(role: UserRole | undefined) {
   return "/admin/overview";
 }
 
+/** Login portals that only accept one role — wrong role stays on the form. */
+function portalRoleMismatch(pathname: string, role: UserRole): boolean {
+  if (pathname.startsWith("/login/citizen")) return role !== "citizen";
+  if (pathname.startsWith("/login/officer")) return role !== "officer";
+  if (pathname.startsWith("/login/developer")) return role !== "developer";
+  return false;
+}
+
 export function AuthGate({
   children,
   mode,
@@ -35,6 +43,7 @@ export function AuthGate({
 }: AuthGateProps) {
   const { user, profile, loading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname() ?? "";
   // Keep SSR + first client paint on the skeleton so Firebase auth cannot
   // resolve to a different tree during hydration.
   const [mounted, setMounted] = useState(false);
@@ -55,15 +64,19 @@ export function AuthGate({
       return;
     }
     if (mode === "guest" && user) {
+      // Wait for profile so login portals can reject the wrong role
+      // (citizen vs officer) before redirecting.
+      if (!profile) return;
+      if (portalRoleMismatch(pathname, profile.role)) return;
       if (
         isAccountPending(profile) ||
         isAccountFired(profile) ||
-        profile?.accountStatus === "rejected"
+        profile.accountStatus === "rejected"
       ) {
         router.replace("/pending");
         return;
       }
-      router.replace(homeForRole(profile?.role));
+      router.replace(homeForRole(profile.role));
       return;
     }
     if (mode === "protected" && user && role && profile && profile.role !== role) {
@@ -79,7 +92,17 @@ export function AuthGate({
     ) {
       router.replace("/pending");
     }
-  }, [mounted, loading, mode, router, user, profile, role, allowPending]);
+  }, [
+    mounted,
+    loading,
+    mode,
+    router,
+    user,
+    profile,
+    role,
+    allowPending,
+    pathname,
+  ]);
 
   if (!mounted || loading) {
     return mode === "guest" ? <AuthPageSkeleton /> : <PageLoadSkeleton />;
@@ -88,6 +111,18 @@ export function AuthGate({
   // Keep the skeleton up while redirect effects run — never flash a blank page.
   if (mode === "protected" && !user) {
     return <PageLoadSkeleton />;
+  }
+  if (mode === "guest" && user && !profile) {
+    return <AuthPageSkeleton />;
+  }
+  if (
+    mode === "guest" &&
+    user &&
+    profile &&
+    portalRoleMismatch(pathname, profile.role)
+  ) {
+    // Keep the login form visible while the portal signs the wrong role out.
+    return <>{children}</>;
   }
   if (mode === "guest" && user) {
     return <AuthPageSkeleton />;

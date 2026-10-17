@@ -12,10 +12,10 @@ import {
   type DemoOfficer,
 } from "@/lib/auth/demoOfficers";
 import { useAuth } from "@/lib/auth/AuthProvider";
+import { requireLoginRole } from "@/lib/auth/requireLoginRole";
 import { useEmulators } from "@/lib/firebase/client";
-import { doc, getDoc, serverTimestamp, updateDoc } from "firebase/firestore";
+import { doc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { getClientAuth, getClientDb } from "@/lib/firebase/client";
-import type { UserProfile } from "@/lib/auth/types";
 
 const CAPTAIN =
   DEMO_OFFICERS.find((o) => o.id === "captain") ?? DEMO_OFFICERS[0]!;
@@ -23,7 +23,7 @@ const CAPTAIN =
 const SHOW_EASY_LOGINS = useEmulators;
 
 export default function LoginPage() {
-  const { login, register } = useAuth();
+  const { login, register, logout } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState<string>(
     SHOW_EASY_LOGINS ? CAPTAIN.email : "",
@@ -147,29 +147,13 @@ export default function LoginPage() {
     setSubmitting(true);
     try {
       await ensureBootstrapOfficer(officer);
-      await redirectForCurrentUser();
+      await requireLoginRole("officer", logout);
+      router.replace("/admin/overview");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {
       setSubmitting(false);
     }
-  }
-
-  async function redirectForCurrentUser() {
-    const uid = getClientAuth().currentUser?.uid;
-    if (!uid) {
-      router.replace("/admin/overview");
-      return;
-    }
-    const snap = await getDoc(doc(getClientDb(), "users", uid));
-    const profile = snap.exists() ? (snap.data() as UserProfile) : null;
-    router.replace(
-      profile?.role === "citizen"
-        ? "/my-reports"
-        : profile?.role === "developer"
-          ? "/dev"
-          : "/admin/overview",
-    );
   }
 
   async function onSubmit(e: FormEvent) {
@@ -184,7 +168,8 @@ export default function LoginPage() {
       } else {
         await login(trimmedEmail, password);
       }
-      await redirectForCurrentUser();
+      await requireLoginRole("officer", logout);
+      router.replace("/admin/overview");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Login failed";
       setError(
