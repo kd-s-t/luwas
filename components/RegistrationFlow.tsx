@@ -88,11 +88,21 @@ function OutcomeNode({ data }: NodeProps) {
     inBot?: boolean;
     outValid?: boolean;
     outRejected?: boolean;
+    /** Officer: left (in) · top (valid) · right (rejected). */
+    handles?: "left-top-right";
   };
   const logos = d.logos ?? (d.logo ? [d.logo] : []);
+  const officerHandles = d.handles === "left-top-right";
   return (
-    <div className={flowNodeClass} style={{ width: 180 }}>
-      {d.inTop || d.inBot ? (
+    <div className={`relative ${flowNodeClass}`} style={{ width: 180 }}>
+      {officerHandles ? (
+        <Handle
+          type="target"
+          position={Position.Left}
+          id="in"
+          className="!size-2 !bg-[#c72929] !border-0"
+        />
+      ) : d.inTop || d.inBot ? (
         <>
           {d.inTop ? (
             <Handle
@@ -120,6 +130,14 @@ function OutcomeNode({ data }: NodeProps) {
           className="!size-2 !bg-[#c72929] !border-0"
         />
       )}
+      {officerHandles ? (
+        <Handle
+          type="source"
+          position={Position.Top}
+          id="valid"
+          className="!size-2 !bg-[#16794c] !border-0"
+        />
+      ) : null}
       {logos.length > 0 ? (
         <div className="mb-1 flex items-center justify-center gap-2">
           {logos.map((src) => (
@@ -140,7 +158,15 @@ function OutcomeNode({ data }: NodeProps) {
           {line}
         </p>
       ))}
-      {d.outValid ? (
+      {officerHandles ? (
+        <Handle
+          type="source"
+          position={Position.Right}
+          id="rejected"
+          className="!size-2 !bg-[#c72929] !border-0"
+        />
+      ) : null}
+      {!officerHandles && d.outValid ? (
         <Handle
           type="source"
           position={Position.Right}
@@ -149,7 +175,7 @@ function OutcomeNode({ data }: NodeProps) {
           className="!size-2 !bg-[#16794c] !border-0"
         />
       ) : null}
-      {d.outRejected ? (
+      {!officerHandles && d.outRejected ? (
         <Handle
           type="source"
           position={Position.Right}
@@ -241,8 +267,7 @@ function RegistrationFlowCanvas() {
           title: "Officer intervention:",
           logo: "/brands/officer.png",
           lines: ["Manual call", "Manual confirm"],
-          outValid: true,
-          outRejected: true,
+          handles: "left-top-right",
         },
       },
       {
@@ -286,6 +311,7 @@ function RegistrationFlowCanvas() {
         source: "gemini",
         sourceHandle: "invalid",
         target: "officer",
+        targetHandle: "in",
         label: "Rejected",
         markerEnd: { type: MarkerType.ArrowClosed, color: "#c72929" },
         style: { stroke: "#c72929", strokeWidth: 1.75 },
@@ -334,13 +360,13 @@ function RegistrationFlowCanvas() {
     fitView,
     hydrated,
     canvasKey,
-  } = useFlowLayout("registration-v2", defaultNodes, defaultEdges);
+  } = useFlowLayout("registration-v3", defaultNodes, defaultEdges);
 
   return (
     <div className="relative h-full min-h-[420px] w-full overflow-hidden bg-[#eef1f5]">
       <div className="absolute top-3 right-3 z-10 flex gap-2">
         <FlowCopyJsonButton
-          flowId="registration-v2"
+          flowId="registration-v3"
           nodes={nodes}
           edges={edges}
         />
