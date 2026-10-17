@@ -85,7 +85,7 @@ export function PublicEvacCentersList() {
         <p className="py-10 text-center text-sm text-[var(--muted)]">
           Loading evacuation centers…
         </p>
-      ) : rows.length === 0 ? (
+      ) : error ? null : rows.length === 0 ? (
         <p className="py-10 text-center text-sm text-[var(--muted)]">
           No evacuation centers listed for this barangay yet.
         </p>

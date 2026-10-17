@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { Mail, Phone, User } from "lucide-react";
+import { Mail, MapPin, Phone, Search, User } from "lucide-react";
+import { motion } from "framer-motion";
 import {
   useEffect,
   useMemo,
@@ -9,9 +10,15 @@ import {
   useState,
   type FormEvent,
 } from "react";
-import { FadeIn } from "@/components/motion/primitives";
+import { easeOut, FadeIn, useMotionSafe } from "@/components/motion/primitives";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import { isAccountActive, isOfficer } from "@/lib/auth/types";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   addResourcePartner,
   ensureNangkaPartners,
@@ -45,8 +52,17 @@ function partnerDistanceKm(
   hall: { lat: number; lng: number },
   p: ResourcePartner,
 ): number | null {
-  if (typeof p.lat !== "number" || typeof p.lng !== "number") return null;
-  return distKm(hall, { lat: p.lat, lng: p.lng });
+  const lat = Number(p.lat);
+  const lng = Number(p.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return distKm(hall, { lat, lng });
+}
+
+function directionsUrl(
+  from: { lat: number; lng: number },
+  to: { lat: number; lng: number },
+): string {
+  return `https://www.google.com/maps/dir/?api=1&origin=${from.lat},${from.lng}&destination=${to.lat},${to.lng}&travelmode=driving`;
 }
 
 const SUPPLY_OPTIONS: PartnerSupply[] = [
@@ -93,6 +109,7 @@ export function PartnersPanel() {
     [profile],
   );
   const hall = useMemo(() => hallCenter(barangayId), [barangayId]);
+  const motionOk = useMotionSafe();
 
   const [rows, setRows] = useState<ResourcePartner[]>([]);
   const [loading, setLoading] = useState(true);
@@ -100,6 +117,20 @@ export function PartnersPanel() {
   const [msg, setMsg] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [inspect, setInspect] = useState<ResourcePartner | null>(null);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  async function copyText(key: string, value: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+      if (copiedTimer.current) clearTimeout(copiedTimer.current);
+      setCopiedKey(key);
+      copiedTimer.current = setTimeout(() => setCopiedKey(null), 1600);
+    } catch {
+      setCopiedKey(null);
+    }
+  }
 
   const [name, setName] = useState("");
   const [type, setType] = useState<PartnerType>("ngo");
@@ -381,7 +412,9 @@ export function PartnersPanel() {
             Directory
           </h2>
           <span className="text-[12px] text-[var(--muted)]">
-            {loading ? "Loading…" : `${rows.length} active`}
+            {loading
+              ? "Loading…"
+              : `${rows.length} active · nearest first`}
           </span>
         </div>
         {rows.length === 0 && !loading ? (
@@ -391,92 +424,239 @@ export function PartnersPanel() {
           </p>
         ) : (
           <ul className="divide-y divide-[var(--border)]">
-            {sortedRows.map((p) => {
+            {sortedRows.map((p, i) => {
               const logo = partnerLogoUrl(p);
               const km = partnerDistanceKm(hall, p);
               return (
-              <li key={p.id} className="px-4 py-4 sm:px-5">
-                <div className="flex flex-wrap items-start gap-3 sm:flex-nowrap">
-                  {logo ? (
-                    <Image
-                      src={logo}
-                      alt=""
-                      width={44}
-                      height={44}
-                      className="size-11 shrink-0 object-contain"
-                    />
-                  ) : null}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-semibold text-[var(--foreground)]">
-                        {p.name}
-                      </p>
-                      <span className="rounded-full bg-[#3b6fb6]/10 px-2 py-0.5 text-[10px] font-semibold text-[#2f5f9e] ring-1 ring-[#3b6fb6]/20">
-                        {partnerTypeLabel(p.type)}
-                      </span>
-                      {km != null ? (
-                        <span className="text-[11px] font-medium text-[var(--muted)]">
-                          {formatDistanceKm(km)} from Brgy. Hall
-                        </span>
-                      ) : null}
+                <li key={p.id} className="px-4 py-4 sm:px-5">
+                  <FadeIn y={8} delay={Math.min(i * 0.03, 0.24)}>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex min-w-0 flex-1 gap-3">
+                      <div className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#f4f6f8]">
+                        {logo ? (
+                          <Image
+                            src={logo}
+                            alt=""
+                            width={44}
+                            height={44}
+                            className="size-11 object-contain"
+                          />
+                        ) : (
+                          <span className="text-[11px] font-semibold tracking-wide text-[var(--muted)]">
+                            {partnerTypeLabel(p.type).slice(0, 3).toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                          <p className="font-semibold text-[var(--foreground)]">
+                            {p.name}
+                          </p>
+                          <span className="text-[11px] font-medium text-[var(--muted)]">
+                            {partnerTypeLabel(p.type)}
+                          </span>
+                          {km != null &&
+                          Number.isFinite(Number(p.lat)) &&
+                          Number.isFinite(Number(p.lng)) ? (
+                            <a
+                              href={directionsUrl(hall, {
+                                lat: Number(p.lat),
+                                lng: Number(p.lng),
+                              })}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] font-medium text-[#2f5f9e] underline-offset-2 transition hover:underline"
+                            >
+                              <MapPin
+                                className="size-3 shrink-0"
+                                aria-hidden
+                              />
+                              {formatDistanceKm(km)} from hall
+                            </a>
+                          ) : null}
+                        </div>
+                        <p className="text-[13px] text-[var(--foreground)]">
+                          {p.supplies.map(partnerSupplyLabel).join(" · ") ||
+                            "Supplies TBD"}
+                        </p>
+                        <p className="text-[12px] text-[var(--muted)]">
+                          {[p.coverage || null, p.notes || null]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </p>
+                      </div>
                     </div>
-                    <p className="mt-0.5 text-[12px] text-[var(--muted)]">
-                      {p.coverage || "Coverage TBD"}
-                    </p>
-                    <p className="mt-2 text-[12px] text-[var(--foreground)]">
-                      {p.supplies.map(partnerSupplyLabel).join(" · ") ||
-                        "Supplies TBD"}
-                    </p>
-                    {p.notes ? (
-                      <p className="mt-1 text-[12px] text-[var(--muted)]">
-                        {p.notes}
-                      </p>
-                    ) : null}
-                  </div>
-                  <div className="flex w-full shrink-0 flex-col gap-1.5 text-sm text-[var(--muted)] sm:w-auto sm:min-w-[12rem] sm:items-stretch sm:pl-2">
-                    {p.contactName ? (
-                      <p className="flex items-center gap-2">
-                        <User
-                          className="size-3.5 shrink-0 text-[#2f5f9e]"
-                          aria-hidden
-                        />
-                        <span className="truncate text-[var(--foreground)]">
-                          {p.contactName}
-                        </span>
-                      </p>
-                    ) : null}
-                    {p.phone ? (
-                      <a
-                        href={`tel:${p.phone.replace(/\s+/g, "")}`}
-                        className="flex items-center gap-2 transition hover:text-[#2f5f9e]"
+                    <div className="flex shrink-0 items-start gap-2 sm:max-w-[16rem]">
+                      <div className="min-w-0 flex-1 space-y-1 text-[12px] text-[var(--muted)] sm:text-right">
+                        {p.contactName ? (
+                          <p className="flex items-center gap-1.5 text-[var(--foreground)] sm:flex-row-reverse">
+                            <User
+                              className="size-3.5 shrink-0 text-[#2f5f9e]"
+                              aria-hidden
+                            />
+                            <span className="truncate">{p.contactName}</span>
+                          </p>
+                        ) : null}
+                        {p.phone ? (
+                          <a
+                            href={`tel:${p.phone.replace(/\s+/g, "")}`}
+                            className="flex items-center gap-1.5 hover:text-[var(--foreground)] sm:flex-row-reverse"
+                          >
+                            <Phone
+                              className="size-3.5 shrink-0 text-[#2f5f9e]"
+                              aria-hidden
+                            />
+                            <span className="truncate">{p.phone}</span>
+                          </a>
+                        ) : null}
+                        {p.email ? (
+                          <a
+                            href={`mailto:${p.email}`}
+                            className="flex items-center gap-1.5 hover:text-[var(--foreground)] sm:flex-row-reverse"
+                          >
+                            <Mail
+                              className="size-3.5 shrink-0 text-[#2f5f9e]"
+                              aria-hidden
+                            />
+                            <span className="truncate">{p.email}</span>
+                          </a>
+                        ) : null}
+                      </div>
+                      <motion.button
+                        type="button"
+                        onClick={() => setInspect(p)}
+                        className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-white text-[#2f5f9e] hover:bg-[#f4f6f8]"
+                        aria-label={`View contact for ${p.name}`}
+                        whileHover={motionOk ? { scale: 1.06 } : undefined}
+                        whileTap={motionOk ? { scale: 0.94 } : undefined}
+                        transition={{ duration: 0.15, ease: easeOut }}
                       >
-                        <Phone
-                          className="size-3.5 shrink-0 text-[#2f5f9e]"
-                          aria-hidden
-                        />
-                        <span className="truncate">{p.phone}</span>
-                      </a>
-                    ) : null}
-                    {p.email ? (
-                      <a
-                        href={`mailto:${p.email}`}
-                        className="flex items-center gap-2 transition hover:text-[#2f5f9e]"
-                      >
-                        <Mail
-                          className="size-3.5 shrink-0 text-[#2f5f9e]"
-                          aria-hidden
-                        />
-                        <span className="truncate">{p.email}</span>
-                      </a>
-                    ) : null}
+                        <Search className="size-3.5" aria-hidden />
+                      </motion.button>
+                    </div>
                   </div>
-                </div>
-              </li>
+                  </FadeIn>
+                </li>
               );
             })}
           </ul>
         )}
       </section>
+
+      <Dialog
+        open={inspect != null}
+        onOpenChange={(next) => {
+          if (!next) {
+            setInspect(null);
+            setCopiedKey(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-md overflow-hidden p-0">
+          <motion.div
+            key={inspect?.id ?? "closed"}
+            initial={motionOk ? { opacity: 0, y: 12, scale: 0.97 } : false}
+            animate={motionOk ? { opacity: 1, y: 0, scale: 1 } : undefined}
+            transition={{ duration: 0.3, ease: easeOut }}
+          >
+            <div className="border-b border-[var(--border)] px-6 pt-7 pr-12 pb-5">
+              {inspect && partnerLogoUrl(inspect) ? (
+                <FadeIn y={6} className="mb-4">
+                  <div className="flex size-14 items-center justify-center overflow-hidden rounded-xl bg-[#f4f6f8] ring-1 ring-[var(--border)]">
+                    <Image
+                      src={partnerLogoUrl(inspect)!}
+                      alt=""
+                      width={56}
+                      height={56}
+                      className="size-14 object-contain p-1"
+                    />
+                  </div>
+                </FadeIn>
+              ) : null}
+              <DialogTitle className="text-[1.65rem] leading-tight sm:text-[1.85rem]">
+                {inspect?.name ?? "Partner"}
+              </DialogTitle>
+              <DialogDescription className="sr-only">
+                Partner contact details
+              </DialogDescription>
+            </div>
+            <div className="divide-y divide-[var(--border)]">
+              {inspect?.contactName ? (
+                <FadeIn y={6} delay={0.04} className="px-5 py-4 sm:px-6">
+                  <div className="flex items-center gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] font-medium tracking-wide text-[var(--muted)] uppercase">
+                        Contact
+                      </p>
+                      <p className="mt-0.5 truncate text-lg font-semibold text-[var(--foreground)] sm:text-xl">
+                        {inspect.contactName}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void copyText("contact", inspect.contactName)
+                      }
+                      className="h-10 w-[4.5rem] shrink-0 rounded-xl border border-[var(--border)] bg-white text-sm font-semibold text-[var(--foreground)] transition hover:border-[#2f5f9e]/40 hover:text-[#2f5f9e]"
+                    >
+                      {copiedKey === "contact" ? "Copied" : "Copy"}
+                    </button>
+                  </div>
+                </FadeIn>
+              ) : null}
+              {inspect?.phone ? (
+                <FadeIn y={6} delay={0.07} className="px-5 py-4 sm:px-6">
+                  <div className="flex items-center gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] font-medium tracking-wide text-[var(--muted)] uppercase">
+                        Phone
+                      </p>
+                      <a
+                        href={`tel:${inspect.phone.replace(/\s+/g, "")}`}
+                        className="mt-0.5 block truncate text-lg font-semibold text-[#2f5f9e] hover:underline sm:text-xl"
+                      >
+                        {inspect.phone}
+                      </a>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void copyText("phone", inspect.phone)}
+                      className="h-10 w-[4.5rem] shrink-0 rounded-xl border border-[var(--border)] bg-white text-sm font-semibold text-[var(--foreground)] transition hover:border-[#2f5f9e]/40 hover:text-[#2f5f9e]"
+                    >
+                      {copiedKey === "phone" ? "Copied" : "Copy"}
+                    </button>
+                  </div>
+                </FadeIn>
+              ) : null}
+              {inspect?.email ? (
+                <FadeIn y={6} delay={0.1} className="px-5 py-4 sm:px-6">
+                  <div className="flex items-center gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] font-medium tracking-wide text-[var(--muted)] uppercase">
+                        Email
+                      </p>
+                      <a
+                        href={`mailto:${inspect.email}`}
+                        className="mt-0.5 block truncate text-base font-semibold text-[#2f5f9e] hover:underline sm:text-lg"
+                        title={inspect.email}
+                      >
+                        {inspect.email}
+                      </a>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void copyText("email", inspect.email)}
+                      className="h-10 w-[4.5rem] shrink-0 rounded-xl border border-[var(--border)] bg-white text-sm font-semibold text-[var(--foreground)] transition hover:border-[#2f5f9e]/40 hover:text-[#2f5f9e]"
+                    >
+                      {copiedKey === "email" ? "Copied" : "Copy"}
+                    </button>
+                  </div>
+                </FadeIn>
+              ) : null}
+            </div>
+          </motion.div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
