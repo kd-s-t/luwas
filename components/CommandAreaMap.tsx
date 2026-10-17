@@ -173,7 +173,7 @@ function facilityHtml(
   opts?: { occupancy?: number; pulse?: boolean },
 ) {
   const base = facilityMarkerHtml(kind, 32, { flooded });
-  const pulse = opts?.pulse !== false;
+  const pulse = opts?.pulse === true;
   const people =
     typeof opts?.occupancy === "number" && opts.occupancy > 0
       ? `<span class="dro-map-occupancy-badge">${opts.occupancy}</span>`
@@ -623,6 +623,8 @@ type CommandAreaMapProps = {
   escapeRoutes?: AssistEscapeRoute[];
   scenarioPhase?: DrrmScenarioPhase;
   scrollWheelZoom?: boolean;
+  /** Concentric pulse on hall / shelter pins (evac centers page only). */
+  pulseFacilities?: boolean;
 };
 
 function CommandAreaMapInner({
@@ -644,6 +646,7 @@ function CommandAreaMapInner({
   escapeRoutes = [],
   scenarioPhase,
   scrollWheelZoom = true,
+  pulseFacilities = false,
 }: CommandAreaMapProps) {
   void _forceLayers;
   const flyRef = useRef<MapFlyFn | null>(null);
@@ -734,7 +737,7 @@ function CommandAreaMapInner({
       {layerSafePoints.every((sp) => sp.kind !== "hall") && !showUserPin ? (
         <MapHtmlMarker
           position={{ lat: area.center.lat, lng: area.center.lng }}
-          html={facilityHtml("hall", false, { pulse: true })}
+          html={facilityHtml("hall", false, { pulse: pulseFacilities })}
           zIndex={750}
         >
           <strong>Command center · Brgy. {area.barangay} Hall</strong>
@@ -1079,7 +1082,7 @@ function CommandAreaMapInner({
             position={{ lat: sp.lat, lng: sp.lng }}
             html={facilityHtml(iconKind, floodedPin, {
               occupancy: isShelter ? sp.occupancy : undefined,
-              pulse: true,
+              pulse: pulseFacilities,
             })}
             zIndex={z}
           >

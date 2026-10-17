@@ -10,12 +10,14 @@ import { CalamityAftermathFlow } from "@/components/CalamityAftermathFlow";
 import { CalamityDuringLandfallFlow } from "@/components/CalamityDuringLandfallFlow";
 import { CarIncidentFlow } from "@/components/CarIncidentFlow";
 import { EarthEngineFlow } from "@/components/EarthEngineFlow";
+import { PartnerOnboardFlow } from "@/components/PartnerOnboardFlow";
 import { RegistrationFlow } from "@/components/RegistrationFlow";
 import { VertexAgentFlow } from "@/components/VertexAgentFlow";
 import { cn } from "@/lib/utils";
 
 const TABS = [
   { id: "onboard", label: "Barangay Onboard" },
+  { id: "partners", label: "Partner Onboard" },
   { id: "earth-engine", label: "Earth Engine" },
   { id: "vertex", label: "Gemini Agent Platform" },
   { id: "registration", label: "Register Citizen" },
@@ -79,6 +81,8 @@ function FlowsTabs() {
       <div className="min-h-0 flex-1">
         {tab === "onboard" ? (
           <BarangayOnboardFlow />
+        ) : tab === "partners" ? (
+          <PartnerOnboardFlow />
         ) : tab === "earth-engine" ? (
           <EarthEngineFlow />
         ) : tab === "vertex" ? (

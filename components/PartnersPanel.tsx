@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+import { Mail, Phone, User } from "lucide-react";
 import {
   useEffect,
   useMemo,
@@ -19,14 +21,33 @@ import {
   NANGKA_BARANGAY_ID,
   NANGKA_ORG_NAME,
 } from "@/lib/partners/nangkaPartners";
+import { CEBU_AREA } from "@/lib/geo/cebu";
+import { distKm } from "@/lib/geo/bearing";
 import {
+  partnerLogoUrl,
   partnerSupplyLabel,
   partnerTypeLabel,
   type PartnerSupply,
   type PartnerType,
   type ResourcePartner,
 } from "@/lib/partners/types";
+import { formatDistanceKm } from "@/lib/reports/barangayScope";
 import { cn } from "@/lib/utils";
+
+const APAS_HALL = { lat: 10.337229, lng: 123.90484 };
+
+function hallCenter(barangayId: string): { lat: number; lng: number } {
+  if (barangayId.includes("apas")) return APAS_HALL;
+  return CEBU_AREA.center;
+}
+
+function partnerDistanceKm(
+  hall: { lat: number; lng: number },
+  p: ResourcePartner,
+): number | null {
+  if (typeof p.lat !== "number" || typeof p.lng !== "number") return null;
+  return distKm(hall, { lat: p.lat, lng: p.lng });
+}
 
 const SUPPLY_OPTIONS: PartnerSupply[] = [
   "medical",
@@ -71,6 +92,7 @@ export function PartnersPanel() {
     () => resolveBarangay(profile),
     [profile],
   );
+  const hall = useMemo(() => hallCenter(barangayId), [barangayId]);
 
   const [rows, setRows] = useState<ResourcePartner[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,11 +105,23 @@ export function PartnersPanel() {
   const [type, setType] = useState<PartnerType>("ngo");
   const [contactName, setContactName] = useState("");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [coverage, setCoverage] = useState("");
   const [notes, setNotes] = useState("");
   const [supplies, setSupplies] = useState<PartnerSupply[]>(["medical"]);
 
   const seeded = useRef(false);
+
+  const sortedRows = useMemo(() => {
+    return [...rows].sort((a, b) => {
+      const da = partnerDistanceKm(hall, a);
+      const db = partnerDistanceKm(hall, b);
+      if (da == null && db == null) return a.name.localeCompare(b.name);
+      if (da == null) return 1;
+      if (db == null) return -1;
+      return da - db;
+    });
+  }, [rows, hall]);
 
   useEffect(() => {
     if (!isOfficer(profile) || !isAccountActive(profile)) {
@@ -141,6 +175,7 @@ export function PartnersPanel() {
         type,
         contactName,
         phone,
+        email,
         supplies,
         coverage: coverage || orgName,
         notes: notes.trim() || undefined,
@@ -149,6 +184,7 @@ export function PartnersPanel() {
       setName("");
       setContactName("");
       setPhone("");
+      setEmail("");
       setCoverage("");
       setNotes("");
       setSupplies(["medical"]);
@@ -170,8 +206,8 @@ export function PartnersPanel() {
               Partners
             </h1>
             <p className="mt-1 max-w-2xl text-sm text-[var(--muted)]">
-              External supply sources for Find assistance. Directory only. No
-              partner login.
+              After a meeting and agreement, record the contact person, phone,
+              and email. Directory only. No partner login.
             </p>
           </div>
           <button
@@ -268,6 +304,19 @@ export function PartnersPanel() {
                   className="mt-1 w-full rounded-xl border border-[var(--border)] bg-white px-3 py-2.5 text-sm outline-none focus:border-[#3b6fb6]/50"
                 />
               </label>
+              <label className="block sm:col-span-2">
+                <span className="text-[11px] font-medium tracking-wide text-[var(--muted)] uppercase">
+                  Email
+                </span>
+                <input
+                  required
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="c.lim@example.org"
+                  className="mt-1 w-full rounded-xl border border-[var(--border)] bg-white px-3 py-2.5 text-sm outline-none focus:border-[#3b6fb6]/50"
+                />
+              </label>
               <div className="sm:col-span-2">
                 <p className="text-[11px] font-medium tracking-wide text-[var(--muted)] uppercase">
                   Supplies
@@ -342,10 +391,22 @@ export function PartnersPanel() {
           </p>
         ) : (
           <ul className="divide-y divide-[var(--border)]">
-            {rows.map((p) => (
+            {sortedRows.map((p) => {
+              const logo = partnerLogoUrl(p);
+              const km = partnerDistanceKm(hall, p);
+              return (
               <li key={p.id} className="px-4 py-4 sm:px-5">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div>
+                <div className="flex flex-wrap items-start gap-3 sm:flex-nowrap">
+                  {logo ? (
+                    <Image
+                      src={logo}
+                      alt=""
+                      width={44}
+                      height={44}
+                      className="size-11 shrink-0 object-contain"
+                    />
+                  ) : null}
+                  <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="font-semibold text-[var(--foreground)]">
                         {p.name}
@@ -353,11 +414,12 @@ export function PartnersPanel() {
                       <span className="rounded-full bg-[#3b6fb6]/10 px-2 py-0.5 text-[10px] font-semibold text-[#2f5f9e] ring-1 ring-[#3b6fb6]/20">
                         {partnerTypeLabel(p.type)}
                       </span>
+                      {km != null ? (
+                        <span className="text-[11px] font-medium text-[var(--muted)]">
+                          {formatDistanceKm(km)} from Brgy. Hall
+                        </span>
+                      ) : null}
                     </div>
-                    <p className="mt-1 text-sm text-[var(--muted)]">
-                      {p.contactName}
-                      {p.phone ? ` · ${p.phone}` : ""}
-                    </p>
                     <p className="mt-0.5 text-[12px] text-[var(--muted)]">
                       {p.coverage || "Coverage TBD"}
                     </p>
@@ -371,9 +433,47 @@ export function PartnersPanel() {
                       </p>
                     ) : null}
                   </div>
+                  <div className="flex w-full shrink-0 flex-col gap-1.5 text-sm text-[var(--muted)] sm:w-auto sm:min-w-[12rem] sm:items-stretch sm:pl-2">
+                    {p.contactName ? (
+                      <p className="flex items-center gap-2">
+                        <User
+                          className="size-3.5 shrink-0 text-[#2f5f9e]"
+                          aria-hidden
+                        />
+                        <span className="truncate text-[var(--foreground)]">
+                          {p.contactName}
+                        </span>
+                      </p>
+                    ) : null}
+                    {p.phone ? (
+                      <a
+                        href={`tel:${p.phone.replace(/\s+/g, "")}`}
+                        className="flex items-center gap-2 transition hover:text-[#2f5f9e]"
+                      >
+                        <Phone
+                          className="size-3.5 shrink-0 text-[#2f5f9e]"
+                          aria-hidden
+                        />
+                        <span className="truncate">{p.phone}</span>
+                      </a>
+                    ) : null}
+                    {p.email ? (
+                      <a
+                        href={`mailto:${p.email}`}
+                        className="flex items-center gap-2 transition hover:text-[#2f5f9e]"
+                      >
+                        <Mail
+                          className="size-3.5 shrink-0 text-[#2f5f9e]"
+                          aria-hidden
+                        />
+                        <span className="truncate">{p.email}</span>
+                      </a>
+                    ) : null}
+                  </div>
                 </div>
               </li>
-            ))}
+              );
+            })}
           </ul>
         )}
       </section>

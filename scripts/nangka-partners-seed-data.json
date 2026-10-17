@@ -1,0 +1,239 @@
+[
+  {
+    "id": "red-cross-cebu",
+    "name": "Red Cross Cebu",
+    "type": "ngo",
+    "contactName": "C. Lim",
+    "phone": "09171234501",
+    "email": "c.lim@redcrosscebu.ph",
+    "logoUrl": "/brands/philippine-red-cross.png",
+    "supplies": [
+      "medical",
+      "shelter",
+      "transport"
+    ],
+    "coverage": "Consolacion · Metro Cebu",
+    "notes": "Medical kits and partner transport. Confirm before allocation.",
+    "status": "active",
+    "lat": 10.3185,
+    "lng": 123.9072
+  },
+  {
+    "id": "dswd-region-7",
+    "name": "DSWD Regional Office",
+    "type": "dswd",
+    "contactName": "Relief desk",
+    "phone": "09171234502",
+    "email": "relief.r7@dswd.gov.ph",
+    "logoUrl": "/brands/dswd.png",
+    "supplies": [
+      "food",
+      "water"
+    ],
+    "coverage": "Region VII",
+    "notes": "Food and water desk. Often unconfirmed until called.",
+    "status": "active",
+    "lat": 10.3018,
+    "lng": 123.8916
+  },
+  {
+    "id": "consolacion-mdrrmo",
+    "name": "Consolacion LDRRMO",
+    "type": "lgu",
+    "contactName": "Ops desk",
+    "phone": "09171234503",
+    "email": "ldrrmo@consolacion.gov.ph",
+    "supplies": [
+      "food",
+      "water",
+      "transport",
+      "shelter"
+    ],
+    "coverage": "Consolacion",
+    "notes": "Local DRRM office (Consolacion). Confirm before allocation.",
+    "status": "active",
+    "lat": 10.3765,
+    "lng": 123.9582,
+    "logoUrl": "/brands/consolacion-ldrrmo.jpg"
+  },
+  {
+    "id": "cebu-city-mdrrmo",
+    "name": "Cebu City CDRRMO",
+    "type": "lgu",
+    "contactName": "Relief desk",
+    "phone": "09171234504",
+    "email": "cdrrmo@cebucity.gov.ph",
+    "supplies": [
+      "food",
+      "water",
+      "transport",
+      "shelter"
+    ],
+    "coverage": "Cebu City · Metro Cebu",
+    "notes": "City DRRM mutual aid. Confirm before allocation.",
+    "status": "active",
+    "lat": 10.2931,
+    "lng": 123.9019
+  },
+  {
+    "id": "ocd-region-7",
+    "name": "OCD Region VII",
+    "type": "lgu",
+    "contactName": "Coordination desk",
+    "phone": "09171234505",
+    "email": "r7@ocd.gov.ph",
+    "supplies": [
+      "transport",
+      "other"
+    ],
+    "coverage": "Region VII",
+    "notes": "Coordination and logistics. Confirm before allocation.",
+    "status": "active",
+    "lat": 10.3124,
+    "lng": 123.8948,
+    "logoUrl": "/brands/ocd.png"
+  },
+  {
+    "id": "abs-cbn-lingkod",
+    "name": "ABS-CBN Lingkod Kapamilya",
+    "type": "ngo",
+    "contactName": "Relief desk",
+    "phone": "09171234506",
+    "email": "relief@lingkodkapamilya.ph",
+    "supplies": [
+      "food",
+      "water"
+    ],
+    "coverage": "Metro Cebu",
+    "notes": "Food packs and water. Confirm before allocation.",
+    "status": "active",
+    "lat": 10.3148,
+    "lng": 123.8985,
+    "logoUrl": "/brands/abs-cbn-lingkod.jpg"
+  },
+  {
+    "id": "gma-kapuso",
+    "name": "GMA Kapuso Foundation",
+    "type": "ngo",
+    "contactName": "Relief desk",
+    "phone": "09171234507",
+    "email": "relief@kapusofoundation.ph",
+    "supplies": [
+      "food",
+      "water"
+    ],
+    "coverage": "Metro Cebu",
+    "notes": "Food packs and water. Confirm before allocation.",
+    "status": "active",
+    "lat": 10.3162,
+    "lng": 123.9051
+  },
+  {
+    "id": "world-vision-7",
+    "name": "World Vision",
+    "type": "ngo",
+    "contactName": "Field desk",
+    "phone": "09171234508",
+    "email": "relief.r7@worldvision.org.ph",
+    "supplies": [
+      "food",
+      "shelter",
+      "other"
+    ],
+    "coverage": "Region VII",
+    "notes": "Food, shelter, child kits. Confirm before allocation.",
+    "status": "active",
+    "lat": 10.3278,
+    "lng": 123.9124,
+    "logoUrl": "/brands/world-vision.png"
+  },
+  {
+    "id": "plan-international-7",
+    "name": "Plan International",
+    "type": "ngo",
+    "contactName": "Field desk",
+    "phone": "09171234509",
+    "email": "relief.r7@plan-international.org",
+    "supplies": [
+      "food",
+      "shelter",
+      "other"
+    ],
+    "coverage": "Region VII",
+    "notes": "Food, shelter, child kits. Confirm before allocation.",
+    "status": "active",
+    "lat": 10.3291,
+    "lng": 123.9098
+  },
+  {
+    "id": "save-the-children-7",
+    "name": "Save the Children",
+    "type": "ngo",
+    "contactName": "Field desk",
+    "phone": "09171234510",
+    "email": "relief.r7@savethechildren.org",
+    "supplies": [
+      "food",
+      "shelter",
+      "other"
+    ],
+    "coverage": "Region VII",
+    "notes": "Food, shelter, child kits. Confirm before allocation.",
+    "status": "active",
+    "lat": 10.3255,
+    "lng": 123.9152
+  },
+  {
+    "id": "caritas-cebu",
+    "name": "Caritas Cebu",
+    "type": "ngo",
+    "contactName": "Social action desk",
+    "phone": "09171234511",
+    "email": "relief@caritascebu.org",
+    "supplies": [
+      "food",
+      "shelter"
+    ],
+    "coverage": "Archdiocese of Cebu",
+    "notes": "Diocesan social action (Caritas Philippines / CBCP). Confirm before allocation.",
+    "status": "active",
+    "lat": 10.2964,
+    "lng": 123.9012,
+    "logoUrl": "/brands/caritas.png"
+  },
+  {
+    "id": "private-donated-stock",
+    "name": "Private donated stock",
+    "type": "private",
+    "contactName": "Warehouse desk",
+    "phone": "09171234512",
+    "email": "donations@nangka.consolacion.demo",
+    "supplies": [
+      "food",
+      "water",
+      "shelter"
+    ],
+    "coverage": "Consolacion · Metro Cebu",
+    "notes": "Warehouses, malls, hardware donated stock. Confirm before allocation.",
+    "status": "active",
+    "lat": 10.3724,
+    "lng": 123.9608
+  },
+  {
+    "id": "volunteer-transport-coop",
+    "name": "OTC transport cooperatives",
+    "type": "other",
+    "contactName": "Transport desk",
+    "phone": "09171234513",
+    "email": "r7@otc.gov.ph",
+    "supplies": [
+      "transport"
+    ],
+    "coverage": "Metro Cebu",
+    "notes": "Ambulance and volunteer transport co-ops (DOTr-OTC). Confirm before allocation.",
+    "status": "active",
+    "lat": 10.3412,
+    "lng": 123.9286,
+    "logoUrl": "/brands/otc.png"
+  }
+]
