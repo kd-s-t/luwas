@@ -181,17 +181,43 @@ function BarangayOnboardFlowCanvas() {
           logo: "/brands/officer.png",
           lines: ["Captain · MDRRMO", "Staff on Users"],
           inLeft: true,
+          outTop: true,
           outRight: true,
+          outBot: true,
         },
       },
       {
         id: "homeowners",
         type: "step",
-        position: { x: 1120, y: 160 },
+        position: { x: 1120, y: 40 },
         data: {
           label: "Add homeowners",
           logo: "/brands/citizens.png",
           lines: ["Real roster · CSV"],
+          inLeft: true,
+          outRight: true,
+        },
+      },
+      {
+        id: "evac",
+        type: "step",
+        position: { x: 1120, y: 160 },
+        data: {
+          label: "Add evac centers",
+          logo: "/brands/google-maps.png",
+          lines: ["Shelters · capacity"],
+          inLeft: true,
+          outRight: true,
+        },
+      },
+      {
+        id: "inventories",
+        type: "step",
+        position: { x: 1120, y: 280 },
+        data: {
+          label: "Add inventories",
+          logo: "/inventory/inventory-food-packs.jpg",
+          lines: ["Stock · equipment"],
           inLeft: true,
           outRight: true,
         },
@@ -204,7 +230,9 @@ function BarangayOnboardFlowCanvas() {
           label: "Activate",
           logo: "/brands/firebase.png",
           lines: ["Firestore barangays"],
+          inTop: true,
           inLeft: true,
+          inBot: true,
           outTop: true,
           outBot: true,
         },
@@ -287,18 +315,54 @@ function BarangayOnboardFlowCanvas() {
       {
         id: "e-homeowners",
         source: "officers",
-        sourceHandle: "out",
+        sourceHandle: "out-top",
         target: "homeowners",
         targetHandle: "in",
         markerEnd: marker,
         style,
       },
       {
-        id: "e-activate",
+        id: "e-evac",
+        source: "officers",
+        sourceHandle: "out",
+        target: "evac",
+        targetHandle: "in",
+        markerEnd: marker,
+        style,
+      },
+      {
+        id: "e-inventories",
+        source: "officers",
+        sourceHandle: "out-bot",
+        target: "inventories",
+        targetHandle: "in",
+        markerEnd: marker,
+        style,
+      },
+      {
+        id: "e-activate-hh",
         source: "homeowners",
         sourceHandle: "out",
         target: "activate",
+        targetHandle: "in-top",
+        markerEnd: marker,
+        style,
+      },
+      {
+        id: "e-activate-evac",
+        source: "evac",
+        sourceHandle: "out",
+        target: "activate",
         targetHandle: "in",
+        markerEnd: marker,
+        style,
+      },
+      {
+        id: "e-activate-inv",
+        source: "inventories",
+        sourceHandle: "out",
+        target: "activate",
+        targetHandle: "in-bot",
         markerEnd: marker,
         style,
       },
@@ -339,13 +403,13 @@ function BarangayOnboardFlowCanvas() {
     fitView,
     hydrated,
     canvasKey,
-  } = useFlowLayout("barangay-onboard-v3", defaultNodes, defaultEdges);
+  } = useFlowLayout("barangay-onboard-v4", defaultNodes, defaultEdges);
 
   return (
     <div className="relative h-full min-h-[420px] w-full overflow-hidden bg-[#eef1f5]">
       <div className="absolute top-3 right-3 z-10 flex gap-2">
         <FlowCopyJsonButton
-          flowId="barangay-onboard-v3"
+          flowId="barangay-onboard-v4"
           nodes={nodes}
           edges={edges}
         />
@@ -401,8 +465,8 @@ export function BarangayOnboardFlow() {
         </h1>
         <p className="mt-1 text-sm text-[var(--muted)]">
           Real barangay standup: orientation → pick → hall pin → org profile →
-          add officers → add homeowners → activate → command center + investigate
-          incidents.
+          add officers → (homeowners · evac centers · inventories) → activate →
+          command center + investigate incidents.
         </p>
       </div>
       <div className="min-h-0 flex-1">

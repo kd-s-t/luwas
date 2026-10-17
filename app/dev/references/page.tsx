@@ -22,6 +22,12 @@ const LINKS = [
     logo: "/brands/bigquery.png",
   },
   {
+    label: "Agent Platform AI (Vertex AI)",
+    hint: "Agent builders · overview",
+    href: `https://console.cloud.google.com/agent-platform/overview?project=${PROJECT}`,
+    logo: "/brands/vertex-ai.svg",
+  },
+  {
     label: "Google Cloud Storage",
     hint: "ugnai-media · objects",
     href: "https://console.cloud.google.com/storage/browser/ugnai-media-nice-pen-181017;tab=objects?forceOnBucketsSortingFiltering=true&project=nice-pen-181017&prefix=&forceOnObjectsSortingFiltering=false",
