@@ -151,12 +151,13 @@ export async function POST(req: Request) {
     fileName: body.fileName || mediaPathFileName(String(existing.mediaPath ?? "")),
   });
 
+  // AI legit → Verified (legit). Guests no longer stay in Queue when models agree.
   const status: ReportStatus =
     ai.verdict === "rejected"
       ? "rejected"
       : ai.verdict === "needs_review"
         ? "needs_review"
-        : "queued";
+        : "legit";
 
   const mediaSource =
     (existing.mediaSource as ReportMediaSource | null | undefined) ??

@@ -82,16 +82,16 @@ const COLUMNS: BoardColumn[] = [
       r.status === "draft",
   },
   {
-    id: "assigned",
-    label: "Assigned",
-    dropStatus: "assigned",
-    match: (r) => r.status === "assigned",
-  },
-  {
     id: "verified",
     label: "Verified",
     dropStatus: "legit",
     match: (r) => r.status === "legit",
+  },
+  {
+    id: "assigned",
+    label: "Assigned",
+    dropStatus: "assigned",
+    match: (r) => r.status === "assigned",
   },
   {
     id: "dispatched",

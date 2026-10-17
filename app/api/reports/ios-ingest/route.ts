@@ -337,13 +337,13 @@ export async function POST(req: Request) {
   const vertexLocationPlaceId = ai.vertexLocationPlaceId;
   const vertexLocationPlaceLabel = ai.vertexLocationPlaceLabel;
 
-  // Officer QUEUE tab: queued | validating | needs_review | failed
+  // AI legit → Verified. needs_review / rejected stay for officer triage.
   const status: ReportStatus =
     aiVerdict === "rejected"
       ? "rejected"
       : aiVerdict === "needs_review"
         ? "needs_review"
-        : "queued";
+        : "legit";
 
   const trust = computeReportTrust({
     registered: false,

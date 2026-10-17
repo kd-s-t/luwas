@@ -1067,7 +1067,14 @@ export function IncidentDetail({
             Verify &amp; allocate
           </h2>
           <p className="mt-0.5 text-xs text-[var(--muted)]">
-            Human verification required before any response is authorized.
+            {selected.status === "legit" ||
+            selected.status === "assigned" ||
+            selected.status === "dispatched" ||
+            selected.status === "done"
+              ? "Verified. Assign investigators and authorize response."
+              : selected.aiVerdict === "legit"
+                ? "AI marked this verified. Confirm assignees before dispatch."
+                : "Human verification required before any response is authorized."}
           </p>
 
           <div className="mt-3 space-y-2">
