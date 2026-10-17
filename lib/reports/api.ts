@@ -40,6 +40,7 @@ import type {
   ReportPriorityFactors,
   ReportStatus,
 } from "@/lib/reports/types";
+import { compressReportImage } from "@/lib/reports/upload";
 import { sanitizeGuestReporterPhone } from "@/lib/auth/demoAccount";
 import type { UserProfile } from "@/lib/auth/types";
 import { isCitizen, isOfficer } from "@/lib/auth/types";
@@ -498,7 +499,8 @@ export async function createGuestHazardReport(input: {
     aiVerdict,
     aiConfidence,
     aiReason: input.aiReason?.trim() || null,
-    aiSource: aiVerdict ? "gemini" : "local",
+    // Pending until /api/reports/guest-validate writes the real source.
+    aiSource: null,
     aiModel: null,
     aiPriority: null,
     aiPriorityFactors: null,
@@ -838,11 +840,12 @@ export async function addReportFieldEvidence(input: {
   const now = new Date().toISOString();
   const entries: FieldEvidenceImage[] = [];
   for (const file of images) {
+    const prepared = await compressReportImage(file);
     const body = new FormData();
     body.set("reportId", input.reportId);
     body.set("citizenUid", input.uploaderUid);
     body.set("kind", "field");
-    body.set("file", file, file.name || "field.jpg");
+    body.set("file", prepared, prepared.name || "field.jpg");
     const res = await fetch("/api/reports/guest-upload", {
       method: "POST",
       body,
@@ -859,7 +862,7 @@ export async function addReportFieldEvidence(input: {
     entries.push({
       mediaPath: data.mediaPath,
       mediaUrl: data.mediaUrl,
-      mediaMime: data.mediaMime || file.type || "image/jpeg",
+      mediaMime: data.mediaMime || prepared.type || "image/jpeg",
       uploadedAt: now,
       uploadedByUid: input.uploaderUid,
       uploadedByName: input.uploaderName,

@@ -76,7 +76,11 @@ import {
 import { saveGuestReportId } from "@/lib/reports/guestReportStore";
 import { takePendingReportMedia } from "@/lib/reports/pendingMedia";
 import { isStockReportMediaUrl } from "@/lib/reports/stockMedia";
-import { fileToBase64, uploadReportMedia } from "@/lib/reports/upload";
+import {
+  compressReportImage,
+  fileToBase64,
+  uploadReportMedia,
+} from "@/lib/reports/upload";
 import {
   distanceKm,
   filterPlaces,
@@ -860,10 +864,12 @@ export function CitizenReportForm({
       kind: "photo" | "voice",
       media: File,
     ): Promise<{ mediaPath: string; mediaUrl: string; mediaMime: string } | null> {
+      const prepared =
+        kind === "photo" ? await compressReportImage(media) : media;
       const body = new FormData();
       body.set("reportId", reportId);
       body.set("kind", kind);
-      body.set("file", media, media.name || `${kind}.bin`);
+      body.set("file", prepared, prepared.name || `${kind}.bin`);
       const res = await fetch("/api/reports/guest-upload", {
         method: "POST",
         body,
@@ -878,7 +884,7 @@ export function CitizenReportForm({
       return {
         mediaPath: data.mediaPath,
         mediaUrl: data.mediaUrl,
-        mediaMime: data.mediaMime || media.type || "application/octet-stream",
+        mediaMime: data.mediaMime || prepared.type || "application/octet-stream",
       };
     }
 
@@ -950,89 +956,16 @@ export function CitizenReportForm({
       ? await updateGuestHazardReport(payload)
       : await createGuestHazardReport({ ...payload, status: "queued" });
 
-    // AI after save — photo and/or voice transcript (voice-only must still get a verdict).
-    void (async () => {
-      try {
-        const canInline =
-          file != null &&
-          mediaType === "photo" &&
-          file.size <= 3.5 * 1024 * 1024;
-        const mediaBase64 =
-          canInline && file ? await fileToBase64(file) : undefined;
-        const res = await fetch("/api/ai/validate-report", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title,
-            notes,
-            hazardHint,
-            mediaType: mediaType === "video" ? "video" : "photo",
-            mediaMime: uploaded.mediaMime || undefined,
-            mediaBase64,
-            voiceTranscript: transcript || undefined,
-            fileName: file?.name,
-          }),
-        });
-        if (!res.ok) return;
-        const data = (await res.json()) as {
-          status: "legit" | "rejected" | "needs_review";
-          verdict: "legit" | "rejected" | "needs_review";
-          confidence: number;
-          reason: string;
-          source: "gemini" | "local";
-          model?: string;
-          hazardHint?: ReportHazardHint;
-          priority?: "critical" | "high" | "medium" | "low";
-          priorityFactors?: {
-            immediateSeverity: string;
-            peopleAffected: string;
-            existingCoverage: string;
-            deliveryFeasibility: string;
-            evidenceQuality: string;
-          };
-          vertexClass?: string | null;
-          vertexConfidence?: number | null;
-        };
-        const status =
-          data.verdict === "rejected"
-            ? "rejected"
-            : data.verdict === "needs_review"
-              ? "needs_review"
-              : "queued";
-        await updateReportValidation(id, {
-          status,
-          aiVerdict: data.verdict,
-          aiConfidence: data.confidence,
-          aiReason: data.reason,
-          aiSource: data.source,
-          aiModel: data.model ?? null,
-          ...(data.hazardHint ? { hazardHint: data.hazardHint } : {}),
-          aiPriority: data.priority ?? null,
-          aiPriorityFactors: data.priorityFactors ?? null,
-          vertexClass: data.vertexClass ?? null,
-          vertexConfidence:
-            typeof data.vertexConfidence === "number"
-              ? data.vertexConfidence
-              : null,
-          validatedAt: new Date().toISOString(),
-          trustInput: {
-            registered: false,
-            idVerified: false,
-            email: null,
-            phone: mobileNumber.trim() || null,
-            emailVerified: false,
-            mediaSource,
-            lat,
-            lng,
-            locationAccuracyM: fromGps
-              ? (captured?.locationAccuracyM ?? null)
-              : null,
-          },
-        });
-      } catch {
-        // ignore — report already queued
-      }
-    })();
+    // Server loads media from Storage, runs Gemini, writes Firestore.
+    // Tiny body + keepalive so leaving the page cannot drop the verdict.
+    void fetch("/api/reports/guest-validate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      keepalive: true,
+      body: JSON.stringify({ reportId: id }),
+    }).catch(() => {
+      // Report already queued — server may still finish, or officer re-checks.
+    });
 
     saveGuestReportId(id);
     setStatus(null);

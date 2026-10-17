@@ -73,18 +73,101 @@ export function encodeFields(
   return out;
 }
 
+function firestoreDocUrl(id: string): { emu: string; url: string } {
+  const emu = firestoreEmulatorHost();
+  if (emu) {
+    return {
+      emu,
+      url:
+        `http://${emu}/v1/projects/${projectId()}/databases/(default)/documents/reports/` +
+        encodeURIComponent(id),
+    };
+  }
+  return {
+    emu: "",
+    url:
+      `https://firestore.googleapis.com/v1/projects/${projectId()}/databases/(default)/documents/reports/` +
+      encodeURIComponent(id),
+  };
+}
+
+function decodeFirestoreValue(value: unknown): unknown {
+  if (!value || typeof value !== "object") return value;
+  const v = value as Record<string, unknown>;
+  if ("stringValue" in v) return v.stringValue;
+  if ("integerValue" in v) return Number(v.integerValue);
+  if ("doubleValue" in v) return v.doubleValue;
+  if ("booleanValue" in v) return v.booleanValue;
+  if ("nullValue" in v) return null;
+  if ("timestampValue" in v) return v.timestampValue;
+  if ("mapValue" in v) {
+    const fields =
+      (v.mapValue as { fields?: Record<string, unknown> })?.fields ?? {};
+    const out: Record<string, unknown> = {};
+    for (const [k, nested] of Object.entries(fields)) {
+      out[k] = decodeFirestoreValue(nested);
+    }
+    return out;
+  }
+  if ("arrayValue" in v) {
+    const values =
+      (v.arrayValue as { values?: unknown[] })?.values ?? [];
+    return values.map(decodeFirestoreValue);
+  }
+  return value;
+}
+
+/** Read a report doc via Firestore REST (emulator or prod ADC). */
+export async function getGuestReportDoc(
+  id: string,
+): Promise<Record<string, unknown> | null> {
+  const { emu, url } = firestoreDocUrl(id);
+  const headers: Record<string, string> = {};
+  if (emu) {
+    headers.Authorization = "Bearer owner";
+  } else {
+    headers.Authorization = `Bearer ${await googleAccessToken()}`;
+  }
+  const res = await fetch(url, { headers });
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Firestore read ${res.status}: ${text.slice(0, 400)}`);
+  }
+  const body = (await res.json()) as {
+    fields?: Record<string, unknown>;
+  };
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(body.fields ?? {})) {
+    out[k] = decodeFirestoreValue(v);
+  }
+  return out;
+}
+
 /** Write a report doc via Firestore REST (emulator or prod ADC). */
 export async function putGuestReportDoc(
   id: string,
   fields: Record<string, unknown>,
 ): Promise<void> {
+  await patchGuestReportFields(id, fields);
+}
+
+/**
+ * Partial update with updateMask so unspecified fields are preserved.
+ * Full-document callers (ios-ingest) pass every field they care about.
+ */
+export async function patchGuestReportFields(
+  id: string,
+  fields: Record<string, unknown>,
+): Promise<void> {
   const encoded = encodeFields(fields);
-  const emu = firestoreEmulatorHost();
+  const { emu, url: base } = firestoreDocUrl(id);
+  const mask = Object.keys(fields)
+    .map((k) => `updateMask.fieldPaths=${encodeURIComponent(k)}`)
+    .join("&");
+  const url = mask ? `${base}?${mask}` : base;
 
   if (emu) {
-    const url =
-      `http://${emu}/v1/projects/${projectId()}/databases/(default)/documents/reports/` +
-      encodeURIComponent(id);
     const res = await fetch(url, {
       method: "PATCH",
       headers: {
@@ -97,7 +180,7 @@ export async function putGuestReportDoc(
       const text = await res.text();
       throw new Error(`Firestore write ${res.status}: ${text.slice(0, 400)}`);
     }
-    const check = await fetch(url);
+    const check = await fetch(base);
     if (!check.ok) {
       throw new Error(`Firestore verify failed after write (${check.status})`);
     }
@@ -105,9 +188,6 @@ export async function putGuestReportDoc(
   }
 
   const token = await googleAccessToken();
-  const url =
-    `https://firestore.googleapis.com/v1/projects/${projectId()}/databases/(default)/documents/reports/` +
-    encodeURIComponent(id);
   const res = await fetch(url, {
     method: "PATCH",
     headers: {
@@ -120,6 +200,29 @@ export async function putGuestReportDoc(
     const text = await res.text();
     throw new Error(`Firestore write ${res.status}: ${text.slice(0, 400)}`);
   }
+}
+
+/** Download guest media from GCS (ADC). */
+export async function downloadGuestMediaBytes(
+  objectPath: string,
+): Promise<{ bytes: Buffer; contentType: string } | null> {
+  const path = objectPath.trim().replace(/^\/+/, "");
+  if (!path) return null;
+  const bucket = storageBucket();
+  const token = await googleAccessToken();
+  const res = await fetch(
+    `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(bucket)}/o/${encodeURIComponent(path)}?alt=media`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Storage download ${res.status}: ${text.slice(0, 300)}`);
+  }
+  const contentType =
+    res.headers.get("content-type") || "application/octet-stream";
+  const bytes = Buffer.from(await res.arrayBuffer());
+  return { bytes, contentType };
 }
 
 /** Upload guest media to GCS; returns a same-origin proxy URL (bucket is not Firebase-token capable). */
