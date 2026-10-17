@@ -118,7 +118,7 @@ function BarangayOnboardFlowCanvas() {
       {
         id: "dev",
         type: "step",
-        position: { x: 16, y: 160 },
+        position: { x: -58.58563535911602, y: 160 },
         data: {
           label: "Developer",
           lines: ["/dev/onboard"],
@@ -128,7 +128,7 @@ function BarangayOnboardFlowCanvas() {
       {
         id: "orient",
         type: "step",
-        position: { x: 200, y: 160 },
+        position: { x: 135.8563535911602, y: 160 },
         data: {
           label: "Orientation",
           lines: ["What UGNAI is"],
@@ -139,7 +139,7 @@ function BarangayOnboardFlowCanvas() {
       {
         id: "pick",
         type: "step",
-        position: { x: 384, y: 160 },
+        position: { x: 331.7900552486188, y: 152.5414364640884 },
         data: {
           label: "Pick barangay",
           logo: "/brands/google-maps.png",
@@ -151,7 +151,7 @@ function BarangayOnboardFlowCanvas() {
       {
         id: "hall",
         type: "step",
-        position: { x: 568, y: 160 },
+        position: { x: 523.2486187845304, y: 152.5414364640884 },
         data: {
           label: "Hall pin",
           logo: "/brands/google-maps.png",
@@ -163,7 +163,7 @@ function BarangayOnboardFlowCanvas() {
       {
         id: "org",
         type: "step",
-        position: { x: 752, y: 160 },
+        position: { x: 728.132596685083, y: 152.54143646408838 },
         data: {
           label: "Org profile",
           logo: "/brands/officer.png",
@@ -175,7 +175,7 @@ function BarangayOnboardFlowCanvas() {
       {
         id: "officers",
         type: "step",
-        position: { x: 936, y: 160 },
+        position: { x: 919.5911602209944, y: 145.08287292817678 },
         data: {
           label: "Add officers",
           logo: "/brands/officer.png",
@@ -189,7 +189,7 @@ function BarangayOnboardFlowCanvas() {
       {
         id: "homeowners",
         type: "step",
-        position: { x: 1120, y: 40 },
+        position: { x: 1120, y: -0.2762430939226448 },
         data: {
           label: "Add homeowners",
           logo: "/brands/citizens.png",
@@ -201,7 +201,7 @@ function BarangayOnboardFlowCanvas() {
       {
         id: "evac",
         type: "step",
-        position: { x: 1120, y: 160 },
+        position: { x: 1122.9834254143645, y: 152.54143646408838 },
         data: {
           label: "Add evac centers",
           logo: "/brands/google-maps.png",
@@ -213,7 +213,7 @@ function BarangayOnboardFlowCanvas() {
       {
         id: "inventories",
         type: "step",
-        position: { x: 1120, y: 280 },
+        position: { x: 1122.9834254143648, y: 315.8011049723757 },
         data: {
           label: "Add inventories",
           logo: "/inventory/inventory-food-packs.jpg",
@@ -225,7 +225,7 @@ function BarangayOnboardFlowCanvas() {
       {
         id: "activate",
         type: "step",
-        position: { x: 1304, y: 160 },
+        position: { x: 1335.3259668508285, y: 152.54143646408838 },
         data: {
           label: "Activate",
           logo: "/brands/firebase.png",
@@ -240,7 +240,7 @@ function BarangayOnboardFlowCanvas() {
       {
         id: "command",
         type: "step",
-        position: { x: 1488, y: 72 },
+        position: { x: 1529.767955801105, y: 33.21546961325967 },
         data: {
           label: "Command center",
           lines: ["Map prefers area"],
@@ -250,7 +250,7 @@ function BarangayOnboardFlowCanvas() {
       {
         id: "residents",
         type: "step",
-        position: { x: 1488, y: 248 },
+        position: { x: 1537.2265193370165, y: 267.3922651933701 },
         data: {
           label: "Investigate incidents",
           logo: "/brands/citizens.png",
