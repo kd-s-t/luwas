@@ -142,11 +142,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let unsubAuth: (() => void) | undefined;
     let unsubProfile: (() => void) | undefined;
+    let profileDeadline: number | undefined;
     try {
       const auth = getClientAuth();
       unsubAuth = onAuthStateChanged(auth, (nextUser) => {
         unsubProfile?.();
         unsubProfile = undefined;
+        if (profileDeadline != null) window.clearTimeout(profileDeadline);
+        profileDeadline = undefined;
         setUser(nextUser);
         if (!nextUser) {
           setProfile(null);
@@ -154,9 +157,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
 
+        // Don't leave admin routes blank for the full Firestore 10s timeout
+        // when the emulator is down or the profile doc never arrives.
+        profileDeadline = window.setTimeout(() => {
+          setLoading((prev) => {
+            if (prev) {
+              console.warn(
+                "[ugnai] Profile load timed out — check Firestore emulator (127.0.0.1:8080).",
+              );
+            }
+            return false;
+          });
+        }, 4000);
+
         unsubProfile = onSnapshot(
           doc(getClientDb(), "users", nextUser.uid),
           (snap) => {
+            if (profileDeadline != null) window.clearTimeout(profileDeadline);
+            profileDeadline = undefined;
             if (!snap.exists()) {
               setProfile(null);
               setLoading(false);
@@ -180,6 +198,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
           },
           () => {
+            if (profileDeadline != null) window.clearTimeout(profileDeadline);
+            profileDeadline = undefined;
             setProfile(null);
             setLoading(false);
           },
@@ -193,6 +213,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     return () => {
+      if (profileDeadline != null) window.clearTimeout(profileDeadline);
       unsubProfile?.();
       unsubAuth?.();
     };

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Package } from "lucide-react";
 import { FadeIn } from "@/components/motion/primitives";
@@ -20,11 +20,17 @@ import {
   type ResourceActivityStatus,
   type ResourceNeed,
 } from "@/lib/workspace/resourceBoard";
+import { listenAllSuggestions } from "@/lib/resourcesSuggestions/api";
+import type { ResourceSuggestion } from "@/lib/resourcesSuggestions/types";
 import {
   buildSupplyShortagePlan,
   reportsForEpicCode,
 } from "@/lib/workspace/supplyShortagePlan";
 import { cn } from "@/lib/utils";
+
+function fmtSuggestionL(n: number): string {
+  return `${n.toLocaleString("en-PH")} L`;
+}
 
 function formatPlaceLine(date: Date, place: string): string {
   const parts = new Intl.DateTimeFormat("en-GB", {
@@ -151,12 +157,14 @@ function NeedCard({ need }: { need: ResourceNeed }) {
 
 export function CommandResources() {
   const { profile } = useAuth();
-  const { scopedReports, activeOfficers, reportScope, seedReady } =
+  const { reports, scopedReports, activeOfficers, reportScope, seedReady } =
     useCommandWorkspace();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const rsCode = searchParams.get("rs")?.trim().toUpperCase() ?? "";
   const [query, setQuery] = useState("");
   const [commitments, setCommitments] = useState<AssistanceCommitment[]>([]);
+  const [suggestions, setSuggestions] = useState<ResourceSuggestion[]>([]);
 
   function refreshCommitments() {
     setCommitments(listAssistanceCommitments());
@@ -172,6 +180,8 @@ export function CommandResources() {
       window.removeEventListener("storage", onFocus);
     };
   }, []);
+
+  useEffect(() => listenAllSuggestions(setSuggestions), []);
 
   const board = useMemo(
     () =>
@@ -198,12 +208,81 @@ export function CommandResources() {
     [placeHint],
   );
 
+  const apasDesk = useMemo(() => {
+    if (isOfficer(profile)) {
+      if (
+        profile.activeBarangayId === "cebu-city/apas" ||
+        profile.areaId === "cebu-city/apas" ||
+        /apas/i.test(profile.barangay ?? "") ||
+        /apas/i.test(profile.orgName ?? "")
+      ) {
+        return true;
+      }
+    }
+    if (/apas/i.test(reportScope.mode === "barangay" ? reportScope.barangay : "")) {
+      return true;
+    }
+    return scopedReports.some((r) => /apas/i.test(r.barangay ?? ""));
+  }, [profile, scopedReports, reportScope]);
+
+  const [sitioSeedTick, setSitioSeedTick] = useState(0);
+
   const shortagePlan = useMemo(() => {
     if (!rsCode) return null;
+    // Prefer Apas Sitio* water demos (5 sitios) over Nangka Purok seeds.
+    const apasWater = reports.filter(
+      (r) =>
+        r.status !== "rejected" &&
+        r.status !== "done" &&
+        /apas/i.test(r.barangay ?? "") &&
+        /^Sitio\b/i.test(r.citizenPurok ?? "") &&
+        /drinking\s+water|Need\s+\d+\s*L/i.test(
+          `${r.title ?? ""}\n${r.notes ?? ""}`,
+        ) &&
+        !/food\s+packs/i.test(`${r.title ?? ""}\n${r.notes ?? ""}`),
+    );
+    if (apasWater.length >= 2) {
+      return buildSupplyShortagePlan("water", apasWater);
+    }
     const matched = reportsForEpicCode(rsCode, scopedReports);
-    if (!matched) return null;
+    const water = reportsForEpicCode("RS-001", scopedReports);
+    if (water && water.reports.length >= 2 && rsCode !== "RS-001") {
+      return buildSupplyShortagePlan(water.kind, water.reports);
+    }
+    if (!matched) {
+      if (water) return buildSupplyShortagePlan(water.kind, water.reports);
+      return null;
+    }
     return buildSupplyShortagePlan(matched.kind, matched.reports);
-  }, [rsCode, scopedReports]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rsCode, scopedReports, reports, sitioSeedTick]);
+
+  useEffect(() => {
+    if (!shortagePlan) return;
+    if (shortagePlan.code === "RS-001" && rsCode !== "RS-001") {
+      router.replace("/admin/resources?rs=RS-001");
+    }
+  }, [shortagePlan, rsCode, router]);
+
+  // Always seed Apas Sitio water demos for the shortage desk.
+  useEffect(() => {
+    if (!isOfficer(profile) || !profile) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { ensureApasWaterAndFireReports } = await import(
+          "@/lib/onboarding/apasSeed"
+        );
+        await ensureApasWaterAndFireReports();
+        if (!cancelled) setSitioSeedTick((n) => n + 1);
+      } catch (err) {
+        if (!cancelled) console.warn("Apas sitio water seed failed", err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [profile, rsCode]);
 
   const updatedLabel = useMemo(() => {
     try {
@@ -242,9 +321,8 @@ export function CommandResources() {
         />
       );
     }
-    // Wait only while reports have not arrived yet — never block on seedReady
-    // (Apas / inventory seed can hang and left this screen loading forever).
-    if (!seedReady && scopedReports.length === 0) {
+    // Brief wait for first report snapshot only — seedReady is not a gate.
+    if (scopedReports.length === 0 && !seedReady) {
       return (
         <div className="flex h-full min-h-0 flex-1 flex-col items-center justify-center px-4 py-10 text-center">
           <p className="text-sm text-[var(--muted)]">Loading shortage plan…</p>
@@ -306,7 +384,7 @@ export function CommandResources() {
             </p>
           </div>
           <Link
-            href="#inventory"
+            href="/admin/inventory"
             className="inline-flex items-center rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-sm font-medium text-[var(--foreground)] shadow-sm transition hover:border-[var(--foreground)]/25"
           >
             View inventory →
@@ -491,6 +569,86 @@ export function CommandResources() {
           </section>
         </aside>
       </div>
+
+      <section className="mt-4 overflow-hidden rounded-2xl border border-[var(--border)] bg-white shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 sm:px-5">
+          <div>
+            <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-wide">
+              Resources suggested
+            </h2>
+            <p className="mt-0.5 text-[12px] text-[var(--muted)]">
+              <span className="font-mono">resources_suggestions</span>
+              {" · "}
+              {suggestions.length}{" "}
+              {suggestions.length === 1 ? "row" : "rows"}
+            </p>
+          </div>
+          <Link
+            href="/admin/resources/suggestions"
+            className="text-sm font-medium text-[#2f5f9e] hover:underline"
+          >
+            View all resources suggested →
+          </Link>
+        </div>
+        <div className="overflow-x-auto border-t border-[var(--border)]">
+          <table className="w-full min-w-[560px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-[var(--border)] text-[11px] tracking-wide text-[var(--muted)] uppercase">
+                <th className="px-4 py-2.5 font-medium sm:px-5">Shortage</th>
+                <th className="px-4 py-2.5 font-medium">Sitio</th>
+                <th className="px-4 py-2.5 font-medium">Gap</th>
+                <th className="px-4 py-2.5 font-medium">Suggested</th>
+                <th className="px-4 py-2.5 font-medium sm:px-5">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {suggestions.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={5}
+                    className="px-4 py-8 text-center text-[var(--muted)] sm:px-5"
+                  >
+                    No suggestions yet. Review a shortage to write rows.
+                  </td>
+                </tr>
+              ) : (
+                suggestions.slice(0, 5).map((row) => (
+                  <tr
+                    key={row.id}
+                    className="border-b border-[var(--border)]/70 last:border-0"
+                  >
+                    <td className="px-4 py-3 font-mono text-[12px] sm:px-5">
+                      <Link
+                        href={`/admin/resources?rs=${encodeURIComponent(row.shortageId || row.epicCode)}`}
+                        className="font-medium text-[#2f5f9e] hover:underline"
+                      >
+                        {row.shortageId || row.epicCode}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 font-medium text-[var(--foreground)]">
+                      {row.community}
+                    </td>
+                    <td className="px-4 py-3 tabular-nums text-[#c72929]">
+                      {fmtSuggestionL(row.gapL)}
+                    </td>
+                    <td className="px-4 py-3 tabular-nums font-semibold text-[#2f5f9e]">
+                      {fmtSuggestionL(row.suggestedAllocateL)}
+                    </td>
+                    <td className="px-4 py-3 sm:px-5">
+                      <Link
+                        href={`/admin/resources?rs=${encodeURIComponent(row.shortageId || row.epicCode)}`}
+                        className="inline-flex rounded-lg border border-[var(--border)] bg-white px-2.5 py-1.5 text-[12px] font-medium text-[var(--foreground)] transition hover:border-[var(--foreground)]/25"
+                      >
+                        Open shortage
+                      </Link>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       <section className="mt-4 mb-2 overflow-hidden rounded-2xl bg-white shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 sm:px-5">

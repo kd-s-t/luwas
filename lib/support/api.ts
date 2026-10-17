@@ -21,6 +21,23 @@ export const UGNAI_DEVELOPERS_ASSIGNEE = {
   name: "Ugnai developers",
 } as const;
 
+/** Sample / team-bucket assignees are not real people. */
+export function isPlaceholderAssignee(
+  uid: string | null | undefined,
+  name: string | null | undefined,
+): boolean {
+  const id = (uid ?? "").trim();
+  const label = (name ?? "").trim();
+  if (!id && !label) return false;
+  if (id === UGNAI_DEVELOPERS_ASSIGNEE.uid || id.startsWith("sample-")) {
+    return true;
+  }
+  if (/^demo\s*·/i.test(label) || label === UGNAI_DEVELOPERS_ASSIGNEE.name) {
+    return true;
+  }
+  return false;
+}
+
 export type SupportMessage = {
   id: string;
   body: string;
@@ -168,9 +185,8 @@ export async function submitSupportTicket(input: SupportTicketInput) {
       typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 400) : "",
     createdAt: new Date().toISOString(),
     createdAtServer: serverTimestamp(),
-    // All user-created tickets land with the developer team.
-    assignedToUid: UGNAI_DEVELOPERS_ASSIGNEE.uid,
-    assignedToName: UGNAI_DEVELOPERS_ASSIGNEE.name,
+    assignedToUid: null,
+    assignedToName: null,
     mediaUrls,
     messages: [],
     resolvedAt: null,

@@ -1,7 +1,11 @@
 import { isOfficer, type UserProfile } from "@/lib/auth/types";
 import { distKm } from "@/lib/geo/bearing";
 import { CEBU_AREA, isNearOpsArea, type LatLng } from "@/lib/geo/cebu";
-import { DEFAULT_MAP_AREA, nearestKnownMapArea } from "@/lib/geo/mapAreas";
+import {
+  DEFAULT_MAP_AREA,
+  listMapAreaOptions,
+  nearestKnownMapArea,
+} from "@/lib/geo/mapAreas";
 import type { HazardReport } from "@/lib/reports/types";
 
 export const DEFAULT_REPORT_BARANGAY = "Nangka";
@@ -103,6 +107,26 @@ export function officerReportScope(
 
 export function scopeForProfile(profile: UserProfile | null): ReportScope {
   if (isOfficer(profile)) {
+    // Prefer active / area id so a switch to Apas is not stuck on a stale
+    // barangay field (e.g. still "Nangka" after selecting cebu-city/apas).
+    const areaKey =
+      profile.activeBarangayId?.trim() || profile.areaId?.trim() || "";
+    if (areaKey) {
+      const option = listMapAreaOptions().find((o) => o.id === areaKey);
+      if (option) {
+        return {
+          mode: "barangay",
+          barangay: option.barangay,
+          lgu: option.lgu,
+        };
+      }
+    }
+    if (
+      /apas/i.test(profile.orgName ?? "") ||
+      /apas/i.test(profile.barangay ?? "")
+    ) {
+      return { mode: "barangay", barangay: "Apas", lgu: "Cebu City" };
+    }
     const barangay = profile.barangay?.trim();
     const lgu = profile.lgu?.trim();
     if (barangay && lgu) {

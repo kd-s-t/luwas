@@ -85,10 +85,15 @@ export function AuthGate({
     return mode === "guest" ? <AuthPageSkeleton /> : <PageLoadSkeleton />;
   }
 
-  if (mode === "protected" && !user) return null;
-  if (mode === "guest" && user) return null;
+  // Keep the skeleton up while redirect effects run — never flash a blank page.
+  if (mode === "protected" && !user) {
+    return <PageLoadSkeleton />;
+  }
+  if (mode === "guest" && user) {
+    return <AuthPageSkeleton />;
+  }
   if (mode === "protected" && role && profile && profile.role !== role) {
-    return null;
+    return <PageLoadSkeleton />;
   }
   if (
     mode === "protected" &&
@@ -96,7 +101,7 @@ export function AuthGate({
     profile &&
     !isAccountActive(profile)
   ) {
-    return null;
+    return <PageLoadSkeleton />;
   }
 
   return <>{children}</>;

@@ -16,9 +16,15 @@ export type DeliveryReadiness = "ready" | "access_unknown" | "no_transport";
 
 export type SupplyCommunityRow = {
   reportId: string;
+  /** All report ids rolled into this sitio. */
+  reportIds: string[];
   community: string;
+  /** e.g. Brgy. Apas — shown under the sitio name. */
+  barangayLabel: string;
   mediaUrl: string | null;
   peopleLabel: string;
+  /** How many field requests were summed into this sitio. */
+  requestCount: number;
   needL: number;
   localStockL: number;
   gapL: number;
@@ -70,17 +76,47 @@ function localStockL(report: HazardReport): number {
   return 0;
 }
 
-function peopleLabel(report: HazardReport): string {
+function peopleCount(report: HazardReport): number {
   const parsed = parseReportNeed(report);
   const m = parsed.householdsLabel.match(/Households\s+(\d+)/i);
   if (m) {
     const n = Number(m[1]);
-    if (Number.isFinite(n) && n > 0) return String(n * 4);
+    if (Number.isFinite(n) && n > 0) return n * 4;
   }
   const blob = `${report.title ?? ""}\n${report.notes ?? ""}`;
   const people = blob.match(/(\d+)\s+(?:people|persons|residents)/i)?.[1];
-  if (people) return people;
-  return "—";
+  if (people) return Number(people) || 0;
+  return 0;
+}
+
+function needAmount(kind: SupplyNeedKind, report: HazardReport): number {
+  if (kind === "water") return parseWaterL(report);
+  if (kind === "food") {
+    return Number(
+      `${report.title}\n${report.notes}`.match(/(\d+)\s+food\s+packs?/i)?.[1] ??
+        0,
+    );
+  }
+  if (kind === "medical") {
+    return Number(
+      `${report.title}\n${report.notes}`.match(
+        /(\d+)\s+(?:medical\s+)?kits?/i,
+      )?.[1] ?? 0,
+    );
+  }
+  return parseWaterL(report);
+}
+
+const READINESS_RANK: Record<DeliveryReadiness, number> = {
+  ready: 0,
+  access_unknown: 1,
+  no_transport: 2,
+};
+
+function readinessLabelFor(r: DeliveryReadiness): string {
+  if (r === "no_transport") return "No transport";
+  if (r === "access_unknown") return "Access unknown";
+  return "Ready";
 }
 
 function readiness(report: HazardReport): {
@@ -151,44 +187,95 @@ export function buildSupplyShortagePlan(
           ? agg.kits
           : agg.waterL + agg.packs + agg.kits;
 
-  const rows: SupplyCommunityRow[] = sorted.map((report) => {
-    const need =
-      kind === "water"
-        ? parseWaterL(report)
-        : kind === "food"
-          ? Number(
-              `${report.title}\n${report.notes}`.match(
-                /(\d+)\s+food\s+packs?/i,
-              )?.[1] ?? 0,
-            )
-          : kind === "medical"
-            ? Number(
-                `${report.title}\n${report.notes}`.match(
-                  /(\d+)\s+(?:medical\s+)?kits?/i,
-                )?.[1] ?? 0,
-              )
-            : parseWaterL(report);
+  // One row per sitio: sum need + people from every request that sitio filed.
+  const bySitio = new Map<
+    string,
+    {
+      reportIds: string[];
+      community: string;
+      barangayLabel: string;
+      mediaUrl: string | null;
+      people: number;
+      needL: number;
+      localStockL: number;
+      readiness: DeliveryReadiness;
+      lat: number | null;
+      lng: number | null;
+      latestAt: number;
+    }
+  >();
+
+  for (const report of sorted) {
+    const community = placeLine(report);
+    const barangayLabel = report.barangay?.trim()
+      ? `Brgy. ${report.barangay.trim()}`
+      : "";
+    const key = community.toLowerCase();
+    const need = needAmount(kind, report);
     const local = kind === "water" ? localStockL(report) : 0;
-    const gap = Math.max(0, need - local);
-    const ready = readiness(report);
-    return {
-      reportId: report.id,
-      community: placeLine(report),
-      mediaUrl: report.mediaUrl?.trim() || null,
-      peopleLabel: peopleLabel(report),
-      needL: need,
-      localStockL: local,
-      gapL: gap,
-      readiness: ready.readiness,
-      readinessLabel: ready.readinessLabel,
-      lat: report.lat,
-      lng: report.lng,
-    };
-  });
+    const ready = readiness(report).readiness;
+    const at = Date.parse(report.createdAt) || 0;
+    const prev = bySitio.get(key);
+    if (!prev) {
+      bySitio.set(key, {
+        reportIds: [report.id],
+        community,
+        barangayLabel,
+        mediaUrl: report.mediaUrl?.trim() || null,
+        people: peopleCount(report),
+        needL: need,
+        localStockL: local,
+        readiness: ready,
+        lat: report.lat,
+        lng: report.lng,
+        latestAt: at,
+      });
+      continue;
+    }
+    prev.reportIds.push(report.id);
+    prev.people += peopleCount(report);
+    prev.needL += need;
+    prev.localStockL += local;
+    if (READINESS_RANK[ready] > READINESS_RANK[prev.readiness]) {
+      prev.readiness = ready;
+    }
+    if (at >= prev.latestAt) {
+      prev.latestAt = at;
+      prev.mediaUrl = report.mediaUrl?.trim() || prev.mediaUrl;
+      if (barangayLabel) prev.barangayLabel = barangayLabel;
+      if (report.lat != null && report.lng != null) {
+        prev.lat = report.lat;
+        prev.lng = report.lng;
+      }
+    }
+  }
+
+  const rows: SupplyCommunityRow[] = [...bySitio.values()]
+    .sort((a, b) => b.needL - a.needL)
+    .map((row) => {
+      const gap = Math.max(0, row.needL - row.localStockL);
+      return {
+        reportId: row.reportIds[0]!,
+        reportIds: row.reportIds,
+        community: row.community,
+        barangayLabel: row.barangayLabel,
+        mediaUrl: row.mediaUrl,
+        peopleLabel: row.people > 0 ? String(row.people) : "—",
+        requestCount: row.reportIds.length,
+        needL: row.needL,
+        localStockL: row.localStockL,
+        gapL: gap,
+        readiness: row.readiness,
+        readinessLabel: readinessLabelFor(row.readiness),
+        lat: row.lat,
+        lng: row.lng,
+      };
+    });
 
   const shortageL = Math.max(0, totalNeededL - availableL);
   const primary = sorted[0]!;
-  const noun = supplyNeedNoun(kind).toLowerCase();
+  const noun =
+    kind === "water" ? "water" : supplyNeedNoun(kind).toLowerCase();
   const communityWord =
     rows.length === 1 ? "community needs" : "communities need";
 
@@ -202,8 +289,8 @@ export function buildSupplyShortagePlan(
     shortageL,
     communityCount: rows.length,
     rows,
-    advisory: `${rows.length} ${communityWord} more ${noun} than the warehouse can supply. Confirm local stock and review distribution options.`,
-    compareHref: `/admin/resources/assist?report=${encodeURIComponent(primary.id)}`,
+    advisory: `${rows.length === 1 ? "One" : rows.length === 2 ? "Two" : rows.length === 3 ? "Three" : String(rows.length)} ${communityWord} more ${noun} than the warehouse can supply. Confirm local stock and review distribution options.`,
+    compareHref: `/admin/resources/compare?rs=${encodeURIComponent(supplyNeedEpicCode(kind))}`,
     primaryReportId: primary.id,
   };
 }

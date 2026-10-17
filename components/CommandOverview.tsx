@@ -180,12 +180,17 @@ export function CommandOverview() {
   const snapshot = useMemo(() => formatSnapshot(new Date()), []);
 
   const shortageHref = useMemo(() => {
-    const epic = board.items.find(
+    const epics = board.items.filter(
       (item) =>
         item.kind === "resource" &&
         /^RS-\d+/i.test(item.incidentCode) &&
         item.ctaHref.includes("rs="),
     );
+    // Prefer drinking-water (RS-001) when present — Apas multi-sitio desk.
+    const water = epics.find((item) =>
+      /^RS-001$/i.test(item.incidentCode),
+    );
+    const epic = water ?? epics[0];
     return epic?.ctaHref ?? "/admin/resources";
   }, [board.items]);
 
