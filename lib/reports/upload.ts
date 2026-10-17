@@ -1,4 +1,66 @@
 const MAX_BYTES = 28 * 1024 * 1024;
+/** Longest edge for report / field photos (enough for Gemini + Vertex). */
+const REPORT_PHOTO_MAX_EDGE = 1600;
+const REPORT_PHOTO_JPEG_QUALITY = 0.82;
+
+/**
+ * Downscale + JPEG-encode report photos before upload (storage + AI payload).
+ * Voices / videos / tiny images pass through unchanged.
+ */
+export async function compressReportImage(file: File): Promise<File> {
+  const isImage =
+    file.type.startsWith("image/") ||
+    /\.(jpe?g|png|webp|bmp|heic|heif)$/i.test(file.name);
+  if (!isImage || file.type === "image/gif") return file;
+
+  try {
+    const bitmap = await createImageBitmap(file);
+    const { width, height } = bitmap;
+    if (width < 1 || height < 1) {
+      bitmap.close();
+      return file;
+    }
+
+    const scale = Math.min(1, REPORT_PHOTO_MAX_EDGE / Math.max(width, height));
+    const outW = Math.max(1, Math.round(width * scale));
+    const outH = Math.max(1, Math.round(height * scale));
+    const alreadySmall =
+      scale === 1 &&
+      file.size <= 450 * 1024 &&
+      (file.type === "image/jpeg" || file.type === "image/jpg");
+    if (alreadySmall) {
+      bitmap.close();
+      return file;
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = outW;
+    canvas.height = outH;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      bitmap.close();
+      return file;
+    }
+    ctx.drawImage(bitmap, 0, 0, outW, outH);
+    bitmap.close();
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, "image/jpeg", REPORT_PHOTO_JPEG_QUALITY);
+    });
+    if (!blob || blob.size < 1) return file;
+    // Keep original if compression somehow grew the file.
+    if (blob.size >= file.size && scale === 1) return file;
+
+    const base =
+      (file.name || "photo").replace(/\.[^.]+$/, "") || "photo";
+    return new File([blob], `${base}.jpg`, {
+      type: "image/jpeg",
+      lastModified: Date.now(),
+    });
+  } catch {
+    return file;
+  }
+}
 
 /**
  * Upload report photo/voice via same-origin API (Admin GCS).
@@ -8,7 +70,7 @@ export async function uploadReportMedia(input: {
   citizenUid: string;
   reportId: string;
   file: File;
-  kind?: "photo" | "voice";
+  kind?: "photo" | "voice" | "field";
 }): Promise<{ mediaPath: string; mediaUrl: string; mediaMime: string }> {
   if (input.file.size > MAX_BYTES) {
     throw new Error("Media must be under 28 MB.");
@@ -20,14 +82,17 @@ export async function uploadReportMedia(input: {
       ? "voice"
       : "photo");
 
+  const file =
+    kind === "voice" ? input.file : await compressReportImage(input.file);
+
   const body = new FormData();
   body.set("reportId", input.reportId);
   body.set("citizenUid", input.citizenUid);
   body.set("kind", kind);
   body.set(
     "file",
-    input.file,
-    input.file.name || `${kind}.bin`,
+    file,
+    file.name || `${kind}.bin`,
   );
 
   const res = await fetch("/api/reports/guest-upload", {
@@ -47,7 +112,7 @@ export async function uploadReportMedia(input: {
   return {
     mediaPath: data.mediaPath,
     mediaUrl: data.mediaUrl,
-    mediaMime: data.mediaMime || input.file.type || "application/octet-stream",
+    mediaMime: data.mediaMime || file.type || "application/octet-stream",
   };
 }
 
