@@ -8,6 +8,7 @@ import {
   serverTimestamp,
   updateDoc,
   doc,
+  where,
   type Unsubscribe,
 } from "firebase/firestore";
 import { getClientDb } from "@/lib/firebase/client";
@@ -184,6 +185,32 @@ export function subscribeSupportTickets(
     q,
     (snap) => {
       onChange(snap.docs.map((d) => mapTicket(d.id, d.data())));
+    },
+    (err) => onError?.(err),
+  );
+}
+
+/** Tickets filed by this auth uid (officer / citizen tracking). */
+export function subscribeMySupportTickets(
+  uid: string,
+  onChange: (rows: SupportTicket[]) => void,
+  onError?: (err: Error) => void,
+): Unsubscribe {
+  const trimmed = uid.trim();
+  if (!trimmed || trimmed === "guest") {
+    onChange([]);
+    return () => {};
+  }
+  const q = query(
+    collection(getClientDb(), "supportTickets"),
+    where("uid", "==", trimmed),
+  );
+  return onSnapshot(
+    q,
+    (snap) => {
+      const rows = snap.docs.map((d) => mapTicket(d.id, d.data()));
+      rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      onChange(rows);
     },
     (err) => onError?.(err),
   );

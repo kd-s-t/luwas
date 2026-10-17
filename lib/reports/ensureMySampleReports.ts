@@ -244,6 +244,7 @@ export async function ensureMySampleReports(input: {
       validatedAt: sample.status === "queued" ? null : now,
       autoResponderCallAt:
         sample.status === "legit" && sample.dispatch ? now : null,
+      dispatchedAt: null,
       dispatchLog:
         sample.status === "legit" && sample.dispatch
           ? ({

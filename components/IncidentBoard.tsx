@@ -119,6 +119,46 @@ function hasAssignee(report: HazardReport): boolean {
   return reportHasAssignee(report);
 }
 
+/** Prefer dedicated stamp; fall back for older dispatched docs. */
+function dispatchOutSince(report: HazardReport): string | null {
+  if (report.status !== "dispatched") return null;
+  const raw =
+    report.dispatchedAt?.trim() ||
+    report.dispatchLog?.at?.trim() ||
+    report.updatedAt?.trim() ||
+    "";
+  return raw || null;
+}
+
+function formatOutDuration(ms: number): string {
+  const totalSec = Math.floor(ms / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${String(s).padStart(2, "0")}s`;
+  return `${s}s`;
+}
+
+function DispatchOutTimer({ since }: { since: string }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+  const start = Date.parse(since);
+  if (!Number.isFinite(start)) return null;
+  const ms = Math.max(0, now - start);
+  return (
+    <p
+      className="mt-1 font-mono text-[10px] tracking-wider text-[var(--accent)] uppercase tabular-nums"
+      title={`Dispatched ${new Date(since).toLocaleString()}`}
+    >
+      Out · {formatOutDuration(ms)}
+    </p>
+  );
+}
+
 function assigneesOf(report: HazardReport): ReportAssignee[] {
   return report.assignees?.length
     ? report.assignees
@@ -578,6 +618,12 @@ export function IncidentBoard() {
                             {r.citizenName} ·{" "}
                             {new Date(r.createdAt).toLocaleString()}
                           </p>
+                          {(() => {
+                            const outSince = dispatchOutSince(r);
+                            return outSince ? (
+                              <DispatchOutTimer since={outSince} />
+                            ) : null;
+                          })()}
 
                           <div className="mt-2 border-t border-[var(--border)]/70 pt-2">
                             {(() => {

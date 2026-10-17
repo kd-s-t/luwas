@@ -209,6 +209,8 @@ export async function ensureMapReportInDb(
           : data.autoFireCallAt != null
             ? String(data.autoFireCallAt)
             : null,
+      dispatchedAt:
+        data.dispatchedAt != null ? String(data.dispatchedAt) : null,
       dispatchLog:
         data.dispatchLog && typeof data.dispatchLog === "object"
           ? {
@@ -325,6 +327,7 @@ export async function ensureMapReportInDb(
     investigatorName: null,
     investigatedAt: null,
     autoResponderCallAt: null,
+    dispatchedAt: null,
     dispatchLog: null,
     manualDispatchChecked: false,
     fieldEvidence: [],

@@ -88,6 +88,7 @@ function buildRow(now: string) {
     vertexConfidence: null,
     validatedAt: now,
     autoResponderCallAt: null,
+    dispatchedAt: null,
     dispatchLog: null,
     manualDispatchChecked: false,
     fieldEvidence: [],

@@ -143,6 +143,8 @@ function mapReport(id: string, data: Record<string, unknown>): HazardReport {
         : data.autoFireCallAt != null
           ? String(data.autoFireCallAt)
           : null,
+    dispatchedAt:
+      data.dispatchedAt != null ? String(data.dispatchedAt) : null,
     dispatchLog: mapDispatchLog(data.dispatchLog),
     manualDispatchChecked: Boolean(data.manualDispatchChecked),
     fieldEvidence: Array.isArray(data.fieldEvidence)

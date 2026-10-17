@@ -250,6 +250,7 @@ async function ensureApasReports(): Promise<number> {
       vertexConfidence: null,
       validatedAt: sample.status === "queued" ? null : now,
       autoResponderCallAt: null,
+      dispatchedAt: null,
       dispatchLog: null,
     manualDispatchChecked: false,
       fieldEvidence: [],

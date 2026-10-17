@@ -187,6 +187,8 @@ export type HazardReport = {
   investigatedAt: string | null;
   /** When set, nearest responders were already auto-dialed for this legit report. */
   autoResponderCallAt: string | null;
+  /** When the ops status moved to dispatched (board “out” timer). */
+  dispatchedAt: string | null;
   /** Who was called / texted after verification (dispatch audit). */
   dispatchLog: ReportDispatchLog | null;
   /** Officer manually checked “Dispatch someone” on the incident checklist. */
