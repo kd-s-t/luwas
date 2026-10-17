@@ -67,9 +67,10 @@ import {
   placeFromCoords,
 } from "@/lib/reports/barangayScope";
 import { syncHazardReportToBigQuery } from "@/lib/reports/bigquerySync";
-import { inferHazard } from "@/lib/reports/inferHazard";
+import { inferHazard, parseHazardHint } from "@/lib/reports/inferHazard";
 import {
   hazardHintLabel,
+  refineReportTitle,
   type HazardReport,
   type ReportHazardHint,
 } from "@/lib/reports/types";
@@ -956,16 +957,17 @@ export function CitizenReportForm({
       ? await updateGuestHazardReport(payload)
       : await createGuestHazardReport({ ...payload, status: "queued" });
 
-    // Server loads media from Storage, runs Gemini, writes Firestore.
-    // Tiny body + keepalive so leaving the page cannot drop the verdict.
-    void fetch("/api/reports/guest-validate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      keepalive: true,
-      body: JSON.stringify({ reportId: id }),
-    }).catch(() => {
-      // Report already queued — server may still finish, or officer re-checks.
-    });
+    // Await Vertex + Gemini so title / hazardHint are rewritten before leave.
+    setStatus(t(language, "common.submitting"));
+    try {
+      await fetch("/api/reports/guest-validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reportId: id, title, notes, hazardHint }),
+      });
+    } catch {
+      // Report already queued — officer queue can still pick it up.
+    }
 
     saveGuestReportId(id);
     setStatus(null);
@@ -1129,7 +1131,11 @@ export function CitizenReportForm({
         vertexConfidence?: number | null;
       };
 
-      const detectedHint = data.hazardHint || hazardHint;
+      const detectedHint =
+        data.hazardHint ||
+        parseHazardHint(data.vertexClass) ||
+        hazardHint;
+      const displayTitle = refineReportTitle(title, detectedHint);
       const validatedAt = new Date().toISOString();
       await updateReportValidation(id, {
         status: data.status,
@@ -1138,7 +1144,8 @@ export function CitizenReportForm({
         aiReason: data.reason,
         aiSource: data.source,
         aiModel: data.model ?? null,
-        ...(data.hazardHint ? { hazardHint: data.hazardHint } : {}),
+        ...(detectedHint !== hazardHint ? { hazardHint: detectedHint } : {}),
+        ...(displayTitle !== title ? { title: displayTitle } : {}),
         aiPriority: data.priority ?? null,
         aiPriorityFactors: data.priorityFactors ?? null,
         vertexClass: data.vertexClass ?? null,
@@ -1169,7 +1176,7 @@ export function CitizenReportForm({
         citizenPurok: authorPlace(author),
         barangay: place.barangay,
         lgu: place.lgu,
-        title,
+        title: displayTitle,
         notes,
         hazardHint: detectedHint,
         mediaType,
@@ -1201,7 +1208,7 @@ export function CitizenReportForm({
           lgu: place.lgu,
           lat,
           lng,
-          title,
+          title: displayTitle,
           notes,
           citizenPurok: authorPlace(author),
           autoResponderCallAt: null,

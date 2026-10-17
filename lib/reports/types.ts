@@ -86,6 +86,40 @@ export function hazardHintLabel(hint: ReportHazardHint): string {
   }
 }
 
+/** Intent/draft placeholders — replace with AI hazard label when detected. */
+const GENERIC_REPORT_TITLES = new Set([
+  "I need help",
+  "Someone else needs help",
+  "Hazard report",
+  "Hazard report for someone else",
+]);
+
+/**
+ * After Vertex / Gemini: replace intent placeholders with the detected hazard
+ * (e.g. "I need help" → "Fire").
+ */
+export function refineReportTitle(
+  title: string,
+  hazardHint: ReportHazardHint | null | undefined,
+): string {
+  if (!hazardHint || hazardHint === "other") return title;
+  const label = hazardHintLabel(hazardHint);
+  const trimmed = title.trim();
+  if (!trimmed || GENERIC_REPORT_TITLES.has(trimmed)) {
+    return label;
+  }
+  // iOS / ingest place titles: "Help needed · Brgy. X"
+  const placeMatch = trimmed.match(/^(Help needed|Hazard)\s*·\s*(.+)$/i);
+  if (placeMatch) {
+    return `${label} · ${placeMatch[2].trim()}`;
+  }
+  // Intent phrase buried in a short title.
+  if (/^(i need help|someone else needs help|help needed)\b/i.test(trimmed)) {
+    return label;
+  }
+  return title;
+}
+
 /**
  * Ops pipeline:
  * queue → assigned → verified (legit) → dispatched → done

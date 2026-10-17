@@ -97,10 +97,7 @@ import {
   unknownsForReport,
 } from "@/lib/workspace/incidentDerived";
 import { parseReportNeed } from "@/lib/workspace/reportNeed";
-import {
-  matchPlace,
-  nearestPlace,
-} from "@/lib/reports/serviceAreaPlaces";
+import { matchPlace } from "@/lib/reports/serviceAreaPlaces";
 import { doc, updateDoc } from "firebase/firestore";
 import { getClientDb } from "@/lib/firebase/client";
 
@@ -113,21 +110,20 @@ const HallPinMap = dynamic(() => import("@/components/HallPinMap"), {
   ),
 });
 
+/** Map center for the report pin the citizen set (GPS or manual). */
 function pinCenterForReport(
   report: HazardReport,
 ): { lat: number; lng: number } | null {
+  if (report.lat != null && report.lng != null) {
+    return { lat: report.lat, lng: report.lng };
+  }
+  // Draft / incomplete: fall back to curated place from the label only.
   const label = report.locationLabel?.trim() ?? "";
   if (label) {
     const matched = matchPlace(label);
     if (matched) return { lat: matched.lat, lng: matched.lng };
   }
-  if (report.lat == null || report.lng == null) return null;
-  // Manual map pin (no GPS accuracy) is the pin itself.
-  if (report.locationAccuracyM == null) {
-    return { lat: report.lat, lng: report.lng };
-  }
-  const nearest = nearestPlace(report.lat, report.lng);
-  return { lat: nearest.lat, lng: nearest.lng };
+  return null;
 }
 
 type PlanState = {

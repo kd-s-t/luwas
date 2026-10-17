@@ -12,6 +12,7 @@ import type {
   ReportMediaType,
   ReportStatus,
 } from "@/lib/reports/types";
+import { refineReportTitle } from "@/lib/reports/types";
 
 export const runtime = "nodejs";
 /** Guest AI can take 20s+ with photo + Gemini. */
@@ -215,8 +216,15 @@ export async function POST(req: Request) {
       total: trust.total,
     },
   };
-  if (ai.hazardHint) {
-    patch.hazardHint = ai.hazardHint;
+  const detectedHint = ai.hazardHint || null;
+  const nextTitle = detectedHint
+    ? refineReportTitle(title, detectedHint)
+    : title;
+  if (detectedHint) {
+    patch.hazardHint = detectedHint;
+  }
+  if (nextTitle !== title) {
+    patch.title = nextTitle;
   }
 
   try {
@@ -238,7 +246,8 @@ export async function POST(req: Request) {
     source: ai.source,
     model: ai.model,
     reason: ai.reason,
-    hazardHint: ai.hazardHint,
+    hazardHint: detectedHint,
+    title: nextTitle,
     priority: ai.priority,
   });
 }

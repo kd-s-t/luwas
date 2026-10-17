@@ -907,6 +907,8 @@ export async function updateReportValidation(
     aiSource: HazardReport["aiSource"];
     aiModel: string | null;
     hazardHint?: ReportHazardHint;
+    /** When AI upgrades a generic intent title (e.g. "I need help" → "Fire"). */
+    title?: string;
     aiPriority?: ReportPriority | null;
     aiPriorityFactors?: ReportPriorityFactors | null;
     vertexClass?: string | null;

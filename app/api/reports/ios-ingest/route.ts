@@ -26,6 +26,7 @@ import type {
   ReportHazardHint,
   ReportStatus,
 } from "@/lib/reports/types";
+import { refineReportTitle } from "@/lib/reports/types";
 
 export const runtime = "nodejs";
 
@@ -322,6 +323,8 @@ export async function POST(req: Request) {
     mediaBase64: rawB64 || undefined,
     fileName: photoNames[0] ?? `${source}-photo.jpg`,
   });
+  const detectedHint = ai.hazardHint || hazardHint;
+  const displayTitle = refineReportTitle(title, detectedHint);
   const aiVerdict = ai.verdict;
   const aiConfidence = ai.confidence;
   const aiReason = `[${source}] ${ai.reason}`;
@@ -359,9 +362,9 @@ export async function POST(req: Request) {
     barangay: place.barangay,
     lgu: place.lgu,
     citizenPhotoURL: null,
-    title,
+    title: displayTitle,
     notes,
-    hazardHint,
+    hazardHint: detectedHint,
     mediaType: "photo",
     mediaPath,
     mediaUrl,
@@ -438,9 +441,9 @@ export async function POST(req: Request) {
     barangay: place.barangay,
     lgu: place.lgu,
     citizenPhotoURL: null,
-    title,
+    title: displayTitle,
     notes,
-    hazardHint,
+    hazardHint: detectedHint,
     mediaType: "photo",
     mediaPath,
     mediaUrl,
