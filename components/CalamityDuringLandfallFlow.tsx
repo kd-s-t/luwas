@@ -129,8 +129,8 @@ function ReportNode(_props: NodeProps) {
         height={32}
         className="size-8 object-contain"
       />
-      <p className={flowLabelClass}>Field reports</p>
-      <p className={flowMetaClass}>Photo · flood · blocked road</p>
+      <p className={flowLabelClass}>Incident reports</p>
+      <p className={flowMetaClass}>Landfall and aftermath</p>
       <Handle
         type="source"
         position={Position.Bottom}
