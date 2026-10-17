@@ -43,7 +43,7 @@ export function HomeCta() {
       </Link>
       <Link
         href="/login/citizen"
-        className="inline-flex items-center text-sm text-[var(--muted)] underline-offset-4 hover:text-[var(--accent)] hover:underline"
+        className="inline-flex items-center rounded-xl border border-[var(--border)] px-6 py-3 text-[var(--foreground)] transition hover:border-[var(--accent)]"
       >
         Citizen login
       </Link>

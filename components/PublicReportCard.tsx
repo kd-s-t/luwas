@@ -274,7 +274,10 @@ export function PublicReportCard({
       </header>
 
       <div className="px-4 py-3">
-        <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-wide">
+        <p className="break-all font-mono text-[11px] tracking-wide text-[var(--muted)] tabular-nums">
+          {report.id}
+        </p>
+        <h2 className="mt-0.5 font-[family-name:var(--font-display)] text-xl font-semibold tracking-wide">
           {report.title}
         </h2>
         {displayReportNotes(report.notes) ? (

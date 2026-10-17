@@ -13,6 +13,7 @@ import {
   type DemoCitizen,
 } from "@/lib/auth/demoAccount";
 import { useAuth } from "@/lib/auth/AuthProvider";
+import { requireLoginRole } from "@/lib/auth/requireLoginRole";
 import { isSimulationOn } from "@/lib/config/simulation";
 import { getClientAuth, getClientDb, useEmulators } from "@/lib/firebase/client";
 import { syncCitizenPresenceFromDevice } from "@/lib/households/citizenPresence";
@@ -28,7 +29,7 @@ function safeNextPath(raw: string | null): string {
 }
 
 function CitizenLoginForm() {
-  const { login, registerCitizen, refreshProfile } = useAuth();
+  const { login, registerCitizen, refreshProfile, logout } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextPath = safeNextPath(searchParams.get("next"));
@@ -123,6 +124,7 @@ function CitizenLoginForm() {
     setSubmitting(true);
     try {
       await ensureDemoCitizen(citizen);
+      await requireLoginRole("citizen", logout);
       await captureLocationAfterLogin(citizen.email);
       router.replace(nextPath);
     } catch (err) {
@@ -144,6 +146,7 @@ function CitizenLoginForm() {
       } else {
         await login(trimmedEmail, password);
       }
+      await requireLoginRole("citizen", logout);
       await captureLocationAfterLogin(trimmedEmail);
       router.replace(nextPath);
     } catch (err) {
