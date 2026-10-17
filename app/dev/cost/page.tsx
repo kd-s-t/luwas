@@ -1,9 +1,19 @@
 "use client";
 
 import { useState } from "react";
+import { Info } from "lucide-react";
 import { AuthGate } from "@/components/AuthGate";
 import { DeveloperShell } from "@/components/DeveloperShell";
 import { FadeIn } from "@/components/motion/primitives";
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 const COST_SCENARIOS = [
@@ -79,9 +89,48 @@ export default function DeveloperCostPage() {
         <FadeIn delay={0.04} y={10}>
           <div className="space-y-4">
             <div>
-              <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-wide">
-                Cost
-              </h1>
+              <div className="flex items-center justify-between gap-3">
+                <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-wide">
+                  Cost
+                </h1>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1.5 border border-[var(--border)] px-2 py-1 text-xs text-[var(--muted)] transition hover:border-[var(--foreground)]/40 hover:text-[var(--foreground)]"
+                      aria-label="Unit rates"
+                    >
+                      <Info className="size-3.5" strokeWidth={2} />
+                      Unit rates
+                    </button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Unit rates</DialogTitle>
+                      <DialogDescription>
+                        Per-call and per-unit list prices used in the estimates.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <DialogBody>
+                      <ul className="divide-y divide-[var(--border)]">
+                        {UNIT_RATES.map((row) => (
+                          <li
+                            key={row.name}
+                            className="flex items-baseline justify-between gap-4 py-2 text-sm"
+                          >
+                            <span className="text-[var(--muted)]">
+                              {row.name}
+                            </span>
+                            <span className="shrink-0 font-mono tabular-nums text-[var(--foreground)]">
+                              {row.amount}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </DialogBody>
+                  </DialogContent>
+                </Dialog>
+              </div>
               <p className="mt-1 text-sm text-[var(--muted)]">
                 Monthly estimate by volume from docs/cost.md (Oct 2026 list
                 prices). Not a GCP / Twilio invoice.
@@ -133,24 +182,6 @@ export default function DeveloperCostPage() {
               </p>
             </div>
 
-            <div className="border-t border-[var(--border)] pt-4">
-              <p className="font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
-                Unit rates
-              </p>
-              <ul className="mt-1 divide-y divide-[var(--border)]">
-                {UNIT_RATES.map((row) => (
-                  <li
-                    key={row.name}
-                    className="flex items-baseline justify-between gap-4 py-1.5 text-xs"
-                  >
-                    <span className="text-[var(--muted)]">{row.name}</span>
-                    <span className="shrink-0 font-mono tabular-nums text-[var(--foreground)]">
-                      {row.amount}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
           </div>
         </FadeIn>
       </DeveloperShell>
