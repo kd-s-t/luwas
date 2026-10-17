@@ -129,25 +129,41 @@ function VertexAgentFlowCanvas() {
 
     const n: Node[] = [
       {
+        id: "datasets",
+        type: "step",
+        position: { x: -31.776978140589577, y: -45.45683882086167 },
+        data: {
+          label: "Datasets",
+          note: "AIDERv2 · Zenodo",
+          textOnly: true,
+          costs: [
+            "Train / Val / Test.zip",
+            "Fire→fire · Flood→flood",
+            "Earthquake→landslide",
+            "Normal→unrelated",
+            "~16.7k images",
+          ],
+          out: true,
+        },
+      },
+      {
         id: "bq",
         type: "step",
         position: { x: -35.77142857142857, y: 140.97142857142856 },
         data: {
           label: "bigQuery",
-          note: "Schedule: Monthly",
           logo: "/brands/bigquery.png",
-          outTop: true,
-          outBot: true,
+          out: true,
         },
       },
       {
         id: "gcs",
         type: "step",
-        position: { x: 260, y: 140 },
+        position: { x: 258.94323809523814, y: 64.96990476190477 },
         data: {
           label: "cloud storage",
           logo: "/brands/gcs.png",
-          inTop: true,
+          in: true,
           inBot: true,
           out: true,
         },
@@ -155,10 +171,11 @@ function VertexAgentFlowCanvas() {
       {
         id: "vertex",
         type: "step",
-        position: { x: 480, y: 140 },
+        position: { x: 481.05676190476197, y: 57.57257142857142 },
         data: {
-          label: "Vertex AI",
+          label: "Gemini Agent Platform",
           logo: "/brands/vertex-ai.svg",
+          costs: ["datasets"],
           in: true,
           out: true,
         },
@@ -166,7 +183,7 @@ function VertexAgentFlowCanvas() {
       {
         id: "train",
         type: "step",
-        position: { x: 704.8571428571428, y: 162.34285714285713 },
+        position: { x: 696.4030476190476, y: 89.4262857142857 },
         data: {
           label: "Train",
           textOnly: true,
@@ -178,7 +195,7 @@ function VertexAgentFlowCanvas() {
       {
         id: "deploy",
         type: "step",
-        position: { x: 933.5999999999999, y: 162.34285714285716 },
+        position: { x: 932.543238095238, y: 89.42628571428573 },
         data: {
           label: "Deploy",
           textOnly: true,
@@ -190,24 +207,24 @@ function VertexAgentFlowCanvas() {
 
     const e: Edge[] = [
       {
-        id: "e-images",
-        source: "bq",
-        sourceHandle: "out-top",
+        id: "e-datasets",
+        source: "datasets",
+        sourceHandle: "out",
         target: "gcs",
-        targetHandle: "in-top",
-        label: "1000 images",
+        targetHandle: "in",
+        label: "images + CSV",
         markerEnd: marker,
         style: stroke,
         labelStyle: { fill: "#5c6570", fontSize: 11 },
         ...labelBg,
       },
       {
-        id: "e-csv",
+        id: "e-bq",
         source: "bq",
-        sourceHandle: "out-bot",
+        sourceHandle: "out",
         target: "gcs",
         targetHandle: "in-bot",
-        label: "CSV",
+        label: "1000 images + CSV",
         markerEnd: marker,
         style: stroke,
         labelStyle: { fill: "#5c6570", fontSize: 11 },
@@ -219,7 +236,7 @@ function VertexAgentFlowCanvas() {
         sourceHandle: "out",
         target: "vertex",
         targetHandle: "in",
-        label: "feed",
+        label: "import",
         markerEnd: marker,
         style: stroke,
         labelStyle: { fill: "#5c6570", fontSize: 11 },
@@ -262,13 +279,13 @@ function VertexAgentFlowCanvas() {
     fitView,
     hydrated,
     canvasKey,
-  } = useFlowLayout("vertex-v2", defaultNodes, defaultEdges);
+  } = useFlowLayout("vertex-v7", defaultNodes, defaultEdges);
 
   return (
     <div className="relative h-full min-h-[420px] w-full overflow-hidden bg-[#eef1f5]">
       <div className="absolute top-3 right-3 z-10 flex gap-2">
         <FlowCopyJsonButton
-          flowId="vertex-v2"
+          flowId="vertex-v7"
           nodes={nodes}
           edges={edges}
         />
@@ -323,8 +340,8 @@ export function VertexAgentFlow() {
           Gemini Agent Platform (Vertex AI Flow)
         </h1>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Monthly BigQuery export (1000 images + CSV) → Cloud Storage → Vertex
-          AI train / deploy / API ready.
+          Datasets or monthly BigQuery export → Cloud Storage → Gemini Agent
+          Platform train / deploy / API ready.
         </p>
       </div>
       <div className="min-h-0 flex-1">

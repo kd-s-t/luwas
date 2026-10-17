@@ -59,12 +59,14 @@ function mapDoc(
     center: { lat: center.lat, lng: center.lng },
     zoom: typeof data.zoom === "number" ? data.zoom : 15,
     checklist: {
-      householdsReady: Boolean(checklistRaw.householdsReady ?? base.householdsReady),
       staffReady: Boolean(checklistRaw.staffReady ?? base.staffReady),
-      templatesReviewed: Boolean(
-        checklistRaw.templatesReviewed ?? base.templatesReviewed,
+      householdsReady: Boolean(
+        checklistRaw.householdsReady ?? base.householdsReady,
       ),
-      mapOpened: Boolean(checklistRaw.mapOpened ?? base.mapOpened),
+      evacReady: Boolean(checklistRaw.evacReady ?? base.evacReady),
+      inventoryReady: Boolean(
+        checklistRaw.inventoryReady ?? base.inventoryReady,
+      ),
     },
     activatedAt: asIso(data.activatedAt, data.activatedAtServer),
     updatedAt: asIso(data.updatedAt, data.updatedAtServer),

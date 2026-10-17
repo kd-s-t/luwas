@@ -126,8 +126,8 @@ function EngineNode(_props: NodeProps) {
         className="size-10 object-contain"
       />
       <p className={flowLabelClass}>Earth Engine</p>
-      <p className={flowMetaClass}>SRTM DEM · FIRMS</p>
-      <FlowCostsBelow costs={["Noncommercial $0", "~$0.40 / EECU-hr Limited"]} />
+      <p className={flowMetaClass}>hills · fires</p>
+      <FlowCostsBelow costs={["free for this use", "pay only if heavy run"]} />
       <Handle
         type="source"
         position={Position.Right}
@@ -160,7 +160,7 @@ function EarthEngineFlowCanvas() {
         position: { x: -29.79775280898876, y: 119.43258426966293 },
         data: {
           label: "Dev run",
-          lines: ["ee:dem · ee:hazards"],
+          lines: ["pull hills · pull fires"],
           out: true,
         },
       },
@@ -175,9 +175,9 @@ function EarthEngineFlowCanvas() {
         type: "step",
         position: { x: 467.685393258427, y: 14.848314606741575 },
         data: {
-          label: "DEM cache",
+          label: "Hills cache",
           logo: "/brands/google-elevation.jpg",
-          lines: ["cebu / nangka JSON"],
+          lines: ["cebu JSON"],
           inTop: true,
           out: true,
         },
@@ -187,9 +187,9 @@ function EarthEngineFlowCanvas() {
         type: "step",
         position: { x: 460, y: 220 },
         data: {
-          label: "Hazards cache",
+          label: "Flood · fire cache",
           logo: "/brands/earth-engine.webp",
-          lines: ["floods · fires"],
+          lines: ["saved pins"],
           inBot: true,
           out: true,
         },
@@ -201,7 +201,7 @@ function EarthEngineFlowCanvas() {
         data: {
           label: "Firebase Storage",
           logo: "/brands/firebase.png",
-          lines: ["ee-cache/"],
+          lines: ["saved files"],
           inTop: true,
           inBot: true,
           out: true,
@@ -212,9 +212,8 @@ function EarthEngineFlowCanvas() {
         type: "step",
         position: { x: 977.8146067415731, y: 119.43258426966293 },
         data: {
-          label: "Situation map",
-          logo: "/brands/google-maps.png",
-          lines: ["flood paint · elev"],
+          label: "Command center",
+          lines: ["flood paint · height"],
           in: true,
         },
       },
@@ -237,7 +236,7 @@ function EarthEngineFlowCanvas() {
         source: "trigger",
         sourceHandle: "out",
         target: "ee",
-        label: "ADC / SA",
+        label: "service login",
         markerEnd: marker,
         style,
         ...labelBg,
@@ -248,7 +247,7 @@ function EarthEngineFlowCanvas() {
         sourceHandle: "out-top",
         target: "dem",
         targetHandle: "in-top",
-        label: "SRTM",
+        label: "hills",
         markerEnd: marker,
         style,
         ...labelBg,
@@ -259,7 +258,7 @@ function EarthEngineFlowCanvas() {
         sourceHandle: "out-bot",
         target: "hazards",
         targetHandle: "in-bot",
-        label: "FIRMS",
+        label: "fires",
         markerEnd: marker,
         style,
         ...labelBg,
@@ -287,7 +286,7 @@ function EarthEngineFlowCanvas() {
         source: "storage",
         sourceHandle: "out",
         target: "map",
-        label: "no EE per page load",
+        label: "uses saved files",
         markerEnd: marker,
         style,
         ...labelBg,
@@ -311,13 +310,13 @@ function EarthEngineFlowCanvas() {
     fitView,
     hydrated,
     canvasKey,
-  } = useFlowLayout("earth-engine", defaultNodes, defaultEdges);
+  } = useFlowLayout("earth-engine-v2", defaultNodes, defaultEdges);
 
   return (
     <div className="relative h-full min-h-[420px] w-full overflow-hidden bg-[#eef1f5]">
       <div className="absolute top-3 right-3 z-10 flex gap-2">
         <FlowCopyJsonButton
-          flowId="earth-engine"
+          flowId="earth-engine-v2"
           nodes={nodes}
           edges={edges}
         />
@@ -372,9 +371,9 @@ export function EarthEngineFlow() {
           Earth Engine Flow
         </h1>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Manual ee:dem / ee:hazards (or /dev/earth-engine) → SRTM + FIRMS →
-          JSON caches → Firebase Storage ee-cache → map flood paint. No EE call
-          on page load.
+          Dev run pulls hills and fires from Earth Engine once, saves them, then
+          command center reads those files (no live Earth Engine on every page
+          load).
         </p>
       </div>
       <div className="min-h-0 flex-1">

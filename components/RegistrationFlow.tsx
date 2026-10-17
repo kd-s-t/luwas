@@ -64,14 +64,12 @@ function GeminiNode(_props: NodeProps) {
         type="source"
         position={Position.Right}
         id="valid"
-        style={{ top: "35%" }}
         className="!size-2 !bg-[#16794c] !border-0"
       />
       <Handle
         type="source"
-        position={Position.Right}
+        position={Position.Bottom}
         id="invalid"
-        style={{ top: "70%" }}
         className="!size-2 !bg-[#c72929] !border-0"
       />
     </div>
@@ -197,6 +195,13 @@ function SiteGroupNode(_props: NodeProps) {
         alt="Firebase"
         width={24}
         height={24}
+        className="absolute top-3 right-10 size-6 object-contain"
+      />
+      <Image
+        src="/brands/cloud-run.png"
+        alt="Cloud Run"
+        width={24}
+        height={24}
         className="absolute top-3 right-3 size-6 object-contain"
       />
       <p className="absolute top-3 left-3 font-mono text-[11px] tracking-wider text-[var(--muted)] uppercase">
@@ -249,10 +254,11 @@ function RegistrationFlowCanvas() {
         type: "outcome",
         parentId: "site",
         extent: "parent",
-        position: { x: 447.3953488372093, y: 44.65116279069767 },
+        position: { x: 550.1360495162551, y: 59.46953308094467 },
         data: {
           title: "sends email",
           logo: "/brands/resend.png",
+          lines: ["email only · no SMS"],
           inTop: true,
           inBot: true,
         },
@@ -275,10 +281,11 @@ function RegistrationFlowCanvas() {
         type: "outcome",
         parentId: "site",
         extent: "parent",
-        position: { x: 563.6434108527131, y: 226.62015503875966 },
+        position: { x: 552.7766059731987, y: 206.862327985097 },
         data: {
-          title: "Rejected",
-          lines: ["Officer could not validate"],
+          title: "sends email",
+          logo: "/brands/resend.png",
+          lines: ["rejected · email only"],
         },
       },
     ];
@@ -422,8 +429,8 @@ export function RegistrationFlow() {
         </h1>
         <p className="mt-1 text-sm text-[var(--muted)]">
           New users register with ID. Gemini validates inside Ugnaiph.com
-          (Firebase). Valid → sends email; Rejected → officer call → Valid
-          (email) or Rejected (officer could not validate).
+          (Firebase). Valid → Resend email; Rejected → officer call → Valid
+          (Resend) or Rejected (Resend).
         </p>
       </div>
       <div className="min-h-0 flex-1">

@@ -10,10 +10,14 @@ export const ONBOARD_STEPS = [
 export type OnboardStep = (typeof ONBOARD_STEPS)[number];
 
 export type OnboardChecklist = {
-  householdsReady: boolean;
+  /** Captain / MDRRMO / staff on Users (existing or new). */
   staffReady: boolean;
-  templatesReviewed: boolean;
-  mapOpened: boolean;
+  /** House-owner roster (CSV / add). */
+  householdsReady: boolean;
+  /** Evacuation centers + capacity. */
+  evacReady: boolean;
+  /** Stock / equipment inventory. */
+  inventoryReady: boolean;
 };
 
 export type OnboardedBarangay = {
@@ -54,10 +58,10 @@ export const PREFERRED_AREA_KEY = "ugnai.command.preferredArea";
 
 export function emptyChecklist(): OnboardChecklist {
   return {
-    householdsReady: false,
     staffReady: false,
-    templatesReviewed: false,
-    mapOpened: false,
+    householdsReady: false,
+    evacReady: false,
+    inventoryReady: false,
   };
 }
 

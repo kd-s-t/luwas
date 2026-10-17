@@ -151,7 +151,7 @@ function TriageNode(_props: NodeProps) {
       <div className="mb-0.5 flex items-center justify-center gap-2">
         <Image
           src="/mangugnai.jpg"
-          alt="Mangugnai"
+          alt="Agent Nangka"
           width={40}
           height={40}
           className="size-10 rounded-full object-cover"
@@ -180,7 +180,7 @@ function StackNode(_props: NodeProps) {
   const logos = [
     "/brands/google-maps.png",
     "/brands/vertex-ai.svg",
-    "/brands/firebase.png",
+    "/brands/firestore.png",
     "/brands/earth-engine.webp",
     "/brands/google-elevation.jpg",
     "/brands/google-weather.png",
@@ -204,7 +204,7 @@ function StackNode(_props: NodeProps) {
           />
         ))}
       </div>
-      <p className={flowLabelClass}>Live map</p>
+      <p className={flowLabelClass}>Data sources</p>
       <p className={flowMetaClass}>Floods · reports · blocked lanes</p>
       <Handle
         type="source"
@@ -251,7 +251,7 @@ function OpsNode(_props: NodeProps) {
         height={32}
         className="size-8 object-contain"
       />
-      <p className={flowLabelClass}>Dispatch</p>
+      <p className={flowLabelClass}>Dispatch officer</p>
       <p className={flowMetaClass}>Send team to the field</p>
       <p className={`mt-1 ${flowMetaClass}`}>No SMS / voice / email</p>
       <Handle
@@ -263,6 +263,80 @@ function OpsNode(_props: NodeProps) {
   );
 }
 
+function InvestigateNode(_props: NodeProps) {
+  return (
+    <div className={flowNodeClass} style={{ width: 220 }}>
+      <Handle
+        type="target"
+        position={Position.Left}
+        className="!size-2 !bg-[#c72929] !border-0"
+      />
+      <p className={flowLabelClass}>Investigate the location</p>
+      <p className={flowMetaClass}>
+        Roster welfare checks · shelter assignment · clear blocked lanes ·
+        watch fire zones
+      </p>
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="down"
+        className="!size-2 !bg-[#c72929] !border-0"
+      />
+    </div>
+  );
+}
+
+const DONE_GREEN = "#16794c";
+
+function DoneNode(_props: NodeProps) {
+  return (
+    <div
+      className="relative rounded-[8px] border bg-white px-3 py-2 text-center text-sm font-semibold"
+      style={{ color: DONE_GREEN, borderColor: DONE_GREEN }}
+    >
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="in-top"
+        className="!size-2 !border-0"
+        style={{ background: DONE_GREEN }}
+      />
+      Mark done
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="down"
+        className="!size-2 !border-0"
+        style={{ background: DONE_GREEN }}
+      />
+    </div>
+  );
+}
+
+function ResendNode(_props: NodeProps) {
+  return (
+    <div className={flowNodeClass} style={{ width: 180 }}>
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="in-top"
+        className="!size-2 !border-0"
+        style={{ background: DONE_GREEN }}
+      />
+      <Image
+        src="/brands/resend.png"
+        alt=""
+        width={32}
+        height={32}
+        className="size-8 object-contain"
+      />
+      <p className={flowLabelClass}>Resend</p>
+      <p className={flowMetaClass}>reporter · assigned · captain</p>
+      <p className={flowMetaClass}>email · no SMS</p>
+    </div>
+  );
+}
+
 function SiteGroupNode(_props: NodeProps) {
   return (
     <div className="relative h-full w-full rounded-[8px] border border-[var(--border)] bg-white/60">
@@ -270,6 +344,13 @@ function SiteGroupNode(_props: NodeProps) {
       <Image
         src="/brands/firebase.png"
         alt="Firebase"
+        width={24}
+        height={24}
+        className="absolute top-3 right-10 size-6 object-contain"
+      />
+      <Image
+        src="/brands/cloud-run.png"
+        alt="Cloud Run"
         width={24}
         height={24}
         className="absolute top-3 right-3 size-6 object-contain"
@@ -289,10 +370,13 @@ const nodeTypes = {
   stack: StackNode,
   suggest: SuggestNode,
   ops: OpsNode,
+  investigate: InvestigateNode,
+  done: DoneNode,
+  resend: ResendNode,
   siteGroup: SiteGroupNode,
 };
 
-const GROUP_W = 1320;
+const GROUP_W = 1120;
 const GROUP_H = 440;
 
 function CalamityDuringLandfallFlowCanvas() {
@@ -301,7 +385,7 @@ function CalamityDuringLandfallFlowCanvas() {
       {
         id: "citizen",
         type: "actor",
-        position: { x: -20.3254972875226, y: 108.54249547920433 },
+        position: { x: -12.730315327541042, y: 102.4663499112191 },
         data: { label: "Citizen", citizens: true, outRight: true },
       },
       {
@@ -316,6 +400,8 @@ function CalamityDuringLandfallFlowCanvas() {
         position: { x: 180, y: 20 },
         data: {},
         style: { width: GROUP_W, height: GROUP_H },
+        width: GROUP_W,
+        height: GROUP_H,
       },
       {
         id: "report",
@@ -354,7 +440,7 @@ function CalamityDuringLandfallFlowCanvas() {
         type: "suggest",
         parentId: "site",
         extent: "parent",
-        position: { x: 625.8354430379746, y: 190.32368896925857 },
+        position: { x: 569.869610641788, y: 281.26816661306185 },
         data: {},
       },
       {
@@ -362,18 +448,30 @@ function CalamityDuringLandfallFlowCanvas() {
         type: "ops",
         parentId: "site",
         extent: "parent",
-        position: { x: 946.0542495479206, y: 168.21518987341773 },
+        position: { x: 821.954251405718, y: 50.604196659119594 },
         data: {},
       },
       {
-        id: "people",
-        type: "actor",
-        position: { x: 1529.7287522603979, y: 192.75587703435806 },
-        data: {
-          label: "People within Barangay",
-          citizens: true,
-          inLeft: true,
-        },
+        id: "investigate",
+        type: "investigate",
+        position: { x: 1335.7121375755894, y: 86.58953298688213 },
+        data: { keepOutside: true },
+      },
+      {
+        id: "done",
+        type: "done",
+        parentId: "site",
+        extent: "parent",
+        position: { x: 971.5307598077902, y: 195.20527569260935 },
+        data: {},
+      },
+      {
+        id: "resend",
+        type: "resend",
+        parentId: "site",
+        extent: "parent",
+        position: { x: 928.7320238465059, y: 285.77020517950757 },
+        data: {},
       },
     ];
 
@@ -382,6 +480,11 @@ function CalamityDuringLandfallFlowCanvas() {
       color: "#c72929",
     } as const;
     const style = { stroke: "#c72929", strokeWidth: 1.75 };
+    const greenMarker = {
+      type: MarkerType.ArrowClosed,
+      color: DONE_GREEN,
+    } as const;
+    const greenStyle = { stroke: DONE_GREEN, strokeWidth: 1.75 };
 
     const e: Edge[] = [
       {
@@ -436,11 +539,29 @@ function CalamityDuringLandfallFlowCanvas() {
         style,
       },
       {
-        id: "e-people",
+        id: "e-investigate",
         source: "ops",
-        target: "people",
+        target: "investigate",
         markerEnd: marker,
         style,
+      },
+      {
+        id: "e-done",
+        source: "investigate",
+        sourceHandle: "down",
+        target: "done",
+        targetHandle: "in-top",
+        markerEnd: greenMarker,
+        style: greenStyle,
+      },
+      {
+        id: "e-resend",
+        source: "done",
+        sourceHandle: "down",
+        target: "resend",
+        targetHandle: "in-top",
+        markerEnd: greenMarker,
+        style: greenStyle,
       },
     ];
 
@@ -461,13 +582,13 @@ function CalamityDuringLandfallFlowCanvas() {
     fitView,
     hydrated,
     canvasKey,
-  } = useFlowLayout("during-landfall-v5", defaultNodes, defaultEdges);
+  } = useFlowLayout("during-landfall-v13", defaultNodes, defaultEdges);
 
   return (
     <div className="relative h-full min-h-[520px] w-full overflow-hidden bg-[#eef1f5]">
       <div className="absolute top-3 right-3 z-10 flex gap-2">
         <FlowCopyJsonButton
-          flowId="during-landfall-v5"
+          flowId="during-landfall-v13"
           nodes={nodes}
           edges={edges}
         />
@@ -522,9 +643,8 @@ export function CalamityDuringLandfallFlow() {
           Calamity: During Landfall
         </h1>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Citizens report floods / blocked roads → officers run During on
-          command → live map → triage + validate → suggest what to do →
-          dispatch to the field → people (no SMS / voice / email).
+          Dispatch to the field (no blast) → investigate outside → back in
+          Ugnaiph.com to Mark done → Resend (reporter · assigned · captain).
         </p>
       </div>
       <div className="min-h-0 flex-1">

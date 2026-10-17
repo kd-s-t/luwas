@@ -21,6 +21,35 @@ function hydrateNodes(defaults: Node[]): Node[] {
   }));
 }
 
+function siteWidth(site: Node): number {
+  const s = site.style as { width?: number } | undefined;
+  return Number(s?.width ?? site.width ?? 0) || 900;
+}
+
+/** Field investigate must stay outside the Ugnaiph.com site box. */
+function clampOutsideSite(nodes: Node[], nodeId: string): Node[] {
+  const site = nodes.find((n) => n.id === "site");
+  if (!site) return nodes;
+  const minX = site.position.x + siteWidth(site) + 24;
+  return nodes.map((n) => {
+    if (n.id !== nodeId) return n;
+    const data = n.data as { keepOutside?: boolean } | undefined;
+    if (!data?.keepOutside) return n;
+    let position = n.position;
+    if (n.parentId === "site") {
+      position = {
+        x: site.position.x + n.position.x,
+        y: site.position.y + n.position.y,
+      };
+    }
+    if (position.x < minX) {
+      position = { ...position, x: minX };
+    }
+    const { parentId: _p, extent: _e, ...rest } = n;
+    return { ...rest, position, parentId: undefined, extent: undefined };
+  });
+}
+
 function hydrateEdges(defaults: Edge[]): Edge[] {
   return defaults.map((e) => ({ ...e, reconnectable: true }));
 }
@@ -84,14 +113,30 @@ export function useFlowLayout(
   }, [flowId, defaultsKey]);
 
   const onNodesChange: OnNodesChange = useCallback((changes) => {
-    setNodes((prev) => applyNodeChanges(changes, prev));
+    setNodes((prev) => {
+      let next = applyNodeChanges(changes, prev);
+      for (const n of next) {
+        const data = n.data as { keepOutside?: boolean } | undefined;
+        if (data?.keepOutside && (n.parentId || changes.some((c) => "id" in c && c.id === n.id))) {
+          next = clampOutsideSite(next, n.id);
+        }
+      }
+      return next;
+    });
   }, []);
 
   const onEdgesChange: OnEdgesChange = useCallback((changes) => {
     setEdges((prev) => applyEdgeChanges(changes, prev));
   }, []);
 
-  const onNodeDragStop = useCallback(() => {}, []);
+  const onNodeDragStop = useCallback(
+    (_: unknown, node: Node) => {
+      const data = node.data as { keepOutside?: boolean } | undefined;
+      if (!data?.keepOutside) return;
+      setNodes((prev) => clampOutsideSite(prev, node.id));
+    },
+    [],
+  );
 
   const onMoveEnd = useCallback((_: unknown, next: Viewport) => {
     setViewport(next);

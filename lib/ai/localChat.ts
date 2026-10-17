@@ -179,7 +179,7 @@ export function runLocalChat(
   if (/\b(hello|hi|kumusta|who are you|what can you)\b/i.test(trimmed)) {
     return {
       reply:
-        "Kumusta — I’m Mangugnai, your UGNAI DRRM colleague for Brgy. Nangka in the Tino simulation. Ask what to do for a storm, or say “run triage” and I’ll paint the map. I can also text households, or call Consolacion BFP / PNP when you say “call the fire station” or “call the police”.",
+        "Kumusta — I’m Agent Nangka, your UGNAI DRRM colleague for Brgy. Nangka in the Tino simulation. Ask what to do for a storm, or say “run triage” and I’ll paint the map. I can also text households, or call Consolacion BFP / PNP when you say “call the fire station” or “call the police”.",
       source: "local",
       assist: null,
     };

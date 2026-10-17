@@ -101,7 +101,7 @@ function TriageNode(_props: NodeProps) {
       <div className="mb-0.5 flex items-center justify-center gap-2">
         <Image
           src="/mangugnai.jpg"
-          alt="Mangugnai"
+          alt="Agent Nangka"
           width={40}
           height={40}
           className="size-10 rounded-full object-cover"
@@ -114,10 +114,10 @@ function TriageNode(_props: NodeProps) {
           className="size-9 object-contain"
         />
       </div>
-      <p className={flowLabelClass}>
-        Chat Mangugnai to &quot;run triage&quot;
+      <p className={flowLabelClass}>Chat agent</p>
+      <p className={flowMetaClass}>
+        run triage · gemini-1.5-flash-lite
       </p>
-      <p className={flowMetaClass}>gemini-1.5-flash-lite</p>
       <FlowCostsBelow costs={["~$0.0002–$0.0005"]} />
       <Handle
         type="source"
@@ -132,7 +132,7 @@ function StackNode(_props: NodeProps) {
   const logos = [
     "/brands/google-maps.png",
     "/brands/vertex-ai.svg",
-    "/brands/firebase.png",
+    "/brands/firestore.png",
     "/brands/earth-engine.webp",
     "/brands/google-elevation.jpg",
     "/brands/google-weather.png",
@@ -156,7 +156,7 @@ function StackNode(_props: NodeProps) {
           />
         ))}
       </div>
-      <p className={flowLabelClass}>Map stack</p>
+      <p className={flowLabelClass}>Data sources</p>
       <p className={flowMetaClass}>Maps · EE · Elevation · Weather</p>
       <Handle
         type="source"
@@ -274,6 +274,13 @@ function SiteGroupNode(_props: NodeProps) {
       <Image
         src="/brands/firebase.png"
         alt="Firebase"
+        width={24}
+        height={24}
+        className="absolute top-3 right-10 size-6 object-contain"
+      />
+      <Image
+        src="/brands/cloud-run.png"
+        alt="Cloud Run"
         width={24}
         height={24}
         className="absolute top-3 right-3 size-6 object-contain"
@@ -544,9 +551,8 @@ export function CalamityBeforeStormFlow() {
           Calamity: Before the Storm
         </h1>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Before landfall is information and preparation: officer → command →
-          map stack → triage → brief → who to prepare / evac early → SMS +
-          email.
+          Before landfall is notification only: officer → command → data
+          sources → triage → who to prepare / evac → SMS + email.
         </p>
       </div>
       <div className="min-h-0 flex-1">

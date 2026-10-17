@@ -292,6 +292,8 @@ type MangugnaiChatProps = {
       ttsProvider?: "elevenlabs" | "browser";
     },
   ) => void;
+  /** False in During / After — no barangay SMS/email blast. */
+  allowBarangayBlast?: boolean;
   className?: string;
 };
 
@@ -313,6 +315,7 @@ export function MangugnaiChat({
   onDeleteChat,
   officerUid = null,
   onMessageAudio,
+  allowBarangayBlast = true,
   className,
 }: MangugnaiChatProps) {
   const [draft, setDraft] = useState("");
@@ -493,14 +496,14 @@ export function MangugnaiChat({
         <div className="flex items-center gap-2">
           <Image
             src="/mangugnai.jpg"
-            alt="Mangugnai"
+            alt="Agent Nangka"
             width={40}
             height={40}
             className="size-10 shrink-0 rounded-full object-cover ring-2 ring-[var(--accent)]/35"
           />
           <div className="min-w-0 flex-1">
             <p className="font-[family-name:var(--font-display)] text-base font-semibold tracking-wide">
-              Mangugnai
+              Agent Nangka
             </p>
             <p className="truncate font-mono text-[10px] tracking-[0.16em] text-[var(--accent)] uppercase">
               {chats.find((c) => c.id === activeChatId)?.title ?? "New chat"}
@@ -699,7 +702,7 @@ export function MangugnaiChat({
             className="min-h-0 flex-1 overflow-y-auto px-3 py-3 sm:px-4"
             role="log"
             aria-live="polite"
-            aria-label="Mangugnai chat"
+            aria-label="Agent Nangka chat"
           >
             <div className="flex flex-col gap-3">
               {messages.map((m) => (
@@ -826,7 +829,11 @@ export function MangugnaiChat({
                 className="-mx-1 mb-2 flex gap-1.5 overflow-x-auto px-1 pb-0.5 [scrollbar-width:thin]"
                 aria-label="Suggested prompts"
               >
-                {SUGGESTIONS.map((s) => (
+                {SUGGESTIONS.filter(
+                  (s) =>
+                    allowBarangayBlast ||
+                    !/\balert them to evacuate\b/i.test(s),
+                ).map((s) => (
                   <button
                     key={s}
                     type="button"
@@ -845,10 +852,10 @@ export function MangugnaiChat({
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={onKeyDown}
                 rows={1}
-                placeholder="Ask Mangugnai…"
+                placeholder="Ask Agent Nangka…"
                 disabled={running}
                 className="min-h-10 max-h-28 flex-1 resize-none border border-[var(--border)] bg-[var(--input)] px-3 py-2 text-sm outline-none focus:border-[var(--accent)] disabled:opacity-60"
-                aria-label="Message Mangugnai"
+                aria-label="Message Agent Nangka"
               />
               <Button
                 type="submit"
@@ -934,7 +941,7 @@ export function MangugnaiChat({
             </ul>
           </DialogBody>
           <DialogFooter className="flex flex-col gap-2 sm:flex-col">
-            {evacuateActions.length ? (
+            {allowBarangayBlast && evacuateActions.length ? (
               <button
                 type="button"
                 disabled={running}
@@ -946,6 +953,11 @@ export function MangugnaiChat({
               >
                 {running ? "Sending alerts…" : alertButtonLabel}
               </button>
+            ) : null}
+            {!allowBarangayBlast ? (
+              <p className="text-center font-mono text-[10px] tracking-wider text-[var(--muted)] uppercase">
+                No barangay SMS / email in During or After
+              </p>
             ) : null}
             <button
               type="button"

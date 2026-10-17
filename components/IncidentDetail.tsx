@@ -42,6 +42,7 @@ import {
   triggerAutoResponderCall,
 } from "@/lib/alerts/autoResponderCall";
 import { triggerInvestigatorNotify } from "@/lib/alerts/notifyInvestigator";
+import { triggerReportDoneNotify } from "@/lib/alerts/notifyReportDone";
 import { useAuth } from "@/lib/auth/AuthProvider";
 import {
   isDeveloper,
@@ -564,6 +565,15 @@ export function IncidentDetail({
         });
       }
       await updateReportStatus(selected.id, next);
+      if (next === "done") {
+        void triggerReportDoneNotify({
+          report: selected,
+          officers,
+          staffRows,
+          isApasArea,
+          closedByName: profile?.displayName || profile?.email || "Officer",
+        });
+      }
     } finally {
       setBusy(false);
     }

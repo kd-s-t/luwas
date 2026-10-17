@@ -23,7 +23,7 @@ const PILLARS = [
   },
   {
     title: "Barangay command",
-    body: "For paying MDRRMO customers: household roster, live situation map, Mangugnai chat, SMS / email / voice outreach, and EC occupancy under pressure.",
+    body: "For paying MDRRMO customers: household roster, live situation map, Agent Nangka chat, SMS / email / voice outreach, and EC occupancy under pressure.",
     image: "/reports/ec-nangka-elem-after.jpg",
     alt: "Nangka Elementary School evacuation center",
   },
@@ -74,7 +74,7 @@ export default function AboutPage() {
               same product is designed so other barangays can subscribe and go
               live the same way. Under stress we keep the map clear: red means
               evacuate, yellow means prepare, blue means flood belt. Officers
-              get a command map and an AI colleague (Mangugnai). Residents get
+              get a command map and an AI colleague (Agent Nangka). Residents get
               a fast way to report what they see, including guests who only need
               a reference ID.
             </p>

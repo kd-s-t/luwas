@@ -15,7 +15,8 @@ export type EmailTemplateId =
   | "typhoon_alert"
   | "evacuate_alert"
   | "prepare_alert"
-  | "report_verified";
+  | "report_verified"
+  | "report_done";
 
 export type EmailTemplateMeta = {
   id: EmailTemplateId;
@@ -133,6 +134,14 @@ export const EMAIL_TEMPLATES: EmailTemplateMeta[] = [
     description:
       "Sent to the citizen when their field report is accepted as verified / legit.",
     event: "report_verified",
+  },
+  {
+    id: "report_done",
+    category: "reports",
+    name: "Report done",
+    description:
+      "Sent when an officer marks the incident done — reporter, assigned officers, and captain.",
+    event: "report_done",
   },
 ];
 

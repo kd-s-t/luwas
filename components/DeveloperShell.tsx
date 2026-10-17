@@ -21,7 +21,6 @@ const NAV: { href: string; label: string; exact?: boolean }[] = [
   { href: "/dev/flows", label: "Flows" },
   { href: "/dev/cost", label: "Cost" },
   { href: "/dev/references", label: "References" },
-  { href: "/dev/profile", label: "Profile" },
 ];
 
 export function DeveloperShell({
