@@ -283,13 +283,13 @@ function CalamityAftermathFlowCanvas() {
       {
         id: "citizen",
         type: "actor",
-        position: { x: 16, y: 48 },
+        position: { x: 4.90415913200723, y: 92.38336347197107 },
         data: { label: "Citizen", citizens: true, outRight: true },
       },
       {
         id: "officer",
         type: "actor",
-        position: { x: 16, y: 200 },
+        position: { x: 10.452079566003604, y: 347.0198915009041 },
         data: { label: "Officer", officer: true, outRight: true },
       },
       {
@@ -304,7 +304,7 @@ function CalamityAftermathFlowCanvas() {
         type: "report",
         parentId: "site",
         extent: "parent",
-        position: { x: 36, y: 48 },
+        position: { x: 42.934900542495484, y: 61.86980108499094 },
         data: {},
       },
       {
@@ -312,7 +312,7 @@ function CalamityAftermathFlowCanvas() {
         type: "command",
         parentId: "site",
         extent: "parent",
-        position: { x: 36, y: 200 },
+        position: { x: 47.09584086799276, y: 328.9891500904159 },
         data: {},
       },
       {
@@ -320,7 +320,7 @@ function CalamityAftermathFlowCanvas() {
         type: "stack",
         parentId: "site",
         extent: "parent",
-        position: { x: 220, y: 210 },
+        position: { x: 325.4104882459312, y: 67.1410488245931 },
         data: {},
       },
       {
@@ -328,7 +328,7 @@ function CalamityAftermathFlowCanvas() {
         type: "triage",
         parentId: "site",
         extent: "parent",
-        position: { x: 460, y: 200 },
+        position: { x: 318.5280289330923, y: 252.7052441229656 },
         data: {},
       },
       {
@@ -336,7 +336,7 @@ function CalamityAftermathFlowCanvas() {
         type: "dispatch",
         parentId: "site",
         extent: "parent",
-        position: { x: 700, y: 210 },
+        position: { x: 643.133815551537, y: 183.6473779385172 },
         data: {},
       },
       {
@@ -344,13 +344,13 @@ function CalamityAftermathFlowCanvas() {
         type: "ops",
         parentId: "site",
         extent: "parent",
-        position: { x: 900, y: 190 },
+        position: { x: 865.3254972875227, y: 190 },
         data: {},
       },
       {
         id: "people",
         type: "actor",
-        position: { x: 1420, y: 210 },
+        position: { x: 1585.9174954792045, y: 198.90415913200724 },
         data: {
           label: "People within Barangay",
           citizens: true,
